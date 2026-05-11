@@ -155,7 +155,7 @@ for file in "${migration_files[@]}"; do
 
   echo "    apply $filename"
   start_time="$(date +%s)"
-  psql_exec -f "$file"
+  psql_exec < "$file"
   end_time="$(date +%s)"
   duration="$((end_time - start_time))"
 
