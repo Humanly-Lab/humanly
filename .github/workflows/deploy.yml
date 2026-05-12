@@ -29,8 +29,11 @@ jobs:
       VM_DEPLOY_PATH: ${{ secrets.VM_DEPLOY_PATH }}
       NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
       NEXT_PUBLIC_WS_URL: ${{ secrets.NEXT_PUBLIC_WS_URL }}
+      ADMIN_NEXT_PUBLIC_API_URL: ${{ secrets.ADMIN_NEXT_PUBLIC_API_URL }}
+      ADMIN_NEXT_PUBLIC_WS_URL: ${{ secrets.ADMIN_NEXT_PUBLIC_WS_URL }}
       BACKEND_IMAGE_NAME: humanly-backend
       FRONTEND_USER_IMAGE_NAME: humanly-frontend-user
+      FRONTEND_IMAGE_NAME: humanly-frontend
 
     steps:
       - name: Checkout repository
@@ -77,14 +80,17 @@ jobs:
           registry="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${GCP_ARTIFACT_REPOSITORY}"
           backend_image="${registry}/${BACKEND_IMAGE_NAME}:${GITHUB_SHA}"
           frontend_user_image="${registry}/${FRONTEND_USER_IMAGE_NAME}:${GITHUB_SHA}"
+          frontend_image="${registry}/${FRONTEND_IMAGE_NAME}:${GITHUB_SHA}"
 
           {
             echo "backend_image=${backend_image}"
             echo "frontend_user_image=${frontend_user_image}"
+            echo "frontend_image=${frontend_image}"
           } >> "$GITHUB_OUTPUT"
 
           echo "Backend image: ${backend_image}"
           echo "Frontend-user image: ${frontend_user_image}"
+          echo "Frontend image: ${frontend_image}"
 
       - name: Build and push backend image
         run: |
@@ -104,18 +110,34 @@ jobs:
             .
           docker push "${{ steps.images.outputs.frontend_user_image }}"
 
+      - name: Build and push frontend image
+        run: |
+          admin_api_url="${ADMIN_NEXT_PUBLIC_API_URL:-https://admin.writehumanly.net}"
+          admin_ws_url="${ADMIN_NEXT_PUBLIC_WS_URL:-wss://admin.writehumanly.net}"
+
+          docker build \
+            -f docker/frontend.Dockerfile \
+            --build-arg NEXT_PUBLIC_API_URL="$admin_api_url" \
+            --build-arg NEXT_PUBLIC_WS_URL="$admin_ws_url" \
+            --build-arg NEXT_PUBLIC_TRACKER_URL="$admin_api_url" \
+            --build-arg NEXT_PUBLIC_BASE_PATH="" \
+            -t "${{ steps.images.outputs.frontend_image }}" \
+            .
+          docker push "${{ steps.images.outputs.frontend_image }}"
+
       - name: Deploy images on VM
         uses: appleboy/ssh-action@v1.2.0
         env:
           BACKEND_IMAGE: ${{ steps.images.outputs.backend_image }}
           FRONTEND_USER_IMAGE: ${{ steps.images.outputs.frontend_user_image }}
+          FRONTEND_IMAGE: ${{ steps.images.outputs.frontend_image }}
           VM_DEPLOY_PATH: ${{ env.VM_DEPLOY_PATH }}
           GITHUB_SHA: ${{ github.sha }}
         with:
           host: ${{ env.VM_HOST }}
           username: ${{ env.VM_USER }}
           key: ${{ secrets.VM_SSH_KEY }}
-          envs: BACKEND_IMAGE,FRONTEND_USER_IMAGE,VM_DEPLOY_PATH,GITHUB_SHA
+          envs: BACKEND_IMAGE,FRONTEND_USER_IMAGE,FRONTEND_IMAGE,VM_DEPLOY_PATH,GITHUB_SHA
           script: |
             set -euo pipefail
             cd "$VM_DEPLOY_PATH"
@@ -123,6 +145,6 @@ jobs:
             git checkout main
             git pull --ff-only origin main
             test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
-            BACKEND_IMAGE="$BACKEND_IMAGE" FRONTEND_USER_IMAGE="$FRONTEND_USER_IMAGE" VM_DEPLOY_PATH="$VM_DEPLOY_PATH" bash scripts/deploy.sh
+            BACKEND_IMAGE="$BACKEND_IMAGE" FRONTEND_USER_IMAGE="$FRONTEND_USER_IMAGE" FRONTEND_IMAGE="$FRONTEND_IMAGE" VM_DEPLOY_PATH="$VM_DEPLOY_PATH" bash scripts/deploy.sh
           script_stop: true
           command_timeout: 40m

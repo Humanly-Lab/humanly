@@ -22,7 +22,7 @@ humanly/
 ├── packages/
 │   ├── shared/          # Shared TypeScript types and validators
 │   ├── backend/         # Express.js API server with Socket.IO
-│   ├── frontend/        # Next.js 14 developer portal
+│   ├── frontend/        # Next.js 14 admin dashboard
 │   ├── frontend-user/   # Next.js 14 user portal for documents
 │   ├── editor/          # Lexical-based rich text editor with tracking
 │   └── tracker/         # JavaScript tracking library for external forms
@@ -269,9 +269,14 @@ For complete documentation, see `packages/tracker/README.md`.
 ## 🐳 Production Deployment
 
 Production runs on a single GCP VM with Docker Compose. GitHub Actions builds
-the `backend` and `frontend-user` Docker images, pushes immutable commit-SHA
-tags to GCP Artifact Registry, then SSHes into the VM to pull and run those
-exact images.
+the `backend`, `frontend-user`, and `frontend` Docker images, pushes immutable
+commit-SHA tags to GCP Artifact Registry, then SSHes into the VM to pull and run
+those exact images.
+
+Production hostnames:
+
+- `app.writehumanly.net`: user portal (`frontend-user`)
+- `admin.writehumanly.net`: admin dashboard (`frontend`)
 
 See [Production Deployment](./docs/PRODUCTION_DEPLOYMENT.md) for setup,
 required GitHub secrets, Artifact Registry permissions, manual deploys, and
@@ -381,6 +386,13 @@ EMAIL_FROM=noreply@humanly.dev
 
 ```bash
 NEXT_PUBLIC_API_URL=http://localhost:3001/api/v1
+```
+
+### Frontend Admin (`packages/frontend/.env`)
+
+```bash
+NEXT_PUBLIC_API_URL=http://localhost:3001
+NEXT_PUBLIC_WS_URL=http://localhost:3001
 ```
 
 ## 🐛 Troubleshooting

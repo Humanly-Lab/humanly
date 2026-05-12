@@ -69,6 +69,16 @@ services:
     networks:
       - humanly-network
 
+  frontend:
+    image: ${FRONTEND_IMAGE:?FRONTEND_IMAGE is required}
+    container_name: humanly-frontend
+    environment:
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
+    restart: unless-stopped
+    networks:
+      - humanly-network
+
   nginx:
     image: nginx:alpine
     container_name: humanly-nginx
@@ -84,6 +94,8 @@ services:
       backend:
         condition: service_healthy
       frontend-user:
+        condition: service_started
+      frontend:
         condition: service_started
     restart: unless-stopped
     networks:

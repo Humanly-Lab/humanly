@@ -12,24 +12,47 @@ Storage, and does not introduce Kubernetes, GKE, or Cloud Run.
 
 ```text
 push to main
-  -> GitHub Actions builds backend and frontend-user images
+  -> GitHub Actions builds backend, frontend-user, and frontend images
   -> GitHub Actions pushes commit-SHA tags to Artifact Registry
   -> GitHub Actions SSHes into the production VM
   -> VM syncs the deploy files from main
   -> VM runs scripts/deploy.sh with exact image tags
-  -> docker compose pull backend frontend-user
+  -> docker compose pull backend frontend-user frontend
   -> VM runs pending SQL migrations
-  -> docker compose up -d backend frontend-user nginx
+  -> docker compose up -d backend frontend-user frontend nginx
 ```
 
 Production service compatibility is unchanged:
 
 - `backend` still listens on port `3001` inside the Compose network.
 - `frontend-user` still listens on port `3002` inside the Compose network.
-- `nginx` still routes `/`, `/api`, `/health`, `/tracker/`, and `/socket.io/`
-  to the existing services.
+- `frontend` listens on port `3000` inside the Compose network and is served
+  from `admin.writehumanly.net`.
+- `nginx` routes `app.writehumanly.net` to `frontend-user` and
+  `admin.writehumanly.net` to `frontend`. Both hostnames proxy `/api`,
+  `/health`, `/tracker/`, and `/socket.io/` to `backend`.
 - `postgres`, `redis`, volumes, networks, health checks, and backend `.env`
   behavior are preserved.
+
+## Production Domains
+
+Production uses subdomains under the existing `writehumanly.net` domain:
+
+- `app.writehumanly.net`: end-user portal (`frontend-user`).
+- `admin.writehumanly.net`: admin dashboard (`frontend`).
+
+Add this DNS record before enabling the admin dashboard:
+
+```text
+Type: A
+Name: admin
+Value: 34.30.217.221
+```
+
+The TLS certificate mounted at `nginx/ssl/fullchain.pem` must also include
+`admin.writehumanly.net`. If the current certificate only covers
+`app.writehumanly.net`, renew/reissue it with both hostnames before expecting
+clean HTTPS for the admin dashboard.
 
 ## Required GCP Setup
 
@@ -187,6 +210,10 @@ Add these repository secrets:
   for example `https://app.writehumanly.net/api/v1`.
 - `NEXT_PUBLIC_WS_URL`: production WebSocket URL baked into the frontend-user
   build, for example `wss://app.writehumanly.net`.
+- `ADMIN_NEXT_PUBLIC_API_URL`: optional admin frontend API origin. Defaults to
+  `https://admin.writehumanly.net` when omitted.
+- `ADMIN_NEXT_PUBLIC_WS_URL`: optional admin frontend WebSocket origin. Defaults
+  to `wss://admin.writehumanly.net` when omitted.
 
 The VM still uses its production `.env` file for backend runtime configuration,
 including database, Redis, JWT, email, CORS, and other server-side values.
@@ -226,13 +253,14 @@ docker compose -f docker-compose.prod.yml exec -e PAGER=cat postgres \
 
 ## Manual Deploy
 
-To deploy a specific pair of images from the VM:
+To deploy a specific set of images from the VM:
 
 ```bash
 cd /home/humanly/humanly
 
 export BACKEND_IMAGE="REGION-docker.pkg.dev/PROJECT_ID/humanly/humanly-backend:GIT_SHA"
 export FRONTEND_USER_IMAGE="REGION-docker.pkg.dev/PROJECT_ID/humanly/humanly-frontend-user:GIT_SHA"
+export FRONTEND_IMAGE="REGION-docker.pkg.dev/PROJECT_ID/humanly/humanly-frontend:GIT_SHA"
 
 bash scripts/deploy.sh
 ```
@@ -249,6 +277,7 @@ cd /home/humanly/humanly
 
 export BACKEND_IMAGE="REGION-docker.pkg.dev/PROJECT_ID/humanly/humanly-backend:PREVIOUS_GIT_SHA"
 export FRONTEND_USER_IMAGE="REGION-docker.pkg.dev/PROJECT_ID/humanly/humanly-frontend-user:PREVIOUS_GIT_SHA"
+export FRONTEND_IMAGE="REGION-docker.pkg.dev/PROJECT_ID/humanly/humanly-frontend:PREVIOUS_GIT_SHA"
 
 bash scripts/deploy.sh
 ```
@@ -263,6 +292,7 @@ so tagged images needed for rollback are not aggressively deleted by deploys.
 ```bash
 BACKEND_IMAGE=REGION-docker.pkg.dev/PROJECT_ID/humanly/humanly-backend:GIT_SHA
 FRONTEND_USER_IMAGE=REGION-docker.pkg.dev/PROJECT_ID/humanly/humanly-frontend-user:GIT_SHA
+FRONTEND_IMAGE=REGION-docker.pkg.dev/PROJECT_ID/humanly/humanly-frontend:GIT_SHA
 ```
 
 The deploy script exports those variables before running Docker Compose. Local

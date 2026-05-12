@@ -6,7 +6,7 @@
 
 server {
     listen 80;
-    server_name app.writehumanly.net;
+    server_name app.writehumanly.net admin.writehumanly.net;
 
     client_max_body_size 10M;
 

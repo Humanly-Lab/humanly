@@ -1,5 +1,5 @@
 # Admin dashboard (packages/frontend)
-# Served at /admin via nginx — built with basePath=/admin
+# Served at / on admin.writehumanly.net via nginx.
 
 # ── Build stage ───────────────────────────────────────────────────────────────
 FROM node:20-alpine AS builder
@@ -10,7 +10,7 @@ WORKDIR /app
 ARG NEXT_PUBLIC_API_URL
 ARG NEXT_PUBLIC_WS_URL
 ARG NEXT_PUBLIC_TRACKER_URL
-ARG NEXT_PUBLIC_BASE_PATH=/admin
+ARG NEXT_PUBLIC_BASE_PATH=
 
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_WS_URL=$NEXT_PUBLIC_WS_URL
@@ -53,4 +53,4 @@ ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
 
 WORKDIR /app/packages/frontend
-CMD ["../../node_modules/.bin/next", "start", "-p", "3000"]
+CMD ["./node_modules/.bin/next", "start", "-p", "3000"]
