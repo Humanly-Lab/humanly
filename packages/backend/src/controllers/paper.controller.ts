@@ -7,7 +7,7 @@ import { AppError } from '../middleware/error-handler'
 
 // Upload a new paper
 export const uploadPaper = asyncHandler(async (req: Request, res: Response) => {
-  const { projectId } = req.params
+  const { taskId } = req.params
 
   if (!req.file) {
     throw new AppError(400, 'PDF file is required')
@@ -22,7 +22,7 @@ export const uploadPaper = asyncHandler(async (req: Request, res: Response) => {
   const paper = await PaperService.upload(
     req.file.buffer,
     {
-      projectId,
+      taskId,
       title,
       authors: parsedAuthors,
       abstract: abstract || '',
@@ -49,7 +49,11 @@ export const getPaperByDocument = asyncHandler(async (req: Request, res: Respons
   const paper = await PaperService.getByDocumentId(documentId)
 
   if (!paper) {
-    throw new AppError(404, 'No paper linked to this document')
+    res.json({
+      success: true,
+      data: { paper: null }
+    })
+    return
   }
 
   res.json({
@@ -70,13 +74,13 @@ export const getPaper = asyncHandler(async (req: Request, res: Response) => {
   })
 })
 
-// List papers for a project
+// List papers for a task
 export const listPapers = asyncHandler(async (req: Request, res: Response) => {
-  const { projectId } = req.params
+  const { taskId } = req.params
   const { status, limit = 50, offset = 0 } = req.query
 
-  const { papers, total } = await PaperService.listByProject(
-    projectId,
+  const { papers, total } = await PaperService.listByTask(
+    taskId,
     req.user!.userId,
     { status: status as any },
     Number(limit),

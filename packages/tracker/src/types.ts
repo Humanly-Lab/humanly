@@ -2,8 +2,8 @@
  * Configuration options for the Humanly tracker
  */
 export interface TrackerConfig {
-  /** Project token for authentication */
-  projectToken: string;
+  /** Task token for authentication */
+  taskToken: string;
 
   /** API base URL (e.g., https://api.writehumanly.net) */
   apiUrl: string;

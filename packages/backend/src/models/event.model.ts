@@ -3,7 +3,7 @@ import { Event, TrackerEvent, EventType, EventQueryFilters } from '@humanly/shar
 
 export interface EventInsertData {
   sessionId: string;
-  projectId: string;
+  taskId: string;
   eventType: EventType;
   timestamp: Date;
   targetElement?: string;
@@ -61,8 +61,8 @@ export class EventModel {
       valueGroup.push(`$${++paramCount}`); // session_id
       params.push(event.sessionId);
 
-      valueGroup.push(`$${++paramCount}`); // project_id
-      params.push(event.projectId);
+      valueGroup.push(`$${++paramCount}`); // task_id
+      params.push(event.taskId);
 
       valueGroup.push(`$${++paramCount}`); // event_type
       params.push(event.eventType);
@@ -103,7 +103,7 @@ export class EventModel {
     const sql = `
       INSERT INTO events (
         session_id,
-        project_id,
+        task_id,
         event_type,
         timestamp,
         target_element,
@@ -134,7 +134,7 @@ export class EventModel {
       SELECT
         id,
         session_id as "sessionId",
-        project_id as "projectId",
+        task_id as "taskId",
         event_type as "eventType",
         timestamp,
         target_element as "targetElement",
@@ -157,14 +157,14 @@ export class EventModel {
   }
 
   /**
-   * Find events by project ID with filters and pagination
+   * Find events by task ID with filters and pagination
    */
-  static async findByProjectId(
-    projectId: string,
+  static async findByTaskId(
+    taskId: string,
     filters: EventQueryFilters = {}
   ): Promise<Event[]> {
-    const conditions: string[] = ['e.project_id = $1'];
-    const params: any[] = [projectId];
+    const conditions: string[] = ['e.task_id = $1'];
+    const params: any[] = [taskId];
     let paramCount = 1;
 
     // Add filters
@@ -204,7 +204,7 @@ export class EventModel {
       SELECT
         e.id,
         e.session_id as "sessionId",
-        e.project_id as "projectId",
+        e.task_id as "taskId",
         e.event_type as "eventType",
         e.timestamp,
         e.target_element as "targetElement",
@@ -231,14 +231,14 @@ export class EventModel {
   }
 
   /**
-   * Count events by project ID with filters
+   * Count events by task ID with filters
    */
-  static async countByProjectId(
-    projectId: string,
+  static async countByTaskId(
+    taskId: string,
     filters: EventQueryFilters = {}
   ): Promise<number> {
-    const conditions: string[] = ['e.project_id = $1'];
-    const params: any[] = [projectId];
+    const conditions: string[] = ['e.task_id = $1'];
+    const params: any[] = [taskId];
     let paramCount = 1;
 
     if (filters.sessionId) {
@@ -285,20 +285,20 @@ export class EventModel {
   }
 
   /**
-   * Get event type distribution for a project
+   * Get event type distribution for a task
    */
-  static async getEventTypes(projectId: string): Promise<EventTypeCount[]> {
+  static async getEventTypes(taskId: string): Promise<EventTypeCount[]> {
     const sql = `
       SELECT
         event_type as "eventType",
         COUNT(*) as count
       FROM events
-      WHERE project_id = $1
+      WHERE task_id = $1
       GROUP BY event_type
       ORDER BY count DESC
     `;
 
-    const results = await query<any>(sql, [projectId]);
+    const results = await query<any>(sql, [taskId]);
 
     return results.map((row) => ({
       eventType: row.eventType,
@@ -324,10 +324,10 @@ export class EventModel {
   }
 
   /**
-   * Delete events by project ID (for data cleanup)
+   * Delete events by task ID (for data cleanup)
    */
-  static async deleteByProjectId(projectId: string): Promise<void> {
-    const sql = `DELETE FROM events WHERE project_id = $1`;
-    await query(sql, [projectId]);
+  static async deleteByTaskId(taskId: string): Promise<void> {
+    const sql = `DELETE FROM events WHERE task_id = $1`;
+    await query(sql, [taskId]);
   }
 }

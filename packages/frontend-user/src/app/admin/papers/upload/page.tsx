@@ -19,7 +19,7 @@ export default function PaperUploadPage() {
   const [uploading, setUploading] = useState(false)
   const [file, setFile] = useState<File | null>(null)
   const [formData, setFormData] = useState({
-    projectId: '',
+    taskId: '',
     title: '',
     authors: [] as string[],
     authorInput: '',
@@ -100,7 +100,7 @@ export default function PaperUploadPage() {
       return
     }
 
-    if (!formData.projectId || !formData.title || !formData.abstract) {
+    if (!formData.taskId || !formData.title || !formData.abstract) {
       toast({
         variant: 'destructive',
         title: 'Missing required fields',
@@ -123,7 +123,7 @@ export default function PaperUploadPage() {
 
       const uploadFormData = new FormData()
       uploadFormData.append('pdf', file)
-      uploadFormData.append('projectId', formData.projectId)
+      uploadFormData.append('taskId', formData.taskId)
       uploadFormData.append('title', formData.title)
       uploadFormData.append('authors', JSON.stringify(formData.authors))
       uploadFormData.append('abstract', formData.abstract)
@@ -133,7 +133,7 @@ export default function PaperUploadPage() {
         uploadFormData.append('reviewDeadline', formData.reviewDeadline)
       }
 
-      const paper = await paperApi.upload(formData.projectId, uploadFormData)
+      const paper = await paperApi.upload(formData.taskId, uploadFormData)
 
       toast({
         title: 'Paper uploaded',
@@ -221,18 +221,18 @@ export default function PaperUploadPage() {
               <h2 className="text-lg font-semibold mb-4">Paper Information</h2>
 
               <div className="space-y-4">
-                {/* Project ID */}
+                {/* Task ID */}
                 <div>
-                  <Label htmlFor="projectId">
-                    Project ID <span className="text-red-500">*</span>
+                  <Label htmlFor="taskId">
+                    Task ID <span className="text-red-500">*</span>
                   </Label>
                   <Input
-                    id="projectId"
+                    id="taskId"
                     type="text"
-                    placeholder="Enter project ID"
-                    value={formData.projectId}
+                    placeholder="Enter task ID"
+                    value={formData.taskId}
                     onChange={(e) =>
-                      setFormData({ ...formData, projectId: e.target.value })
+                      setFormData({ ...formData, taskId: e.target.value })
                     }
                     required
                   />

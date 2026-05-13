@@ -8,7 +8,7 @@ import { DocumentEventInsertData, EventType } from '@humanly/shared';
  */
 export async function createDocument(req: Request, res: Response): Promise<void> {
   const userId = req.user!.userId;
-  const { title, content, status } = req.body;
+  const { title, description, content, status, environmentConfig } = req.body;
 
   if (!title || typeof title !== 'string') {
     throw new AppError(400, 'Title is required');
@@ -18,7 +18,9 @@ export async function createDocument(req: Request, res: Response): Promise<void>
     userId,
     title,
     content || {},
-    status || 'draft'
+    status || 'draft',
+    environmentConfig || null,
+    typeof description === 'string' ? description : null
   );
 
   res.status(201).json({
@@ -83,7 +85,7 @@ export async function listDocuments(req: Request, res: Response): Promise<void> 
 export async function updateDocument(req: Request, res: Response): Promise<void> {
   const userId = req.user!.userId;
   const documentId = req.params.id;
-  const { title, content, status } = req.body;
+  const { title, description, content, status, environmentConfig } = req.body;
 
   if (!documentId) {
     throw new AppError(400, 'Document ID is required');
@@ -91,8 +93,10 @@ export async function updateDocument(req: Request, res: Response): Promise<void>
 
   const updates: any = {};
   if (title !== undefined) updates.title = title;
+  if (description !== undefined) updates.description = description;
   if (content !== undefined) updates.content = content;
   if (status !== undefined) updates.status = status;
+  if (environmentConfig !== undefined) updates.environmentConfig = environmentConfig;
 
   const document = await DocumentService.updateDocument(documentId, userId, updates);
 

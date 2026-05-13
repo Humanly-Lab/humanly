@@ -4,7 +4,7 @@
 -- Papers submitted for review
 CREATE TABLE IF NOT EXISTS papers (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    task_id UUID NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
     uploaded_by UUID NOT NULL REFERENCES users(id),
 
     -- Paper metadata (authors hidden from reviewers for blind review)
@@ -29,11 +29,11 @@ CREATE TABLE IF NOT EXISTS papers (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
-    CONSTRAINT fk_papers_project FOREIGN KEY (project_id) REFERENCES projects(id),
+    CONSTRAINT fk_papers_task FOREIGN KEY (task_id) REFERENCES tasks(id),
     CONSTRAINT fk_papers_uploader FOREIGN KEY (uploaded_by) REFERENCES users(id)
 );
 
-CREATE INDEX idx_papers_project_id ON papers(project_id);
+CREATE INDEX idx_papers_task_id ON papers(task_id);
 CREATE INDEX idx_papers_status ON papers(status);
 CREATE INDEX idx_papers_submission_date ON papers(submission_date DESC);
 CREATE INDEX idx_papers_uploaded_by ON papers(uploaded_by);

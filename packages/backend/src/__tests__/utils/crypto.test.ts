@@ -2,7 +2,7 @@ import {
   hashPassword,
   comparePassword,
   generateToken,
-  generateProjectToken,
+  generateTaskToken,
   generateVerificationToken,
   generatePasswordResetToken,
   hashToken,
@@ -55,11 +55,11 @@ describe('crypto utils', () => {
     });
   });
 
-  // ── generateProjectToken ─────────────────────────────────────────────────────
+  // ── generateTaskToken ─────────────────────────────────────────────────────
 
-  describe('generateProjectToken', () => {
+  describe('generateTaskToken', () => {
     it('returns a 64-character hex string', () => {
-      expect(generateProjectToken()).toMatch(/^[0-9a-f]{64}$/);
+      expect(generateTaskToken()).toMatch(/^[0-9a-f]{64}$/);
     });
   });
 

@@ -9,7 +9,7 @@ const router = Router();
 router.use(authenticate);
 
 /**
- * GET /api/v1/projects/:projectId/export/json
+ * GET /api/v1/tasks/:taskId/export/json
  * Export events as JSON
  *
  * Query parameters:
@@ -20,20 +20,20 @@ router.use(authenticate);
  *
  * Response:
  * - Content-Type: application/json
- * - Content-Disposition: attachment; filename="humanly-export-{projectId}-{timestamp}.json"
- * - Streamed JSON response with project metadata and events
+ * - Content-Disposition: attachment; filename="humanly-export-{taskId}-{timestamp}.json"
+ * - Streamed JSON response with task metadata and events
  *
  * Security:
  * - Requires authentication
- * - Verifies project ownership before exporting
+ * - Verifies task ownership before exporting
  *
  * Example:
- * GET /api/v1/projects/abc123/export/json?startDate=2024-01-01T00:00:00Z&endDate=2024-12-31T23:59:59Z
+ * GET /api/v1/tasks/abc123/export/json?startDate=2024-01-01T00:00:00Z&endDate=2024-12-31T23:59:59Z
  */
-router.get('/:projectId/export/json', asyncHandler(exportJSON));
+router.get('/:taskId/export/json', asyncHandler(exportJSON));
 
 /**
- * GET /api/v1/projects/:projectId/export/csv
+ * GET /api/v1/tasks/:taskId/export/csv
  * Export events as CSV
  *
  * Query parameters:
@@ -44,21 +44,21 @@ router.get('/:projectId/export/json', asyncHandler(exportJSON));
  *
  * Response:
  * - Content-Type: text/csv
- * - Content-Disposition: attachment; filename="humanly-export-{projectId}-{timestamp}.csv"
+ * - Content-Disposition: attachment; filename="humanly-export-{taskId}-{timestamp}.csv"
  * - Streamed CSV response with headers and flattened event data
  *
  * CSV Format:
- * Headers: id, session_id, project_id, external_user_id, event_type, timestamp,
+ * Headers: id, session_id, task_id, external_user_id, event_type, timestamp,
  *          target_element, key_code, key_char, text_before, text_after,
  *          cursor_position, selection_start, selection_end, metadata_json
  *
  * Security:
  * - Requires authentication
- * - Verifies project ownership before exporting
+ * - Verifies task ownership before exporting
  *
  * Example:
- * GET /api/v1/projects/abc123/export/csv?sessionIds=session-uuid-1,session-uuid-2
+ * GET /api/v1/tasks/abc123/export/csv?sessionIds=session-uuid-1,session-uuid-2
  */
-router.get('/:projectId/export/csv', asyncHandler(exportCSV));
+router.get('/:taskId/export/csv', asyncHandler(exportCSV));
 
 export default router;

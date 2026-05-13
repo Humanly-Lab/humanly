@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { X, Send, Sparkles, Loader2, StopCircle, Trash2, History, ChevronDown, ChevronRight, Plus, CheckCircle, Settings, ChevronsUpDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -27,6 +27,8 @@ interface AIAssistantPanelProps {
   onClose: () => void;
   onApplySuggestion?: (suggestion: AISuggestion, text: string) => void;
   getSelection?: () => { text: string; start: number; end: number } | null;
+  taskManaged?: boolean;
+  lockedModel?: string;
 }
 
 const QUICK_ACTION_PROMPT_PREFIXES = [
@@ -62,6 +64,8 @@ export function AIAssistantPanel({
   onClose,
   onApplySuggestion,
   getSelection,
+  taskManaged = false,
+  lockedModel,
 }: AIAssistantPanelProps) {
   const [input, setInput] = useState('');
   const [historyPopoverOpen, setHistoryPopoverOpen] = useState(false);
@@ -73,27 +77,7 @@ export function AIAssistantPanel({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Check if user has AI settings configured + load model info
-  useEffect(() => {
-    checkAISettings();
-  }, []);
-
-  const checkAISettings = async () => {
-    try {
-      const res: any = await api.get('/ai/settings');
-      const hasKey = res.data?.hasApiKey === true;
-      setHasAISettings(hasKey);
-      if (hasKey) {
-        setCurrentModel(res.data.model || '');
-        setCurrentBaseUrl(res.data.baseUrl || '');
-        loadAvailableModels(res.data.baseUrl);
-      }
-    } catch {
-      setHasAISettings(false);
-    }
-  };
-
-  const loadAvailableModels = async (baseUrl?: string) => {
+  const loadAvailableModels = useCallback(async (baseUrl?: string) => {
     const url = baseUrl || currentBaseUrl;
     // For known providers, use the whitelist directly without an API call.
     const whitelist = getWhitelist(url);
@@ -113,7 +97,34 @@ export function AIAssistantPanel({
     } catch {
       // Silent fail — selector just won't show
     }
-  };
+  }, [currentBaseUrl]);
+
+  const checkAISettings = useCallback(async () => {
+    try {
+      const res: any = await api.get('/ai/settings');
+      const hasKey = res.data?.hasApiKey === true;
+      setHasAISettings(hasKey);
+      if (hasKey) {
+        setCurrentModel(res.data.model || '');
+        setCurrentBaseUrl(res.data.baseUrl || '');
+        loadAvailableModels(res.data.baseUrl);
+      }
+    } catch {
+      setHasAISettings(false);
+    }
+  }, [loadAvailableModels]);
+
+  // Check if user has AI settings configured + load model info
+  useEffect(() => {
+    if (taskManaged) {
+      setHasAISettings(true);
+      setCurrentModel(lockedModel || 'Task model');
+      setCurrentBaseUrl('');
+      setAvailableModels([]);
+      return;
+    }
+    checkAISettings();
+  }, [taskManaged, lockedModel, checkAISettings]);
 
   const handleModelChange = async (newModel: string) => {
     if (!newModel || newModel === currentModel) return;
@@ -272,8 +283,7 @@ export function AIAssistantPanel({
           <span className="font-medium text-sm truncate">AI Assistant</span>
         </div>
         <div className="flex items-center gap-1 shrink-0">
-          {/* Settings Button */}
-          <AISettingsDialog onSettingsChanged={checkAISettings} />
+          {!taskManaged && <AISettingsDialog onSettingsChanged={checkAISettings} />}
 
           {/* New Chat Button */}
           <Button
@@ -334,7 +344,7 @@ export function AIAssistantPanel({
       <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 w-full">
         <div className="p-4 space-y-4 w-full min-w-0">
           {/* No AI settings configured banner */}
-          {hasAISettings === false && (
+          {hasAISettings === false && !taskManaged && (
             <div className="rounded-lg border border-amber-200 bg-amber-50/50 p-4 text-center">
               <Settings className="h-8 w-8 text-amber-500 mx-auto mb-2" />
               <h3 className="font-medium text-sm mb-1">Configure AI Settings</h3>
@@ -478,7 +488,13 @@ export function AIAssistantPanel({
           </div>
         )}
         {/* Quick model selector */}
-        {hasAISettings && availableModels.length > 0 && currentModel && (
+        {taskManaged && currentModel && (
+          <div className="mb-2 rounded-md border bg-muted/40 px-2 py-1.5 text-[11px] text-muted-foreground">
+            Task AI model: {currentModel}
+          </div>
+        )}
+
+        {!taskManaged && hasAISettings && availableModels.length > 0 && currentModel && (
           <div className="mb-2 flex items-center gap-1.5 min-w-0">
             <div className="relative flex-1 min-w-0">
               <select

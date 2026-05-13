@@ -28,19 +28,19 @@ const userActivityQuerySchema = z.object({
 });
 
 /**
- * GET /api/v1/projects/:projectId/analytics/summary
- * Get summary statistics for a project
+ * GET /api/v1/tasks/:taskId/analytics/summary
+ * Get summary statistics for a task
  */
 export async function getSummaryStats(req: Request, res: Response): Promise<void> {
   try {
-    const { projectId } = req.params;
+    const { taskId } = req.params;
     const userId = req.user!.userId;
 
     // Validate query parameters
     const filters = analyticsFiltersSchema.parse(req.query);
 
     // Get summary stats
-    const stats = await AnalyticsService.getSummaryStats(projectId, userId, filters);
+    const stats = await AnalyticsService.getSummaryStats(taskId, userId, filters);
 
     res.json({
       success: true,
@@ -55,12 +55,12 @@ export async function getSummaryStats(req: Request, res: Response): Promise<void
 }
 
 /**
- * GET /api/v1/projects/:projectId/analytics/events-timeline
+ * GET /api/v1/tasks/:taskId/analytics/events-timeline
  * Get events timeline with date grouping
  */
 export async function getEventsTimeline(req: Request, res: Response): Promise<void> {
   try {
-    const { projectId } = req.params;
+    const { taskId } = req.params;
     const userId = req.user!.userId;
 
     // Validate query parameters
@@ -76,7 +76,7 @@ export async function getEventsTimeline(req: Request, res: Response): Promise<vo
 
     // Get timeline
     const timeline = await AnalyticsService.getEventsTimeline(
-      projectId,
+      taskId,
       userId,
       query.groupBy,
       filters
@@ -98,12 +98,12 @@ export async function getEventsTimeline(req: Request, res: Response): Promise<vo
 }
 
 /**
- * GET /api/v1/projects/:projectId/analytics/event-types
+ * GET /api/v1/tasks/:taskId/analytics/event-types
  * Get event type distribution
  */
 export async function getEventTypeDistribution(req: Request, res: Response): Promise<void> {
   try {
-    const { projectId } = req.params;
+    const { taskId } = req.params;
     const userId = req.user!.userId;
 
     // Validate query parameters
@@ -111,7 +111,7 @@ export async function getEventTypeDistribution(req: Request, res: Response): Pro
 
     // Get distribution
     const distribution = await AnalyticsService.getEventTypeDistribution(
-      projectId,
+      taskId,
       userId,
       filters
     );
@@ -132,12 +132,12 @@ export async function getEventTypeDistribution(req: Request, res: Response): Pro
 }
 
 /**
- * GET /api/v1/projects/:projectId/analytics/users
+ * GET /api/v1/tasks/:taskId/analytics/users
  * Get user activity list with pagination
  */
 export async function getUserActivity(req: Request, res: Response): Promise<void> {
   try {
-    const { projectId } = req.params;
+    const { taskId } = req.params;
     const userId = req.user!.userId;
 
     // Validate query parameters
@@ -151,7 +151,7 @@ export async function getUserActivity(req: Request, res: Response): Promise<void
 
     // Get user activity
     const result = await AnalyticsService.getUserActivity(
-      projectId,
+      taskId,
       userId,
       query.page,
       query.limit,
@@ -171,7 +171,7 @@ export async function getUserActivity(req: Request, res: Response): Promise<void
 }
 
 /**
- * GET /api/v1/projects/:projectId/analytics/sessions/:sessionId
+ * GET /api/v1/tasks/:taskId/analytics/sessions/:sessionId
  * Get detailed session information with events
  */
 export async function getSessionDetails(req: Request, res: Response): Promise<void> {
@@ -198,12 +198,12 @@ export async function getSessionDetails(req: Request, res: Response): Promise<vo
 }
 
 /**
- * GET /api/v1/projects/:projectId/analytics/sessions
- * Get list of sessions for a project
+ * GET /api/v1/tasks/:taskId/analytics/sessions
+ * Get list of sessions for a task
  */
 export async function getSessionsList(req: Request, res: Response): Promise<void> {
   try {
-    const { projectId } = req.params;
+    const { taskId } = req.params;
     const userId = req.user!.userId;
 
     // Parse pagination and filters
@@ -234,10 +234,10 @@ export async function getSessionsList(req: Request, res: Response): Promise<void
     }
 
     // Get sessions
-    const sessions = await AnalyticsService.getProjectSessions(projectId, userId, filters);
+    const sessions = await AnalyticsService.getTaskSessions(taskId, userId, filters);
 
     // Get total count for pagination
-    const totalCount = await AnalyticsService.getSessionsCount(projectId, userId, filters);
+    const totalCount = await AnalyticsService.getSessionsCount(taskId, userId, filters);
 
     res.json({
       success: true,
@@ -257,7 +257,7 @@ export async function getSessionsList(req: Request, res: Response): Promise<void
 }
 
 /**
- * GET /api/v1/projects/:projectId/analytics/export
+ * GET /api/v1/tasks/:taskId/analytics/export
  * Export analytics data (placeholder for future implementation)
  */
 export async function exportAnalytics(req: Request, res: Response): Promise<void> {

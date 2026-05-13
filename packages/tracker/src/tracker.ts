@@ -443,7 +443,7 @@ export class HumanlyTracker {
           const events = (this.eventBuffer as any).events || [];
           const payload = JSON.stringify({
             sessionId: this.sessionId,
-            projectToken: this.config.projectToken,
+            taskToken: this.config.taskToken,
             events,
           });
 

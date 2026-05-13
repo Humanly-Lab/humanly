@@ -11,7 +11,7 @@ import { errorHandler } from './middleware/error-handler';
 
 // Routes
 import authRoutes from './routes/auth.routes';
-import projectRoutes from './routes/projects.routes';
+import taskRoutes from './routes/tasks.routes';
 import trackingRoutes from './routes/events.routes';
 import exportRoutes from './routes/export.routes';
 import analyticsRoutes from './routes/analytics.routes';
@@ -57,7 +57,7 @@ export function createApp(): Express {
     origin: '*',
     credentials: false,
     methods: ['GET', 'POST', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'X-Project-Token', 'X-Session-Id'],
+    allowedHeaders: ['Content-Type', 'X-Task-Token', 'X-Session-Id'],
   }));
 
   // Restricted CORS for authenticated API routes
@@ -66,7 +66,7 @@ export function createApp(): Express {
       origin: allowedOrigins,
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization', 'X-Project-Token', 'X-Session-Id'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'X-Task-Token', 'X-Session-Id'],
     })
   );
 
@@ -97,7 +97,7 @@ export function createApp(): Express {
   });
 
   // Health check endpoint
-  app.get('/health', (req: Request, res: Response) => {
+  app.get('/health', (_req: Request, res: Response) => {
     res.json({
       status: 'ok',
       timestamp: new Date().toISOString(),
@@ -106,7 +106,7 @@ export function createApp(): Express {
   });
 
   // API version
-  app.get('/api/v1', (req: Request, res: Response) => {
+  app.get('/api/v1', (_req: Request, res: Response) => {
     res.json({
       name: 'humanly API',
       version: '1.0.0',
@@ -119,12 +119,12 @@ export function createApp(): Express {
 
   // API routes
   app.use('/api/v1/auth', authRoutes);
-  app.use('/api/v1/projects', projectRoutes);
+  app.use('/api/v1/tasks', taskRoutes);
   app.use('/api/v1/documents', documentRoutes);
   app.use('/api/v1/certificates', certificateRoutes);
   app.use('/api/v1/track', trackingRoutes);
   app.use('/api/v1', exportRoutes);
-  app.use('/api/v1/projects', analyticsRoutes);
+  app.use('/api/v1/tasks', analyticsRoutes);
   app.use('/api/v1/ai', aiRoutes);
   app.use('/api/v1', paperRoutes);
   app.use('/api/v1', reviewRoutes);

@@ -1,5 +1,5 @@
 import { query, queryOne } from '../config/database';
-import { ProjectModel } from '../models/project.model';
+import { TaskModel } from '../models/task.model';
 import { SessionModel } from '../models/session.model';
 import { AppError } from '../middleware/error-handler';
 import { logger } from '../utils/logger';
@@ -54,7 +54,9 @@ export interface UserActivityResult {
 
 export interface SessionDetail {
   id: string;
-  projectId: string;
+  taskId: string;
+  userId: string | null;
+  userEmail: string | null;
   externalUserId: string;
   sessionStart: Date;
   sessionEnd: Date | null;
@@ -62,6 +64,8 @@ export interface SessionDetail {
   submissionTime: Date | null;
   durationSeconds: number;
   eventCount: number;
+  ipAddress: string | null;
+  userAgent: string | null;
   events: Array<{
     id: string;
     eventType: string;
@@ -82,9 +86,9 @@ export class AnalyticsService {
   /**
    * Generate cache key for analytics queries
    */
-  private static getCacheKey(projectId: string, type: string, filters: any): string {
+  private static getCacheKey(taskId: string, type: string, filters: any): string {
     const filtersStr = JSON.stringify(filters);
-    return `analytics:${projectId}:${type}:${filtersStr}`;
+    return `analytics:${taskId}:${type}:${filtersStr}`;
   }
 
   /**
@@ -99,32 +103,32 @@ export class AnalyticsService {
   }
 
   /**
-   * Get summary statistics for a project
+   * Get summary statistics for a task
    */
   static async getSummaryStats(
-    projectId: string,
+    taskId: string,
     userId: string,
     filters: AnalyticsFilters = {}
   ): Promise<SummaryStats> {
     try {
-      // Verify project ownership
-      const ownsProject = await ProjectModel.verifyOwnership(projectId, userId);
-      if (!ownsProject) {
-        throw new AppError(403, 'You do not have access to this project');
+      // Verify task ownership
+      const ownsTask = await TaskModel.verifyOwnership(taskId, userId);
+      if (!ownsTask) {
+        throw new AppError(403, 'You do not have access to this task');
       }
 
       // Validate filters
       this.validateFilters(filters);
 
       // Check cache
-      const cacheKey = this.getCacheKey(projectId, 'summary', filters);
+      const cacheKey = this.getCacheKey(taskId, 'summary', filters);
       const cached = await cacheGetJSON<SummaryStats>(cacheKey);
       if (cached) {
-        logger.debug('Cache hit for summary stats', { projectId, cacheKey });
+        logger.debug('Cache hit for summary stats', { taskId, cacheKey });
         return cached;
       }
 
-      logger.debug('Cache miss for summary stats', { projectId, cacheKey });
+      logger.debug('Cache miss for summary stats', { taskId, cacheKey });
 
       const sql = `
         WITH tracker_sessions AS (
@@ -135,7 +139,7 @@ export class AnalyticsService {
             EXTRACT(EPOCH FROM (COALESCE(s.session_end, NOW()) - s.session_start)) as duration_seconds,
             s.submitted
           FROM sessions s
-          WHERE s.project_id = $1
+          WHERE s.task_id = $1
             AND ($2::timestamptz IS NULL OR s.session_start >= $2::timestamptz)
             AND ($3::timestamptz IS NULL OR s.session_start <= $3::timestamptz)
             AND ($4::text IS NULL OR s.external_user_id = $4::text)
@@ -147,10 +151,10 @@ export class AnalyticsService {
             u.email as external_user_id,
             de.timestamp,
             de.event_type
-          FROM project_enrollments pe
+          FROM task_enrollments pe
           JOIN document_events de ON de.document_id = pe.submission_document_id
           JOIN users u ON u.id = de.user_id
-          WHERE pe.project_id = $1
+          WHERE pe.task_id = $1
             AND ($2::timestamptz IS NULL OR de.timestamp >= $2::timestamptz)
             AND ($3::timestamptz IS NULL OR de.timestamp <= $3::timestamptz)
             AND ($4::text IS NULL OR u.email = $4::text)
@@ -177,7 +181,7 @@ export class AnalyticsService {
             COUNT(*) as total_events
           FROM events e
           JOIN sessions s ON s.id = e.session_id
-          WHERE e.project_id = $1
+          WHERE e.task_id = $1
             AND ($2::timestamptz IS NULL OR e.timestamp >= $2::timestamptz)
             AND ($3::timestamptz IS NULL OR e.timestamp <= $3::timestamptz)
             AND ($4::text IS NULL OR s.external_user_id = $4::text)
@@ -218,7 +222,7 @@ export class AnalyticsService {
       `;
 
       const params = [
-        projectId,
+        taskId,
         filters.startDate || null,
         filters.endDate || null,
         filters.externalUserId || null,
@@ -240,12 +244,12 @@ export class AnalyticsService {
       // Cache the result
       await cacheSetJSON(cacheKey, stats, CACHE_TTL);
 
-      logger.info('Summary stats retrieved', { projectId, userId, stats });
+      logger.info('Summary stats retrieved', { taskId, userId, stats });
       return stats;
     } catch (error) {
       logger.error('Failed to get summary stats', {
         error: error instanceof Error ? error.message : 'Unknown error',
-        projectId,
+        taskId,
         userId,
       });
       throw error;
@@ -256,30 +260,30 @@ export class AnalyticsService {
    * Get events timeline with grouping
    */
   static async getEventsTimeline(
-    projectId: string,
+    taskId: string,
     userId: string,
     groupBy: 'hour' | 'day' | 'week' = 'day',
     filters: AnalyticsFilters = {}
   ): Promise<TimelineDataPoint[]> {
     try {
-      // Verify project ownership
-      const ownsProject = await ProjectModel.verifyOwnership(projectId, userId);
-      if (!ownsProject) {
-        throw new AppError(403, 'You do not have access to this project');
+      // Verify task ownership
+      const ownsTask = await TaskModel.verifyOwnership(taskId, userId);
+      if (!ownsTask) {
+        throw new AppError(403, 'You do not have access to this task');
       }
 
       // Validate filters
       this.validateFilters(filters);
 
       // Check cache
-      const cacheKey = this.getCacheKey(projectId, `timeline:${groupBy}`, filters);
+      const cacheKey = this.getCacheKey(taskId, `timeline:${groupBy}`, filters);
       const cached = await cacheGetJSON<TimelineDataPoint[]>(cacheKey);
       if (cached) {
-        logger.debug('Cache hit for events timeline', { projectId, groupBy, cacheKey });
+        logger.debug('Cache hit for events timeline', { taskId, groupBy, cacheKey });
         return cached;
       }
 
-      logger.debug('Cache miss for events timeline', { projectId, groupBy, cacheKey });
+      logger.debug('Cache miss for events timeline', { taskId, groupBy, cacheKey });
 
       const bucketInterval = groupBy === 'hour' ? '1 hour' : groupBy === 'day' ? '1 day' : '1 week';
       const dateFormat =
@@ -292,17 +296,17 @@ export class AnalyticsService {
           SELECT e.timestamp
           FROM events e
           JOIN sessions s ON s.id = e.session_id
-          WHERE e.project_id = $1
+          WHERE e.task_id = $1
             AND ($2::timestamptz IS NULL OR e.timestamp >= $2::timestamptz)
             AND ($3::timestamptz IS NULL OR e.timestamp <= $3::timestamptz)
             AND ($4::text IS NULL OR s.external_user_id = $4::text)
             AND ($5::text IS NULL OR e.event_type = $5::text)
           UNION ALL
           SELECT de.timestamp
-          FROM project_enrollments pe
+          FROM task_enrollments pe
           JOIN document_events de ON de.document_id = pe.submission_document_id
           JOIN users u ON u.id = de.user_id
-          WHERE pe.project_id = $1
+          WHERE pe.task_id = $1
             AND ($2::timestamptz IS NULL OR de.timestamp >= $2::timestamptz)
             AND ($3::timestamptz IS NULL OR de.timestamp <= $3::timestamptz)
             AND ($4::text IS NULL OR u.email = $4::text)
@@ -317,7 +321,7 @@ export class AnalyticsService {
       `;
 
       const params = [
-        projectId,
+        taskId,
         filters.startDate || null,
         filters.endDate || null,
         filters.externalUserId || null,
@@ -329,7 +333,7 @@ export class AnalyticsService {
       await cacheSetJSON(cacheKey, timeline, CACHE_TTL);
 
       logger.info('Events timeline retrieved', {
-        projectId,
+        taskId,
         userId,
         groupBy,
         dataPoints: timeline.length,
@@ -339,7 +343,7 @@ export class AnalyticsService {
     } catch (error) {
       logger.error('Failed to get events timeline', {
         error: error instanceof Error ? error.message : 'Unknown error',
-        projectId,
+        taskId,
         userId,
         groupBy,
       });
@@ -351,46 +355,46 @@ export class AnalyticsService {
    * Get event type distribution
    */
   static async getEventTypeDistribution(
-    projectId: string,
+    taskId: string,
     userId: string,
     filters: AnalyticsFilters = {}
   ): Promise<EventTypeDistribution[]> {
     try {
-      // Verify project ownership
-      const ownsProject = await ProjectModel.verifyOwnership(projectId, userId);
-      if (!ownsProject) {
-        throw new AppError(403, 'You do not have access to this project');
+      // Verify task ownership
+      const ownsTask = await TaskModel.verifyOwnership(taskId, userId);
+      if (!ownsTask) {
+        throw new AppError(403, 'You do not have access to this task');
       }
 
       // Validate filters
       this.validateFilters(filters);
 
       // Check cache
-      const cacheKey = this.getCacheKey(projectId, 'event-types', filters);
+      const cacheKey = this.getCacheKey(taskId, 'event-types', filters);
       const cached = await cacheGetJSON<EventTypeDistribution[]>(cacheKey);
       if (cached) {
-        logger.debug('Cache hit for event type distribution', { projectId, cacheKey });
+        logger.debug('Cache hit for event type distribution', { taskId, cacheKey });
         return cached;
       }
 
-      logger.debug('Cache miss for event type distribution', { projectId, cacheKey });
+      logger.debug('Cache miss for event type distribution', { taskId, cacheKey });
 
       const sql = `
         WITH all_events AS (
           SELECT e.event_type
           FROM events e
           JOIN sessions s ON s.id = e.session_id
-          WHERE e.project_id = $1
+          WHERE e.task_id = $1
             AND ($2::timestamptz IS NULL OR e.timestamp >= $2::timestamptz)
             AND ($3::timestamptz IS NULL OR e.timestamp <= $3::timestamptz)
             AND ($4::text IS NULL OR s.external_user_id = $4::text)
             AND ($5::text IS NULL OR e.event_type = $5::text)
           UNION ALL
           SELECT de.event_type
-          FROM project_enrollments pe
+          FROM task_enrollments pe
           JOIN document_events de ON de.document_id = pe.submission_document_id
           JOIN users u ON u.id = de.user_id
-          WHERE pe.project_id = $1
+          WHERE pe.task_id = $1
             AND ($2::timestamptz IS NULL OR de.timestamp >= $2::timestamptz)
             AND ($3::timestamptz IS NULL OR de.timestamp <= $3::timestamptz)
             AND ($4::text IS NULL OR u.email = $4::text)
@@ -416,7 +420,7 @@ export class AnalyticsService {
       `;
 
       const params = [
-        projectId,
+        taskId,
         filters.startDate || null,
         filters.endDate || null,
         filters.externalUserId || null,
@@ -434,7 +438,7 @@ export class AnalyticsService {
       await cacheSetJSON(cacheKey, formattedDistribution, CACHE_TTL);
 
       logger.info('Event type distribution retrieved', {
-        projectId,
+        taskId,
         userId,
         eventTypes: formattedDistribution.length,
       });
@@ -443,7 +447,7 @@ export class AnalyticsService {
     } catch (error) {
       logger.error('Failed to get event type distribution', {
         error: error instanceof Error ? error.message : 'Unknown error',
-        projectId,
+        taskId,
         userId,
       });
       throw error;
@@ -454,17 +458,17 @@ export class AnalyticsService {
    * Get user activity list with pagination
    */
   static async getUserActivity(
-    projectId: string,
+    taskId: string,
     userId: string,
     page: number = 1,
     limit: number = 20,
     filters: AnalyticsFilters = {}
   ): Promise<UserActivityResult> {
     try {
-      // Verify project ownership
-      const ownsProject = await ProjectModel.verifyOwnership(projectId, userId);
-      if (!ownsProject) {
-        throw new AppError(403, 'You do not have access to this project');
+      // Verify task ownership
+      const ownsTask = await TaskModel.verifyOwnership(taskId, userId);
+      if (!ownsTask) {
+        throw new AppError(403, 'You do not have access to this task');
       }
 
       // Validate filters and pagination
@@ -476,14 +480,14 @@ export class AnalyticsService {
       const offset = (page - 1) * limit;
 
       // Check cache
-      const cacheKey = this.getCacheKey(projectId, `users:${page}:${limit}`, filters);
+      const cacheKey = this.getCacheKey(taskId, `users:${page}:${limit}`, filters);
       const cached = await cacheGetJSON<UserActivityResult>(cacheKey);
       if (cached) {
-        logger.debug('Cache hit for user activity', { projectId, page, limit, cacheKey });
+        logger.debug('Cache hit for user activity', { taskId, page, limit, cacheKey });
         return cached;
       }
 
-      logger.debug('Cache miss for user activity', { projectId, page, limit, cacheKey });
+      logger.debug('Cache miss for user activity', { taskId, page, limit, cacheKey });
 
       // Query user activity
       const sql = `
@@ -496,7 +500,7 @@ export class AnalyticsService {
             COALESCE(ROUND(AVG(EXTRACT(EPOCH FROM (COALESCE(s.session_end, NOW()) - s.session_start)))::numeric, 2), 0) as "avgDuration"
           FROM sessions s
           LEFT JOIN events e ON e.session_id = s.id
-          WHERE s.project_id = $1
+          WHERE s.task_id = $1
             AND ($2::timestamptz IS NULL OR s.session_start >= $2::timestamptz)
             AND ($3::timestamptz IS NULL OR s.session_start <= $3::timestamptz)
           GROUP BY s.external_user_id
@@ -508,10 +512,10 @@ export class AnalyticsService {
             COUNT(de.id)::integer as "eventCount",
             MAX(de.timestamp) as "lastActive",
             NULL::numeric as "avgDuration"
-          FROM project_enrollments pe
+          FROM task_enrollments pe
           JOIN document_events de ON de.document_id = pe.submission_document_id
           JOIN users u ON u.id = de.user_id
-          WHERE pe.project_id = $1
+          WHERE pe.task_id = $1
             AND de.session_id IS NOT NULL
             AND ($2::timestamptz IS NULL OR de.timestamp >= $2::timestamptz)
             AND ($3::timestamptz IS NULL OR de.timestamp <= $3::timestamptz)
@@ -525,10 +529,10 @@ export class AnalyticsService {
             MIN(de.timestamp) as first_event,
             MAX(de.timestamp) as last_event,
             EXTRACT(EPOCH FROM (MAX(de.timestamp) - MIN(de.timestamp))) as duration_seconds
-          FROM project_enrollments pe
+          FROM task_enrollments pe
           JOIN document_events de ON de.document_id = pe.submission_document_id
           JOIN users u ON u.id = de.user_id
-          WHERE pe.project_id = $1
+          WHERE pe.task_id = $1
             AND de.session_id IS NULL
             AND ($2::timestamptz IS NULL OR de.timestamp >= $2::timestamptz)
             AND ($3::timestamptz IS NULL OR de.timestamp <= $3::timestamptz)
@@ -572,7 +576,7 @@ export class AnalyticsService {
         LIMIT $4 OFFSET $5
       `;
 
-      const params = [projectId, filters.startDate || null, filters.endDate || null, limit, offset];
+      const params = [taskId, filters.startDate || null, filters.endDate || null, limit, offset];
       const users = await query<UserActivity>(sql, params);
 
       // Get total count
@@ -580,15 +584,15 @@ export class AnalyticsService {
         WITH active_users AS (
           SELECT s.external_user_id
           FROM sessions s
-          WHERE s.project_id = $1
+          WHERE s.task_id = $1
             AND ($2::timestamptz IS NULL OR s.session_start >= $2::timestamptz)
             AND ($3::timestamptz IS NULL OR s.session_start <= $3::timestamptz)
           UNION
           SELECT u.email as external_user_id
-          FROM project_enrollments pe
+          FROM task_enrollments pe
           JOIN document_events de ON de.document_id = pe.submission_document_id
           JOIN users u ON u.id = de.user_id
-          WHERE pe.project_id = $1
+          WHERE pe.task_id = $1
             AND ($2::timestamptz IS NULL OR de.timestamp >= $2::timestamptz)
             AND ($3::timestamptz IS NULL OR de.timestamp <= $3::timestamptz)
         )
@@ -596,7 +600,7 @@ export class AnalyticsService {
         FROM active_users
       `;
       const countResult = await queryOne<{ count: number }>(countSql, [
-        projectId,
+        taskId,
         filters.startDate || null,
         filters.endDate || null,
       ]);
@@ -614,7 +618,7 @@ export class AnalyticsService {
       await cacheSetJSON(cacheKey, result, CACHE_TTL);
 
       logger.info('User activity retrieved', {
-        projectId,
+        taskId,
         userId,
         page,
         limit,
@@ -625,7 +629,7 @@ export class AnalyticsService {
     } catch (error) {
       logger.error('Failed to get user activity', {
         error: error instanceof Error ? error.message : 'Unknown error',
-        projectId,
+        taskId,
         userId,
         page,
         limit,
@@ -649,21 +653,33 @@ export class AnalyticsService {
         throw new AppError(404, 'Session not found');
       }
 
-      // Verify project ownership
-      const ownsProject = await ProjectModel.verifyOwnership(session.projectId, userId);
-      if (!ownsProject) {
+      // Verify task ownership
+      const ownsTask = await TaskModel.verifyOwnership(session.taskId, userId);
+      if (!ownsTask) {
         throw new AppError(403, 'You do not have access to this session');
       }
 
-      // Check cache
-      const cacheKey = `analytics:session:${sessionId}`;
-      const cached = await cacheGetJSON<SessionDetail>(cacheKey);
-      if (cached) {
-        logger.debug('Cache hit for session details', { sessionId, cacheKey });
-        return cached;
-      }
+      // Do not cache session detail: user submission events can flush after the session closes.
+      logger.debug('Fetching live session details', { sessionId });
 
-      logger.debug('Cache miss for session details', { sessionId, cacheKey });
+      const enrolledUser = await queryOne<{
+        userId: string;
+        userEmail: string;
+        submissionDocumentId: string | null;
+      }>(
+        `
+          SELECT
+            pe.user_id as "userId",
+            u.email as "userEmail",
+            pe.submission_document_id as "submissionDocumentId"
+          FROM task_enrollments pe
+          JOIN users u ON u.id = pe.user_id
+          WHERE pe.task_id = $1
+            AND u.email = $2
+          LIMIT 1
+        `,
+        [session.taskId, session.externalUserId]
+      );
 
       // Get events for the session
       const eventsSql = `
@@ -699,6 +715,26 @@ export class AnalyticsService {
             metadata
           FROM document_events
           WHERE session_id = $1
+          UNION ALL
+          SELECT
+            id::text,
+            event_type as "eventType",
+            timestamp,
+            NULL::text as "targetElement",
+            key_code as "keyCode",
+            key_char as "keyChar",
+            text_before as "textBefore",
+            text_after as "textAfter",
+            cursor_position as "cursorPosition",
+            selection_start as "selectionStart",
+            selection_end as "selectionEnd",
+            metadata
+          FROM document_events
+          WHERE session_id IS NULL
+            AND document_id = $2
+            AND user_id = $3
+            AND created_at >= $4
+            AND created_at <= COALESCE($5::timestamp, NOW()) + INTERVAL '10 seconds'
         )
         SELECT
           id,
@@ -717,7 +753,13 @@ export class AnalyticsService {
         ORDER BY timestamp ASC
       `;
 
-      const events = await query(eventsSql, [sessionId]);
+      const events = await query(eventsSql, [
+        sessionId,
+        enrolledUser?.submissionDocumentId || null,
+        enrolledUser?.userId || null,
+        session.sessionStart,
+        session.sessionEnd,
+      ]);
 
       // Calculate duration
       const durationSeconds = session.sessionEnd
@@ -730,7 +772,9 @@ export class AnalyticsService {
 
       const details: SessionDetail = {
         id: session.id,
-        projectId: session.projectId,
+        taskId: session.taskId,
+        userId: enrolledUser?.userId || null,
+        userEmail: enrolledUser?.userEmail || null,
         externalUserId: session.externalUserId,
         sessionStart: new Date(session.sessionStart),
         sessionEnd: session.sessionEnd ? new Date(session.sessionEnd) : null,
@@ -738,16 +782,15 @@ export class AnalyticsService {
         submissionTime: session.submissionTime ? new Date(session.submissionTime) : null,
         durationSeconds,
         eventCount: events.length,
+        ipAddress: session.ipAddress || null,
+        userAgent: session.userAgent || null,
         events,
       };
-
-      // Cache the result (shorter TTL since sessions can be updated)
-      await cacheSetJSON(cacheKey, details, 60); // 1 minute TTL
 
       logger.info('Session details retrieved', {
         sessionId,
         userId,
-        projectId: session.projectId,
+        taskId: session.taskId,
         eventCount: events.length,
       });
 
@@ -763,25 +806,25 @@ export class AnalyticsService {
   }
 
   /**
-   * Get list of sessions for a project
+   * Get list of sessions for a task
    */
-  static async getProjectSessions(
-    projectId: string,
+  static async getTaskSessions(
+    taskId: string,
     userId: string,
     filters: any
   ): Promise<any[]> {
     try {
-      // Verify user owns the project
-      const project = await ProjectModel.findById(projectId);
-      if (!project || project.userId !== userId) {
-        throw new AppError(404, 'Project not found');
+      // Verify user owns the task
+      const task = await TaskModel.findById(taskId);
+      if (!task || task.userId !== userId) {
+        throw new AppError(404, 'Task not found');
       }
 
       // Get sessions with stats
-      const sessions = await SessionModel.findByProjectId(projectId, filters);
+      const sessions = await SessionModel.findByTaskId(taskId, filters);
 
       logger.info('Sessions list retrieved', {
-        projectId,
+        taskId,
         userId,
         count: sessions.length,
       });
@@ -790,7 +833,7 @@ export class AnalyticsService {
     } catch (error) {
       logger.error('Failed to get sessions list', {
         error: error instanceof Error ? error.message : 'Unknown error',
-        projectId,
+        taskId,
         userId,
       });
       throw error;
@@ -798,28 +841,28 @@ export class AnalyticsService {
   }
 
   /**
-   * Get total count of sessions for a project
+   * Get total count of sessions for a task
    */
   static async getSessionsCount(
-    projectId: string,
+    taskId: string,
     userId: string,
     filters: any
   ): Promise<number> {
     try {
-      // Verify user owns the project
-      const project = await ProjectModel.findById(projectId);
-      if (!project || project.userId !== userId) {
-        throw new AppError(404, 'Project not found');
+      // Verify user owns the task
+      const task = await TaskModel.findById(taskId);
+      if (!task || task.userId !== userId) {
+        throw new AppError(404, 'Task not found');
       }
 
       // Get count
-      const count = await SessionModel.countByProjectId(projectId, filters);
+      const count = await SessionModel.countByTaskId(taskId, filters);
 
       return count;
     } catch (error) {
       logger.error('Failed to get sessions count', {
         error: error instanceof Error ? error.message : 'Unknown error',
-        projectId,
+        taskId,
         userId,
       });
       throw error;

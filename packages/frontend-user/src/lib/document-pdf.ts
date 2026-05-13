@@ -12,30 +12,36 @@ export function validatePdfFile(file: File) {
   }
 }
 
-async function getOrCreateDefaultProjectId() {
-  const projectsResponse = await apiClient.get('/projects?limit=1');
+async function getOrCreateDefaultTaskId() {
+  const tasksResponse = await apiClient.get('/tasks?limit=1');
 
-  if (projectsResponse.data.data && projectsResponse.data.data.length > 0) {
-    return projectsResponse.data.data[0].id as string;
+  if (tasksResponse.data.data && tasksResponse.data.data.length > 0) {
+    return tasksResponse.data.data[0].id as string;
   }
 
-  const newProjectResponse = await apiClient.post('/projects', {
-    name: 'Default Project',
-    description: 'Auto-created project for document reviews',
+  const now = new Date();
+  const defaultEndDate = new Date(now);
+  defaultEndDate.setFullYear(defaultEndDate.getFullYear() + 1);
+
+  const newTaskResponse = await apiClient.post('/tasks', {
+    name: 'Default Task',
+    description: 'Auto-created task for document reviews',
+    startDate: now.toISOString(),
+    endDate: defaultEndDate.toISOString(),
   });
 
-  const createdProject = newProjectResponse.data.data?.project || newProjectResponse.data.data;
-  if (!createdProject?.id) {
-    throw new Error('Failed to create default project');
+  const createdTask = newTaskResponse.data.data?.task || newTaskResponse.data.data;
+  if (!createdTask?.id) {
+    throw new Error('Failed to create default task');
   }
 
-  return createdProject.id as string;
+  return createdTask.id as string;
 }
 
 export async function uploadPdfForDocument(documentId: string, title: string, pdfFile: File) {
   validatePdfFile(pdfFile);
 
-  const projectId = await getOrCreateDefaultProjectId();
+  const taskId = await getOrCreateDefaultTaskId();
   const formData = new FormData();
 
   formData.append('pdf', pdfFile);
@@ -45,7 +51,7 @@ export async function uploadPdfForDocument(documentId: string, title: string, pd
   formData.append('keywords', JSON.stringify([]));
   formData.append('documentId', documentId);
 
-  await apiClient.post(`/projects/${projectId}/papers`, formData);
+  await apiClient.post(`/tasks/${taskId}/papers`, formData);
 }
 
 export { MAX_PDF_SIZE_BYTES };

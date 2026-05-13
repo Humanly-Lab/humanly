@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { apiClient } from '@/lib/api-client';
 import { uploadPdfForDocument } from '@/lib/document-pdf';
-import type { Document, DocumentListResponse } from '@humanly/shared';
+import type { Document, WritingEnvironmentConfig } from '@humanly/shared';
 
 export function useDocuments() {
   const [documents, setDocuments] = useState<Document[]>([]);
@@ -29,12 +29,19 @@ export function useDocuments() {
     fetchDocuments();
   }, [fetchDocuments]);
 
-  const createDocument = useCallback(async (title: string, pdfFile?: File) => {
+  const createDocument = useCallback(async (
+    title: string,
+    pdfFile?: File,
+    environmentConfig?: WritingEnvironmentConfig | null,
+    description?: string
+  ) => {
     // Step 1: Create the document
     const response = await apiClient.post('/documents', {
       title,
+      description: description?.trim() || undefined,
       content: {},
       status: 'draft',
+      environmentConfig: environmentConfig || null,
     });
     const document = response.data.data.document;
 

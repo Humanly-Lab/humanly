@@ -227,7 +227,7 @@ class EmailService {
             <p>${getBrandText().welcomeVerified}</p>
             <p>${getBrandText().description}</p>
             <div class="feature">
-              <strong>• Create Projects:</strong> Set up tracking for your forms and surveys
+              <strong>• Create Tasks:</strong> Set up tracking for your forms and surveys
             </div>
             <div class="feature">
               <strong>• Track User Input:</strong> Capture every keystroke, paste, and edit

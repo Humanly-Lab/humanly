@@ -17,7 +17,7 @@ import {
   requireReviewerAccess,
   requireReviewOwnership,
   requirePermission,
-  requireProjectAdmin
+  requireTaskAdmin
 } from '../middleware/review-auth.middleware'
 
 const router = Router()
@@ -73,7 +73,7 @@ router.get(
 router.get(
   '/papers/:paperId/reviews',
   authenticate,
-  requireProjectAdmin,
+  requireTaskAdmin,
   getAnonymousReviews
 )
 

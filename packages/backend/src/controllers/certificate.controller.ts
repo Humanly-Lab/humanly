@@ -2,7 +2,6 @@ import { Request, Response } from 'express';
 import { CertificateService } from '../services/certificate.service';
 import { PDFService } from '../services/pdf.service';
 import { DocumentEventModel } from '../models/document-event.model';
-import { CertificateModel } from '../models/certificate.model';
 import { AppError } from '../middleware/error-handler';
 import { logger } from '../utils/logger';
 
@@ -13,6 +12,7 @@ export async function generateCertificate(req: Request, res: Response): Promise<
   const userId = req.user!.userId;
   const {
     documentId,
+    submissionId,
     certificateType,
     signerName,
     includeFullText,
@@ -34,6 +34,7 @@ export async function generateCertificate(req: Request, res: Response): Promise<
     userId,
     {
       certificateType: type,
+      submissionId,
       signerName,
       includeFullText: includeFullText !== undefined ? includeFullText : true,
       includeEditHistory: includeEditHistory !== undefined ? includeEditHistory : true,
@@ -226,6 +227,7 @@ export async function verifyCertificate(req: Request, res: Response): Promise<vo
         valid: verification.valid,
         certificate: {
           id: verification.certificate!.id,
+          submissionId: verification.certificate!.submissionId,
           title: verification.certificate!.title,
           certificateType: verification.certificate!.certificateType,
           generatedAt: verification.certificate!.generatedAt,

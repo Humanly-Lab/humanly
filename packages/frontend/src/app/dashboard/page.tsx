@@ -7,8 +7,8 @@ export default function DashboardPage() {
   const router = useRouter();
 
   useEffect(() => {
-    // Redirect to projects page
-    router.replace('/projects');
+    // Redirect to tasks page
+    router.replace('/tasks');
   }, [router]);
 
   return (

@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express'
 import { AppError } from './error-handler'
 import { PaperReviewerModel } from '../models/paper-reviewer.model'
 import { PaperModel } from '../models/paper.model'
-import { ProjectModel } from '../models/project.model'
+import { TaskModel } from '../models/task.model'
 import { ReviewModel } from '../models/review.model'
 
 // Check if user is assigned reviewer for paper
@@ -58,39 +58,39 @@ export const requirePermission = (
   }
 }
 
-// Check if user is project admin (can manage reviewers and papers)
-export const requireProjectAdmin = async (
+// Check if user is task admin (can manage reviewers and papers)
+export const requireTaskAdmin = async (
   req: Request,
   res: Response,
   next: NextFunction
 ) => {
   try {
-    const { paperId, projectId } = req.params
+    const { paperId, taskId } = req.params
     const userId = req.user!.userId
 
-    // Get project from paper or directly
-    let checkProjectId = projectId
+    // Get task from paper or directly
+    let checkTaskId = taskId
     if (paperId) {
       const paper = await PaperModel.findById(paperId)
       if (!paper) {
         throw new AppError(404, 'Paper not found')
       }
-      checkProjectId = paper.projectId
+      checkTaskId = paper.taskId
     }
 
-    if (!checkProjectId) {
-      throw new AppError(404, 'Project not found')
+    if (!checkTaskId) {
+      throw new AppError(404, 'Task not found')
     }
 
-    // TODO: Check if user is project admin
-    // const isAdmin = await ProjectModel.isAdmin(checkProjectId, userId)
+    // TODO: Check if user is task admin
+    // const isAdmin = await TaskModel.isAdmin(checkTaskId, userId)
     // if (!isAdmin) {
     //   throw new AppError('Admin access required', 403)
     // }
 
-    // For now, allow if user has paper access (will be replaced with proper project check)
+    // For now, allow if user has paper access (will be replaced with proper task check)
     if (paperId) {
-      const hasAccess = await PaperModel.hasProjectAccess(paperId, userId)
+      const hasAccess = await PaperModel.hasTaskAccess(paperId, userId)
       if (!hasAccess) {
         throw new AppError(403, 'Admin access required')
       }
@@ -139,12 +139,12 @@ export const requirePaperViewAccess = async (
     // Check if user is admin
     const paper = await PaperModel.findById(paperId)
     const isUploader = await PaperModel.isUploader(paperId, userId)
-    const hasProjectAccess = await PaperModel.hasProjectAccess(paperId, userId)
-    const isAdmin = isUploader || hasProjectAccess
-    const isProjectInstruction = paper?.keywords?.includes('instructions') ?? false
-    const isEnrolled = paper ? await ProjectModel.hasEnrollment(paper.projectId, userId) : false
+    const hasTaskAccess = await PaperModel.hasTaskAccess(paperId, userId)
+    const isAdmin = isUploader || hasTaskAccess
+    const isTaskInstruction = paper?.keywords?.includes('instructions') ?? false
+    const isEnrolled = paper ? await TaskModel.hasEnrollment(paper.taskId, userId) : false
 
-    if (!isReviewer && !isAdmin && !(isProjectInstruction && isEnrolled)) {
+    if (!isReviewer && !isAdmin && !(isTaskInstruction && isEnrolled)) {
       throw new AppError(403, 'Access denied')
     }
 

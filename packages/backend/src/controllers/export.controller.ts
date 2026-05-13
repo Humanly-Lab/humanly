@@ -5,7 +5,7 @@ import { logger } from '../utils/logger';
 
 /**
  * Export events as JSON
- * GET /api/v1/projects/:projectId/export/json
+ * GET /api/v1/tasks/:taskId/export/json
  * Query params:
  * - startDate: ISO date string (optional)
  * - endDate: ISO date string (optional)
@@ -14,10 +14,10 @@ import { logger } from '../utils/logger';
  */
 export async function exportJSON(req: Request, res: Response): Promise<void> {
   const userId = req.user!.userId;
-  const projectId = req.params.projectId;
+  const taskId = req.params.taskId;
 
-  if (!projectId) {
-    throw new AppError(400, 'Project ID is required');
+  if (!taskId) {
+    throw new AppError(400, 'Task ID is required');
   }
 
   // Parse query parameters
@@ -57,20 +57,20 @@ export async function exportJSON(req: Request, res: Response): Promise<void> {
   }
 
   logger.info('JSON export requested', {
-    projectId,
+    taskId,
     userId,
     filters,
   });
 
   // Get export stream
   const { stream, metadata } = await ExportService.exportToJSON(
-    projectId,
+    taskId,
     userId,
     filters
   );
 
   // Generate filename
-  const filename = ExportService.generateFilename(projectId, 'json');
+  const filename = ExportService.generateFilename(taskId, 'json');
 
   // Set response headers
   res.setHeader('Content-Type', 'application/json');
@@ -84,7 +84,7 @@ export async function exportJSON(req: Request, res: Response): Promise<void> {
   stream.on('error', (error) => {
     logger.error('Error streaming JSON export', {
       error: error instanceof Error ? error.message : 'Unknown error',
-      projectId,
+      taskId,
       userId,
     });
 
@@ -101,7 +101,7 @@ export async function exportJSON(req: Request, res: Response): Promise<void> {
   // Log completion
   stream.on('end', () => {
     logger.info('JSON export stream completed', {
-      projectId,
+      taskId,
       userId,
       totalEvents: metadata.totalEvents,
     });
@@ -110,7 +110,7 @@ export async function exportJSON(req: Request, res: Response): Promise<void> {
 
 /**
  * Export events as CSV
- * GET /api/v1/projects/:projectId/export/csv
+ * GET /api/v1/tasks/:taskId/export/csv
  * Query params:
  * - startDate: ISO date string (optional)
  * - endDate: ISO date string (optional)
@@ -119,10 +119,10 @@ export async function exportJSON(req: Request, res: Response): Promise<void> {
  */
 export async function exportCSV(req: Request, res: Response): Promise<void> {
   const userId = req.user!.userId;
-  const projectId = req.params.projectId;
+  const taskId = req.params.taskId;
 
-  if (!projectId) {
-    throw new AppError(400, 'Project ID is required');
+  if (!taskId) {
+    throw new AppError(400, 'Task ID is required');
   }
 
   // Parse query parameters
@@ -162,20 +162,20 @@ export async function exportCSV(req: Request, res: Response): Promise<void> {
   }
 
   logger.info('CSV export requested', {
-    projectId,
+    taskId,
     userId,
     filters,
   });
 
   // Get export stream
   const { stream, metadata } = await ExportService.exportToCSV(
-    projectId,
+    taskId,
     userId,
     filters
   );
 
   // Generate filename
-  const filename = ExportService.generateFilename(projectId, 'csv');
+  const filename = ExportService.generateFilename(taskId, 'csv');
 
   // Set response headers
   res.setHeader('Content-Type', 'text/csv');
@@ -189,7 +189,7 @@ export async function exportCSV(req: Request, res: Response): Promise<void> {
   stream.on('error', (error) => {
     logger.error('Error streaming CSV export', {
       error: error instanceof Error ? error.message : 'Unknown error',
-      projectId,
+      taskId,
       userId,
     });
 
@@ -206,7 +206,7 @@ export async function exportCSV(req: Request, res: Response): Promise<void> {
   // Log completion
   stream.on('end', () => {
     logger.info('CSV export stream completed', {
-      projectId,
+      taskId,
       userId,
       totalEvents: metadata.totalEvents,
     });

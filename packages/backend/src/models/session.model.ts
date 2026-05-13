@@ -2,7 +2,7 @@ import { query, queryOne } from '../config/database';
 import { Session, SessionWithStats } from '@humanly/shared';
 
 export interface CreateSessionData {
-  projectId: string;
+  taskId: string;
   externalUserId: string;
   ipAddress?: string;
   userAgent?: string;
@@ -24,7 +24,7 @@ export class SessionModel {
   static async create(data: CreateSessionData): Promise<Session> {
     const sql = `
       INSERT INTO sessions (
-        project_id,
+        task_id,
         external_user_id,
         session_start,
         ip_address,
@@ -33,7 +33,7 @@ export class SessionModel {
       VALUES ($1, $2, NOW(), $3, $4)
       RETURNING
         id,
-        project_id as "projectId",
+        task_id as "taskId",
         external_user_id as "externalUserId",
         session_start as "sessionStart",
         session_end as "sessionEnd",
@@ -45,7 +45,7 @@ export class SessionModel {
     `;
 
     const session = await queryOne<Session>(sql, [
-      data.projectId,
+      data.taskId,
       data.externalUserId,
       data.ipAddress || null,
       data.userAgent || null,
@@ -65,7 +65,7 @@ export class SessionModel {
     const sql = `
       SELECT
         id,
-        project_id as "projectId",
+        task_id as "taskId",
         external_user_id as "externalUserId",
         session_start as "sessionStart",
         session_end as "sessionEnd",
@@ -82,14 +82,14 @@ export class SessionModel {
   }
 
   /**
-   * Find sessions by project ID with optional filters
+   * Find sessions by task ID with optional filters
    */
-  static async findByProjectId(
-    projectId: string,
+  static async findByTaskId(
+    taskId: string,
     filters: SessionFilters = {}
   ): Promise<SessionWithStats[]> {
-    const conditions: string[] = ['s.project_id = $1'];
-    const params: any[] = [projectId];
+    const conditions: string[] = ['s.task_id = $1'];
+    const params: any[] = [taskId];
     let paramCount = 1;
 
     // Add filters
@@ -122,7 +122,7 @@ export class SessionModel {
     const sql = `
       SELECT
         s.id,
-        s.project_id as "projectId",
+        s.task_id as "taskId",
         s.external_user_id as "externalUserId",
         s.session_start as "sessionStart",
         s.session_end as "sessionEnd",
@@ -131,11 +131,21 @@ export class SessionModel {
         s.ip_address as "ipAddress",
         s.user_agent as "userAgent",
         s.created_at as "createdAt",
-        (COUNT(DISTINCT e.id) + COUNT(DISTINCT de.id)) as "eventCount",
+        (COUNT(DISTINCT e.id) + COUNT(DISTINCT de.id) + COUNT(DISTINCT unlinked_de.id)) as "eventCount",
         EXTRACT(EPOCH FROM (COALESCE(s.session_end, NOW()) - s.session_start)) * 1000 as duration
       FROM sessions s
       LEFT JOIN events e ON s.id = e.session_id
       LEFT JOIN document_events de ON s.id = de.session_id
+      LEFT JOIN users u ON u.email = s.external_user_id
+      LEFT JOIN task_enrollments pe
+        ON pe.task_id = s.task_id
+       AND pe.user_id = u.id
+      LEFT JOIN document_events unlinked_de
+        ON unlinked_de.session_id IS NULL
+       AND unlinked_de.document_id = pe.submission_document_id
+       AND unlinked_de.user_id = pe.user_id
+       AND unlinked_de.created_at >= s.session_start
+       AND unlinked_de.created_at <= COALESCE(s.session_end, NOW()) + INTERVAL '10 seconds'
       WHERE ${whereClause}
       GROUP BY s.id
       ORDER BY s.session_start DESC
@@ -224,14 +234,14 @@ export class SessionModel {
   }
 
   /**
-   * Count sessions by project ID with optional filters
+   * Count sessions by task ID with optional filters
    */
-  static async countByProjectId(
-    projectId: string,
+  static async countByTaskId(
+    taskId: string,
     filters: SessionFilters = {}
   ): Promise<number> {
-    const conditions: string[] = ['project_id = $1'];
-    const params: any[] = [projectId];
+    const conditions: string[] = ['task_id = $1'];
+    const params: any[] = [taskId];
     let paramCount = 1;
 
     if (filters.externalUserId) {

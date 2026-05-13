@@ -56,7 +56,7 @@ describe('useDocument', () => {
     });
 
     expect(mockApiClient.post).toHaveBeenCalledWith(
-      '/projects/proj-1/papers',
+      '/tasks/proj-1/papers',
       expect.any(FormData)
     );
     expect(result.current.linkedPaper).toEqual(fakePaper);

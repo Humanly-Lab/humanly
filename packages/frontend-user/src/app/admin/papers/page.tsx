@@ -16,7 +16,6 @@ import {
 } from '@/components/ui/table'
 import { Upload, FileText, Search, Users, Eye, Calendar, Plus } from 'lucide-react'
 import type { Paper } from '@humanly/shared'
-import { paperApi } from '@/lib/api/review-api'
 import { useToast } from '@/hooks/use-toast'
 
 export default function AdminPapersPage() {
@@ -27,9 +26,6 @@ export default function AdminPapersPage() {
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
 
-  // For demo purposes - in production, get from auth context
-  const projectId = 'demo-project-id'
-
   useEffect(() => {
     loadPapers()
   }, [])
@@ -38,7 +34,7 @@ export default function AdminPapersPage() {
     try {
       setLoading(true)
       // In production, this would fetch from the API
-      // const result = await paperApi.listByProject(projectId)
+      // const result = await paperApi.listByTask(taskId)
       // setPapers(result.papers)
 
       // For now, show empty state

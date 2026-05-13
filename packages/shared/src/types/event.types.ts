@@ -75,7 +75,7 @@ export interface TrackerEvent {
 export interface Event extends TrackerEvent {
   id: string;
   sessionId: string;
-  projectId: string;
+  taskId: string;
   createdAt: Date;
 }
 
@@ -85,7 +85,7 @@ export interface EventBatchInput {
 }
 
 export interface EventQueryFilters {
-  projectId?: string;
+  taskId?: string;
   sessionId?: string;
   externalUserId?: string;
   startDate?: Date;

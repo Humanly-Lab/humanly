@@ -1,8 +1,15 @@
 'use client';
 
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { BookOpen, FileText, KeyRound, Plus, Trash2, Upload, X } from 'lucide-react';
+import {
+  BookOpen,
+  CalendarClock,
+  FileText,
+  KeyRound,
+  Plus,
+  Trash2,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -38,37 +45,41 @@ import { useToast } from '@/components/ui/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { apiClient } from '@/lib/api-client';
+import { formatDateTime } from '@/lib/utils';
+import type { WritingEnvironmentConfig } from '@humanly/shared';
 
 type SortOption = 'lastEdited' | 'title' | 'wordCount';
 
-interface ProjectEnrollment {
+interface TaskEnrollment {
   id: string;
   name: string;
   inviteCode: string;
   documentId: string;
   joinedAt: string;
   description?: string;
+  startDate?: string;
+  endDate?: string;
+  environmentConfig?: WritingEnvironmentConfig | null;
 }
 
-const PROJECT_ENROLLMENTS_KEY = 'humanly.projectEnrollments';
-
-const readProjectEnrollments = (): ProjectEnrollment[] => {
+const TASK_ENROLLMENTS_KEY = 'humanly.taskEnrollments';
+const readTaskEnrollments = (): TaskEnrollment[] => {
   if (typeof window === 'undefined') return [];
   try {
-    return JSON.parse(localStorage.getItem(PROJECT_ENROLLMENTS_KEY) || '[]');
+    return JSON.parse(localStorage.getItem(TASK_ENROLLMENTS_KEY) || '[]');
   } catch {
     return [];
   }
 };
 
-const writeProjectEnrollments = (enrollments: ProjectEnrollment[]) => {
+const writeTaskEnrollments = (enrollments: TaskEnrollment[]) => {
   if (typeof window === 'undefined') return;
-  localStorage.setItem(PROJECT_ENROLLMENTS_KEY, JSON.stringify(enrollments));
+  localStorage.setItem(TASK_ENROLLMENTS_KEY, JSON.stringify(enrollments));
 };
 
-const getDisplayProjectName = (project: ProjectEnrollment) => {
-  const name = project.name?.trim();
-  if (!name || name === 'Project Name') return `Project ${project.inviteCode}`;
+const getDisplayTaskName = (task: TaskEnrollment) => {
+  const name = task.name?.trim();
+  if (!name || name === 'Task Name') return `Task ${task.inviteCode}`;
   return name;
 };
 
@@ -76,136 +87,82 @@ export default function DocumentsPage() {
   const router = useRouter();
   const { documents, isLoading, error, createDocument, deleteDocument } = useDocuments();
   const { toast } = useToast();
-  const [showCreateDialog, setShowCreateDialog] = useState(false);
-  const [newDocTitle, setNewDocTitle] = useState('');
-  const [isCreating, setIsCreating] = useState(false);
   const [sortBy, setSortBy] = useState<SortOption>('lastEdited');
-  const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [showJoinDialog, setShowJoinDialog] = useState(false);
-  const [projectToDelete, setProjectToDelete] = useState<ProjectEnrollment | null>(null);
+  const [taskToDelete, setTaskToDelete] = useState<TaskEnrollment | null>(null);
   const [inviteCode, setInviteCode] = useState('');
-  const [isJoiningProject, setIsJoiningProject] = useState(false);
-  const [projectEnrollments, setProjectEnrollments] = useState<ProjectEnrollment[]>([]);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const isCreatingRef = useRef(false);
+  const [isJoiningTask, setIsJoiningTask] = useState(false);
+  const [taskEnrollments, setTaskEnrollments] = useState<TaskEnrollment[]>([]);
 
   useEffect(() => {
-    setProjectEnrollments(readProjectEnrollments());
+    setTaskEnrollments(readTaskEnrollments());
   }, []);
 
   useEffect(() => {
-    if (projectEnrollments.length === 0) return;
+    if (taskEnrollments.length === 0) return;
 
     let cancelled = false;
 
-    const refreshProjectNames = async () => {
+    const refreshTaskNames = async () => {
       const refreshed = await Promise.all(
-        projectEnrollments.map(async (project) => {
+        taskEnrollments.map(async (task) => {
           try {
-            const response = await apiClient.post('/projects/join', { inviteCode: project.inviteCode });
-            const projectFromApi = response.data?.data?.project || response.data?.data || null;
+            const response = await apiClient.post('/tasks/join', { inviteCode: task.inviteCode });
+            const taskFromApi = response.data?.data?.task || response.data?.data || null;
 
-            if (!projectFromApi?.name) return project;
+            if (!taskFromApi?.name) return task;
 
             return {
-              ...project,
-              id: projectFromApi.id || project.id,
-              name: projectFromApi.name,
-              description: projectFromApi.description || project.description,
+              ...task,
+              id: taskFromApi.id || task.id,
+              name: taskFromApi.name,
+              description: taskFromApi.description || task.description,
+              startDate: taskFromApi.startDate || task.startDate,
+              endDate: taskFromApi.endDate || task.endDate,
+              environmentConfig: taskFromApi.environmentConfig || task.environmentConfig,
             };
           } catch {
-            return project;
+            return task;
           }
         })
       );
 
       if (cancelled) return;
 
-      const changed = refreshed.some((project, index) => (
-        project.name !== projectEnrollments[index].name ||
-        project.description !== projectEnrollments[index].description ||
-        project.id !== projectEnrollments[index].id
+      const changed = refreshed.some((task, index) => (
+        task.name !== taskEnrollments[index].name ||
+        task.description !== taskEnrollments[index].description ||
+        task.startDate !== taskEnrollments[index].startDate ||
+        task.endDate !== taskEnrollments[index].endDate ||
+        JSON.stringify(task.environmentConfig || null) !== JSON.stringify(taskEnrollments[index].environmentConfig || null) ||
+        task.id !== taskEnrollments[index].id
       ));
 
       if (changed) {
-        setProjectEnrollments(refreshed);
-        writeProjectEnrollments(refreshed);
+        setTaskEnrollments(refreshed);
+        writeTaskEnrollments(refreshed);
       }
     };
 
-    refreshProjectNames();
+    refreshTaskNames();
 
     return () => {
       cancelled = true;
     };
-  }, [projectEnrollments]);
+  }, [taskEnrollments]);
 
   useEffect(() => {
     if (isLoading || !documents) return;
     const existingDocumentIds = new Set(documents.map((document) => document.id));
-    const nextEnrollments = projectEnrollments.filter((project) => (
-      existingDocumentIds.has(project.documentId)
+    const nextEnrollments = taskEnrollments.filter((task) => (
+      existingDocumentIds.has(task.documentId)
     ));
 
-    if (nextEnrollments.length !== projectEnrollments.length) {
-      setProjectEnrollments(nextEnrollments);
-      writeProjectEnrollments(nextEnrollments);
+    if (nextEnrollments.length !== taskEnrollments.length) {
+      setTaskEnrollments(nextEnrollments);
+      writeTaskEnrollments(nextEnrollments);
     }
-  }, [documents, isLoading, projectEnrollments]);
-
-  const handlePdfSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (file.type !== 'application/pdf') {
-      toast({ title: 'Error', description: 'Please select a PDF file', variant: 'destructive' });
-      return;
-    }
-    if (file.size > 50 * 1024 * 1024) {
-      toast({ title: 'Error', description: 'PDF must be smaller than 50MB', variant: 'destructive' });
-      return;
-    }
-    setPdfFile(file);
-    if (!newDocTitle.trim()) {
-      setNewDocTitle(file.name.replace(/\.pdf$/i, ''));
-    }
-  };
-
-  const handleCreateDocument = useCallback(async () => {
-    if (!newDocTitle.trim()) {
-      toast({
-        title: 'Error',
-        description: 'Please enter a document title',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    // Prevent double submission from Enter key + button click racing
-    if (isCreatingRef.current) return;
-    isCreatingRef.current = true;
-
-    try {
-      setIsCreating(true);
-      const document = await createDocument(newDocTitle, pdfFile || undefined);
-      setShowCreateDialog(false);
-      setNewDocTitle('');
-      setPdfFile(null);
-      toast({
-        title: 'Success',
-        description: pdfFile ? 'Document created with PDF for review' : 'Document created successfully',
-      });
-      router.push(`/documents/${document.id}`);
-    } catch (err: any) {
-      toast({
-        title: 'Error',
-        description: err.message || 'Failed to create document',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsCreating(false);
-      isCreatingRef.current = false;
-    }
-  }, [newDocTitle, pdfFile, createDocument, toast, router]);
+  }, [documents, isLoading, taskEnrollments]);
 
   const handleDeleteDocument = async (documentId: string) => {
     try {
@@ -223,37 +180,37 @@ export default function DocumentsPage() {
     }
   };
 
-  const removeProjectEnrollment = (project: ProjectEnrollment) => {
-    const nextEnrollments = projectEnrollments.filter(
-      (enrollment) => enrollment.documentId !== project.documentId
+  const removeTaskEnrollment = (task: TaskEnrollment) => {
+    const nextEnrollments = taskEnrollments.filter(
+      (enrollment) => enrollment.documentId !== task.documentId
     );
-    setProjectEnrollments(nextEnrollments);
-    writeProjectEnrollments(nextEnrollments);
+    setTaskEnrollments(nextEnrollments);
+    writeTaskEnrollments(nextEnrollments);
   };
 
-  const handleDeleteProjectEnrollment = async () => {
-    if (!projectToDelete) return;
+  const handleDeleteTaskEnrollment = async () => {
+    if (!taskToDelete) return;
 
     try {
-      await apiClient.delete(`/projects/enrollments/${projectToDelete.id}`);
-      await deleteDocument(projectToDelete.documentId);
-      removeProjectEnrollment(projectToDelete);
+      await apiClient.delete(`/tasks/enrollments/${taskToDelete.id}`);
+      await deleteDocument(taskToDelete.documentId);
+      removeTaskEnrollment(taskToDelete);
       toast({
-        title: 'Project removed',
-        description: 'The project submission was deleted from your dashboard',
+        title: 'Task removed',
+        description: 'The task submission was deleted from your dashboard',
       });
     } catch (err: any) {
       toast({
         title: 'Error',
-        description: err.message || 'Failed to delete project',
+        description: err.message || 'Failed to delete task',
         variant: 'destructive',
       });
     } finally {
-      setProjectToDelete(null);
+      setTaskToDelete(null);
     }
   };
 
-  const handleJoinProject = useCallback(async () => {
+  const handleJoinTask = useCallback(async () => {
     const normalizedCode = inviteCode.trim().toUpperCase();
     if (!/^[A-Z0-9]{6}$/.test(normalizedCode)) {
       toast({
@@ -264,10 +221,10 @@ export default function DocumentsPage() {
       return;
     }
 
-    if (projectEnrollments.some((project) => project.inviteCode === normalizedCode)) {
+    if (taskEnrollments.some((task) => task.inviteCode === normalizedCode)) {
       toast({
         title: 'Already joined',
-        description: 'This project is already on your dashboard',
+        description: 'This task is already on your dashboard',
       });
       setShowJoinDialog(false);
       setInviteCode('');
@@ -275,60 +232,65 @@ export default function DocumentsPage() {
     }
 
     try {
-      setIsJoiningProject(true);
+      setIsJoiningTask(true);
 
-      const response = await apiClient.post('/projects/join', { inviteCode: normalizedCode });
-      const enrollmentFromApi: Partial<ProjectEnrollment> | null = response.data?.data?.project || response.data?.data || null;
+      const response = await apiClient.post('/tasks/join', { inviteCode: normalizedCode });
+      const enrollmentFromApi: Partial<TaskEnrollment> | null = response.data?.data?.task || response.data?.data || null;
 
       if (!enrollmentFromApi?.name) {
-        throw new Error('Project invite code not found');
+        throw new Error('Task invite code not found');
       }
 
       const document = await createDocument(
-        `${enrollmentFromApi.name} Submission`
+        `${enrollmentFromApi.name} Submission`,
+        undefined,
+        enrollmentFromApi.environmentConfig || null
       );
 
-      const enrollment: ProjectEnrollment = {
+      const enrollment: TaskEnrollment = {
         id: enrollmentFromApi?.id || normalizedCode,
         name: enrollmentFromApi.name,
-        description: enrollmentFromApi?.description || 'Project joined with invite code',
+        description: enrollmentFromApi?.description || 'Task joined with invite code',
+        startDate: enrollmentFromApi?.startDate,
+        endDate: enrollmentFromApi?.endDate,
+        environmentConfig: enrollmentFromApi?.environmentConfig || null,
         inviteCode: normalizedCode,
         documentId: document.id,
         joinedAt: new Date().toISOString(),
       };
 
-      await apiClient.put(`/projects/enrollments/${enrollment.id}/submission-document`, {
+      await apiClient.put(`/tasks/enrollments/${enrollment.id}/submission-document`, {
         documentId: document.id,
       });
 
-      const nextEnrollments = [...projectEnrollments, enrollment];
-      setProjectEnrollments(nextEnrollments);
-      writeProjectEnrollments(nextEnrollments);
+      const nextEnrollments = [...taskEnrollments, enrollment];
+      setTaskEnrollments(nextEnrollments);
+      writeTaskEnrollments(nextEnrollments);
       setShowJoinDialog(false);
       setInviteCode('');
 
       toast({
-        title: 'Project joined',
-        description: 'A project submission document was added to your dashboard',
+        title: 'Task joined',
+        description: 'A task submission document was added to your dashboard',
       });
     } catch (err: any) {
       toast({
         title: 'Error',
-        description: err.message || 'Failed to join project',
+        description: err.message || 'Failed to join task',
         variant: 'destructive',
       });
     } finally {
-      setIsJoiningProject(false);
+      setIsJoiningTask(false);
     }
-  }, [createDocument, inviteCode, projectEnrollments, toast]);
+  }, [createDocument, inviteCode, taskEnrollments, toast]);
 
   const documentIds = new Set((documents || []).map((document) => document.id));
-  const validProjectEnrollments = projectEnrollments.filter((project) => (
-    documentIds.has(project.documentId)
+  const validTaskEnrollments = taskEnrollments.filter((task) => (
+    documentIds.has(task.documentId)
   ));
-  const projectDocumentIds = new Set(validProjectEnrollments.map((project) => project.documentId));
+  const taskDocumentIds = new Set(validTaskEnrollments.map((task) => task.documentId));
   const personalDocuments = (documents || [])
-    .filter((document) => !projectDocumentIds.has(document.id))
+    .filter((document) => !taskDocumentIds.has(document.id))
     .sort((a, b) => {
       if (sortBy === 'title') {
         return (a.title || '').localeCompare(b.title || '');
@@ -399,12 +361,12 @@ export default function DocumentsPage() {
             <DialogTrigger asChild>
               <Button variant="outline" className="w-full sm:w-auto">
                 <KeyRound className="mr-2 h-4 w-4" />
-                Join Project
+                Join Task
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-md">
               <DialogHeader>
-                <DialogTitle>Join Project</DialogTitle>
+                <DialogTitle>Join Task</DialogTitle>
                 <DialogDescription>
                   Enter the 6-character invite code from your instructor or admin.
                 </DialogDescription>
@@ -420,141 +382,52 @@ export default function DocumentsPage() {
                   onChange={(event) => setInviteCode(event.target.value.toUpperCase())}
                   onKeyDown={(event) => {
                     if (event.key === 'Enter') {
-                      handleJoinProject();
+                      handleJoinTask();
                     }
                   }}
                 />
               </div>
               <DialogFooter>
-                <Button variant="outline" onClick={() => setShowJoinDialog(false)} disabled={isJoiningProject}>
+                <Button variant="outline" onClick={() => setShowJoinDialog(false)} disabled={isJoiningTask}>
                   Cancel
                 </Button>
-                <Button onClick={handleJoinProject} disabled={isJoiningProject}>
-                  {isJoiningProject ? 'Joining...' : 'Join Project'}
+                <Button onClick={handleJoinTask} disabled={isJoiningTask}>
+                  {isJoiningTask ? 'Joining...' : 'Join Task'}
                 </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
 
-          <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-            <DialogTrigger asChild>
-              <Button className="w-full sm:w-auto">
-                <Plus className="mr-2 h-4 w-4" />
-                New Document
-              </Button>
-            </DialogTrigger>
-          <DialogContent className="overflow-hidden sm:max-w-xl">
-            <DialogHeader>
-              <DialogTitle>Create New Document</DialogTitle>
-              <DialogDescription>
-                Enter a title for your new document. Optionally upload a PDF to review it in a 3-panel workspace.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid min-w-0 gap-4 py-4">
-              <div className="grid min-w-0 gap-2">
-                <Label htmlFor="title">Document Title</Label>
-                <Input
-                  id="title"
-                  placeholder="My Research Paper"
-                  value={newDocTitle}
-                  onChange={(e) => setNewDocTitle(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      handleCreateDocument();
-                    }
-                  }}
-                />
-              </div>
-
-              {/* PDF Upload */}
-              <div className="grid min-w-0 gap-2">
-                <Label>Upload PDF (optional)</Label>
-                {pdfFile ? (
-                  <div className="flex max-w-full min-w-0 items-center gap-3 overflow-hidden rounded-lg border bg-muted/50 p-3">
-                    <FileText className="h-8 w-8 text-red-500 shrink-0" />
-                    <div className="min-w-0 flex-1 overflow-hidden">
-                      <p className="truncate text-sm font-medium" title={pdfFile.name}>
-                        {pdfFile.name}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {(pdfFile.size / 1024 / 1024).toFixed(2)} MB
-                      </p>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="shrink-0"
-                      onClick={() => {
-                        setPdfFile(null);
-                        if (fileInputRef.current) fileInputRef.current.value = '';
-                      }}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ) : (
-                  <div
-                    className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed p-6 cursor-pointer hover:bg-muted/50 transition-colors"
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    <Upload className="h-8 w-8 text-muted-foreground mb-2" />
-                    <p className="text-sm text-muted-foreground">
-                      Click to upload a PDF for review
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      PDF up to 50MB
-                    </p>
-                  </div>
-                )}
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="application/pdf"
-                  onChange={handlePdfSelect}
-                  className="hidden"
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => { setShowCreateDialog(false); setPdfFile(null); }}
-                disabled={isCreating}
-              >
-                Cancel
-              </Button>
-              <Button onClick={handleCreateDocument} disabled={isCreating}>
-                {isCreating ? 'Creating...' : pdfFile ? 'Create & Upload PDF' : 'Create Document'}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-          </Dialog>
+          <Button className="w-full sm:w-auto" onClick={() => router.push('/documents/new')}>
+            <Plus className="mr-2 h-4 w-4" />
+            New Document
+          </Button>
         </div>
       </div>
 
-      {validProjectEnrollments.length > 0 && (
+      {validTaskEnrollments.length > 0 && (
         <section className="mb-10">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div>
-              <h2 className="text-xl font-semibold tracking-tight">Enrolled Project Documents</h2>
+              <h2 className="text-xl font-semibold tracking-tight">Enrolled Task Documents</h2>
               <p className="text-sm text-muted-foreground">
-                {validProjectEnrollments.length} project-scoped {validProjectEnrollments.length === 1 ? 'submission' : 'submissions'}
+                {validTaskEnrollments.length} task-scoped {validTaskEnrollments.length === 1 ? 'submission' : 'submissions'}
               </p>
             </div>
           </div>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {validProjectEnrollments.map((project) => {
-              const projectName = getDisplayProjectName(project);
+            {validTaskEnrollments.map((task) => {
+              const taskName = getDisplayTaskName(task);
               return (
-              <Card key={`${project.id}-${project.documentId}`} className="transition-shadow hover:shadow-md">
+              <Card key={`${task.id}-${task.documentId}`} className="transition-shadow hover:shadow-md">
                 <CardContent className="flex h-full flex-col gap-3 p-5">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                        Project Name
+                        Task Name
                       </p>
-                      <h3 className="truncate text-lg font-semibold" title={projectName}>
-                        {projectName}
+                      <h3 className="truncate text-lg font-semibold" title={taskName}>
+                        {taskName}
                       </h3>
                     </div>
                     <BookOpen className="h-5 w-5 shrink-0 text-muted-foreground" />
@@ -564,19 +437,45 @@ export default function DocumentsPage() {
                       Code
                     </p>
                     <div className="rounded-md border bg-muted/30 px-3 py-2 font-mono text-sm font-semibold tracking-wider">
-                      {project.inviteCode}
+                      {task.inviteCode}
                     </div>
                   </div>
+                  {(task.startDate || task.endDate) && (
+                    <div className="grid gap-2 rounded-md border bg-muted/20 p-3 text-sm">
+                      {task.startDate && (
+                        <div className="flex items-start gap-2">
+                          <CalendarClock className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                          <div className="min-w-0">
+                            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                              Starts
+                            </p>
+                            <p className="break-words">{formatDateTime(task.startDate)}</p>
+                          </div>
+                        </div>
+                      )}
+                      {task.endDate && (
+                        <div className="flex items-start gap-2">
+                          <CalendarClock className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                          <div className="min-w-0">
+                            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                              Deadline
+                            </p>
+                            <p className="break-words">{formatDateTime(task.endDate)}</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                   <div className="flex-1" />
                   <div className="flex gap-2">
-                    <Button className="flex-1" onClick={() => router.push(`/documents/${project.documentId}`)}>
+                    <Button className="flex-1" onClick={() => router.push(`/documents/${task.documentId}`)}>
                       Open Submission
                     </Button>
                     <Button
                       variant="outline"
                       size="icon"
-                      title="Delete project submission"
-                      onClick={() => setProjectToDelete(project)}
+                      title="Delete task submission"
+                      onClick={() => setTaskToDelete(task)}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -615,7 +514,7 @@ export default function DocumentsPage() {
           <p className="mt-2 text-sm text-muted-foreground">
             Get started by creating your first document
           </p>
-          <Button className="mt-4" onClick={() => setShowCreateDialog(true)}>
+          <Button className="mt-4" onClick={() => router.push('/documents/new')}>
             <Plus className="mr-2 h-4 w-4" />
             Create Document
           </Button>
@@ -632,19 +531,19 @@ export default function DocumentsPage() {
         </div>
       )}
 
-      <AlertDialog open={!!projectToDelete} onOpenChange={(open) => !open && setProjectToDelete(null)}>
+      <AlertDialog open={!!taskToDelete} onOpenChange={(open) => !open && setTaskToDelete(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Project Submission</AlertDialogTitle>
+            <AlertDialogTitle>Delete Task Submission</AlertDialogTitle>
             <AlertDialogDescription>
-              This removes the project from your dashboard and deletes its submission document.
+              This removes the task from your dashboard and deletes its submission document.
               This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={handleDeleteProjectEnrollment}
+              onClick={handleDeleteTaskEnrollment}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Delete

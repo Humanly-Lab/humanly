@@ -28,6 +28,7 @@ interface AISelectionMenuProps {
     replacementResult?: SelectionReplacementResult
   ) => void;
   onAskAI?: (selectedText: string) => void;
+  taskManaged?: boolean;
 }
 
 export type ActionType = 'grammar' | 'improve' | 'simplify' | 'formal';
@@ -75,9 +76,9 @@ export function AISelectionMenu({
   onClose,
   replaceSelection,
   cancelAIAction,
-  undoLastAction,
   onActionApplied,
   onAskAI,
+  taskManaged = false,
 }: AISelectionMenuProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [loadingAction, setLoadingAction] = useState<ActionType | null>(null);
@@ -88,6 +89,11 @@ export function AISelectionMenu({
 
   // Check if user has AI settings configured
   useEffect(() => {
+    if (taskManaged) {
+      setHasAISettings(true);
+      return;
+    }
+
     let cancelled = false;
     api.get('/ai/settings').then((res: any) => {
       if (!cancelled) {
@@ -99,7 +105,7 @@ export function AISelectionMenu({
       }
     });
     return () => { cancelled = true; };
-  }, []);
+  }, [taskManaged]);
 
   const handleAction = async (action: typeof ACTIONS[number]) => {
     if (isLoading) return;

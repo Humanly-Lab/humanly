@@ -28,7 +28,7 @@ export default function TermsOfServicePage() {
             <p className="leading-relaxed">
               Users who deploy Humanly tracking scripts are responsible for ensuring that participants or end-users
               are properly informed about the data collection and that such collection complies with applicable privacy
-              laws and institutional policies. Humanly does not control how the Service is implemented by project
+              laws and institutional policies. Humanly does not control how the Service is implemented by task
               owners and is not responsible for any misuse of collected data.
             </p>
           </section>

@@ -13,7 +13,7 @@ export class PaperModel {
   static async create(data: InsertPaper): Promise<Paper> {
     const query = `
       INSERT INTO papers (
-        project_id, uploaded_by, title, authors, abstract, keywords,
+        task_id, uploaded_by, title, authors, abstract, keywords,
         pdf_storage_path, pdf_file_size, pdf_page_count, pdf_checksum,
         review_deadline, status
       )
@@ -22,7 +22,7 @@ export class PaperModel {
     `
 
     const values = [
-      data.projectId,
+      data.taskId,
       data.uploadedBy,
       data.title,
       data.authors,
@@ -56,7 +56,7 @@ export class PaperModel {
   static async findByIdForReviewer(paperId: string): Promise<PaperForReviewer | null> {
     const query = `
       SELECT
-        id, project_id, title, abstract, keywords, submission_date,
+        id, task_id, title, abstract, keywords, submission_date,
         pdf_page_count, review_deadline, status, created_at
       FROM papers
       WHERE id = $1
@@ -70,15 +70,15 @@ export class PaperModel {
     return this.mapToCamelCaseBlind(result.rows[0])
   }
 
-  // Find papers by project
-  static async findByProject(
-    projectId: string,
+  // Find papers by task
+  static async findByTask(
+    taskId: string,
     filter?: PaperFilter,
     limit: number = 50,
     offset: number = 0
   ): Promise<{ papers: Paper[]; total: number }> {
-    let query = 'SELECT * FROM papers WHERE project_id = $1'
-    const values: any[] = [projectId]
+    let query = 'SELECT * FROM papers WHERE task_id = $1'
+    const values: any[] = [taskId]
     let paramIndex = 2
 
     // Apply filters
@@ -121,23 +121,36 @@ export class PaperModel {
     return { papers, total }
   }
 
-  // Find the newest project instruction PDF.
-  static async findInstructionByProject(projectId: string): Promise<Paper | null> {
+  // Find the newest task instruction PDF.
+  static async findInstructionByTask(taskId: string): Promise<Paper | null> {
     const query = `
       SELECT *
       FROM papers
-      WHERE project_id = $1
+      WHERE task_id = $1
         AND keywords @> ARRAY['instructions']::text[]
       ORDER BY submission_date DESC, created_at DESC
       LIMIT 1
     `
-    const result = await pool.query(query, [projectId])
+    const result = await pool.query(query, [taskId])
 
     if (result.rows.length === 0) {
       return null
     }
 
     return this.mapToCamelCase(result.rows[0])
+  }
+
+  // Find all task instruction PDFs.
+  static async findInstructionsByTask(taskId: string): Promise<Paper[]> {
+    const query = `
+      SELECT *
+      FROM papers
+      WHERE task_id = $1
+        AND keywords @> ARRAY['instructions']::text[]
+      ORDER BY submission_date DESC, created_at DESC
+    `
+    const result = await pool.query(query, [taskId])
+    return result.rows.map((row: any) => this.mapToCamelCase(row))
   }
 
   // Update paper
@@ -225,12 +238,12 @@ export class PaperModel {
     return result.rows[0].uploaded_by === userId
   }
 
-  // Check if user has admin access to paper's project
-  static async hasProjectAccess(paperId: string, userId: string): Promise<boolean> {
+  // Check if user has admin access to paper's task
+  static async hasTaskAccess(paperId: string, userId: string): Promise<boolean> {
     const query = `
-      SELECT p.project_id
+      SELECT p.task_id
       FROM papers p
-      JOIN projects proj ON p.project_id = proj.id
+      JOIN tasks proj ON p.task_id = proj.id
       WHERE p.id = $1 AND proj.user_id = $2
     `
     const result = await pool.query(query, [paperId, userId])
@@ -246,7 +259,7 @@ export class PaperModel {
   ): Promise<{ papers: PaperForReviewer[]; total: number }> {
     let query = `
       SELECT
-        p.id, p.project_id, p.title, p.abstract, p.keywords, p.submission_date,
+        p.id, p.task_id, p.title, p.abstract, p.keywords, p.submission_date,
         p.pdf_page_count, p.review_deadline, p.status, p.created_at,
         pr.review_status, pr.assigned_at
       FROM papers p
@@ -281,7 +294,7 @@ export class PaperModel {
   static mapToCamelCase(row: any): Paper {
     return {
       id: row.id,
-      projectId: row.project_id,
+      taskId: row.task_id,
       uploadedBy: row.uploaded_by,
       title: row.title,
       authors: row.authors,
@@ -303,7 +316,7 @@ export class PaperModel {
   private static mapToCamelCaseBlind(row: any): PaperForReviewer {
     return {
       id: row.id,
-      projectId: row.project_id,
+      taskId: row.task_id,
       title: row.title,
       abstract: row.abstract,
       keywords: row.keywords,

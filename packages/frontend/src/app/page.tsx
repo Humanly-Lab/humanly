@@ -16,10 +16,10 @@ export default function HomePage() {
             Admin Portal
           </div>
           <h1 className="text-4xl font-bold tracking-tight sm:text-6xl">
-            Manage writing projects, submissions, and AI usage.
+            Manage writing tasks, submissions, and AI usage.
           </h1>
           <p className="mx-auto mt-5 max-w-2xl text-lg text-muted-foreground">
-            Create invite-code projects, upload instructions, configure model access, and monitor student writing activity from one admin workspace.
+            Create invite-code tasks, upload instructions, configure model access, and monitor student writing activity from one admin workspace.
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
             <Link
@@ -29,7 +29,7 @@ export default function HomePage() {
               Admin Login
             </Link>
             <Link
-              href="/projects"
+              href="/tasks"
               className="rounded-md bg-secondary px-6 py-3 text-secondary-foreground transition-colors hover:bg-secondary/90"
             >
               Open Dashboard

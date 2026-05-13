@@ -28,9 +28,9 @@ export function generateToken(bytes: number = 32): string {
 }
 
 /**
- * Generate a project token (64 characters)
+ * Generate a task token (64 characters)
  */
-export function generateProjectToken(): string {
+export function generateTaskToken(): string {
   return generateToken(32); // 32 bytes = 64 hex characters
 }
 

@@ -20,7 +20,7 @@ export class ReviewerService {
     }
   ): Promise<PaperReviewer> {
     // TODO: Verify assigner is admin
-    // const isAdmin = await PaperModel.hasProjectAccess(paperId, assignedBy)
+    // const isAdmin = await PaperModel.hasTaskAccess(paperId, assignedBy)
     // if (!isAdmin) throw new AppError('Only admins can assign reviewers', 403)
 
     // Verify paper exists
@@ -57,7 +57,7 @@ export class ReviewerService {
     userId: string
   ): Promise<PaperReviewer[]> {
     // TODO: Verify user is admin or assigned reviewer
-    // const isAdmin = await PaperModel.hasProjectAccess(paperId, userId)
+    // const isAdmin = await PaperModel.hasTaskAccess(paperId, userId)
     // const isReviewer = await PaperReviewerModel.hasAccess(paperId, userId)
     // if (!isAdmin && !isReviewer) throw new AppError('Access denied', 403)
 
@@ -71,7 +71,7 @@ export class ReviewerService {
     userId: string
   ): Promise<PaperReviewer> {
     // TODO: Verify access (admin or the reviewer themselves)
-    // const isAdmin = await PaperModel.hasProjectAccess(paperId, userId)
+    // const isAdmin = await PaperModel.hasTaskAccess(paperId, userId)
     // if (!isAdmin && userId !== reviewerId) {
     //   throw new AppError('Access denied', 403)
     // }
@@ -92,7 +92,7 @@ export class ReviewerService {
     userId: string
   ): Promise<PaperReviewer> {
     // TODO: Verify user is admin
-    // const isAdmin = await PaperModel.hasProjectAccess(paperId, userId)
+    // const isAdmin = await PaperModel.hasTaskAccess(paperId, userId)
     // if (!isAdmin) throw new AppError('Only admins can update permissions', 403)
 
     return PaperReviewerModel.updateByPaperAndReviewer(paperId, reviewerId, permissions)
@@ -105,7 +105,7 @@ export class ReviewerService {
     userId: string
   ): Promise<void> {
     // TODO: Verify user is admin
-    // const isAdmin = await PaperModel.hasProjectAccess(paperId, userId)
+    // const isAdmin = await PaperModel.hasTaskAccess(paperId, userId)
     // if (!isAdmin) throw new AppError('Only admins can remove reviewers', 403)
 
     // Check if review has been submitted

@@ -8,9 +8,11 @@ import {
 
 const CERTIFICATE_SELECT_FIELDS = `
   id,
+  submission_id as "submissionId",
   document_id as "documentId",
   user_id as "userId",
   certificate_type as "certificateType",
+  status,
   title,
   document_snapshot as "documentSnapshot",
   plain_text_snapshot as "plainTextSnapshot",
@@ -43,7 +45,7 @@ export class CertificateModel {
   static async create(data: CertificateInsertData): Promise<Certificate> {
     const sql = `
       INSERT INTO certificates (
-        document_id, user_id, certificate_type,
+        submission_id, document_id, user_id, certificate_type, status,
         title, document_snapshot, plain_text_snapshot,
         total_events, typing_events, paste_events,
         total_characters, typed_characters, pasted_characters,
@@ -51,14 +53,16 @@ export class CertificateModel {
         signer_name, include_full_text, include_edit_history,
         access_code, access_code_hash, is_protected
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
       RETURNING ${CERTIFICATE_SELECT_FIELDS}
     `;
 
     const certificate = await queryOne<Certificate>(sql, [
+      data.submissionId || null,
       data.documentId,
       data.userId,
       data.certificateType,
+      data.status || 'active',
       data.title,
       JSON.stringify(data.documentSnapshot),
       data.plainTextSnapshot,
@@ -203,6 +207,28 @@ export class CertificateModel {
     `;
 
     return query<Certificate>(sql, [documentId]);
+  }
+
+  static async findBySubmissionId(submissionId: string): Promise<Certificate | null> {
+    const sql = `
+      SELECT ${CERTIFICATE_SELECT_FIELDS}
+      FROM certificates
+      WHERE submission_id = $1
+      ORDER BY created_at DESC
+      LIMIT 1
+    `;
+
+    return queryOne<Certificate>(sql, [submissionId]);
+  }
+
+  static async markSupersededForDocument(documentId: string, userId: string): Promise<void> {
+    const sql = `
+      UPDATE certificates
+      SET status = 'superseded'
+      WHERE document_id = $1 AND user_id = $2 AND submission_id IS NOT NULL AND status = 'active'
+    `;
+
+    await query(sql, [documentId, userId]);
   }
 
   /**

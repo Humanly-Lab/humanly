@@ -8,8 +8,8 @@ export interface UseSelectedMetricsReturn {
   isSelected: (metricId: string) => boolean;
 }
 
-export function useSelectedMetrics(projectId: string): UseSelectedMetricsReturn {
-  const storageKey = `humanly-analytics-metrics-${projectId}`;
+export function useSelectedMetrics(taskId: string): UseSelectedMetricsReturn {
+  const storageKey = `humanly-analytics-metrics-${taskId}`;
 
   // Initialize from localStorage or defaults
   const [selectedMetrics, setSelectedMetrics] = useState<string[]>(() => {

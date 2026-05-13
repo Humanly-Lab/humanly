@@ -2,7 +2,7 @@
 
 export interface Paper {
   id: string
-  projectId: string
+  taskId: string
   uploadedBy: string
 
   // Metadata
@@ -234,7 +234,7 @@ export interface PaperAccessLog {
 
 // Insert types (for creating new records)
 export interface InsertPaper {
-  projectId: string
+  taskId: string
   uploadedBy: string
   title: string
   authors: string[]
@@ -361,7 +361,7 @@ export interface UpdateReviewRecording {
 
 // Filter types (for querying)
 export interface PaperFilter {
-  projectId?: string
+  taskId?: string
   uploadedBy?: string
   status?: PaperStatus
   submissionDateFrom?: Date
@@ -384,7 +384,7 @@ export interface ReviewCommentFilter {
 // API response types (for blind review - hide author names from reviewers)
 export interface PaperForReviewer {
   id: string
-  projectId: string
+  taskId: string
   title: string
   // authors: HIDDEN for blind review
   abstract: string

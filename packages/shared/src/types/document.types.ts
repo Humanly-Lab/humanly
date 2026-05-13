@@ -3,6 +3,7 @@
  */
 
 import { EventType } from './event.types';
+import { WritingEnvironmentConfig } from './environment.types';
 
 export type DocumentStatus = 'draft' | 'published' | 'archived';
 
@@ -10,12 +11,14 @@ export interface Document {
   id: string;
   userId: string;
   title: string;
+  description?: string | null;
   content: Record<string, any>; // Lexical editor state (JSON)
   plainText: string;
   status: DocumentStatus;
   version: number;
   wordCount: number;
   characterCount: number;
+  environmentConfig?: WritingEnvironmentConfig | null;
   createdAt: Date;
   updatedAt: Date;
   lastEditedAt: Date;
@@ -24,20 +27,24 @@ export interface Document {
 export interface DocumentInsertData {
   userId: string;
   title: string;
+  description?: string | null;
   content: Record<string, any>;
   plainText: string;
   status?: DocumentStatus;
   wordCount?: number;
   characterCount?: number;
+  environmentConfig?: WritingEnvironmentConfig | null;
 }
 
 export interface DocumentUpdateData {
   title?: string;
+  description?: string | null;
   content?: Record<string, any>;
   plainText?: string;
   status?: DocumentStatus;
   wordCount?: number;
   characterCount?: number;
+  environmentConfig?: WritingEnvironmentConfig | null;
 }
 
 export interface DocumentFilters {
@@ -62,6 +69,35 @@ export interface DocumentStatistics {
   firstEvent: Date | null;
   lastEvent: Date | null;
   editingDurationSeconds: number;
+}
+
+export type SubmissionStatus = 'active' | 'historical';
+
+export interface Submission {
+  id: string;
+  taskId: string;
+  userId: string;
+  userEmail?: string | null;
+  documentId: string;
+  documentTitle?: string | null;
+  certificateId?: string | null;
+  certificateVerificationToken?: string | null;
+  submittedAt: Date;
+  payloadSnapshot: Record<string, any>;
+  plainTextSnapshot: string;
+  supersedesSubmissionId?: string | null;
+  status: SubmissionStatus;
+  createdAt: Date;
+}
+
+export interface SubmissionInsertData {
+  taskId: string;
+  userId: string;
+  documentId: string;
+  payloadSnapshot: Record<string, any>;
+  plainTextSnapshot: string;
+  supersedesSubmissionId?: string | null;
+  status?: SubmissionStatus;
 }
 
 // Document event types (extends existing event types)
@@ -113,12 +149,15 @@ export interface DocumentEventQueryFilters {
 
 // Certificate types
 export type CertificateType = 'full_authorship' | 'partial_authorship';
+export type CertificateStatus = 'active' | 'superseded' | 'historical';
 
 export interface Certificate {
   id: string;
+  submissionId?: string | null;
   documentId: string;
   userId: string;
   certificateType: CertificateType;
+  status?: CertificateStatus;
 
   // Certificate data
   title: string;
@@ -155,9 +194,11 @@ export interface Certificate {
 }
 
 export interface CertificateInsertData {
+  submissionId?: string | null;
   documentId: string;
   userId: string;
   certificateType: CertificateType;
+  status?: CertificateStatus;
   title: string;
   documentSnapshot: Record<string, any>;
   plainTextSnapshot: string;
@@ -240,6 +281,7 @@ export interface AIAuthorshipStats {
 export interface JSONCertificate {
   version: string;
   certificateId: string;
+  submissionId?: string;
   documentId: string;
   userId: string;
   generatedAt: string;

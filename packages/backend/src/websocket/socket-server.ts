@@ -53,7 +53,7 @@ function authenticateSocket(
     // Store user data in socket
     socket.data.userId = payload.userId;
     socket.data.email = payload.email;
-    socket.data.projectRooms = new Set<string>();
+    socket.data.taskRooms = new Set<string>();
 
     logger.info('WebSocket authenticated', {
       socketId: socket.id,
@@ -97,18 +97,18 @@ export function setupWebSocketServer(io: SocketIOServer): void {
 
     // Handle disconnection
     socket.on('disconnect', (reason) => {
-      const rooms = Array.from(socket.data.projectRooms || []);
+      const rooms = Array.from(socket.data.taskRooms || []);
 
       logger.info('Client disconnected from WebSocket', {
         socketId: socket.id,
         userId,
         email,
         reason,
-        projectRooms: rooms,
+        taskRooms: rooms,
       });
 
       // Clean up rooms
-      socket.data.projectRooms?.clear();
+      socket.data.taskRooms?.clear();
     });
 
     // Handle socket errors

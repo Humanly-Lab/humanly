@@ -4,7 +4,7 @@ export const JWT_REFRESH_EXPIRES = '7d';
 export const PASSWORD_MIN_LENGTH = 8;
 export const PASSWORD_MAX_LENGTH = 128;
 
-export const PROJECT_TOKEN_LENGTH = 64; // 32 bytes hex
+export const TASK_TOKEN_LENGTH = 64; // 32 bytes hex
 
 export const EVENT_BATCH_SIZE = 100;
 export const EVENT_MAX_PAYLOAD_SIZE = 10240; // 10KB
@@ -56,5 +56,5 @@ export const PAGINATION = {
 
 export const CACHE_TTL = {
   ANALYTICS: 5 * 60, // 5 minutes
-  PROJECT_STATS: 5 * 60,
+  TASK_STATS: 5 * 60,
 };

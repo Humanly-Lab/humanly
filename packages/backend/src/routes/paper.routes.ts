@@ -17,7 +17,7 @@ import {
 } from '../controllers/paper.controller'
 import { authenticate } from '../middleware/auth.middleware'
 import {
-  requireProjectAdmin,
+  requireTaskAdmin,
   requirePaperViewAccess
 } from '../middleware/review-auth.middleware'
 
@@ -40,17 +40,17 @@ const upload = multer({
 
 // Paper management routes
 router.post(
-  '/projects/:projectId/papers',
+  '/tasks/:taskId/papers',
   authenticate,
-  requireProjectAdmin,
+  requireTaskAdmin,
   upload.single('pdf'),
   uploadPaper
 )
 
 router.get(
-  '/projects/:projectId/papers',
+  '/tasks/:taskId/papers',
   authenticate,
-  requireProjectAdmin,
+  requireTaskAdmin,
   listPapers
 )
 
@@ -64,14 +64,14 @@ router.get(
 router.patch(
   '/papers/:paperId',
   authenticate,
-  requireProjectAdmin,
+  requireTaskAdmin,
   updatePaper
 )
 
 router.delete(
   '/papers/:paperId',
   authenticate,
-  requireProjectAdmin,
+  requireTaskAdmin,
   deletePaper
 )
 
@@ -102,7 +102,7 @@ router.post(
 router.post(
   '/papers/:paperId/reviewers',
   authenticate,
-  requireProjectAdmin,
+  requireTaskAdmin,
   assignReviewer
 )
 
@@ -116,14 +116,14 @@ router.get(
 router.patch(
   '/papers/:paperId/reviewers/:reviewerId',
   authenticate,
-  requireProjectAdmin,
+  requireTaskAdmin,
   updateReviewerPermissions
 )
 
 router.delete(
   '/papers/:paperId/reviewers/:reviewerId',
   authenticate,
-  requireProjectAdmin,
+  requireTaskAdmin,
   removeReviewer
 )
 

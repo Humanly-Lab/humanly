@@ -1,6 +1,6 @@
 export interface Session {
   id: string;
-  projectId: string;
+  taskId: string;
   externalUserId: string;
   sessionStart: Date;
   sessionEnd?: Date | null;
@@ -12,7 +12,7 @@ export interface Session {
 }
 
 export interface SessionCreateInput {
-  projectId: string;
+  taskId: string;
   externalUserId: string;
   ipAddress?: string;
   userAgent?: string;

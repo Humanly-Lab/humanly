@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { EventsController } from '../controllers/events.controller';
 import {
-  validateProjectToken,
+  validateTaskToken,
   validateSessionId,
   trackingRateLimit,
   trackMetrics,
@@ -12,7 +12,7 @@ const router = Router();
 
 /**
  * Public tracking endpoints
- * These endpoints are protected by X-Project-Token header, not user authentication
+ * These endpoints are protected by X-Task-Token header, not user authentication
  */
 
 // Health check for tracking service
@@ -20,37 +20,37 @@ router.get('/health', EventsController.healthCheck);
 
 // Initialize a new tracking session
 // POST /api/v1/track/init
-// Headers: X-Project-Token
+// Headers: X-Task-Token
 // Body: { externalUserId: string, metadata?: object }
 router.post(
   '/init',
   trackingRateLimit,
   trackMetrics,
-  validateProjectToken,
+  validateTaskToken,
   validateExternalUserId,
   EventsController.initSession
 );
 
 // Ingest batch of events
 // POST /api/v1/track/events
-// Headers: X-Project-Token, X-Session-Id
+// Headers: X-Task-Token, X-Session-Id
 // Body: { events: TrackerEvent[] }
 router.post(
   '/events',
   trackingRateLimit,
   trackMetrics,
-  validateProjectToken,
+  validateTaskToken,
   EventsController.ingestEvents
 );
 
 // Submit session (mark as completed)
 // POST /api/v1/track/submit
-// Headers: X-Project-Token, X-Session-Id
+// Headers: X-Task-Token, X-Session-Id
 router.post(
   '/submit',
   trackingRateLimit,
   trackMetrics,
-  validateProjectToken,
+  validateTaskToken,
   EventsController.submitSession
 );
 
@@ -69,21 +69,21 @@ router.get(
   EventsController.getSessionEvents
 );
 
-// Query events for a project with filters
-// GET /api/v1/track/project/:projectId/events
+// Query events for a task with filters
+// GET /api/v1/track/task/:taskId/events
 // Query params: sessionId?, externalUserId?, startDate?, endDate?, eventTypes?, limit?, offset?
 // Requires: User authentication
 router.get(
-  '/project/:projectId/events',
+  '/task/:taskId/events',
   // TODO: Add user authentication middleware when implemented
   EventsController.queryEvents
 );
 
-// Get event statistics for a project
-// GET /api/v1/track/project/:projectId/stats
+// Get event statistics for a task
+// GET /api/v1/track/task/:taskId/stats
 // Requires: User authentication
 router.get(
-  '/project/:projectId/stats',
+  '/task/:taskId/stats',
   // TODO: Add user authentication middleware when implemented
   EventsController.getEventStats
 );

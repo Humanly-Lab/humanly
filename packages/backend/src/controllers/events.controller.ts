@@ -40,7 +40,7 @@ const initSessionSchema = z.object({
 const ingestEventsSchema = z.object({
   events: z.array(trackerEventSchema).min(1).max(1000),
   sessionId: z.string().optional(), // For sendBeacon compatibility
-  projectToken: z.string().optional(), // For sendBeacon compatibility
+  taskToken: z.string().optional(), // For sendBeacon compatibility
 });
 
 export class EventsController {
@@ -54,14 +54,14 @@ export class EventsController {
     // Validate request body
     const validatedData = initSessionSchema.parse(req.body);
 
-    // Get project token from header
-    const projectToken = req.headers['x-project-token'] as string;
+    // Get task token from header
+    const taskToken = req.headers['x-task-token'] as string;
 
-    if (!projectToken) {
+    if (!taskToken) {
       return res.status(401).json({
         success: false,
-        error: 'Missing project token',
-        message: 'X-Project-Token header is required',
+        error: 'Missing task token',
+        message: 'X-Task-Token header is required',
       });
     }
 
@@ -75,7 +75,7 @@ export class EventsController {
 
     // Initialize session
     const result = await EventService.initSession({
-      projectToken,
+      taskToken,
       externalUserId: validatedData.externalUserId,
       metadata: validatedData.metadata,
       ipAddress,
@@ -86,7 +86,7 @@ export class EventsController {
 
     logger.info('Session init request completed', {
       sessionId: result.sessionId,
-      projectId: result.projectId,
+      taskId: result.taskId,
       duration,
     });
 
@@ -118,38 +118,38 @@ export class EventsController {
       });
     }
 
-    // Get project ID from authenticated request (set by validateProjectToken middleware)
-    // If not set and projectToken is in body, we need to validate it
-    let projectId = req.projectId;
+    // Get task ID from authenticated request (set by validateTaskToken middleware)
+    // If not set and taskToken is in body, we need to validate it
+    let taskId = req.taskId;
 
-    if (!projectId && validatedData.projectToken) {
-      // For sendBeacon requests, project token might be in body
+    if (!taskId && validatedData.taskToken) {
+      // For sendBeacon requests, task token might be in body
       // We need to validate it here
-      const ProjectModel = (await import('../models/project.model')).ProjectModel;
-      const project = await ProjectModel.findByToken(validatedData.projectToken);
+      const TaskModel = (await import('../models/task.model')).TaskModel;
+      const task = await TaskModel.findByToken(validatedData.taskToken);
 
-      if (!project || !project.isActive) {
+      if (!task || !task.isActive) {
         return res.status(401).json({
           success: false,
-          error: 'Invalid project token',
-          message: 'Project authentication required',
+          error: 'Invalid task token',
+          message: 'Task authentication required',
         });
       }
 
-      projectId = project.id;
+      taskId = task.id;
     }
 
-    if (!projectId) {
+    if (!taskId) {
       return res.status(401).json({
         success: false,
-        error: 'Missing project ID',
-        message: 'Project authentication required',
+        error: 'Missing task ID',
+        message: 'Task authentication required',
       });
     }
 
     // Ingest events
     const result = await EventService.ingestEvents({
-      projectId,
+      taskId,
       sessionId,
       events: validatedData.events as TrackerEvent[],
     });
@@ -158,7 +158,7 @@ export class EventsController {
 
     logger.info('Event ingestion request completed', {
       sessionId,
-      projectId,
+      taskId,
       eventCount: validatedData.events.length,
       duration,
     });
@@ -188,17 +188,17 @@ export class EventsController {
       });
     }
 
-    // Get project ID from authenticated request
-    const projectId = req.projectId;
+    // Get task ID from authenticated request
+    const taskId = req.taskId;
 
     // Submit session
-    const result = await EventService.submitSession(sessionId, projectId);
+    const result = await EventService.submitSession(sessionId, taskId);
 
     const duration = Date.now() - startTime;
 
     logger.info('Session submit request completed', {
       sessionId,
-      projectId,
+      taskId,
       duration,
     });
 
@@ -250,11 +250,11 @@ export class EventsController {
   });
 
   /**
-   * GET /api/v1/track/project/:projectId/events
-   * Query events for a project (requires user authentication)
+   * GET /api/v1/track/task/:taskId/events
+   * Query events for a task (requires user authentication)
    */
   static queryEvents = asyncHandler(async (req: Request, res: Response) => {
-    const { projectId } = req.params;
+    const { taskId } = req.params;
     const userId = (req as any).userId; // Assumes user authentication middleware sets this
 
     if (!userId) {
@@ -292,7 +292,7 @@ export class EventsController {
       filters.eventTypes = types.split(',') as EventType[];
     }
 
-    const result = await EventService.queryEvents(projectId, userId, filters);
+    const result = await EventService.queryEvents(taskId, userId, filters);
 
     res.status(200).json({
       success: true,
@@ -302,11 +302,11 @@ export class EventsController {
   });
 
   /**
-   * GET /api/v1/track/project/:projectId/stats
-   * Get event statistics for a project (requires user authentication)
+   * GET /api/v1/track/task/:taskId/stats
+   * Get event statistics for a task (requires user authentication)
    */
   static getEventStats = asyncHandler(async (req: Request, res: Response) => {
-    const { projectId } = req.params;
+    const { taskId } = req.params;
     const userId = (req as any).userId; // Assumes user authentication middleware sets this
 
     if (!userId) {
@@ -317,7 +317,7 @@ export class EventsController {
       });
     }
 
-    const result = await EventService.getEventStats(projectId, userId);
+    const result = await EventService.getEventStats(taskId, userId);
 
     res.status(200).json({
       success: true,

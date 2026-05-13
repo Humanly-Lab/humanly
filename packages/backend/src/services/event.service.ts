@@ -1,12 +1,12 @@
 import { SessionModel } from '../models/session.model';
 import { EventModel, EventInsertData } from '../models/event.model';
-import { ProjectModel } from '../models/project.model';
+import { TaskModel } from '../models/task.model';
 import { Session, TrackerEvent, Event, EventQueryFilters } from '@humanly/shared';
 import { AppError } from '../middleware/error-handler';
 import { logger } from '../utils/logger';
 
 export interface InitSessionInput {
-  projectToken: string;
+  taskToken: string;
   externalUserId: string;
   metadata?: Record<string, any>;
   ipAddress?: string;
@@ -15,12 +15,12 @@ export interface InitSessionInput {
 
 export interface InitSessionResponse {
   sessionId: string;
-  projectId: string;
+  taskId: string;
   message: string;
 }
 
 export interface IngestEventsInput {
-  projectId: string;
+  taskId: string;
   sessionId: string;
   events: TrackerEvent[];
 }
@@ -45,20 +45,20 @@ export class EventService {
     const startTime = Date.now();
 
     try {
-      // Verify project token
-      const project = await ProjectModel.findByToken(input.projectToken);
+      // Verify task token
+      const task = await TaskModel.findByToken(input.taskToken);
 
-      if (!project) {
-        throw new AppError(401, 'Invalid or inactive project token');
+      if (!task) {
+        throw new AppError(401, 'Invalid or inactive task token');
       }
 
-      if (!project.isActive) {
-        throw new AppError(403, 'Project is not active');
+      if (!task.isActive) {
+        throw new AppError(403, 'Task is not active');
       }
 
       // Create new session
       const session = await SessionModel.create({
-        projectId: project.id,
+        taskId: task.id,
         externalUserId: input.externalUserId,
         ipAddress: input.ipAddress,
         userAgent: input.userAgent,
@@ -68,14 +68,14 @@ export class EventService {
 
       logger.info('Session initialized', {
         sessionId: session.id,
-        projectId: project.id,
+        taskId: task.id,
         externalUserId: input.externalUserId,
         duration,
       });
 
       // Broadcast session creation via WebSocket if available
       if ((global as any).io) {
-        (global as any).io.to(`project:${project.id}`).emit('session-started', {
+        (global as any).io.to(`task:${task.id}`).emit('session-started', {
           sessionId: session.id,
           externalUserId: session.externalUserId,
           timestamp: new Date(),
@@ -84,7 +84,7 @@ export class EventService {
 
       return {
         sessionId: session.id,
-        projectId: project.id,
+        taskId: task.id,
         message: 'Session initialized successfully',
       };
     } catch (error) {
@@ -118,9 +118,9 @@ export class EventService {
         throw new AppError(404, 'Session not found');
       }
 
-      // Verify session belongs to project
-      if (session.projectId !== input.projectId) {
-        throw new AppError(403, 'Session does not belong to this project');
+      // Verify session belongs to task
+      if (session.taskId !== input.taskId) {
+        throw new AppError(403, 'Session does not belong to this task');
       }
 
       // Check if session has ended
@@ -131,7 +131,7 @@ export class EventService {
       // Prepare events for insertion
       const eventsToInsert: EventInsertData[] = input.events.map((event) => ({
         sessionId: input.sessionId,
-        projectId: input.projectId,
+        taskId: input.taskId,
         eventType: event.eventType,
         timestamp: typeof event.timestamp === 'string' ? new Date(event.timestamp) : event.timestamp,
         targetElement: event.targetElement,
@@ -152,7 +152,7 @@ export class EventService {
 
       logger.info('Events ingested', {
         sessionId: input.sessionId,
-        projectId: input.projectId,
+        taskId: input.taskId,
         eventCount: input.events.length,
         duration,
       });
@@ -167,7 +167,7 @@ export class EventService {
           // Emit the first few events individually for live preview
           const eventsToEmit = input.events.slice(0, 10);
           eventsToEmit.forEach((event) => {
-            (global as any).io.to(`project:${input.projectId}`).emit('event-received', {
+            (global as any).io.to(`task:${input.taskId}`).emit('event-received', {
               sessionId: input.sessionId,
               externalUserId: sessionForEvent.externalUserId,
               event,
@@ -185,7 +185,7 @@ export class EventService {
       logger.error('Failed to ingest events', {
         error: error instanceof Error ? error.message : 'Unknown error',
         sessionId: input.sessionId,
-        projectId: input.projectId,
+        taskId: input.taskId,
         eventCount: input.events?.length || 0,
       });
       throw error;
@@ -195,7 +195,7 @@ export class EventService {
   /**
    * Submit session (mark as completed)
    */
-  static async submitSession(sessionId: string, projectId?: string): Promise<SubmitSessionResponse> {
+  static async submitSession(sessionId: string, taskId?: string): Promise<SubmitSessionResponse> {
     const startTime = Date.now();
 
     try {
@@ -206,9 +206,9 @@ export class EventService {
         throw new AppError(404, 'Session not found');
       }
 
-      // Verify project ownership if projectId provided
-      if (projectId && session.projectId !== projectId) {
-        throw new AppError(403, 'Session does not belong to this project');
+      // Verify task ownership if taskId provided
+      if (taskId && session.taskId !== taskId) {
+        throw new AppError(403, 'Session does not belong to this task');
       }
 
       // Check if already submitted
@@ -224,14 +224,14 @@ export class EventService {
 
       logger.info('Session submitted', {
         sessionId,
-        projectId: session.projectId,
+        taskId: session.taskId,
         externalUserId: session.externalUserId,
         duration,
       });
 
       // Broadcast session submission via WebSocket if available
       if ((global as any).io) {
-        (global as any).io.to(`project:${session.projectId}`).emit('session-ended', {
+        (global as any).io.to(`task:${session.taskId}`).emit('session-ended', {
           sessionId,
           externalUserId: session.externalUserId,
           submitted: true,
@@ -254,7 +254,7 @@ export class EventService {
   }
 
   /**
-   * Get events for a session (with project ownership verification)
+   * Get events for a session (with task ownership verification)
    */
   static async getSessionEvents(
     sessionId: string,
@@ -270,10 +270,10 @@ export class EventService {
         throw new AppError(404, 'Session not found');
       }
 
-      // Verify project ownership
-      const ownsProject = await ProjectModel.verifyOwnership(session.projectId, userId);
+      // Verify task ownership
+      const ownsTask = await TaskModel.verifyOwnership(session.taskId, userId);
 
-      if (!ownsProject) {
+      if (!ownsTask) {
         throw new AppError(403, 'You do not have access to this session');
       }
 
@@ -283,7 +283,7 @@ export class EventService {
 
       logger.info('Session events retrieved', {
         sessionId,
-        projectId: session.projectId,
+        taskId: session.taskId,
         userId,
         eventCount: events.length,
         total,
@@ -305,27 +305,27 @@ export class EventService {
   }
 
   /**
-   * Query events with filters (with project ownership verification)
+   * Query events with filters (with task ownership verification)
    */
   static async queryEvents(
-    projectId: string,
+    taskId: string,
     userId: string,
     filters: EventQueryFilters = {}
   ): Promise<{ events: Event[]; total: number }> {
     try {
-      // Verify project ownership
-      const ownsProject = await ProjectModel.verifyOwnership(projectId, userId);
+      // Verify task ownership
+      const ownsTask = await TaskModel.verifyOwnership(taskId, userId);
 
-      if (!ownsProject) {
-        throw new AppError(403, 'You do not have access to this project');
+      if (!ownsTask) {
+        throw new AppError(403, 'You do not have access to this task');
       }
 
       // Query events
-      const events = await EventModel.findByProjectId(projectId, filters);
-      const total = await EventModel.countByProjectId(projectId, filters);
+      const events = await EventModel.findByTaskId(taskId, filters);
+      const total = await EventModel.countByTaskId(taskId, filters);
 
       logger.info('Events queried', {
-        projectId,
+        taskId,
         userId,
         eventCount: events.length,
         total,
@@ -339,7 +339,7 @@ export class EventService {
     } catch (error) {
       logger.error('Failed to query events', {
         error: error instanceof Error ? error.message : 'Unknown error',
-        projectId,
+        taskId,
         userId,
       });
       throw error;
@@ -347,25 +347,25 @@ export class EventService {
   }
 
   /**
-   * Get event statistics for a project
+   * Get event statistics for a task
    */
-  static async getEventStats(projectId: string, userId: string) {
+  static async getEventStats(taskId: string, userId: string) {
     try {
-      // Verify project ownership
-      const ownsProject = await ProjectModel.verifyOwnership(projectId, userId);
+      // Verify task ownership
+      const ownsTask = await TaskModel.verifyOwnership(taskId, userId);
 
-      if (!ownsProject) {
-        throw new AppError(403, 'You do not have access to this project');
+      if (!ownsTask) {
+        throw new AppError(403, 'You do not have access to this task');
       }
 
       // Get event type distribution
-      const eventTypes = await EventModel.getEventTypes(projectId);
+      const eventTypes = await EventModel.getEventTypes(taskId);
 
       // Get total event count
-      const totalEvents = await EventModel.countByProjectId(projectId);
+      const totalEvents = await EventModel.countByTaskId(taskId);
 
       logger.info('Event statistics retrieved', {
-        projectId,
+        taskId,
         userId,
         totalEvents,
       });
@@ -377,7 +377,7 @@ export class EventService {
     } catch (error) {
       logger.error('Failed to get event statistics', {
         error: error instanceof Error ? error.message : 'Unknown error',
-        projectId,
+        taskId,
         userId,
       });
       throw error;

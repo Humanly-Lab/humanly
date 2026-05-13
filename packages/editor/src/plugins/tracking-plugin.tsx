@@ -27,6 +27,7 @@ export function TrackingPlugin(props: EditorTrackerConfig): null {
     props.batchSize,
     props.flushInterval,
     props.enabled,
+    props.copyPastePolicy,
   ]);
 
   return null;

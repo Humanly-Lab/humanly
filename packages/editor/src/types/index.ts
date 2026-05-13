@@ -1,4 +1,4 @@
-import { EventType } from '@humanly/shared';
+import { CopyPastePolicy, EventType } from '@humanly/shared';
 
 /**
  * Configuration for the editor tracker
@@ -11,6 +11,7 @@ export interface EditorTrackerConfig {
   batchSize?: number;
   flushInterval?: number;
   enabled?: boolean;
+  copyPastePolicy?: CopyPastePolicy;
 }
 
 /**
@@ -90,6 +91,7 @@ export interface LexicalEditorProps {
   placeholder?: string;
   editable?: boolean;
   trackingEnabled?: boolean;
+  copyPastePolicy?: CopyPastePolicy;
   autoSaveEnabled?: boolean;
   autoSaveInterval?: number;
   onContentChange?: (content: Record<string, any>, plainText: string) => void;

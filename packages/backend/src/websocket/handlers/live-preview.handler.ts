@@ -1,211 +1,211 @@
 import { Server as SocketIOServer } from 'socket.io';
 import { TypedSocket } from '../socket-server';
-import { ProjectModel } from '../../models/project.model';
+import { TaskModel } from '../../models/task.model';
 import { logger } from '../../utils/logger';
 import {
-  getProjectRoom,
-  broadcastToProject,
-  getConnectedUsersInProject,
-  JoinProjectData,
-  LeaveProjectData,
+  getTaskRoom,
+  broadcastToTask,
+  getConnectedUsersInTask,
+  JoinTaskData,
+  LeaveTaskData,
 } from '../../utils/websocket';
 
 /**
- * Handle client joining a project room
- * Verifies user owns the project before allowing them to join
+ * Handle client joining a task room
+ * Verifies user owns the task before allowing them to join
  */
-export async function handleJoinProject(
+export async function handleJoinTask(
   io: SocketIOServer,
   socket: TypedSocket,
-  data: JoinProjectData
+  data: JoinTaskData
 ): Promise<void> {
   const { userId, email } = socket.data;
-  const { projectId, token } = data;
+  const { taskId, token } = data;
 
   try {
     // Validate input
-    if (!projectId) {
-      logger.warn('Join project failed: Missing projectId', {
+    if (!taskId) {
+      logger.warn('Join task failed: Missing taskId', {
         socketId: socket.id,
         userId,
       });
       socket.emit('error', {
-        message: 'Project ID is required',
-        code: 'MISSING_PROJECT_ID',
+        message: 'Task ID is required',
+        code: 'MISSING_TASK_ID',
       });
       return;
     }
 
-    // Verify user owns the project
-    const ownsProject = await ProjectModel.verifyOwnership(projectId, userId);
+    // Verify user owns the task
+    const ownsTask = await TaskModel.verifyOwnership(taskId, userId);
 
-    if (!ownsProject) {
-      logger.warn('Join project failed: User does not own project', {
+    if (!ownsTask) {
+      logger.warn('Join task failed: User does not own task', {
         socketId: socket.id,
         userId,
-        projectId,
+        taskId,
       });
       socket.emit('error', {
-        message: 'You do not have access to this project',
+        message: 'You do not have access to this task',
         code: 'UNAUTHORIZED',
       });
       return;
     }
 
-    // Check if project exists and is active
-    const project = await ProjectModel.findById(projectId);
+    // Check if task exists and is active
+    const task = await TaskModel.findById(taskId);
 
-    if (!project) {
-      logger.warn('Join project failed: Project not found', {
+    if (!task) {
+      logger.warn('Join task failed: Task not found', {
         socketId: socket.id,
         userId,
-        projectId,
+        taskId,
       });
       socket.emit('error', {
-        message: 'Project not found',
-        code: 'PROJECT_NOT_FOUND',
+        message: 'Task not found',
+        code: 'TASK_NOT_FOUND',
       });
       return;
     }
 
-    if (!project.isActive) {
-      logger.warn('Join project failed: Project is not active', {
+    if (!task.isActive) {
+      logger.warn('Join task failed: Task is not active', {
         socketId: socket.id,
         userId,
-        projectId,
+        taskId,
       });
       socket.emit('error', {
-        message: 'Project is not active',
-        code: 'PROJECT_INACTIVE',
+        message: 'Task is not active',
+        code: 'TASK_INACTIVE',
       });
       return;
     }
 
-    // Join the project room
-    const room = getProjectRoom(projectId);
+    // Join the task room
+    const room = getTaskRoom(taskId);
     await socket.join(room);
 
-    // Add to socket's project rooms tracking
-    socket.data.projectRooms.add(projectId);
+    // Add to socket's task rooms tracking
+    socket.data.taskRooms.add(taskId);
 
-    logger.info('User joined project room', {
+    logger.info('User joined task room', {
       socketId: socket.id,
       userId,
       email,
-      projectId,
+      taskId,
       room,
     });
 
     // Get current connected users count
-    const connectedUsers = await getConnectedUsersInProject(io, projectId);
+    const connectedUsers = await getConnectedUsersInTask(io, taskId);
 
-    logger.debug('Project room status', {
-      projectId,
+    logger.debug('Task room status', {
+      taskId,
       room,
       connectedUsers: connectedUsers.length,
       userIds: connectedUsers,
     });
   } catch (error) {
-    logger.error('Failed to join project room', {
+    logger.error('Failed to join task room', {
       socketId: socket.id,
       userId,
-      projectId,
+      taskId,
       error: error instanceof Error ? error.message : 'Unknown error',
     });
 
     socket.emit('error', {
-      message: 'Failed to join project room',
+      message: 'Failed to join task room',
       code: 'JOIN_FAILED',
     });
   }
 }
 
 /**
- * Handle client leaving a project room
+ * Handle client leaving a task room
  */
-export async function handleLeaveProject(
+export async function handleLeaveTask(
   io: SocketIOServer,
   socket: TypedSocket,
-  data: LeaveProjectData
+  data: LeaveTaskData
 ): Promise<void> {
   const { userId, email } = socket.data;
-  const { projectId } = data;
+  const { taskId } = data;
 
   try {
     // Validate input
-    if (!projectId) {
-      logger.warn('Leave project failed: Missing projectId', {
+    if (!taskId) {
+      logger.warn('Leave task failed: Missing taskId', {
         socketId: socket.id,
         userId,
       });
       socket.emit('error', {
-        message: 'Project ID is required',
-        code: 'MISSING_PROJECT_ID',
+        message: 'Task ID is required',
+        code: 'MISSING_TASK_ID',
       });
       return;
     }
 
-    // Leave the project room
-    const room = getProjectRoom(projectId);
+    // Leave the task room
+    const room = getTaskRoom(taskId);
     await socket.leave(room);
 
-    // Remove from socket's project rooms tracking
-    socket.data.projectRooms.delete(projectId);
+    // Remove from socket's task rooms tracking
+    socket.data.taskRooms.delete(taskId);
 
-    logger.info('User left project room', {
+    logger.info('User left task room', {
       socketId: socket.id,
       userId,
       email,
-      projectId,
+      taskId,
       room,
     });
 
     // Get remaining connected users count
-    const connectedUsers = await getConnectedUsersInProject(io, projectId);
+    const connectedUsers = await getConnectedUsersInTask(io, taskId);
 
-    logger.debug('Project room status after leave', {
-      projectId,
+    logger.debug('Task room status after leave', {
+      taskId,
       room,
       connectedUsers: connectedUsers.length,
       userIds: connectedUsers,
     });
   } catch (error) {
-    logger.error('Failed to leave project room', {
+    logger.error('Failed to leave task room', {
       socketId: socket.id,
       userId,
-      projectId,
+      taskId,
       error: error instanceof Error ? error.message : 'Unknown error',
     });
 
     socket.emit('error', {
-      message: 'Failed to leave project room',
+      message: 'Failed to leave task room',
       code: 'LEAVE_FAILED',
     });
   }
 }
 
 /**
- * Helper to broadcast events to a project room
+ * Helper to broadcast events to a task room
  * This can be called from other services to push updates to clients
  */
-export function broadcastEventToProject(
+export function broadcastEventToTask(
   io: SocketIOServer,
-  projectId: string,
+  taskId: string,
   eventName: 'event-received' | 'session-started' | 'session-ended',
   data: any
 ): void {
-  broadcastToProject(io, projectId, eventName, data);
+  broadcastToTask(io, taskId, eventName, data);
 }
 
 /**
- * Get list of connected users in a project
+ * Get list of connected users in a task
  * Useful for showing who is currently viewing live preview
  */
-export async function getProjectConnectedUsers(
+export async function getTaskConnectedUsers(
   io: SocketIOServer,
-  projectId: string
+  taskId: string
 ): Promise<string[]> {
-  return getConnectedUsersInProject(io, projectId);
+  return getConnectedUsersInTask(io, taskId);
 }
 
 /**
@@ -215,14 +215,14 @@ export function setupLivePreviewHandlers(
   io: SocketIOServer,
   socket: TypedSocket
 ): void {
-  // Handle join project
-  socket.on('join-project', (data) => {
-    handleJoinProject(io, socket, data);
+  // Handle join task
+  socket.on('join-task', (data) => {
+    handleJoinTask(io, socket, data);
   });
 
-  // Handle leave project
-  socket.on('leave-project', (data) => {
-    handleLeaveProject(io, socket, data);
+  // Handle leave task
+  socket.on('leave-task', (data) => {
+    handleLeaveTask(io, socket, data);
   });
 
   logger.debug('Live preview handlers setup', {

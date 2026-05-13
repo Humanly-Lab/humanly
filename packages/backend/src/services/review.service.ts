@@ -159,7 +159,7 @@ export class ReviewService {
     userId: string
   ): Promise<AnonymousReview[]> {
     // TODO: Verify admin access
-    // const isAdmin = await PaperModel.hasProjectAccess(paperId, userId)
+    // const isAdmin = await PaperModel.hasTaskAccess(paperId, userId)
     // if (!isAdmin) throw new AppError('Admin access required', 403)
 
     return ReviewModel.findByPaper(paperId)

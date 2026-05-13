@@ -6,18 +6,18 @@ This document describes the current backend analytics calculation logic in
 
 ## Scope
 
-Analytics v2 reads data for an admin-owned project and returns project-level
+Analytics v2 reads data for an admin-owned task and returns task-level
 activity metrics. Every analytics method first verifies that the requesting
-admin owns the project.
+admin owns the task.
 
 Main endpoints:
 
-- `GET /api/v1/projects/:projectId/analytics/summary`
-- `GET /api/v1/projects/:projectId/analytics/events-timeline`
-- `GET /api/v1/projects/:projectId/analytics/event-types`
-- `GET /api/v1/projects/:projectId/analytics/users`
-- `GET /api/v1/projects/:projectId/analytics/sessions`
-- `GET /api/v1/projects/:projectId/analytics/sessions/:sessionId`
+- `GET /api/v1/tasks/:taskId/analytics/summary`
+- `GET /api/v1/tasks/:taskId/analytics/events-timeline`
+- `GET /api/v1/tasks/:taskId/analytics/event-types`
+- `GET /api/v1/tasks/:taskId/analytics/users`
+- `GET /api/v1/tasks/:taskId/analytics/sessions`
+- `GET /api/v1/tasks/:taskId/analytics/sessions/:sessionId`
 
 ## Data Sources
 
@@ -34,9 +34,9 @@ Tables:
 
 Relationship:
 
-- `sessions.project_id = projects.id`
+- `sessions.task_id = tasks.id`
 - `events.session_id = sessions.id`
-- `events.project_id = projects.id`
+- `events.task_id = tasks.id`
 
 User identity:
 
@@ -61,7 +61,7 @@ Tracker submission status:
 
 ### 2. User Portal Submission Activity
 
-User portal activity is created when an enrolled user opens a project submission
+User portal activity is created when an enrolled user opens a task submission
 document and the editor posts document events to:
 
 ```text
@@ -70,7 +70,7 @@ POST /api/v1/documents/:id/events
 
 Tables:
 
-- `project_enrollments`
+- `task_enrollments`
 - `documents`
 - `sessions`
 - `document_events`
@@ -78,10 +78,10 @@ Tables:
 
 Relationship:
 
-- `project_enrollments.project_id = projects.id`
-- `project_enrollments.user_id = users.id`
-- `project_enrollments.submission_document_id = documents.id`
-- `document_events.document_id = project_enrollments.submission_document_id`
+- `task_enrollments.task_id = tasks.id`
+- `task_enrollments.user_id = users.id`
+- `task_enrollments.submission_document_id = documents.id`
+- `document_events.document_id = task_enrollments.submission_document_id`
 - `document_events.user_id = users.id`
 - `document_events.session_id = sessions.id`
 
@@ -91,7 +91,7 @@ User identity:
 
 Document session definition:
 
-When an enrolled user opens a project submission document, the user portal
+When an enrolled user opens a task submission document, the user portal
 creates one real row in `sessions`. Events captured while that editor session is
 open are still written to `document_events`, but they also carry the current
 `session_id`.
@@ -196,7 +196,7 @@ It does not currently apply `externalUserId` or `eventType`.
 Endpoint:
 
 ```text
-GET /api/v1/projects/:projectId/analytics/summary
+GET /api/v1/tasks/:taskId/analytics/summary
 ```
 
 Returned fields:
@@ -224,15 +224,15 @@ Tracker event count:
 
 ```text
 COUNT(events.id)
-WHERE events.project_id = projectId
+WHERE events.task_id = taskId
 ```
 
 Document event count:
 
 ```text
 COUNT(document_events.id)
-WHERE project_enrollments.project_id = projectId
-AND document_events.document_id = project_enrollments.submission_document_id
+WHERE task_enrollments.task_id = taskId
+AND document_events.document_id = task_enrollments.submission_document_id
 ```
 
 Filters:
@@ -256,27 +256,27 @@ Tracker session count:
 
 ```text
 COUNT(sessions.id)
-WHERE sessions.project_id = projectId
+WHERE sessions.task_id = taskId
 ```
 
 Current user portal submission session count:
 
 ```text
 COUNT(sessions.id)
-WHERE sessions.project_id = projectId
+WHERE sessions.task_id = taskId
 ```
 
 Legacy document session count:
 
 ```text
 COUNT(DISTINCT document_events.document_id)
-WHERE project_enrollments.project_id = projectId
-AND document_events.document_id = project_enrollments.submission_document_id
+WHERE task_enrollments.task_id = taskId
+AND document_events.document_id = task_enrollments.submission_document_id
 AND document_events.session_id IS NULL
 ```
 
 Important: current submission editor opens count immediately because they create
-a real `sessions` row. Legacy linked project submission documents only count as
+a real `sessions` row. Legacy linked task submission documents only count as
 a derived document session after they have at least one `document_events` row.
 
 ### uniqueUsers
@@ -318,8 +318,8 @@ totalUsers = uniqueUsers
 Important distinction:
 
 - Analytics summary `totalUsers` means active users present in analytics data.
-- Project detail enrollment count means users enrolled in
-  `project_enrollments`, whether or not they have generated events.
+- Task detail enrollment count means users enrolled in
+  `task_enrollments`, whether or not they have generated events.
 
 These are intentionally different concepts in the current implementation.
 
@@ -434,7 +434,7 @@ WHERE session_start >= NOW() - INTERVAL '24 hours'
 Endpoint:
 
 ```text
-GET /api/v1/projects/:projectId/analytics/events-timeline
+GET /api/v1/tasks/:taskId/analytics/events-timeline
 ```
 
 Returned data:
@@ -488,7 +488,7 @@ Filters:
 Endpoint:
 
 ```text
-GET /api/v1/projects/:projectId/analytics/event-types
+GET /api/v1/tasks/:taskId/analytics/event-types
 ```
 
 Returned data:
@@ -539,7 +539,7 @@ Filters:
 Endpoint:
 
 ```text
-GET /api/v1/projects/:projectId/analytics/users
+GET /api/v1/tasks/:taskId/analytics/users
 ```
 
 Returned data:
@@ -710,11 +710,11 @@ ORDER BY lastActive DESC
 Endpoint:
 
 ```text
-GET /api/v1/projects/:projectId/analytics/sessions
+GET /api/v1/tasks/:taskId/analytics/sessions
 ```
 
 This endpoint reads real sessions from the `sessions` table through
-`SessionModel.findByProjectId`. Current user portal submission sessions are
+`SessionModel.findByTaskId`. Current user portal submission sessions are
 included because they are now real `sessions` rows.
 
 Legacy derived document sessions are not included because they do not have rows
@@ -729,7 +729,7 @@ Supported filters:
 - `limit`
 - `offset`
 
-The total count also comes from `SessionModel.countByProjectId`, so it is
+The total count also comes from `SessionModel.countByTaskId`, so it is
 tracker-only.
 
 ## Session Details
@@ -737,7 +737,7 @@ tracker-only.
 Endpoint:
 
 ```text
-GET /api/v1/projects/:projectId/analytics/sessions/:sessionId
+GET /api/v1/tasks/:taskId/analytics/sessions/:sessionId
 ```
 
 This endpoint reads real sessions from the `sessions` table. Current user portal
@@ -780,25 +780,25 @@ Default TTL:
 Summary cache key:
 
 ```text
-analytics:{projectId}:summary:{filtersJson}
+analytics:{taskId}:summary:{filtersJson}
 ```
 
 Timeline cache key:
 
 ```text
-analytics:{projectId}:timeline:{groupBy}:{filtersJson}
+analytics:{taskId}:timeline:{groupBy}:{filtersJson}
 ```
 
 Event types cache key:
 
 ```text
-analytics:{projectId}:event-types:{filtersJson}
+analytics:{taskId}:event-types:{filtersJson}
 ```
 
 User activity cache key:
 
 ```text
-analytics:{projectId}:users:{page}:{limit}:{filtersJson}
+analytics:{taskId}:users:{page}:{limit}:{filtersJson}
 ```
 
 Session details cache key:
@@ -815,20 +815,20 @@ Session details use a shorter TTL:
 
 ## Cache Invalidation
 
-Project analytics cache is deleted by pattern:
+Task analytics cache is deleted by pattern:
 
 ```text
-analytics:{projectId}:*
+analytics:{taskId}:*
 ```
 
 Current invalidation triggers:
 
-- user joins a project
-- user leaves a project
+- user joins a task
+- user leaves a task
 - enrollment is linked to a submission document
 - document events are tracked for a linked submission document
 - a linked submission document is deleted
-- project is deleted
+- task is deleted
 
 ## Current Caveats
 
@@ -836,7 +836,7 @@ Current invalidation triggers:
 
 Enrollment count and analytics `totalUsers` are different:
 
-- enrollment count: users in `project_enrollments`
+- enrollment count: users in `task_enrollments`
 - analytics `totalUsers`: users with counted tracker sessions or counted
   document events
 

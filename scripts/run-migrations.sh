@@ -50,14 +50,29 @@ migration_presence() {
     011_user_roles.sql)
       psql_scalar -c "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'users' AND column_name = 'role');"
       ;;
-    012_project_enrollments.sql)
-      psql_scalar -c "SELECT to_regclass('public.project_enrollments') IS NOT NULL;"
+    012_task_enrollments.sql)
+      psql_scalar -c "SELECT to_regclass('public.task_enrollments') IS NOT NULL;"
       ;;
-    013_project_enrollment_submission_document.sql)
-      psql_scalar -c "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'project_enrollments' AND column_name = 'submission_document_id');"
+    013_task_enrollment_submission_document.sql)
+      psql_scalar -c "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'task_enrollments' AND column_name = 'submission_document_id');"
       ;;
     014_document_events_session_id.sql)
       psql_scalar -c "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'document_events' AND column_name = 'session_id');"
+      ;;
+    015_task_ai_settings.sql)
+      psql_scalar -c "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'tasks' AND column_name = 'allowed_llm_models') AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'tasks' AND column_name = 'ai_usage_limit');"
+      ;;
+    016_task_submissions.sql)
+      psql_scalar -c "SELECT to_regclass('public.submissions') IS NOT NULL AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'certificates' AND column_name = 'submission_id');"
+      ;;
+    017_timezone_aware_task_times.sql)
+      psql_scalar -c "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'tasks' AND column_name = 'start_date' AND data_type = 'timestamp with time zone') AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'tasks' AND column_name = 'end_date' AND data_type = 'timestamp with time zone');"
+      ;;
+    018_writing_environment_config.sql)
+      psql_scalar -c "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'tasks' AND column_name = 'environment_config') AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'documents' AND column_name = 'environment_config');"
+      ;;
+    019_document_description.sql)
+      psql_scalar -c "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'documents' AND column_name = 'description');"
       ;;
     *)
       echo "unknown"

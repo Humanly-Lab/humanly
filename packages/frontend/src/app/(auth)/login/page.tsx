@@ -53,8 +53,8 @@ export default function LoginPage() {
       
       await login(data.email, data.password, 'admin');
 
-      // Redirect to projects on success
-      router.push('/projects');
+      // Redirect to tasks on success
+      router.push('/tasks');
     } catch (err: any) {
       const errorMessage = err?.message || 'Login failed. Please check your credentials and try again.';
       setError(errorMessage);

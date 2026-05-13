@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 
 interface ResizablePanelGroupProps extends React.ComponentPropsWithoutRef<typeof PanelGroup> {
   className?: string;
+  direction?: 'horizontal' | 'vertical';
 }
 
 function ResizablePanelGroup({ className, ...props }: ResizablePanelGroupProps) {

@@ -29,6 +29,18 @@ export class EditorTracker {
   private lastSelectionStart: number = 0;
   private lastSelectionEnd: number = 0;
 
+  private get copyPastePolicy() {
+    return this.config.copyPastePolicy === 'blocked' ? 'blocked' : 'allowed';
+  }
+
+  private shouldBlockClipboard(): boolean {
+    return this.copyPastePolicy === 'blocked';
+  }
+
+  private shouldTrackClipboard(): boolean {
+    return !this.shouldBlockClipboard();
+  }
+
   constructor(editor: LexicalEditor, config: EditorTrackerConfig) {
     this.editor = editor;
     this.config = {
@@ -62,31 +74,55 @@ export class EditorTracker {
     // Track paste events
     const removePasteListener = this.editor.registerCommand(
       PASTE_COMMAND,
-      () => {
-        this.lastEventType = 'paste';
+      (event: ClipboardEvent | null) => {
+        if (this.shouldBlockClipboard()) {
+          event?.preventDefault();
+          return true;
+        }
+
+        if (this.shouldTrackClipboard()) {
+          this.lastEventType = 'paste';
+        }
+
         return false; // Don't prevent default
       },
-      COMMAND_PRIORITY_LOW
+      COMMAND_PRIORITY_HIGH
     );
 
     // Track copy events
     const removeCopyListener = this.editor.registerCommand(
       COPY_COMMAND,
-      () => {
-        this.trackCopyOrCut('copy');
+      (event: ClipboardEvent | null) => {
+        if (this.shouldBlockClipboard()) {
+          event?.preventDefault();
+          return true;
+        }
+
+        if (this.shouldTrackClipboard()) {
+          this.trackCopyOrCut('copy');
+        }
+
         return false;
       },
-      COMMAND_PRIORITY_LOW
+      COMMAND_PRIORITY_HIGH
     );
 
     // Track cut events
     const removeCutListener = this.editor.registerCommand(
       CUT_COMMAND,
-      () => {
-        this.lastEventType = 'cut';
+      (event: ClipboardEvent | null) => {
+        if (this.shouldBlockClipboard()) {
+          event?.preventDefault();
+          return true;
+        }
+
+        if (this.shouldTrackClipboard()) {
+          this.lastEventType = 'cut';
+        }
+
         return false;
       },
-      COMMAND_PRIORITY_LOW
+      COMMAND_PRIORITY_HIGH
     );
 
     // Track selection changes

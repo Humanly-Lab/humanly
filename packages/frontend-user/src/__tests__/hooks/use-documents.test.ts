@@ -48,10 +48,10 @@ describe('createDocument', () => {
   it('uploads PDF after document creation when file provided', async () => {
     // Step 1: create doc
     mockApiClient.post.mockResolvedValueOnce({ data: { data: { document: fakeDoc } } });
-    // Step 2: get projects
+    // Step 2: get tasks
     mockApiClient.get
       .mockResolvedValueOnce({ data: { data: [] } })           // initial fetchDocuments
-      .mockResolvedValueOnce({ data: { data: [{ id: 'proj-1' }] } }); // /projects?limit=1
+      .mockResolvedValueOnce({ data: { data: [{ id: 'proj-1' }] } }); // /tasks?limit=1
     // Step 3: upload paper
     mockApiClient.post.mockResolvedValueOnce({ data: { success: true } });
     // Step 4: refetch documents
@@ -66,7 +66,7 @@ describe('createDocument', () => {
       await result.current.createDocument('PDF Doc', pdfFile);
     });
 
-    // Should have called POST /projects/:id/papers with FormData
+    // Should have called POST /tasks/:id/papers with FormData
     const paperCall = mockApiClient.post.mock.calls.find(([url]) =>
       url.includes('/papers')
     );
@@ -74,7 +74,7 @@ describe('createDocument', () => {
     expect(paperCall![1]).toBeInstanceOf(FormData);
   });
 
-  it('creates a default project for a new user before uploading the PDF', async () => {
+  it('creates a default task for a new user before uploading the PDF', async () => {
     mockApiClient.post
       .mockResolvedValueOnce({ data: { data: { document: fakeDoc } } })
       .mockResolvedValueOnce({ data: { data: { id: 'proj-new' } } })
@@ -95,11 +95,11 @@ describe('createDocument', () => {
     });
 
     expect(mockApiClient.post).toHaveBeenCalledWith(
-      '/projects',
-      expect.objectContaining({ name: 'Default Project' })
+      '/tasks',
+      expect.objectContaining({ name: 'Default Task' })
     );
     expect(mockApiClient.post).toHaveBeenCalledWith(
-      '/projects/proj-new/papers',
+      '/tasks/proj-new/papers',
       expect.any(FormData)
     );
   });

@@ -94,7 +94,7 @@ export const useAuthStore = create<AuthState>()(
         try {
           set({ isLoading: true, error: null });
 
-          const response = await api.post<{
+          await api.post<{
             success: boolean;
             message: string;
             data: {

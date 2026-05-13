@@ -67,7 +67,6 @@ type RegisterFormValues = z.infer<typeof registerSchema>;
 
 export function AuthExample() {
   const [isLogin, setIsLogin] = useState(true);
-  const { toast } = useToast();
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4 dark:bg-gray-900">

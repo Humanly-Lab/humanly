@@ -1,80 +1,80 @@
 import { Request, Response, NextFunction } from 'express';
-import { ProjectModel } from '../models/project.model';
+import { TaskModel } from '../models/task.model';
 import { SessionModel } from '../models/session.model';
 import { AppError } from './error-handler';
 import { getRedisClient } from '../config/redis';
 import { logger } from '../utils/logger';
 
-// Extend Express Request to include project and session
+// Extend Express Request to include task and session
 declare global {
   namespace Express {
     interface Request {
-      project?: any;
+      task?: any;
       session?: any;
-      projectId?: string;
+      taskId?: string;
       sessionId?: string;
     }
   }
 }
 
 /**
- * Validate X-Project-Token header and attach project to request
+ * Validate X-Task-Token header and attach task to request
  */
-export async function validateProjectToken(
+export async function validateTaskToken(
   req: Request,
   res: Response,
   next: NextFunction
 ): Promise<void> {
   try {
-    const projectToken = req.headers['x-project-token'] as string;
+    const taskToken = req.headers['x-task-token'] as string;
 
-    if (!projectToken) {
-      throw new AppError(401, 'Project token is required');
+    if (!taskToken) {
+      throw new AppError(401, 'Task token is required');
     }
 
     // Check cache first
     const redis = getRedisClient();
-    const cacheKey = `project:token:${projectToken}`;
+    const cacheKey = `task:token:${taskToken}`;
 
-    let project;
+    let task;
     try {
       const cached = await redis.get(cacheKey);
       if (cached) {
-        project = JSON.parse(cached);
-        logger.debug('Project loaded from cache', { projectId: project.id });
+        task = JSON.parse(cached);
+        logger.debug('Task loaded from cache', { taskId: task.id });
       }
     } catch (cacheError) {
       logger.warn('Redis cache error, falling back to database', { error: cacheError });
     }
 
     // If not cached, fetch from database
-    if (!project) {
-      project = await ProjectModel.findByToken(projectToken);
+    if (!task) {
+      task = await TaskModel.findByToken(taskToken);
 
-      if (!project) {
-        throw new AppError(401, 'Invalid or inactive project token');
+      if (!task) {
+        throw new AppError(401, 'Invalid or inactive task token');
       }
 
-      // Cache project for 5 minutes
+      // Cache task for 5 minutes
       try {
-        await redis.setEx(cacheKey, 300, JSON.stringify(project));
+        await redis.setEx(cacheKey, 300, JSON.stringify(task));
       } catch (cacheError) {
-        logger.warn('Failed to cache project', { error: cacheError });
+        logger.warn('Failed to cache task', { error: cacheError });
       }
     }
 
-    // Check if project is active
-    if (!project.isActive) {
-      throw new AppError(403, 'Project is not active');
+    // Check if task is active
+    if (!task.isActive) {
+      throw new AppError(403, 'Task is not active');
     }
 
-    // Attach project to request
-    req.project = project;
-    req.projectId = project.id;
+    // Attach task to request
+    req.task = task;
+    req.taskId = task.id;
 
-    logger.debug('Project token validated', {
-      projectId: project.id,
-      projectName: project.name,
+    logger.debug('Task token validated', {
+      taskId: task.id,
+      taskName: task.name,
     });
 
     next();
@@ -105,9 +105,9 @@ export async function validateSessionId(
       throw new AppError(404, 'Session not found');
     }
 
-    // Verify session belongs to the authenticated project
-    if (req.projectId && session.projectId !== req.projectId) {
-      throw new AppError(403, 'Session does not belong to this project');
+    // Verify session belongs to the authenticated task
+    if (req.taskId && session.taskId !== req.taskId) {
+      throw new AppError(403, 'Session does not belong to this task');
     }
 
     // Check if session has ended
@@ -121,7 +121,7 @@ export async function validateSessionId(
 
     logger.debug('Session validated', {
       sessionId: session.id,
-      projectId: session.projectId,
+      taskId: session.taskId,
     });
 
     next();
@@ -132,7 +132,7 @@ export async function validateSessionId(
 
 /**
  * Rate limiting for tracking endpoints using Redis
- * Limits: 1000 requests per minute per project
+ * Limits: 1000 requests per minute per task
  */
 export async function trackingRateLimit(
   req: Request,
@@ -140,15 +140,15 @@ export async function trackingRateLimit(
   next: NextFunction
 ): Promise<void> {
   try {
-    const projectId = req.projectId || req.project?.id;
+    const taskId = req.taskId || req.task?.id;
 
-    if (!projectId) {
-      // If no project ID, let it pass and let validateProjectToken handle it
+    if (!taskId) {
+      // If no task ID, let it pass and let validateTaskToken handle it
       return next();
     }
 
     const redis = getRedisClient();
-    const rateLimitKey = `ratelimit:tracking:${projectId}`;
+    const rateLimitKey = `ratelimit:tracking:${taskId}`;
     const rateLimitWindow = 60; // 1 minute
     const maxRequests = 1000;
 
@@ -170,7 +170,7 @@ export async function trackingRateLimit(
         res.setHeader('X-RateLimit-Reset', (Date.now() + ttl * 1000).toString());
 
         logger.warn('Rate limit exceeded', {
-          projectId,
+          taskId,
           current,
           limit: maxRequests,
         });
@@ -183,7 +183,7 @@ export async function trackingRateLimit(
       res.setHeader('X-RateLimit-Remaining', Math.max(0, maxRequests - current).toString());
 
       logger.debug('Rate limit check passed', {
-        projectId,
+        taskId,
         current,
         limit: maxRequests,
       });
@@ -197,7 +197,7 @@ export async function trackingRateLimit(
 
       logger.warn('Redis rate limiting unavailable, allowing request', {
         error: redisError,
-        projectId,
+        taskId,
       });
       next();
     }
@@ -219,11 +219,11 @@ export async function trackMetrics(
   // Track response
   res.on('finish', async () => {
     const duration = Date.now() - startTime;
-    const projectId = req.projectId;
+    const taskId = req.taskId;
 
-    if (projectId) {
+    if (taskId) {
       const redis = getRedisClient();
-      const metricsKey = `metrics:tracking:${projectId}:${new Date().toISOString().split('T')[0]}`;
+      const metricsKey = `metrics:tracking:${taskId}:${new Date().toISOString().split('T')[0]}`;
 
       try {
         // Increment request count
@@ -239,7 +239,7 @@ export async function trackMetrics(
         await redis.expire(metricsKey, 7 * 24 * 60 * 60);
 
         logger.debug('Metrics tracked', {
-          projectId,
+          taskId,
           statusCode: res.statusCode,
           duration,
         });

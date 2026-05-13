@@ -17,8 +17,8 @@ const router = Router();
 router.use(authenticate);
 
 /**
- * GET /api/v1/projects/:projectId/analytics/summary
- * Get summary statistics for a project
+ * GET /api/v1/tasks/:taskId/analytics/summary
+ * Get summary statistics for a task
  *
  * Query parameters:
  * - startDate: ISO 8601 datetime string (optional) - Filter events from this date
@@ -34,10 +34,10 @@ router.use(authenticate);
  * - avgSessionDuration: Average session duration in seconds
  * - completionRate: Percentage of submitted sessions
  */
-router.get('/:projectId/analytics/summary', asyncHandler(getSummaryStats));
+router.get('/:taskId/analytics/summary', asyncHandler(getSummaryStats));
 
 /**
- * GET /api/v1/projects/:projectId/analytics/events-timeline
+ * GET /api/v1/tasks/:taskId/analytics/events-timeline
  * Get events timeline with date grouping
  *
  * Query parameters:
@@ -51,10 +51,10 @@ router.get('/:projectId/analytics/summary', asyncHandler(getSummaryStats));
  * - groupBy: The grouping interval used
  * - timeline: Array of { date, eventCount } objects
  */
-router.get('/:projectId/analytics/events-timeline', asyncHandler(getEventsTimeline));
+router.get('/:taskId/analytics/events-timeline', asyncHandler(getEventsTimeline));
 
 /**
- * GET /api/v1/projects/:projectId/analytics/event-types
+ * GET /api/v1/tasks/:taskId/analytics/event-types
  * Get event type distribution
  *
  * Query parameters:
@@ -66,10 +66,10 @@ router.get('/:projectId/analytics/events-timeline', asyncHandler(getEventsTimeli
  * - eventTypes: Array of { eventType, count, percentage } objects
  * - total: Total number of events
  */
-router.get('/:projectId/analytics/event-types', asyncHandler(getEventTypeDistribution));
+router.get('/:taskId/analytics/event-types', asyncHandler(getEventTypeDistribution));
 
 /**
- * GET /api/v1/projects/:projectId/analytics/users
+ * GET /api/v1/tasks/:taskId/analytics/users
  * Get user activity list with pagination
  *
  * Query parameters:
@@ -85,11 +85,11 @@ router.get('/:projectId/analytics/event-types', asyncHandler(getEventTypeDistrib
  * - limit: Items per page
  * - totalPages: Total number of pages
  */
-router.get('/:projectId/analytics/users', asyncHandler(getUserActivity));
+router.get('/:taskId/analytics/users', asyncHandler(getUserActivity));
 
 /**
- * GET /api/v1/projects/:projectId/analytics/sessions
- * Get list of sessions for a project
+ * GET /api/v1/tasks/:taskId/analytics/sessions
+ * Get list of sessions for a task
  *
  * Query parameters:
  * - page: number (default: 1) - Page number
@@ -103,15 +103,15 @@ router.get('/:projectId/analytics/users', asyncHandler(getUserActivity));
  * - sessions: Array of session objects with stats
  * - pagination: { page, limit, totalCount, totalPages }
  */
-router.get('/:projectId/analytics/sessions', asyncHandler(getSessionsList));
+router.get('/:taskId/analytics/sessions', asyncHandler(getSessionsList));
 
 /**
- * GET /api/v1/projects/:projectId/analytics/sessions/:sessionId
+ * GET /api/v1/tasks/:taskId/analytics/sessions/:sessionId
  * Get detailed session information with events
  *
  * Returns:
  * - id: Session ID
- * - projectId: Project ID
+ * - taskId: Task ID
  * - externalUserId: External user ID
  * - sessionStart: Session start timestamp
  * - sessionEnd: Session end timestamp (null if ongoing)
@@ -121,10 +121,10 @@ router.get('/:projectId/analytics/sessions', asyncHandler(getSessionsList));
  * - eventCount: Number of events in session
  * - events: Array of event objects with full details
  */
-router.get('/:projectId/analytics/sessions/:sessionId', asyncHandler(getSessionDetails));
+router.get('/:taskId/analytics/sessions/:sessionId', asyncHandler(getSessionDetails));
 
 /**
- * GET /api/v1/projects/:projectId/analytics/export
+ * GET /api/v1/tasks/:taskId/analytics/export
  * Export analytics data (placeholder for future implementation)
  *
  * Query parameters:
@@ -132,6 +132,6 @@ router.get('/:projectId/analytics/sessions/:sessionId', asyncHandler(getSessionD
  * - startDate: ISO 8601 datetime string (optional)
  * - endDate: ISO 8601 datetime string (optional)
  */
-router.get('/:projectId/analytics/export', asyncHandler(exportAnalytics));
+router.get('/:taskId/analytics/export', asyncHandler(exportAnalytics));
 
 export default router;

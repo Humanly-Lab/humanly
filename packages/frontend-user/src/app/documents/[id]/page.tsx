@@ -1,7 +1,7 @@
 'use client';
 
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, FileText, Clock, Award, PanelLeftClose, PanelLeft, Upload, Loader2 } from 'lucide-react';
+import { ArrowLeft, Download, FileText, Clock, Award, PanelLeftClose, PanelLeft, Upload, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -22,6 +22,12 @@ import type { TrackedEvent } from '@humanly/editor';
 import { useState, useEffect, useCallback, useRef, type ChangeEvent } from 'react';
 import dynamic from 'next/dynamic';
 import { apiClient, TokenManager } from '@/lib/api-client';
+import { formatDateTime } from '@/lib/utils';
+import {
+  DEFAULT_WRITING_ENVIRONMENT_CONFIG,
+  normalizeCopyPastePolicy,
+  type WritingEnvironmentConfig,
+} from '@humanly/shared';
 
 // ✅ Overleaf-style: resizable panels
 import {
@@ -40,29 +46,33 @@ const PDFViewer = dynamic(() => import('@/components/review/SimplePDFViewer'), {
   ),
 });
 
-interface ProjectEnrollment {
+interface TaskEnrollment {
   id: string;
   name: string;
   inviteCode: string;
   documentId: string;
   joinedAt: string;
   description?: string;
+  startDate?: string;
+  endDate?: string;
+  environmentConfig?: WritingEnvironmentConfig | null;
 }
 
-interface ProjectInstructionPaper {
+interface TaskInstructionPaper {
   id: string;
   title: string;
   pdfStoragePath?: string;
 }
 
-const PROJECT_ENROLLMENTS_KEY = 'humanly.projectEnrollments';
+const TASK_ENROLLMENTS_KEY = 'humanly.taskEnrollments';
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
+const SUBMISSION_SESSION_START_DELAY_MS = 250;
 
-const readProjectEnrollmentForDocument = (documentId: string): ProjectEnrollment | null => {
+const readTaskEnrollmentForDocument = (documentId: string): TaskEnrollment | null => {
   if (typeof window === 'undefined') return null;
   try {
-    const enrollments = JSON.parse(localStorage.getItem(PROJECT_ENROLLMENTS_KEY) || '[]') as ProjectEnrollment[];
-    return enrollments.find((project) => project.documentId === documentId) || null;
+    const enrollments = JSON.parse(localStorage.getItem(TASK_ENROLLMENTS_KEY) || '[]') as TaskEnrollment[];
+    return enrollments.find((task) => task.documentId === documentId) || null;
   } catch {
     return null;
   }
@@ -90,12 +100,16 @@ export default function DocumentEditorPage() {
   const [title, setTitle] = useState('');
   const [isTitleEditing, setIsTitleEditing] = useState(false);
   const [isGeneratingCertificate, setIsGeneratingCertificate] = useState(false);
+  const [isSubmittingTask, setIsSubmittingTask] = useState(false);
   const [showCertificateDialog, setShowCertificateDialog] = useState(false);
   const [isUploadingPdf, setIsUploadingPdf] = useState(false);
-  const [projectInstructionPaper, setProjectInstructionPaper] = useState<ProjectInstructionPaper | null>(null);
+  const [taskInstructionPaper, setTaskInstructionPaper] = useState<TaskInstructionPaper | null>(null);
+  const [taskInstructionPapers, setTaskInstructionPapers] = useState<TaskInstructionPaper[]>([]);
+  const [selectedInstructionPaperId, setSelectedInstructionPaperId] = useState<string | null>(null);
   const [submissionSessionId, setSubmissionSessionId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const submissionSessionRef = useRef<{ projectId: string; sessionId: string } | null>(null);
+  const submissionSessionRef = useRef<{ taskId: string; sessionId: string } | null>(null);
+  const lastSubmissionSessionRef = useRef<{ taskId: string; sessionId: string } | null>(null);
 
   // AI Assistant
   const {
@@ -141,28 +155,42 @@ export default function DocumentEditorPage() {
   useEffect(() => {
     let cancelled = false;
 
-    const fetchProjectInstructionPaper = async () => {
-      const enrollment = readProjectEnrollmentForDocument(documentId);
+    const fetchTaskInstructionPaper = async () => {
+      const enrollment = readTaskEnrollmentForDocument(documentId);
       if (!enrollment) {
-        setProjectInstructionPaper(null);
+        setTaskInstructionPaper(null);
+        setTaskInstructionPapers([]);
+        setSelectedInstructionPaperId(null);
         return;
       }
 
       try {
-        await apiClient.put(`/projects/enrollments/${enrollment.id}/submission-document`, {
+        await apiClient.put(`/tasks/enrollments/${enrollment.id}/submission-document`, {
           documentId,
         });
-        const response = await apiClient.get(`/projects/enrollments/${enrollment.id}/instruction-paper`);
+        const response = await apiClient.get(`/tasks/enrollments/${enrollment.id}/instruction-paper`);
         if (cancelled) return;
-        const paper = response.data.data?.paper || null;
-        setProjectInstructionPaper(paper);
+        const papers = response.data.data?.papers || [];
+        const paper = response.data.data?.paper || papers[0] || null;
+        setTaskInstructionPaper(paper);
+        setTaskInstructionPapers(papers);
+        setSelectedInstructionPaperId((currentId) => {
+          if (currentId && papers.some((item: TaskInstructionPaper) => item.id === currentId)) {
+            return currentId;
+          }
+          return paper?.id || null;
+        });
         if (paper) setShowPdfPanel(true);
       } catch {
-        if (!cancelled) setProjectInstructionPaper(null);
+        if (!cancelled) {
+          setTaskInstructionPaper(null);
+          setTaskInstructionPapers([]);
+          setSelectedInstructionPaperId(null);
+        }
       }
     };
 
-    fetchProjectInstructionPaper();
+    fetchTaskInstructionPaper();
 
     return () => {
       cancelled = true;
@@ -170,10 +198,11 @@ export default function DocumentEditorPage() {
   }, [documentId]);
 
   useEffect(() => {
-    const enrollment = readProjectEnrollmentForDocument(documentId);
+    const enrollment = readTaskEnrollmentForDocument(documentId);
     if (!enrollment) {
       setSubmissionSessionId(null);
       submissionSessionRef.current = null;
+      lastSubmissionSessionRef.current = null;
       return;
     }
 
@@ -188,7 +217,7 @@ export default function DocumentEditorPage() {
 
       const token = TokenManager.getAccessToken();
       void fetch(
-        `${API_URL}/projects/enrollments/${activeSession.projectId}/submission-sessions/${activeSession.sessionId}/end`,
+        `${API_URL}/tasks/enrollments/${activeSession.taskId}/submission-sessions/${activeSession.sessionId}/end`,
         {
           method: 'PUT',
           keepalive: true,
@@ -202,7 +231,7 @@ export default function DocumentEditorPage() {
 
     const startSubmissionSession = async () => {
       try {
-        const response = await apiClient.post(`/projects/enrollments/${enrollment.id}/submission-sessions`, {
+        const response = await apiClient.post(`/tasks/enrollments/${enrollment.id}/submission-sessions`, {
           documentId,
         });
 
@@ -210,7 +239,7 @@ export default function DocumentEditorPage() {
           const sessionId = response.data.data?.sessionId;
           if (sessionId) {
             const token = TokenManager.getAccessToken();
-            await fetch(`${API_URL}/projects/enrollments/${enrollment.id}/submission-sessions/${sessionId}/end`, {
+            await fetch(`${API_URL}/tasks/enrollments/${enrollment.id}/submission-sessions/${sessionId}/end`, {
               method: 'PUT',
               keepalive: true,
               credentials: 'include',
@@ -226,7 +255,11 @@ export default function DocumentEditorPage() {
         if (!sessionId) return;
 
         submissionSessionRef.current = {
-          projectId: enrollment.id,
+          taskId: enrollment.id,
+          sessionId,
+        };
+        lastSubmissionSessionRef.current = {
+          taskId: enrollment.id,
           sessionId,
         };
         setSubmissionSessionId(sessionId);
@@ -234,15 +267,20 @@ export default function DocumentEditorPage() {
         console.error('Failed to start submission session:', err);
         setSubmissionSessionId(null);
         submissionSessionRef.current = null;
+        lastSubmissionSessionRef.current = null;
       }
     };
 
-    startSubmissionSession();
+    const startTimer = window.setTimeout(
+      startSubmissionSession,
+      SUBMISSION_SESSION_START_DELAY_MS
+    );
     window.addEventListener('pagehide', endSubmissionSession);
     window.addEventListener('beforeunload', endSubmissionSession);
 
     return () => {
       cancelled = true;
+      window.clearTimeout(startTimer);
       window.removeEventListener('pagehide', endSubmissionSession);
       window.removeEventListener('beforeunload', endSubmissionSession);
       endSubmissionSession();
@@ -273,7 +311,12 @@ export default function DocumentEditorPage() {
   };
 
   const handleEventsBuffer = async (events: TrackedEvent[]) => {
+    const currentSessionId =
+      submissionSessionRef.current?.sessionId ||
+      lastSubmissionSessionRef.current?.sessionId ||
+      submissionSessionId;
     const mappedEvents = events.map((event) => ({
+      sessionId: currentSessionId || undefined,
       eventType: event.eventType,
       timestamp: event.timestamp,
       keyCode: event.keyCode,
@@ -287,7 +330,7 @@ export default function DocumentEditorPage() {
       editorStateAfter: event.editorStateAfter,
       metadata: event.metadata,
     }));
-    await trackEvents(mappedEvents, submissionSessionRef.current?.sessionId || submissionSessionId);
+    await trackEvents(mappedEvents, currentSessionId);
   };
 
   const openPanelWithQuote = useAIStore((state) => state.openPanelWithQuote);
@@ -301,6 +344,7 @@ export default function DocumentEditorPage() {
       replacementResult?: SelectionReplacementResult
     ) => {
       const event = {
+        sessionId: submissionSessionRef.current?.sessionId || lastSubmissionSessionRef.current?.sessionId || submissionSessionId || undefined,
         eventType: 'ai_selection_action',
         timestamp: new Date(),
         textBefore: originalText,
@@ -336,6 +380,31 @@ export default function DocumentEditorPage() {
       });
     } finally {
       setIsGeneratingCertificate(false);
+    }
+  };
+
+  const handleSubmitTask = async () => {
+    const enrollment = readTaskEnrollmentForDocument(documentId);
+    if (!enrollment) return;
+
+    try {
+      setIsSubmittingTask(true);
+      const response = await apiClient.post(`/tasks/enrollments/${enrollment.id}/submissions`, {
+        documentId,
+      });
+      const certificate = response.data.data?.certificate;
+      toast({ title: 'Submitted', description: 'Your task submission and certificate were created.' });
+      if (certificate?.id) {
+        router.push(`/certificates/${certificate.id}`);
+      }
+    } catch (err: any) {
+      toast({
+        title: 'Submission failed',
+        description: err.response?.data?.message || err.message || 'Failed to submit task',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSubmittingTask(false);
     }
   };
 
@@ -390,7 +459,37 @@ export default function DocumentEditorPage() {
   // ✅ Overleaf-style canvas: nearly full-width with minimal padding
   // px-2 gives a tiny gutter on edges for a more spacious panel layout
   const CANVAS = 'mx-auto w-full max-w-[2400px] px-3';
-  const displayPaper = projectInstructionPaper || linkedPaper;
+  const selectedInstructionPaper =
+    taskInstructionPapers.find((paper) => paper.id === selectedInstructionPaperId) ||
+    taskInstructionPaper;
+  const displayPaper = selectedInstructionPaper || linkedPaper;
+  const taskEnrollment = readTaskEnrollmentForDocument(documentId);
+  const currentEnvironmentConfig = {
+    ...DEFAULT_WRITING_ENVIRONMENT_CONFIG,
+    ...(taskEnrollment?.environmentConfig || {}),
+    ...(document.environmentConfig || {}),
+    copyPastePolicy: normalizeCopyPastePolicy(
+      document.environmentConfig?.copyPastePolicy ||
+      taskEnrollment?.environmentConfig?.copyPastePolicy
+    ),
+  };
+  const aiEnabled = currentEnvironmentConfig.aiAccess !== 'off';
+  const lockedTaskModel = taskEnrollment
+    ? currentEnvironmentConfig.allowedModels?.[0] || 'Task model'
+    : undefined;
+
+  const handleExportConfig = () => {
+    const blob = new Blob(
+      [JSON.stringify(currentEnvironmentConfig, null, 2)],
+      { type: 'application/json' }
+    );
+    const url = URL.createObjectURL(blob);
+    const anchor = window.document.createElement('a');
+    anchor.href = url;
+    anchor.download = `${(title || 'document').replace(/[^a-z0-9_-]+/gi, '_')}-environment-config.json`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="h-screen bg-background flex flex-col overflow-hidden">
@@ -432,11 +531,21 @@ export default function DocumentEditorPage() {
                     {title || 'Untitled Document'}
                   </h1>
                 )}
+                {taskEnrollment && (taskEnrollment.startDate || taskEnrollment.endDate) && (
+                  <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                    {taskEnrollment.startDate && (
+                      <span>Starts {formatDateTime(taskEnrollment.startDate)}</span>
+                    )}
+                    {taskEnrollment.endDate && (
+                      <span>Deadline {formatDateTime(taskEnrollment.endDate)}</span>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 
             <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
-              {!displayPaper && (
+              {!displayPaper && !taskEnrollment && (
                 <>
                   <input
                     ref={fileInputRef}
@@ -483,7 +592,9 @@ export default function DocumentEditorPage() {
 
               <div className="hidden sm:block text-sm text-muted-foreground">{wordCount} words</div>
 
-              <AIAssistantButton isOpen={isAIPanelOpen} onClick={toggleAIPanel} />
+              {aiEnabled && (
+                <AIAssistantButton isOpen={isAIPanelOpen} onClick={toggleAIPanel} />
+              )}
 
               <Button
                 variant="outline"
@@ -495,24 +606,57 @@ export default function DocumentEditorPage() {
                 <span className="hidden sm:inline">View Logs</span>
               </Button>
 
-              <Button
-                size="sm"
-                onClick={() => setShowCertificateDialog(true)}
-                disabled={isGeneratingCertificate}
-                className="sm:size-default"
-              >
-                {isGeneratingCertificate ? (
-                  <>
-                    <Clock className="h-4 w-4 sm:mr-2 animate-spin" />
-                    <span className="hidden sm:inline">Generating...</span>
-                  </>
-                ) : (
-                  <>
-                    <Award className="h-4 w-4 sm:mr-2" />
-                    <span className="hidden sm:inline">Generate Certificate</span>
-                  </>
-                )}
-              </Button>
+              {!taskEnrollment && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleExportConfig}
+                  className="sm:size-default"
+                >
+                  <Download className="h-4 w-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Export Config</span>
+                </Button>
+              )}
+
+              {taskEnrollment ? (
+                <Button
+                  size="sm"
+                  onClick={handleSubmitTask}
+                  disabled={isSubmittingTask}
+                  className="sm:size-default"
+                >
+                  {isSubmittingTask ? (
+                    <>
+                      <Clock className="h-4 w-4 sm:mr-2 animate-spin" />
+                      <span className="hidden sm:inline">Submitting...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Award className="h-4 w-4 sm:mr-2" />
+                      <span className="hidden sm:inline">Submit</span>
+                    </>
+                  )}
+                </Button>
+              ) : (
+                <Button
+                  size="sm"
+                  onClick={() => setShowCertificateDialog(true)}
+                  disabled={isGeneratingCertificate}
+                  className="sm:size-default"
+                >
+                  {isGeneratingCertificate ? (
+                    <>
+                      <Clock className="h-4 w-4 sm:mr-2 animate-spin" />
+                      <span className="hidden sm:inline">Generating...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Award className="h-4 w-4 sm:mr-2" />
+                      <span className="hidden sm:inline">Generate Certificate</span>
+                    </>
+                  )}
+                </Button>
+              )}
             </div>
           </div>
         </div>
@@ -526,8 +670,35 @@ export default function DocumentEditorPage() {
             {/* PDF */}
             {displayPaper && showPdfPanel ? (
               <ResizablePanel defaultSize={38} minSize={22}>
-                <div className="h-full border-r bg-background overflow-hidden">
-                  <PDFViewer paperId={displayPaper.id} documentId={documentId} onCommentAdd={() => {}} comments={[]} />
+                <div className="h-full border-r bg-background overflow-hidden flex flex-col">
+                  {taskInstructionPapers.length > 1 ? (
+                    <div className="shrink-0 border-b bg-background px-3 py-2">
+                      <div className="flex max-w-full gap-2 overflow-x-auto pb-1">
+                        {taskInstructionPapers.map((paper, index) => (
+                          <Button
+                            key={paper.id}
+                            type="button"
+                            variant={paper.id === displayPaper.id ? 'default' : 'outline'}
+                            size="sm"
+                            className="max-w-[240px] shrink-0 justify-start truncate"
+                            title={paper.title}
+                            onClick={() => setSelectedInstructionPaperId(paper.id)}
+                          >
+                            <span className="truncate">{paper.title || `File ${index + 1}`}</span>
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+                  <div className="min-h-0 flex-1 overflow-hidden">
+                    <PDFViewer
+                      key={displayPaper.id}
+                      paperId={displayPaper.id}
+                      documentId={documentId}
+                      onCommentAdd={() => {}}
+                      comments={[]}
+                    />
+                  </div>
                 </div>
               </ResizablePanel>
             ) : null}
@@ -559,13 +730,14 @@ export default function DocumentEditorPage() {
                     initialContent={document.content}
                     placeholder={displayPaper ? 'Write your review here...' : 'Start typing your document...'}
                     trackingEnabled={true}
+                    copyPastePolicy={currentEnvironmentConfig.copyPastePolicy}
                     autoSaveEnabled={true}
                     autoSaveInterval={30000}
                     onContentChange={handleContentChange}
                     onEventsBuffer={handleEventsBuffer}
                     onAutoSave={handleAutoSave}
                     className="h-full"
-                    renderSelectionPopup={({ selection, onClose, replaceSelection, cancelAIAction, undoLastAction }) => (
+                    renderSelectionPopup={aiEnabled ? ({ selection, onClose, replaceSelection, cancelAIAction, undoLastAction }) => (
                       <AISelectionMenu
                         documentId={documentId}
                         selection={selection}
@@ -578,20 +750,26 @@ export default function DocumentEditorPage() {
                           onClose();
                           handleAskAI(text);
                         }}
+                        taskManaged={!!taskEnrollment}
                       />
-                    )}
+                    ) : undefined}
                   />
                 </div>
               </div>
             </ResizablePanel>
 
             {/* AI */}
-            {isAIPanelOpen ? (
+            {aiEnabled && isAIPanelOpen ? (
               <>
                 <ResizableHandle withHandle />
                 <ResizablePanel defaultSize={25} minSize={18}>
                   <div className="h-full border-l bg-background overflow-hidden">
-                    <AIAssistantPanel documentId={documentId} onClose={closeAIPanel} />
+                    <AIAssistantPanel
+                      documentId={documentId}
+                      onClose={closeAIPanel}
+                      taskManaged={!!taskEnrollment}
+                      lockedModel={lockedTaskModel}
+                    />
                   </div>
                 </ResizablePanel>
               </>

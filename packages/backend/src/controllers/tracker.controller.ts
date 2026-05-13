@@ -99,12 +99,12 @@ export class TrackerController {
    * Get tracker snippet code
    */
   static getSnippet(req: Request, res: Response): void {
-    const { projectToken, apiUrl, type, userIdField } = req.query;
+    const { taskToken, apiUrl, type, userIdField } = req.query;
 
-    if (!projectToken) {
+    if (!taskToken) {
       res.status(400).json({
         success: false,
-        error: 'Project token is required',
+        error: 'Task token is required',
       });
       return;
     }
@@ -207,7 +207,7 @@ Qualtrics.SurveyEngine.addOnload(function() {
 
     log('🚀 ${BRAND.name} Tracker - Qualtrics Integration Starting...');
     log('Configuration:', {
-        projectToken: '${projectToken}'.substring(0, 10) + '...',
+        taskToken: '${taskToken}'.substring(0, 10) + '...',
         apiUrl: '${baseUrl}',
         debug: DEBUG
     });
@@ -238,7 +238,7 @@ Qualtrics.SurveyEngine.addOnload(function() {
         try {
             // Initialize tracker (no userId needed - auto-generated)
             var tracker = new window.${BRAND.tracker.namespace}Tracker({
-                projectToken: '${projectToken}',
+                taskToken: '${taskToken}',
                 apiUrl: '${baseUrl}',
                 debug: DEBUG  // Pass debug flag to tracker
             });
@@ -316,7 +316,7 @@ Qualtrics.SurveyEngine.addOnload(function() {
                 console.error('❌ ${BRAND.name.toUpperCase()} TRACKER INITIALIZATION FAILED');
                 console.error('═══════════════════════════════════════════════════════════');
                 console.error('Possible causes:');
-                console.error('1. Invalid project token');
+                console.error('1. Invalid task token');
                 console.error('2. Backend API is not accessible');
                 console.error('3. CORS issues (check your API configuration)');
                 console.error('4. Network connectivity problems');
@@ -422,7 +422,7 @@ What It Does:
 
 Testing:
 1. Add the code to your survey
-2. Open your project's "Tracking Code" page on developer.writehumanly.net
+2. Open your task's "Tracking Code" page on developer.writehumanly.net
 3. Click "Start Live Preview"
 4. Open your Qualtrics survey in another tab
 5. Type in any text field
@@ -478,7 +478,7 @@ Troubleshooting:
       log('🚀 ${BRAND.name} Tracker starting...');
 
       var tracker = new ${BRAND.tracker.namespace}Tracker({
-        projectToken: '${projectToken}',
+        taskToken: '${taskToken}',
         apiUrl: '${baseUrl}',
         debug: DEBUG
       });
@@ -537,7 +537,7 @@ For custom implementations, use the standard HTML snippet above.`;
     log('🚀 ${BRAND.name} Tracker starting...');
 
     var tracker = new ${BRAND.tracker.namespace}Tracker({
-      projectToken: '${projectToken}',
+      taskToken: '${taskToken}',
       apiUrl: '${baseUrl}',
       ${userIdField ? `userIdSelector: '${userIdField}',` : ''}
       debug: DEBUG  // Enable debug mode
@@ -596,7 +596,7 @@ For specific element tracking, use:
         snippet,
         instructions,
         trackerUrl,
-        projectToken,
+        taskToken,
         integrationType,
       },
     });

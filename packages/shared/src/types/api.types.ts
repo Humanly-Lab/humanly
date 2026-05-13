@@ -51,8 +51,8 @@ export interface ResetPasswordRequest {
   newPassword: string;
 }
 
-// Project API types
-export interface CreateProjectRequest {
+// Task API types
+export interface CreateTaskRequest {
   name: string;
   description?: string;
   userIdKey?: string;
@@ -60,7 +60,7 @@ export interface CreateProjectRequest {
   externalServiceUrl?: string;
 }
 
-export interface UpdateProjectRequest {
+export interface UpdateTaskRequest {
   name?: string;
   description?: string;
   userIdKey?: string;
@@ -69,10 +69,10 @@ export interface UpdateProjectRequest {
   isActive?: boolean;
 }
 
-export interface ProjectSnippetsResponse {
+export interface TaskSnippetsResponse {
   javascriptSnippet: string;
   iframeSnippet: string;
-  projectToken: string;
+  taskToken: string;
 }
 
 // Tracking API types
@@ -145,13 +145,13 @@ export interface AnalyticsQueryParams {
 }
 
 // WebSocket types
-export interface WebSocketJoinProject {
-  projectId: string;
+export interface WebSocketJoinTask {
+  taskId: string;
   token: string;
 }
 
-export interface WebSocketLeaveProject {
-  projectId: string;
+export interface WebSocketLeaveTask {
+  taskId: string;
 }
 
 export interface WebSocketEventReceived {

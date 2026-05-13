@@ -48,10 +48,10 @@ async function apiRequest<T>(
 // Paper APIs
 export const paperApi = {
   // Upload a paper (multipart form data)
-  async upload(projectId: string, formData: FormData): Promise<Paper> {
+  async upload(taskId: string, formData: FormData): Promise<Paper> {
     const token = getAuthToken()
 
-    const response = await fetch(`${API_BASE}/projects/${projectId}/papers`, {
+    const response = await fetch(`${API_BASE}/tasks/${taskId}/papers`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -73,14 +73,14 @@ export const paperApi = {
     return apiRequest(`/papers/${paperId}`)
   },
 
-  // List papers in project
-  async listByProject(projectId: string, params?: {
+  // List papers in task
+  async listByTask(taskId: string, params?: {
     status?: string
     limit?: number
     offset?: number
   }): Promise<{ papers: Paper[]; total: number }> {
     const query = new URLSearchParams(params as any).toString()
-    return apiRequest(`/projects/${projectId}/papers?${query}`)
+    return apiRequest(`/tasks/${taskId}/papers?${query}`)
   },
 
   // Get my assigned papers (as reviewer)

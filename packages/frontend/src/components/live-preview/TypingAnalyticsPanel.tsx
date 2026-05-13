@@ -10,14 +10,14 @@ import { AnalyticsControls } from './AnalyticsControls';
 
 interface TypingAnalyticsPanelProps {
   events: RealtimeEvent[];
-  projectId: string;
+  taskId: string;
   resetKey: number;
   onReset: () => void;
 }
 
-export function TypingAnalyticsPanel({ events, projectId, resetKey, onReset }: TypingAnalyticsPanelProps) {
+export function TypingAnalyticsPanel({ events, taskId, resetKey, onReset }: TypingAnalyticsPanelProps) {
   const analytics = useTypingAnalytics(events, resetKey);
-  const selectedMetricsHook = useSelectedMetrics(projectId);
+  const selectedMetricsHook = useSelectedMetrics(taskId);
 
   // Get selected metric definitions
   const selectedMetricDefs = selectedMetricsHook.selectedMetrics

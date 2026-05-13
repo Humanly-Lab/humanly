@@ -36,8 +36,8 @@ export function Navbar() {
 
   const navItems = [
     {
-      name: 'Projects',
-      href: '/projects',
+      name: 'Tasks',
+      href: '/tasks',
       icon: FolderKanban,
     },
     {
@@ -52,7 +52,7 @@ export function Navbar() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between">
           <div className="flex items-center">
-            <Link href="/projects" className="flex items-center gap-2 text-xl font-bold">
+            <Link href="/tasks" className="flex items-center gap-2 text-xl font-bold">
               <img src="/humanly.svg" alt={BRAND.name} className="h-8 w-8" />
               {BRAND.name} Admin
             </Link>

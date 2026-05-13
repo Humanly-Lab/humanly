@@ -1,6 +1,6 @@
 import { PaperModel } from '../models/paper.model'
 import { PaperReviewerModel } from '../models/paper-reviewer.model'
-import { ProjectModel } from '../models/project.model'
+import { TaskModel } from '../models/task.model'
 import { PaperStorageService } from './paper-storage.service'
 import { AIRetrievalService } from './ai-retrieval.service'
 import { pool } from '../config/database'
@@ -21,7 +21,7 @@ export class PaperService {
   static async upload(
     file: Buffer,
     metadata: {
-      projectId: string
+      taskId: string
       title: string
       authors: string[]
       abstract: string
@@ -42,7 +42,7 @@ export class PaperService {
 
     // Create paper record
     const paperData: InsertPaper = {
-      projectId: metadata.projectId,
+      taskId: metadata.taskId,
       uploadedBy: userId,
       title: metadata.title,
       authors: metadata.authors,
@@ -85,7 +85,7 @@ export class PaperService {
 
   // Get paper (with permission check)
   static async get(paperId: string, userId: string): Promise<Paper | PaperForReviewer> {
-    // Check if user is admin (uploader or project owner)
+    // Check if user is admin (uploader or task owner)
     const isAdmin = await this.isAdmin(paperId, userId)
 
     if (isAdmin) {
@@ -121,19 +121,19 @@ export class PaperService {
     return reviewerPaper
   }
 
-  // List papers for a project (admin only)
-  static async listByProject(
-    projectId: string,
+  // List papers for a task (admin only)
+  static async listByTask(
+    taskId: string,
     userId: string,
     filter?: PaperFilter,
     limit: number = 50,
     offset: number = 0
   ): Promise<{ papers: Paper[]; total: number }> {
-    // TODO: Verify user has project access
-    // const hasAccess = await ProjectModel.hasAccess(projectId, userId)
-    // if (!hasAccess) throw new AppError('No access to project', 403)
+    // TODO: Verify user has task access
+    // const hasAccess = await TaskModel.hasAccess(taskId, userId)
+    // if (!hasAccess) throw new AppError('No access to task', 403)
 
-    return PaperModel.findByProject(projectId, filter, limit, offset)
+    return PaperModel.findByTask(taskId, filter, limit, offset)
   }
 
   // List papers assigned to reviewer
@@ -242,20 +242,20 @@ export class PaperService {
     await PaperReviewerModel.addReadingTime(paperId, reviewerId, seconds)
   }
 
-  // Check if user is admin (uploader or project owner)
+  // Check if user is admin (uploader or task owner)
   private static async isAdmin(paperId: string, userId: string): Promise<boolean> {
     const isUploader = await PaperModel.isUploader(paperId, userId)
     if (isUploader) return true
 
-    const hasProjectAccess = await PaperModel.hasProjectAccess(paperId, userId)
-    return hasProjectAccess
+    const hasTaskAccess = await PaperModel.hasTaskAccess(paperId, userId)
+    return hasTaskAccess
   }
 
   private static async canAccessInstructionPaper(paper: Paper, userId: string): Promise<boolean> {
-    const isProjectInstruction = paper.keywords?.includes('instructions') ?? false
-    if (!isProjectInstruction) return false
+    const isTaskInstruction = paper.keywords?.includes('instructions') ?? false
+    if (!isTaskInstruction) return false
 
-    return ProjectModel.hasEnrollment(paper.projectId, userId)
+    return TaskModel.hasEnrollment(paper.taskId, userId)
   }
 
   // Extract page count from PDF (would use pdf-parse in production)

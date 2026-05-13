@@ -16,10 +16,10 @@ src/
 
 ### AnalyticsService
 
-All methods verify project ownership and cache results in Redis (5-minute TTL).
+All methods verify task ownership and cache results in Redis (5-minute TTL).
 
-#### `getSummaryStats(projectId, userId, filters)`
-Returns comprehensive project statistics:
+#### `getSummaryStats(taskId, userId, filters)`
+Returns comprehensive task statistics:
 - Total events, sessions, unique users
 - Average events per session and session duration
 - Completion rate percentage
@@ -29,7 +29,7 @@ Returns comprehensive project statistics:
 - Leverages session and event indexes
 - Caches results with filter-specific keys
 
-#### `getEventsTimeline(projectId, userId, groupBy, filters)`
+#### `getEventsTimeline(taskId, userId, groupBy, filters)`
 Returns time-series event data with configurable grouping:
 - `groupBy`: 'hour' | 'day' | 'week'
 - Returns array of {date, eventCount}
@@ -39,7 +39,7 @@ Returns time-series event data with configurable grouping:
 - Falls back to `time_bucket()` for custom queries
 - Indexed timestamp queries
 
-#### `getEventTypeDistribution(projectId, userId, filters)`
+#### `getEventTypeDistribution(taskId, userId, filters)`
 Returns event type breakdown with counts and percentages:
 - Ordered by count descending
 - Includes percentage calculations
@@ -49,7 +49,7 @@ Returns event type breakdown with counts and percentages:
 - Single query with CTE for totals
 - Efficient event_type index usage
 
-#### `getUserActivity(projectId, userId, page, limit, filters)`
+#### `getUserActivity(taskId, userId, page, limit, filters)`
 Returns paginated user activity list:
 - Session and event counts per user
 - Last activity timestamp
@@ -88,7 +88,7 @@ interface AnalyticsFilters {
 
 **Cache Key Format:**
 ```typescript
-`analytics:${projectId}:${type}:${JSON.stringify(filters)}`
+`analytics:${taskId}:${type}:${JSON.stringify(filters)}`
 ```
 
 **TTL:**
@@ -103,27 +103,27 @@ interface AnalyticsFilters {
 ## Controller Endpoints
 
 ### Summary Statistics
-**GET** `/api/v1/projects/:projectId/analytics/summary`
+**GET** `/api/v1/tasks/:taskId/analytics/summary`
 
 Query params: `startDate`, `endDate`, `externalUserId`, `eventType`
 
 ### Events Timeline
-**GET** `/api/v1/projects/:projectId/analytics/events-timeline`
+**GET** `/api/v1/tasks/:taskId/analytics/events-timeline`
 
 Query params: `groupBy`, `startDate`, `endDate`, `externalUserId`, `eventType`
 
 ### Event Type Distribution
-**GET** `/api/v1/projects/:projectId/analytics/event-types`
+**GET** `/api/v1/tasks/:taskId/analytics/event-types`
 
 Query params: `startDate`, `endDate`, `externalUserId`
 
 ### User Activity
-**GET** `/api/v1/projects/:projectId/analytics/users`
+**GET** `/api/v1/tasks/:taskId/analytics/users`
 
 Query params: `page`, `limit`, `startDate`, `endDate`
 
 ### Session Details
-**GET** `/api/v1/projects/:projectId/analytics/sessions/:sessionId`
+**GET** `/api/v1/tasks/:taskId/analytics/sessions/:sessionId`
 
 No query params
 
@@ -139,7 +139,7 @@ All endpoints use Zod schemas for validation:
 ## Security
 
 1. **Authentication**: All routes protected with `authenticate` middleware
-2. **Authorization**: Project ownership verified in every service method
+2. **Authorization**: Task ownership verified in every service method
 3. **Input Validation**: Zod schemas validate all inputs
 4. **SQL Injection**: Parameterized queries throughout
 
@@ -156,7 +156,7 @@ All controller methods use `asyncHandler` wrapper:
 2. **Leverage Continuous Aggregates**: Use hourly grouping for historical data
 3. **Monitor Cache**: Check logs for cache hit rates
 4. **Pagination**: Keep limit reasonable (20-50 items)
-5. **Index Coverage**: Ensure indexes on timestamp, project_id, session_id
+5. **Index Coverage**: Ensure indexes on timestamp, task_id, session_id
 
 ## Database Dependencies
 
@@ -167,12 +167,12 @@ All controller methods use `asyncHandler` wrapper:
 
 **Required Views:**
 - `session_summaries`
-- `project_statistics`
+- `task_statistics`
 
 **Required Indexes:**
-- `events(project_id, timestamp DESC)`
+- `events(task_id, timestamp DESC)`
 - `events(session_id, timestamp DESC)`
-- `sessions(project_id, external_user_id)`
+- `sessions(task_id, external_user_id)`
 - `sessions(session_start DESC)`
 
 ## Testing Checklist
@@ -182,7 +182,7 @@ All controller methods use `asyncHandler` wrapper:
 - [ ] Event type distribution
 - [ ] User activity pagination (first, middle, last page)
 - [ ] Session details with valid/invalid IDs
-- [ ] Project ownership verification (unauthorized access)
+- [ ] Task ownership verification (unauthorized access)
 - [ ] Invalid query parameters (validation errors)
 - [ ] Cache behavior (hit and miss)
 - [ ] Date range validation (startDate > endDate)

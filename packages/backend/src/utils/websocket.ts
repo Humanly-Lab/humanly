@@ -6,8 +6,8 @@ import { logger } from './logger';
  * WebSocket event types for client-server communication
  */
 export interface ClientToServerEvents {
-  'join-project': (data: JoinProjectData) => void;
-  'leave-project': (data: LeaveProjectData) => void;
+  'join-task': (data: JoinTaskData) => void;
+  'leave-task': (data: LeaveTaskData) => void;
   // AI Assistant events
   'ai:message': (data: AIChatRequest) => void;
   'ai:cancel': (data: { sessionId: string }) => void;
@@ -31,13 +31,13 @@ export interface ServerToClientEvents {
 /**
  * Data structures for WebSocket events
  */
-export interface JoinProjectData {
-  projectId: string;
+export interface JoinTaskData {
+  taskId: string;
   token: string;
 }
 
-export interface LeaveProjectData {
-  projectId: string;
+export interface LeaveTaskData {
+  taskId: string;
 }
 
 export interface EventReceivedData {
@@ -70,43 +70,43 @@ export interface ErrorData {
 export interface SocketData {
   userId: string;
   email: string;
-  projectRooms: Set<string>;
+  taskRooms: Set<string>;
 }
 
 /**
- * Helper function to get the room name for a project
+ * Helper function to get the room name for a task
  */
-export function getProjectRoom(projectId: string): string {
-  return `project:${projectId}`;
+export function getTaskRoom(taskId: string): string {
+  return `task:${taskId}`;
 }
 
 /**
- * Broadcast an event to all clients in a project room
+ * Broadcast an event to all clients in a task room
  */
-export function broadcastToProject(
+export function broadcastToTask(
   io: SocketIOServer,
-  projectId: string,
+  taskId: string,
   event: keyof ServerToClientEvents,
   data: any
 ): void {
-  const room = getProjectRoom(projectId);
+  const room = getTaskRoom(taskId);
   io.to(room).emit(event, data);
 
-  logger.debug('Broadcasting to project room', {
-    projectId,
+  logger.debug('Broadcasting to task room', {
+    taskId,
     room,
     event,
   });
 }
 
 /**
- * Get all connected users in a project room
+ * Get all connected users in a task room
  */
-export async function getConnectedUsersInProject(
+export async function getConnectedUsersInTask(
   io: SocketIOServer,
-  projectId: string
+  taskId: string
 ): Promise<string[]> {
-  const room = getProjectRoom(projectId);
+  const room = getTaskRoom(taskId);
   const sockets = await io.in(room).fetchSockets();
 
   const userIds = new Set<string>();
@@ -121,13 +121,13 @@ export async function getConnectedUsersInProject(
 }
 
 /**
- * Get count of connected sockets in a project room
+ * Get count of connected sockets in a task room
  */
-export async function getProjectRoomSize(
+export async function getTaskRoomSize(
   io: SocketIOServer,
-  projectId: string
+  taskId: string
 ): Promise<number> {
-  const room = getProjectRoom(projectId);
+  const room = getTaskRoom(taskId);
   const sockets = await io.in(room).fetchSockets();
   return sockets.length;
 }

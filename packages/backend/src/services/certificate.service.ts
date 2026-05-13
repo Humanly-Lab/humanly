@@ -27,6 +27,7 @@ export class CertificateService {
     documentId: string,
     userId: string,
     options: {
+      submissionId?: string;
       certificateType?: 'full_authorship' | 'partial_authorship';
       signerName?: string;
       includeFullText?: boolean;
@@ -36,6 +37,7 @@ export class CertificateService {
   ): Promise<Certificate> {
     try {
       const {
+        submissionId,
         certificateType = 'full_authorship',
         signerName,
         includeFullText = true,
@@ -78,6 +80,7 @@ export class CertificateService {
 
       // Create certificate
       const certificate = await CertificateModel.create({
+        submissionId: submissionId || null,
         documentId,
         userId,
         certificateType,
@@ -123,7 +126,7 @@ export class CertificateService {
       const certificate = await CertificateModel.findByIdAndUserId(certificateId, userId);
 
       if (!certificate) {
-        throw new AppError('Certificate not found or unauthorized', 404);
+        throw new AppError(404, 'Certificate not found or unauthorized');
       }
 
       return certificate;
@@ -201,6 +204,7 @@ export class CertificateService {
     const jsonCertificate: JSONCertificate = {
       version: '1.0',
       certificateId: certificate.id,
+      submissionId: certificate.submissionId || undefined,
       documentId: certificate.documentId,
       userId: certificate.userId,
       generatedAt: certificate.generatedAt.toISOString(),
@@ -588,7 +592,7 @@ export class CertificateService {
       const deleted = await CertificateModel.delete(certificateId, userId);
 
       if (!deleted) {
-        throw new AppError('Certificate not found or unauthorized', 404);
+        throw new AppError(404, 'Certificate not found or unauthorized');
       }
 
       logger.info('Certificate deleted', { certificateId, userId });

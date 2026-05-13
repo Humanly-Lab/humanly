@@ -1,6 +1,7 @@
 import OpenAI from 'openai';
 import { AIModel } from '../models/ai.model';
 import { DocumentModel } from '../models/document.model';
+import { TaskModel } from '../models/task.model';
 import { AIRetrievalService } from './ai-retrieval.service';
 import {
   AIChatSession,
@@ -43,6 +44,11 @@ interface AIProvider {
     content: string;
     tokensUsed?: { input: number; output: number };
   }>;
+}
+
+interface AIExecutionSettings {
+  provider: AIProvider;
+  modelVersion: string;
 }
 
 /**
@@ -702,18 +708,69 @@ Answer concisely. Mention when available evidence is incomplete or a tool return
 
 export class AIService {
   /**
-   * Get AI provider for a specific user (loads their settings from DB)
+   * Resolve the AI credentials for a document. Personal documents use the
+   * writer's own key. Task-enrolled documents use the task owner's key and the
+   * model locked in the task environment config.
    */
-  private static async getProviderForUser(userId: string): Promise<AIProvider> {
-    const settings = await UserAISettingsModel.getByUserId(userId);
-    if (!settings) {
-      throw new AppError(400, 'Please configure your AI settings first');
+  private static async getExecutionSettingsForDocument(
+    userId: string,
+    documentId: string
+  ): Promise<AIExecutionSettings> {
+    const task = await TaskModel.findBySubmissionDocument(documentId, userId);
+
+    if (!task) {
+      const document = await DocumentModel.findByIdAndUserId(documentId, userId);
+      if (!document) {
+        throw new AppError(404, 'Document not found');
+      }
+
+      if (document.environmentConfig?.aiAccess === 'off') {
+        throw new AppError(403, 'AI is disabled for this document');
+      }
+
+      const settings = await UserAISettingsModel.getByUserId(userId);
+      if (!settings) {
+        throw new AppError(400, 'Please configure your AI settings first');
+      }
+
+      return {
+        provider: new OpenAIProvider({
+          apiKey: settings.apiKey,
+          baseUrl: settings.baseUrl,
+          model: settings.model,
+        }),
+        modelVersion: settings.model,
+      };
     }
-    return new OpenAIProvider({
-      apiKey: settings.apiKey,
-      baseUrl: settings.baseUrl,
-      model: settings.model,
-    });
+
+    const taskConfig = task.environmentConfig;
+    if (!taskConfig || taskConfig.aiAccess === 'off') {
+      throw new AppError(403, 'AI is disabled for this task');
+    }
+
+    const ownerSettings = await UserAISettingsModel.getByUserId(task.userId);
+    if (!ownerSettings) {
+      throw new AppError(400, 'Task owner has not configured AI settings');
+    }
+
+    const model = (
+      taskConfig.allowedModels?.[0] ||
+      task.allowedLlmModels?.[0] ||
+      ownerSettings.model
+    );
+
+    if (!model) {
+      throw new AppError(400, 'No AI model is configured for this task');
+    }
+
+    return {
+      provider: new OpenAIProvider({
+        apiKey: ownerSettings.apiKey,
+        baseUrl: ownerSettings.baseUrl,
+        model,
+      }),
+      modelVersion: model,
+    };
   }
 
   /**
@@ -730,7 +787,7 @@ export class AIService {
       throw new AppError(404, 'Document not found');
     }
 
-    const provider = await this.getProviderForUser(userId);
+    const { provider } = await this.getExecutionSettingsForDocument(userId, request.documentId);
 
     // Build simple messages without conversation history
     const messages: { role: string; content: string }[] = [
@@ -815,8 +872,8 @@ export class AIService {
       // Add current message
       messages.push({ role: 'user', content: request.message });
 
-      // Get provider for user
-      const provider = await this.getProviderForUser(userId);
+      // Get provider for this document. Task documents use task owner settings.
+      const { provider, modelVersion } = await this.getExecutionSettingsForDocument(userId, request.documentId);
 
       // Get AI response
       const response = await provider.agentChat(messages, {
@@ -833,15 +890,12 @@ export class AIService {
         response.content
       );
 
-      // Get user's model for logging
-      const userSettings = await UserAISettingsModel.getByUserId(userId);
-
       // Update log with response
       await AIModel.updateLogWithResponse(log.id, {
         response: response.content,
         responseTimeMs,
         tokensUsed: response.tokensUsed,
-        modelVersion: userSettings?.model || 'unknown',
+        modelVersion,
         status: 'success',
       });
 
@@ -936,8 +990,8 @@ export class AIService {
       // Add current message
       messages.push({ role: 'user', content: request.message });
 
-      // Get provider for user
-      const provider = await this.getProviderForUser(userId);
+      // Get provider for this document. Task documents use task owner settings.
+      const { provider, modelVersion } = await this.getExecutionSettingsForDocument(userId, request.documentId);
 
       // Use the retrieval-capable agent and stream the final response once any
       // needed retrieval tool calls have completed.
@@ -955,15 +1009,12 @@ export class AIService {
         response.content
       );
 
-      // Get user's model for logging
-      const userSettings = await UserAISettingsModel.getByUserId(userId);
-
       // Update log with response
       await AIModel.updateLogWithResponse(log.id, {
         response: response.content,
         responseTimeMs,
         tokensUsed: response.tokensUsed,
-        modelVersion: userSettings?.model || 'unknown',
+        modelVersion,
         status: 'success',
       });
 

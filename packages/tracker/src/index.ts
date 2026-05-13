@@ -8,7 +8,7 @@
  * ```javascript
  * // Initialize tracker
  * const tracker = new HumanlyTracker({
- *   projectToken: 'your-project-token',
+ *   taskToken: 'your-task-token',
  *   apiUrl: 'https://api.writehumanly.net',
  *   debug: true
  * });

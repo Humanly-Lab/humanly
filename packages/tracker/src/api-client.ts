@@ -130,7 +130,7 @@ export async function initSession(
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-Project-Token': config.projectToken,
+          'X-Task-Token': config.taskToken,
         },
         body: JSON.stringify(payload),
       }, config.debug),
@@ -167,7 +167,7 @@ export async function sendEvents(
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-Project-Token': config.projectToken,
+          'X-Task-Token': config.taskToken,
           'X-Session-Id': sessionId,
         },
         body: JSON.stringify(payload),
@@ -198,7 +198,7 @@ export async function submitSession(
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-Project-Token': config.projectToken,
+          'X-Task-Token': config.taskToken,
           'X-Session-Id': sessionId,
         },
         body: JSON.stringify(payload),

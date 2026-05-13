@@ -64,6 +64,7 @@ export function LexicalEditor(props: LexicalEditorProps): JSX.Element {
     placeholder = 'Start typing...',
     editable = true,
     trackingEnabled = true,
+    copyPastePolicy = 'allowed',
     autoSaveEnabled = false,
     autoSaveInterval = 30000,
     onContentChange,
@@ -251,6 +252,7 @@ export function LexicalEditor(props: LexicalEditorProps): JSX.Element {
             onEvent={onEventTracked}
             onEventsBuffer={onEventsBuffer}
             enabled={trackingEnabled}
+            copyPastePolicy={copyPastePolicy}
           />
         )}
 

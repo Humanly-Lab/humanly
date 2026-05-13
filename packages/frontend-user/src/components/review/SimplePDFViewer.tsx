@@ -164,6 +164,20 @@ export default function SimplePDFViewer({ paperId, documentId, onCommentAdd, com
 
     const loadPDF = async () => {
       try {
+        pdfDocRef.current = null
+        textContentCache.current.clear()
+        canvasRefs.current = []
+        highlightRefs.current = []
+        pageContainerRefs.current = []
+        setNumPages(0)
+        setCurrentPage(1)
+        setScale(1.0)
+        setFitToWidth(true)
+        setSearchText('')
+        setSearchMatches([])
+        setCurrentMatchIndex(-1)
+        setShowSearch(false)
+        setTextExtractionError(null)
         setLoading(true)
         setError(null)
         let attempts = 0
@@ -200,7 +214,14 @@ export default function SimplePDFViewer({ paperId, documentId, onCommentAdd, com
     return () => {
       cancelled = true
       if (blobUrl) URL.revokeObjectURL(blobUrl)
-      if (pdfDocRef.current) pdfDocRef.current.destroy()
+      if (pdfDocRef.current) {
+        try {
+          pdfDocRef.current.destroy()
+        } catch {
+          // Ignore cleanup errors from interrupted renders.
+        }
+      }
+      pdfDocRef.current = null
     }
   }, [paperId, documentId, extractPDFTextInBackground])
 

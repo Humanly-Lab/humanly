@@ -17,11 +17,46 @@ export function cn(...inputs: ClassValue[]) {
  */
 export function formatDate(date: Date | string): string {
   const d = typeof date === 'string' ? new Date(date) : date;
-  return new Intl.DateTimeFormat('en-US', {
+  return new Intl.DateTimeFormat(undefined, {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
   }).format(d);
+}
+
+export function formatDateTime(date: Date | string | null | undefined): string {
+  if (!date) return 'Not available';
+  const d = typeof date === 'string' ? new Date(date) : date;
+  if (Number.isNaN(d.getTime())) return 'Not available';
+
+  return new Intl.DateTimeFormat(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    timeZoneName: 'short',
+  }).format(d);
+}
+
+export function toLocalDateTimeInputValue(date: Date | string): string {
+  const d = typeof date === 'string' ? new Date(date) : date;
+  const pad = (value: number) => String(value).padStart(2, '0');
+
+  return [
+    d.getFullYear(),
+    pad(d.getMonth() + 1),
+    pad(d.getDate()),
+  ].join('-') + `T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+export function localDateTimeInputToISOString(value: string): string {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : date.toISOString();
+}
+
+export function getLocalTimeZoneLabel(): string {
+  return Intl.DateTimeFormat().resolvedOptions().timeZone || 'local time';
 }
 
 /**

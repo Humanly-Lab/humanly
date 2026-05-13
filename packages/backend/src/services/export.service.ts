@@ -1,6 +1,6 @@
 import { Readable } from 'stream';
 import { pool } from '../config/database';
-import { ProjectModel } from '../models/project.model';
+import { TaskModel } from '../models/task.model';
 import { Event } from '@humanly/shared';
 import { AppError } from '../middleware/error-handler';
 import { logger } from '../utils/logger';
@@ -14,8 +14,8 @@ export interface ExportFilters {
 }
 
 export interface ExportMetadata {
-  projectId: string;
-  projectName: string;
+  taskId: string;
+  taskName: string;
   exportDate: string;
   filters: ExportFilters;
   totalEvents: number;
@@ -29,33 +29,33 @@ export class ExportService {
    * Export events to JSON format with streaming
    */
   static async exportToJSON(
-    projectId: string,
+    taskId: string,
     userId: string,
     filters: ExportFilters = {}
   ): Promise<{ stream: Readable; metadata: ExportMetadata }> {
     try {
-      // Verify project ownership
-      const ownsProject = await ProjectModel.verifyOwnership(projectId, userId);
-      if (!ownsProject) {
-        throw new AppError(403, 'You do not have access to this project');
+      // Verify task ownership
+      const ownsTask = await TaskModel.verifyOwnership(taskId, userId);
+      if (!ownsTask) {
+        throw new AppError(403, 'You do not have access to this task');
       }
 
-      // Get project details
-      const project = await ProjectModel.findById(projectId);
-      if (!project) {
-        throw new AppError(404, 'Project not found');
+      // Get task details
+      const task = await TaskModel.findById(taskId);
+      if (!task) {
+        throw new AppError(404, 'Task not found');
       }
 
       // Build query
-      const { sql, params } = this.buildExportQuery(projectId, filters);
+      const { sql, params } = this.buildExportQuery(taskId, filters);
 
       // Get total count
-      const totalEvents = await this.getEventCount(projectId, filters);
+      const totalEvents = await this.getEventCount(taskId, filters);
 
       // Create metadata
       const metadata: ExportMetadata = {
-        projectId: project.id,
-        projectName: project.name,
+        taskId: task.id,
+        taskName: task.name,
         exportDate: new Date().toISOString(),
         filters,
         totalEvents,
@@ -77,10 +77,10 @@ export class ExportService {
 
       // Start with JSON wrapper
       stream.push('{\n');
-      stream.push(`  "project": ${JSON.stringify({
-        id: project.id,
-        name: project.name,
-        description: project.description,
+      stream.push(`  "task": ${JSON.stringify({
+        id: task.id,
+        name: task.name,
+        description: task.description,
       })},\n`);
       stream.push(`  "exportDate": "${metadata.exportDate}",\n`);
       stream.push(`  "filters": ${JSON.stringify(filters)},\n`);
@@ -109,7 +109,7 @@ export class ExportService {
         client.release();
 
         logger.info('JSON export completed', {
-          projectId,
+          taskId,
           userId,
           eventCount,
           filters,
@@ -117,7 +117,7 @@ export class ExportService {
       });
 
       queryStream.on('error', (error) => {
-        logger.error('Error during JSON export streaming', { error, projectId, userId });
+        logger.error('Error during JSON export streaming', { error, taskId, userId });
         stream.destroy(error);
         client.release();
       });
@@ -126,7 +126,7 @@ export class ExportService {
     } catch (error) {
       logger.error('Failed to export to JSON', {
         error: error instanceof Error ? error.message : 'Unknown error',
-        projectId,
+        taskId,
         userId,
       });
       throw error;
@@ -137,33 +137,33 @@ export class ExportService {
    * Export events to CSV format with streaming
    */
   static async exportToCSV(
-    projectId: string,
+    taskId: string,
     userId: string,
     filters: ExportFilters = {}
   ): Promise<{ stream: Readable; metadata: ExportMetadata }> {
     try {
-      // Verify project ownership
-      const ownsProject = await ProjectModel.verifyOwnership(projectId, userId);
-      if (!ownsProject) {
-        throw new AppError(403, 'You do not have access to this project');
+      // Verify task ownership
+      const ownsTask = await TaskModel.verifyOwnership(taskId, userId);
+      if (!ownsTask) {
+        throw new AppError(403, 'You do not have access to this task');
       }
 
-      // Get project details
-      const project = await ProjectModel.findById(projectId);
-      if (!project) {
-        throw new AppError(404, 'Project not found');
+      // Get task details
+      const task = await TaskModel.findById(taskId);
+      if (!task) {
+        throw new AppError(404, 'Task not found');
       }
 
       // Build query
-      const { sql, params } = this.buildExportQuery(projectId, filters);
+      const { sql, params } = this.buildExportQuery(taskId, filters);
 
       // Get total count
-      const totalEvents = await this.getEventCount(projectId, filters);
+      const totalEvents = await this.getEventCount(taskId, filters);
 
       // Create metadata
       const metadata: ExportMetadata = {
-        projectId: project.id,
-        projectName: project.name,
+        taskId: task.id,
+        taskName: task.name,
         exportDate: new Date().toISOString(),
         filters,
         totalEvents,
@@ -187,7 +187,7 @@ export class ExportService {
       const headers = [
         'id',
         'session_id',
-        'project_id',
+        'task_id',
         'external_user_id',
         'event_type',
         'timestamp',
@@ -216,7 +216,7 @@ export class ExportService {
         client.release();
 
         logger.info('CSV export completed', {
-          projectId,
+          taskId,
           userId,
           eventCount,
           filters,
@@ -224,7 +224,7 @@ export class ExportService {
       });
 
       queryStream.on('error', (error) => {
-        logger.error('Error during CSV export streaming', { error, projectId, userId });
+        logger.error('Error during CSV export streaming', { error, taskId, userId });
         stream.destroy(error);
         client.release();
       });
@@ -233,7 +233,7 @@ export class ExportService {
     } catch (error) {
       logger.error('Failed to export to CSV', {
         error: error instanceof Error ? error.message : 'Unknown error',
-        projectId,
+        taskId,
         userId,
       });
       throw error;
@@ -244,11 +244,11 @@ export class ExportService {
    * Build SQL query for exporting events with filters
    */
   private static buildExportQuery(
-    projectId: string,
+    taskId: string,
     filters: ExportFilters
   ): { sql: string; params: any[] } {
-    const conditions: string[] = ['e.project_id = $1'];
-    const params: any[] = [projectId];
+    const conditions: string[] = ['e.task_id = $1'];
+    const params: any[] = [taskId];
     let paramCount = 1;
 
     // Date range filters
@@ -285,7 +285,7 @@ export class ExportService {
       SELECT
         e.id,
         e.session_id,
-        e.project_id,
+        e.task_id,
         s.external_user_id,
         e.event_type,
         e.timestamp,
@@ -311,11 +311,11 @@ export class ExportService {
    * Get total event count for export
    */
   private static async getEventCount(
-    projectId: string,
+    taskId: string,
     filters: ExportFilters
   ): Promise<number> {
-    const conditions: string[] = ['e.project_id = $1'];
-    const params: any[] = [projectId];
+    const conditions: string[] = ['e.task_id = $1'];
+    const params: any[] = [taskId];
     let paramCount = 1;
 
     if (filters.startDate) {
@@ -367,7 +367,7 @@ export class ExportService {
     return {
       id: row[0],
       sessionId: row[1],
-      projectId: row[2],
+      taskId: row[2],
       externalUserId: row[3],
       eventType: row[4],
       timestamp: row[5],
@@ -390,7 +390,7 @@ export class ExportService {
     const values = [
       row[0], // id
       row[1], // session_id
-      row[2], // project_id
+      row[2], // task_id
       row[3], // external_user_id
       row[4], // event_type
       row[5], // timestamp
@@ -433,11 +433,11 @@ export class ExportService {
    * Generate filename for export download
    */
   static generateFilename(
-    projectId: string,
+    taskId: string,
     format: 'json' | 'csv',
     date: Date = new Date()
   ): string {
     const timestamp = date.toISOString().replace(/[:.]/g, '-').slice(0, 19);
-    return `humanly-export-${projectId}-${timestamp}.${format}`;
+    return `humanly-export-${taskId}-${timestamp}.${format}`;
   }
 }

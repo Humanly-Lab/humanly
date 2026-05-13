@@ -24,33 +24,39 @@ CREATE INDEX idx_users_email_verification_token ON users(email_verification_toke
 CREATE INDEX idx_users_password_reset_token ON users(password_reset_token) WHERE password_reset_token IS NOT NULL;
 
 -- ============================================================================
--- Projects table
+-- Tasks table
 -- ============================================================================
-CREATE TABLE IF NOT EXISTS projects (
+CREATE TABLE IF NOT EXISTS tasks (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     name VARCHAR(255) NOT NULL,
     description TEXT,
-    project_token VARCHAR(64) UNIQUE NOT NULL,
+    task_token VARCHAR(64) UNIQUE NOT NULL,
     user_id_key VARCHAR(100) DEFAULT 'userId',
     external_service_type VARCHAR(50),
     external_service_url TEXT,
+    start_date TIMESTAMP NOT NULL DEFAULT NOW(),
+    end_date TIMESTAMP NOT NULL DEFAULT (NOW() + INTERVAL '30 days'),
+    environment_config JSONB,
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE INDEX idx_projects_user_id ON projects(user_id);
-CREATE INDEX idx_projects_project_token ON projects(project_token);
-CREATE INDEX idx_projects_is_active ON projects(is_active) WHERE is_active = TRUE;
-CREATE INDEX idx_projects_created_at ON projects(created_at DESC);
+CREATE INDEX idx_tasks_user_id ON tasks(user_id);
+CREATE INDEX idx_tasks_task_token ON tasks(task_token);
+CREATE INDEX idx_tasks_is_active ON tasks(is_active) WHERE is_active = TRUE;
+CREATE INDEX idx_tasks_created_at ON tasks(created_at DESC);
+CREATE INDEX idx_tasks_start_date ON tasks(start_date);
+CREATE INDEX idx_tasks_end_date ON tasks(end_date);
+CREATE INDEX idx_tasks_environment_config ON tasks USING GIN(environment_config) WHERE environment_config IS NOT NULL;
 
 -- ============================================================================
 -- Sessions table
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS sessions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    task_id UUID NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
     external_user_id VARCHAR(255) NOT NULL,
     session_start TIMESTAMP NOT NULL DEFAULT NOW(),
     session_end TIMESTAMP,
@@ -61,10 +67,10 @@ CREATE TABLE IF NOT EXISTS sessions (
     created_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE INDEX idx_sessions_project_id ON sessions(project_id);
+CREATE INDEX idx_sessions_task_id ON sessions(task_id);
 CREATE INDEX idx_sessions_external_user_id ON sessions(external_user_id);
 CREATE INDEX idx_sessions_session_start ON sessions(session_start DESC);
-CREATE INDEX idx_sessions_project_user ON sessions(project_id, external_user_id);
+CREATE INDEX idx_sessions_task_user ON sessions(task_id, external_user_id);
 CREATE INDEX idx_sessions_submitted ON sessions(submitted);
 
 -- ============================================================================
@@ -73,7 +79,7 @@ CREATE INDEX idx_sessions_submitted ON sessions(submitted);
 CREATE TABLE IF NOT EXISTS events (
     id BIGSERIAL,
     session_id UUID NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
-    project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    task_id UUID NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
     event_type VARCHAR(50) NOT NULL,
     timestamp TIMESTAMP NOT NULL,
     target_element VARCHAR(255),
@@ -99,7 +105,7 @@ SELECT create_hypertable(
 
 -- Indexes for events table (optimized for time-series queries)
 CREATE INDEX idx_events_session_id_timestamp ON events(session_id, timestamp DESC);
-CREATE INDEX idx_events_project_id_timestamp ON events(project_id, timestamp DESC);
+CREATE INDEX idx_events_task_id_timestamp ON events(task_id, timestamp DESC);
 CREATE INDEX idx_events_event_type ON events(event_type);
 CREATE INDEX idx_events_timestamp ON events(timestamp DESC);
 CREATE INDEX idx_events_metadata ON events USING GIN(metadata);
@@ -135,8 +141,8 @@ CREATE TRIGGER update_users_updated_at
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
-CREATE TRIGGER update_projects_updated_at
-    BEFORE UPDATE ON projects
+CREATE TRIGGER update_tasks_updated_at
+    BEFORE UPDATE ON tasks
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
@@ -156,16 +162,16 @@ SELECT add_retention_policy('events', INTERVAL '1 year');
 -- Continuous aggregates for analytics (optional, for better performance)
 -- ============================================================================
 
--- Hourly event counts per project
+-- Hourly event counts per task
 CREATE MATERIALIZED VIEW IF NOT EXISTS events_hourly
 WITH (timescaledb.continuous) AS
 SELECT
     time_bucket('1 hour', timestamp) AS hour,
-    project_id,
+    task_id,
     event_type,
     COUNT(*) AS event_count
 FROM events
-GROUP BY hour, project_id, event_type
+GROUP BY hour, task_id, event_type
 WITH NO DATA;
 
 -- Refresh policy for the continuous aggregate
@@ -174,18 +180,18 @@ SELECT add_continuous_aggregate_policy('events_hourly',
     end_offset => INTERVAL '1 hour',
     schedule_interval => INTERVAL '1 hour');
 
--- Daily session statistics per project
+-- Daily session statistics per task
 CREATE MATERIALIZED VIEW IF NOT EXISTS session_daily_stats
 WITH (timescaledb.continuous) AS
 SELECT
     time_bucket('1 day', session_start) AS day,
-    project_id,
+    task_id,
     COUNT(DISTINCT id) AS session_count,
     COUNT(DISTINCT external_user_id) AS unique_users,
     COUNT(CASE WHEN submitted THEN 1 END) AS submitted_count,
     AVG(EXTRACT(EPOCH FROM (COALESCE(session_end, NOW()) - session_start))) AS avg_duration_seconds
 FROM sessions
-GROUP BY day, project_id
+GROUP BY day, task_id
 WITH NO DATA;
 
 -- Refresh policy for session stats
@@ -198,7 +204,7 @@ SELECT add_continuous_aggregate_policy('session_daily_stats',
 -- Seed data for development (optional)
 -- ============================================================================
 
--- You can add test users and projects here for development
+-- You can add test users and tasks here for development
 -- Example:
 -- INSERT INTO users (email, password_hash, email_verified)
 -- VALUES ('test@humanly.dev', '$2b$12$...', TRUE);
@@ -211,7 +217,7 @@ SELECT add_continuous_aggregate_policy('session_daily_stats',
 CREATE OR REPLACE VIEW session_summaries AS
 SELECT
     s.id,
-    s.project_id,
+    s.task_id,
     s.external_user_id,
     s.session_start,
     s.session_end,
@@ -224,20 +230,20 @@ FROM sessions s
 LEFT JOIN events e ON e.session_id = s.id
 GROUP BY s.id;
 
--- View for project statistics
-CREATE OR REPLACE VIEW project_statistics AS
+-- View for task statistics
+CREATE OR REPLACE VIEW task_statistics AS
 SELECT
-    p.id AS project_id,
-    p.name AS project_name,
+    p.id AS task_id,
+    p.name AS task_name,
     p.user_id,
     COUNT(DISTINCT s.id) AS total_sessions,
     COUNT(DISTINCT s.external_user_id) AS unique_users,
     COUNT(DISTINCT CASE WHEN s.submitted THEN s.id END) AS submitted_sessions,
     COUNT(e.id) AS total_events,
     MAX(s.session_start) AS last_activity
-FROM projects p
-LEFT JOIN sessions s ON s.project_id = p.id
-LEFT JOIN events e ON e.project_id = p.id
+FROM tasks p
+LEFT JOIN sessions s ON s.task_id = p.id
+LEFT JOIN events e ON e.task_id = p.id
 GROUP BY p.id, p.name, p.user_id;
 
 -- ============================================================================

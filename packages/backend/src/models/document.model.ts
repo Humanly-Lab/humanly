@@ -15,19 +15,21 @@ export class DocumentModel {
   static async create(data: DocumentInsertData): Promise<Document> {
     const sql = `
       INSERT INTO documents (
-        user_id, title, content, plain_text, status, word_count, character_count
+        user_id, title, description, content, plain_text, status, word_count, character_count, environment_config
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       RETURNING
         id,
         user_id as "userId",
         title,
+        description,
         content,
         plain_text as "plainText",
         status,
         version,
         word_count as "wordCount",
         character_count as "characterCount",
+        environment_config as "environmentConfig",
         created_at as "createdAt",
         updated_at as "updatedAt",
         last_edited_at as "lastEditedAt"
@@ -36,11 +38,13 @@ export class DocumentModel {
     const document = await queryOne<Document>(sql, [
       data.userId,
       data.title,
+      data.description || null,
       JSON.stringify(data.content),
       data.plainText,
       data.status || 'draft',
       data.wordCount || 0,
       data.characterCount || 0,
+      data.environmentConfig ? JSON.stringify(data.environmentConfig) : null,
     ]);
 
     if (!document) {
@@ -59,12 +63,14 @@ export class DocumentModel {
         id,
         user_id as "userId",
         title,
+        description,
         content,
         plain_text as "plainText",
         status,
         version,
         word_count as "wordCount",
         character_count as "characterCount",
+        environment_config as "environmentConfig",
         created_at as "createdAt",
         updated_at as "updatedAt",
         last_edited_at as "lastEditedAt"
@@ -84,12 +90,14 @@ export class DocumentModel {
         id,
         user_id as "userId",
         title,
+        description,
         content,
         plain_text as "plainText",
         status,
         version,
         word_count as "wordCount",
         character_count as "characterCount",
+        environment_config as "environmentConfig",
         created_at as "createdAt",
         updated_at as "updatedAt",
         last_edited_at as "lastEditedAt"
@@ -163,12 +171,14 @@ export class DocumentModel {
         id,
         user_id as "userId",
         title,
+        description,
         content,
         plain_text as "plainText",
         status,
         version,
         word_count as "wordCount",
         character_count as "characterCount",
+        environment_config as "environmentConfig",
         created_at as "createdAt",
         updated_at as "updatedAt",
         last_edited_at as "lastEditedAt"
@@ -208,6 +218,11 @@ export class DocumentModel {
       params.push(data.title);
     }
 
+    if (data.description !== undefined) {
+      updates.push(`description = $${paramIndex++}`);
+      params.push(data.description || null);
+    }
+
     if (data.content !== undefined) {
       updates.push(`content = $${paramIndex++}`);
       params.push(JSON.stringify(data.content));
@@ -233,6 +248,11 @@ export class DocumentModel {
       params.push(data.characterCount);
     }
 
+    if (data.environmentConfig !== undefined) {
+      updates.push(`environment_config = $${paramIndex++}`);
+      params.push(data.environmentConfig ? JSON.stringify(data.environmentConfig) : null);
+    }
+
     if (updates.length === 0) {
       return this.findByIdAndUserId(id, userId);
     }
@@ -247,12 +267,14 @@ export class DocumentModel {
         id,
         user_id as "userId",
         title,
+        description,
         content,
         plain_text as "plainText",
         status,
         version,
         word_count as "wordCount",
         character_count as "characterCount",
+        environment_config as "environmentConfig",
         created_at as "createdAt",
         updated_at as "updatedAt",
         last_edited_at as "lastEditedAt"

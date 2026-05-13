@@ -1,7 +1,7 @@
 import { DocumentModel } from '../models/document.model';
 import { DocumentEventModel } from '../models/document-event.model';
 import { SessionModel } from '../models/session.model';
-import { query, queryOne } from '../config/database';
+import { query, queryOne, transaction } from '../config/database';
 import { cacheDelPattern } from '../config/redis';
 import {
   Document,
@@ -13,6 +13,7 @@ import {
   DocumentEventInsertData,
   DocumentEventQueryFilters,
   PaginatedResult,
+  WritingEnvironmentConfig,
 } from '@humanly/shared';
 import { AppError } from '../middleware/error-handler';
 import { logger } from '../utils/logger';
@@ -25,7 +26,9 @@ export class DocumentService {
     userId: string,
     title: string,
     content: Record<string, any> = {},
-    initialStatus: 'draft' | 'published' | 'archived' = 'draft'
+    initialStatus: 'draft' | 'published' | 'archived' = 'draft',
+    environmentConfig?: WritingEnvironmentConfig | null,
+    description: string | null = null
   ): Promise<Document> {
     try {
       logger.info('Creating document', { userId, title });
@@ -37,11 +40,13 @@ export class DocumentService {
       const data: DocumentInsertData = {
         userId,
         title,
+        description,
         content,
         plainText,
         status: initialStatus,
         wordCount,
         characterCount,
+        environmentConfig,
       };
 
       const document = await DocumentModel.create(data);
@@ -117,13 +122,64 @@ export class DocumentService {
   static async deleteDocument(documentId: string, userId: string): Promise<void> {
     try {
       logger.info('Deleting document', { documentId, userId });
-      await this.invalidateProjectAnalyticsForDocument(documentId);
 
-      const deleted = await DocumentModel.delete(documentId, userId);
+      const deleteResult: { deleted: boolean; taskIds: string[] } = await transaction(async (client) => {
+        const documentResult = await client.query(
+          `
+            SELECT id
+            FROM documents
+            WHERE id = $1 AND user_id = $2
+          `,
+          [documentId, userId]
+        );
 
-      if (!deleted) {
+        if (documentResult.rowCount === 0) {
+          return { deleted: false, taskIds: [] as string[] };
+        }
+
+        const linkedTaskResult = await client.query(
+          `
+            SELECT DISTINCT task_id
+            FROM task_enrollments
+            WHERE submission_document_id = $1
+              AND user_id = $2
+          `,
+          [documentId, userId]
+        );
+
+        const taskIds = linkedTaskResult.rows.map((row: { task_id: string }) => row.task_id);
+
+        await client.query(
+          `
+            DELETE FROM task_enrollments
+            WHERE submission_document_id = $1
+              AND user_id = $2
+          `,
+          [documentId, userId]
+        );
+
+        const deletedDocumentResult = await client.query(
+          `
+            DELETE FROM documents
+            WHERE id = $1 AND user_id = $2
+            RETURNING id
+          `,
+          [documentId, userId]
+        );
+
+        return {
+          deleted: deletedDocumentResult.rowCount > 0,
+          taskIds,
+        };
+      });
+
+      if (!deleteResult.deleted) {
         throw new AppError(404, 'Document not found or unauthorized');
       }
+
+      await Promise.all(
+        deleteResult.taskIds.map((taskId: string) => cacheDelPattern(`analytics:${taskId}:*`))
+      );
 
       logger.info('Document deleted successfully', { documentId, userId });
     } catch (error) {
@@ -174,7 +230,7 @@ export class DocumentService {
       }));
 
       await DocumentEventModel.batchInsert(validatedEvents);
-      await this.invalidateProjectAnalyticsForDocument(documentId);
+      await this.invalidateTaskAnalyticsForDocument(documentId);
 
       logger.info('Document events tracked', {
         documentId,
@@ -210,15 +266,15 @@ export class DocumentService {
       const enrollment = await queryOne<{ id: string }>(
         `
           SELECT pe.id
-          FROM project_enrollments pe
+          FROM task_enrollments pe
           JOIN users u ON u.id = pe.user_id
-          WHERE pe.project_id = $1
+          WHERE pe.task_id = $1
             AND pe.user_id = $2
             AND pe.submission_document_id = $3
             AND u.email = $4
           LIMIT 1
         `,
-        [session.projectId, userId, documentId, session.externalUserId]
+        [session.taskId, userId, documentId, session.externalUserId]
       );
 
       if (!enrollment) {
@@ -227,18 +283,18 @@ export class DocumentService {
     }
   }
 
-  private static async invalidateProjectAnalyticsForDocument(documentId: string): Promise<void> {
-    const linkedProjects = await query<{ projectId: string }>(
+  private static async invalidateTaskAnalyticsForDocument(documentId: string): Promise<void> {
+    const linkedTasks = await query<{ taskId: string }>(
       `
-        SELECT DISTINCT project_id as "projectId"
-        FROM project_enrollments
+        SELECT DISTINCT task_id as "taskId"
+        FROM task_enrollments
         WHERE submission_document_id = $1
       `,
       [documentId]
     );
 
     await Promise.all(
-      linkedProjects.map((project) => cacheDelPattern(`analytics:${project.projectId}:*`))
+      linkedTasks.map((task) => cacheDelPattern(`analytics:${task.taskId}:*`))
     );
   }
 

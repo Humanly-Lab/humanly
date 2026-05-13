@@ -7,6 +7,40 @@ import {
   PAGINATION,
 } from './constants';
 
+const writingEnvironmentConfigSchema = z.object({
+  preset: z.enum(['default_writing', 'no_ai', 'ai_assisted', 'timed_writing', 'custom']).optional(),
+  taskType: z.enum(['personal', 'admin_assigned']),
+  description: z.string().max(1000).optional(),
+  instructions: z.object({
+    hasInstructionPdf: z.boolean().optional(),
+    editableAfterSubmission: z.boolean(),
+  }),
+  aiAccess: z.enum(['off', 'readonly', 'full']),
+  allowedModels: z.array(z.string().min(1).max(100)).max(20),
+  customModels: z.array(z.string().min(1).max(100)).max(20).optional(),
+  aiUsageLimit: z.object({
+    mode: z.enum(['unlimited', 'max_requests', 'max_tokens', 'time_restricted']),
+    maxRequests: z.number().int().positive().max(1000000).optional(),
+    maxTokens: z.number().int().positive().max(10000000).optional(),
+  }),
+  time: z.object({
+    startTime: z.string().optional(),
+    endTime: z.string().optional(),
+    timeLimitSeconds: z.number().int().positive().max(31536000).optional(),
+    lateSubmission: z.enum(['allowed', 'not_allowed']),
+  }),
+  submission: z.object({
+    mode: z.enum(['single', 'multiple']),
+  }),
+  traceability: z.object({
+    trackAiUsage: z.boolean(),
+    trackTyping: z.boolean(),
+    trackCopyPaste: z.boolean(),
+    trackFocusBlur: z.boolean(),
+  }),
+  copyPastePolicy: z.enum(['allowed', 'blocked']),
+});
+
 // User validators
 export const emailSchema = z.string().email('Invalid email address');
 
@@ -40,22 +74,41 @@ export const resetPasswordSchema = z.object({
   newPassword: passwordSchema,
 });
 
-// Project validators
-export const createProjectSchema = z.object({
-  name: z.string().min(1, 'Project name is required').max(255),
+// Task validators
+export const createTaskSchema = z.object({
+  name: z.string().min(1, 'Task name is required').max(255),
   description: z.string().max(1000).optional(),
   userIdKey: z.string().max(100).optional(),
   externalServiceType: z.enum(EXTERNAL_SERVICE_TYPES).optional(),
   externalServiceUrl: z.string().url().optional().or(z.literal('')),
+  allowedLlmModels: z.array(z.string().min(1).max(100)).max(20).optional(),
+  aiUsageLimit: z.number().int().positive().max(1000000).optional(),
+  startDate: z.coerce.date(),
+  endDate: z.coerce.date(),
+  environmentConfig: writingEnvironmentConfigSchema.optional(),
+}).refine((data) => data.endDate > data.startDate, {
+  message: 'Task end date must be after start date',
+  path: ['endDate'],
 });
 
-export const updateProjectSchema = z.object({
+export const updateTaskSchema = z.object({
   name: z.string().min(1).max(255).optional(),
   description: z.string().max(1000).optional(),
   userIdKey: z.string().max(100).optional(),
   externalServiceType: z.enum(EXTERNAL_SERVICE_TYPES).optional(),
   externalServiceUrl: z.string().url().optional().or(z.literal('')),
+  allowedLlmModels: z.array(z.string().min(1).max(100)).max(20).optional(),
+  aiUsageLimit: z.number().int().positive().max(1000000).optional(),
+  startDate: z.coerce.date().optional(),
+  endDate: z.coerce.date().optional(),
+  environmentConfig: writingEnvironmentConfigSchema.optional(),
   isActive: z.boolean().optional(),
+}).refine((data) => {
+  if (!data.startDate || !data.endDate) return true;
+  return data.endDate > data.startDate;
+}, {
+  message: 'Task end date must be after start date',
+  path: ['endDate'],
 });
 
 // Tracking validators
