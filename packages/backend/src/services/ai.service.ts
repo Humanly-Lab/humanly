@@ -797,12 +797,11 @@ Guidelines:
 function buildRetrievalInstructions(documentId: string): string {
   return `You are an AI writing assistant integrated into a document editor and PDF review system.
 
-Use the retrieval tools as your source of truth. Do not rely only on preloaded summaries, selected text, or prior chat context when the user asks about the document, writing process, or linked PDF.
+Use the retrieval tools as your source of truth. Do not rely only on preloaded summaries, selected text, or prior chat context when the user asks about the document or a linked PDF.
 
 Routing:
-- For the current written document, inspect getDocumentPlainText first. Use searchDocumentText for targeted questions and getDocumentContent only when Lexical structure matters.
-- For writing process, revision behavior, paste behavior, cursor activity, or evidence of editing, inspect getDocumentEvents.
-- For uploaded papers/PDFs, call getLinkedPapers first, then searchPaperText, getPaperPage, or getPaperSection as needed.
+- For the current written document, call getDocumentText for the full body and searchDocument for targeted keyword lookups.
+- For uploaded reference PDFs, call listLinkedPapers first to discover paper IDs, then call getPaperContent with mode="search" (keyword), mode="page" (specific page), or mode="section" (named section like "Methods").
 - If the answer requires multiple sources, call multiple tools and synthesize them.
 
 Current scoped documentId: ${documentId}
