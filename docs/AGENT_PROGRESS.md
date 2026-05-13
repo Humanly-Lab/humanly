@@ -1,6 +1,6 @@
 # Agent Progress Tracker
 
-Last updated: 2026-05-13 (post issue-restructure)
+Last updated: 2026-05-13 (PR #25 opened for #23)
 
 This document is the shared handoff surface for agents working on `humanly-code`.
 GitHub issues and pull requests remain the source of truth for canonical history;
@@ -13,7 +13,7 @@ Feature and bug-fix work should follow this loop:
 1. Create or pick a GitHub issue. **One feature = one issue**, even if it has multiple sub-tasks. Tightly-coupled work that touches the same files / domain ships as ONE consolidated issue with internal Task sections, not as 4 separate top-level issues. Reserve separate issues for genuinely independent slices or distinct bugs.
 2. Branch from the target integration branch.
 3. Code the smallest coherent slice.
-4. Commit with the issue number in the message.
+4. **勤 commit** — within a branch, split work into small logical commits, one per Task section / file group / orthogonal concern. Each commit message references the issue number.
 5. Push and open a PR against the integration branch.
 6. Run local verification where practical and watch GitHub checks.
 7. **The user manually merges PRs.** Agents never merge to integration locally / via gh.
@@ -38,7 +38,7 @@ Lightweight coordination docs, handoff notes, and tracker updates can skip issue
 | #8 | `useAI` consumes agent events | #18 | Merged & closed |
 | #9 | ToolCallCard + AI panel integration | #19 | Merged & closed |
 | #10 | Insert assistant text at cursor | #20 | Merged & closed |
-| #23 | Quick action UX overhaul (streaming + context + diff + shortcuts) | Not started | **Next** |
+| #23 | Quick action UX overhaul (streaming + context + diff + shortcuts) | **#25** | **Open, awaiting manual merge** |
 
 ### Restructured / superseded
 
@@ -48,24 +48,36 @@ Lightweight coordination docs, handoff notes, and tracker updates can skip issue
 
 ## Open PRs
 
-None.
+### #25: Quick Action UX Overhaul (#23)
+
+- Branch: `feat/agentic-chat-23-quick-action-overhaul`
+- Base: `feat/agentic-chat`
+- 11 commits split per Task section (shared types → backend prompt + silentStreamChat + WS branch → frontend filter + streamSilent → plumb data → handleAction switch → diff component → keyboard shortcuts → tests).
+- Local tests: 7/7 frontend (QuickActionDiff + AISelectionMenu), 7/7 frontend (ToolCallCard + AIAssistantPanelInsert regression), 40/40 backend (ai.service.test.ts). Typecheck shows zero new errors.
+- 🟠 Manual browser smoke still pending — the visible verification flow in issue #23 (streaming, voice-matched rewrite, diff render, Cmd+Shift+1..4) should be exercised before merge.
+- User action needed: review CI on PR #25 and manually merge.
+- Agent cleanup after merge:
+  - Close issue #23 with a comment naming PR #25.
+  - Mark #23 checked in Epic #4 (Phase 4 row).
+  - Delete local and remote branch `feat/agentic-chat-23-quick-action-overhaul`.
+  - Update this file.
 
 ## Verification Notes
 
-Recent local checks for #10 (still relevant context after merge):
+Local checks for #23 (Quick Action UX Overhaul):
 
-- `pnpm build:shared` passed.
-- `pnpm build:editor` passed.
-- `pnpm --filter @humanly/frontend-user test -- AIAssistantPanelInsert.test.tsx --runInBand` passed.
-- `pnpm --filter @humanly/frontend-user test -- ToolCallCard.test.tsx --runInBand` passed.
-- `pnpm --filter @humanly/backend test -- ai.service.test.ts --runInBand` passed.
-- Browser smoke test with a mock backend passed: assistant response inserted into the editor, and `POST /documents/dev-doc/events` included `eventType: ai_insert_from_chat`, `messageId`, `logId`, and updated `editorStateAfter`.
+- `pnpm build:shared` — clean.
+- `pnpm --filter @humanly/backend test -- --testPathPattern='ai.service'` — 40 passed.
+- `pnpm --filter @humanly/frontend-user test -- --testPathPattern='QuickActionDiff|AISelectionMenu'` — 7 passed.
+- `pnpm --filter @humanly/frontend-user test -- --testPathPattern='ToolCallCard|AIAssistantPanelInsert'` — 7 passed (no regression on prior #9 / #10 tests).
+- `pnpm --filter @humanly/frontend-user type-check` — zero new errors. Pre-existing review/PDF/radio-group/ResizablePanelGroup errors unchanged.
+- Manual browser smoke for the four visible behaviors (streaming, voice, diff, shortcuts) NOT yet exercised; this is the gating item before merge.
 
 Known pre-existing local blockers:
 
 - `frontend-user` full typecheck still reports unrelated review/PDF/radio-group/ResizablePanelGroup errors.
 - backend full build still reports unrelated repo-wide TypeScript errors.
-- On this macOS machine, local Jest can be blocked by a broken optional `canvas` native binding. CI is authoritative; locally, removing the broken optional canvas package lets jsdom fall back to no-canvas mode.
+- On this macOS machine, local Jest is blocked by a broken optional `canvas` native binding. CI is authoritative; locally, removing the broken optional canvas package lets jsdom fall back to no-canvas mode.
 
 ## Maintenance Rules
 
