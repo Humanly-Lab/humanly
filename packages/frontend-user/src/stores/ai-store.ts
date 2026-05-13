@@ -16,6 +16,14 @@ import api from '@/lib/api-client';
 import { getSocket, initializeSocket, emitEvent, onEvent, offEvent } from '@/lib/socket-client';
 
 /**
+ * Sentinel sessionId used by the backend handler for selection-menu quick
+ * actions. The chat-panel listeners skip frames carrying this id so the
+ * silent stream never adopts a real conversation turn; the streamSilent
+ * action registers its own ephemeral listeners scoped to this sentinel.
+ */
+const SILENT_SESSION_ID = 'silent';
+
+/**
  * Tool-call entry in the per-message agentic timeline.
  *
  * `status` flips from `pending` to `done` when the matching `ai:tool-result`
@@ -505,12 +513,14 @@ export const useAIStore = create<AIState>()(
         listenersSetup = true;
 
         // Response start
-        onEvent('ai:response-start', ({ messageId }) => {
+        onEvent('ai:response-start', ({ sessionId, messageId }) => {
+          if (sessionId === SILENT_SESSION_ID) return; // quick-action stream, handled by streamSilent
           set({ isStreaming: true, streamingContent: '', streamingMessageId: messageId });
         });
 
         // Response chunk (streaming)
-        onEvent('ai:response-chunk', ({ chunk }) => {
+        onEvent('ai:response-chunk', ({ sessionId, chunk }) => {
+          if (sessionId === SILENT_SESSION_ID) return;
           set((state) => ({
             streamingContent: state.streamingContent + chunk,
           }));
@@ -518,6 +528,7 @@ export const useAIStore = create<AIState>()(
 
         // Response complete
         onEvent('ai:response-complete', (response: AIChatResponse) => {
+          if (response.sessionId === SILENT_SESSION_ID) return;
           set((state) => {
             // Don't add if it's the system connection message
             if (response.message.role === 'system' && response.logId === '') {
@@ -594,7 +605,8 @@ export const useAIStore = create<AIState>()(
         });
 
         // Error
-        onEvent('ai:error', ({ message }) => {
+        onEvent('ai:error', ({ sessionId, message }) => {
+          if (sessionId === SILENT_SESSION_ID) return;
           set({
             isStreaming: false,
             streamingContent: '',
