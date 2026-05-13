@@ -1,6 +1,6 @@
 # Agent Progress Tracker
 
-Last updated: 2026-05-13
+Last updated: 2026-05-13 (post issue-restructure)
 
 This document is the shared handoff surface for agents working on `humanly-code`.
 GitHub issues and pull requests remain the source of truth for canonical history;
@@ -10,16 +10,16 @@ this file is the fast-read summary of what to do next and what not to forget.
 
 Feature and bug-fix work should follow this loop:
 
-1. Create or pick a GitHub issue.
+1. Create or pick a GitHub issue. **One feature = one issue**, even if it has multiple sub-tasks. Tightly-coupled work that touches the same files / domain ships as ONE consolidated issue with internal Task sections, not as 4 separate top-level issues. Reserve separate issues for genuinely independent slices or distinct bugs.
 2. Branch from the target integration branch.
 3. Code the smallest coherent slice.
 4. Commit with the issue number in the message.
 5. Push and open a PR against the integration branch.
 6. Run local verification where practical and watch GitHub checks.
-7. The user manually merges PRs.
+7. **The user manually merges PRs.** Agents never merge to integration locally / via gh.
 8. After merge, the agent closes the issue, updates this tracker and the epic checklist, then deletes the merged feature branch.
 
-Lightweight coordination docs, handoff notes, and tracker updates can skip issue creation when the user asks for quick shared context. Do not physically delete issues. Close completed issues with a comment that names the merged PR.
+Lightweight coordination docs, handoff notes, and tracker updates can skip issue creation when the user asks for quick shared context. Do not physically delete issues. Close completed issues with a comment that names the merged PR. When an issue is folded into another or superseded, close it with a comment pointing at the new tracker.
 
 ## Current Integration Branch
 
@@ -30,39 +30,29 @@ Lightweight coordination docs, handoff notes, and tracker updates can skip issue
 
 ## Current State
 
-| Issue | Work | PR | State | Notes |
-| --- | --- | --- | --- | --- |
-| #5 | Shared agent event types | #1 | Merged | Closed |
-| #6 | AgentRunner with event sink | #2 | Merged | Closed |
-| #7 | Tool consolidation 8 -> 4 | #3 | Merged | Closed |
-| #8 | `useAI` consumes agent events | #18 | Merged | Closed |
-| #9 | ToolCallCard + AI panel integration | #19 | Merged | Closed |
-| #10 | Insert assistant response at editor cursor | #20 | Open, CI green | Waiting for user manual merge |
-| #11 | Streaming quick actions | Not started | Open | Start after #10 is merged unless user redirects |
-| #12 | Quick action prompts include context window | Not started | Open | Candidate to combine with #11 if implementation is tightly coupled |
-| #13 | Inline diff visualization in review card | Not started | Open | Larger visible UX slice |
-| #14 | Cmd+1/2/3/4 shortcuts | Not started | Open | Optional, can be deferred |
-| #15 | Formatting tools | Backlog | Open | Backlog |
-| #16 | Abort/cancel in-flight agent runs | Backlog | Open | Backlog |
-| #17 | Persist tool calls to provenance trail | Backlog | Open | Backlog |
+| Issue | Work | PR | State |
+| --- | --- | --- | --- |
+| #5 | Shared agent event types | #1 | Merged & closed |
+| #6 | AgentRunner with event sink | #2 | Merged & closed |
+| #7 | Tool consolidation 8 → 4 | #3 | Merged & closed |
+| #8 | `useAI` consumes agent events | #18 | Merged & closed |
+| #9 | ToolCallCard + AI panel integration | #19 | Merged & closed |
+| #10 | Insert assistant text at cursor | #20 | Merged & closed |
+| #23 | Quick action UX overhaul (streaming + context + diff + shortcuts) | Not started | **Next** |
+
+### Restructured / superseded
+
+`#11`, `#12`, `#13`, `#14` closed and folded into the single consolidated issue #23 — Quick action UX overhaul. Rationale: they all touch `ai-selection-menu.tsx` and the silent-chat path; shipping them as one PR avoids four CI runs over a tightly-coupled slice.
+
+`#15`, `#16`, `#17` (backlog: formatting tools / abort handling / provenance log) closed and folded into Epic #4 deferred backlog. Reopen as standalone issues when work is actually ready to start.
 
 ## Open PRs
 
-### #20: Insert Assistant Text At Cursor
-
-- Branch: `feat/agentic-chat-10-insert-at-cursor`
-- Base: `feat/agentic-chat`
-- Status: open, mergeable, all GitHub checks green as of 2026-05-13.
-- User action needed: manually merge PR #20.
-- Agent cleanup after merge:
-  - Close issue #10 with a comment naming PR #20.
-  - Mark #10 checked in epic #4.
-  - Delete local and remote branch `feat/agentic-chat-10-insert-at-cursor`.
-  - Update this file.
+None.
 
 ## Verification Notes
 
-Recent local checks for #10:
+Recent local checks for #10 (still relevant context after merge):
 
 - `pnpm build:shared` passed.
 - `pnpm build:editor` passed.
@@ -82,7 +72,7 @@ Known pre-existing local blockers:
 Update this file when:
 
 - A PR is opened, merged, or abandoned.
-- An issue is closed or split/combined.
+- An issue is closed, opened, restructured (split/combined/superseded).
 - The next recommended issue changes.
 - A new local or CI blocker appears.
 - A manual browser smoke test reveals behavior that is not obvious from code.
