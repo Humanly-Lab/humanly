@@ -114,6 +114,10 @@ export default function DocumentEditorPage() {
   const [editorInsertAtCursor, setEditorInsertAtCursor] = useState<EditorAIBridgeAPI['insertAtCursor'] | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const submissionSessionRef = useRef<{ projectId: string; sessionId: string } | null>(null);
+  // Holds AISelectionMenu's current dispatcher when a selection is active.
+  // Set / cleared by the menu's registerActionTrigger prop. Used by the
+  // global keyboard shortcut effect (Cmd/Ctrl+Shift+1..4).
+  const quickActionTriggerRef = useRef<((type: ActionType) => void) | null>(null);
 
   // AI Assistant
   const {
@@ -137,6 +141,32 @@ export default function DocumentEditorPage() {
       setWordCount(document.wordCount || 0);
     }
   }, [document]);
+
+  // Cmd/Ctrl+Shift+1..4 fire the four selection-menu quick actions when a
+  // selection is active. Cmd+1..4 alone are reserved for browser tab
+  // switching, so we require Shift. The trigger ref is only populated
+  // while AISelectionMenu is mounted, which happens exactly when the
+  // editor has an active selection — so the shortcut is implicitly
+  // gated on having a selection.
+  useEffect(() => {
+    const QUICK_ACTION_BY_KEY: Record<string, ActionType> = {
+      '1': 'grammar',
+      '2': 'improve',
+      '3': 'simplify',
+      '4': 'formal',
+    };
+    const handler = (event: KeyboardEvent) => {
+      if (!(event.metaKey || event.ctrlKey) || !event.shiftKey) return;
+      const actionType = QUICK_ACTION_BY_KEY[event.key];
+      if (!actionType) return;
+      const trigger = quickActionTriggerRef.current;
+      if (!trigger) return;
+      event.preventDefault();
+      trigger(actionType);
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
 
   // Keyboard shortcut for AI Assistant (Cmd/Ctrl + J)
   useEffect(() => {
@@ -642,6 +672,9 @@ export default function DocumentEditorPage() {
                         }}
                         getDocumentPlainText={() => document?.plainText || ''}
                         documentTitle={document?.title || ''}
+                        registerActionTrigger={(trigger) => {
+                          quickActionTriggerRef.current = trigger;
+                        }}
                       />
                     )}
                     renderAIBridge={({ insertAtCursor }) => (

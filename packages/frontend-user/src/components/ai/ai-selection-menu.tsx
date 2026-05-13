@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import type { SelectionReplacementResult } from '@humanly/editor';
 import { Sparkles, Check, Wand2, BookOpen, Loader2, MessageSquare, AlertCircle, Undo2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -35,6 +35,11 @@ interface AISelectionMenuProps {
   // can instruct the model to preserve author voice.
   getDocumentPlainText?: () => string;
   documentTitle?: string;
+  // Wired by the host so keyboard shortcuts (Cmd+Shift+1/2/3/4) can fire
+  // the same action handlers as the dropdown clicks. The menu calls this
+  // on mount/unmount with a trigger callback, and the host stores it for
+  // its own keydown listener.
+  registerActionTrigger?: (trigger: ((type: ActionType) => void) | null) => void;
 }
 
 const SURROUNDING_PRE_MAX = 200;
@@ -102,6 +107,7 @@ export function AISelectionMenu({
   onAskAI,
   getDocumentPlainText,
   documentTitle,
+  registerActionTrigger,
 }: AISelectionMenuProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [loadingAction, setLoadingAction] = useState<ActionType | null>(null);
@@ -109,6 +115,12 @@ export function AISelectionMenu({
   const [hasAISettings, setHasAISettings] = useState<boolean | null>(null);
   const [showWarning, setShowWarning] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Latest handleAction is captured via a ref so the trigger we register
+  // with the host stays referentially stable across re-renders. Without
+  // this the host would have to thread a deps-changing callback through
+  // a keydown listener.
+  const handleActionRef = useRef<((action: typeof ACTIONS[number]) => Promise<void>) | null>(null);
 
   // Check if user has AI settings configured
   useEffect(() => {
@@ -204,6 +216,25 @@ export function AISelectionMenu({
       setLoadingAction(null);
     }
   };
+
+  // Keep the trigger ref pointing at the latest handleAction closure so the
+  // host's keyboard handler always invokes the freshest version (state for
+  // hasAISettings, isLoading, etc. read from the captured closure).
+  handleActionRef.current = handleAction;
+
+  // Register / unregister the keyboard trigger with the host on mount /
+  // unmount. The host (document page) calls the trigger when the user
+  // presses Cmd/Ctrl+Shift+1..4 while a selection is active.
+  useEffect(() => {
+    if (!registerActionTrigger) return;
+    const trigger = (type: ActionType) => {
+      const action = ACTIONS.find((a) => a.type === type);
+      if (!action) return;
+      handleActionRef.current?.(action);
+    };
+    registerActionTrigger(trigger);
+    return () => registerActionTrigger(null);
+  }, [registerActionTrigger]);
 
   const handleKeep = async () => {
     if (!reviewState) return;
