@@ -20,7 +20,9 @@ import {
 } from '@/components/ui/dialog';
 import ReactMarkdown from 'react-markdown';
 import { AISettingsDialog } from './ai-settings-dialog';
+import { ToolCallTimeline } from './tool-call-card';
 import api from '@/lib/api-client';
+import type { ToolCallEntry } from '@/stores/ai-store';
 
 interface AIAssistantPanelProps {
   documentId: string;
@@ -136,7 +138,9 @@ export function AIAssistantPanel({
     messages,
     isStreaming,
     streamingContent,
+    streamingMessageId,
     suggestions,
+    toolCallTimelines,
     isLoading,
     error,
     sendMessage,
@@ -263,6 +267,9 @@ export function AIAssistantPanel({
     setHistoryPopoverOpen(false);
   };
 
+  const streamingToolCalls = streamingMessageId ? toolCallTimelines[streamingMessageId] : undefined;
+  const hasStreamingToolCalls = Boolean(streamingToolCalls?.length);
+
   return (
     <div className="flex h-full w-full flex-col bg-background min-w-0 overflow-hidden">
       {/* Header - Match Editor style */}
@@ -358,24 +365,29 @@ export function AIAssistantPanel({
           )}
 
           {messages.map((message) => (
-            <MessageBubble key={message.id} message={message} />
+            <MessageBubble
+              key={message.id}
+              message={message}
+              toolCalls={toolCallTimelines[message.id]}
+            />
           ))}
 
           {/* Streaming message */}
-          {isStreaming && streamingContent && (
+          {isStreaming && (streamingContent || hasStreamingToolCalls) && streamingMessageId && (
             <MessageBubble
               message={{
-                id: 'streaming',
+                id: streamingMessageId,
                 role: 'assistant',
                 content: streamingContent,
                 timestamp: new Date(),
               }}
               isStreaming
+              toolCalls={streamingToolCalls}
             />
           )}
 
           {/* Loading indicator */}
-          {isStreaming && !streamingContent && (
+          {isStreaming && !streamingContent && !hasStreamingToolCalls && (
             <div className="flex items-center gap-2 text-muted-foreground px-1">
               <div className="flex gap-1">
                 <span className="w-2 h-2 bg-muted-foreground/40 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
@@ -560,9 +572,10 @@ export function AIAssistantPanel({
 interface MessageBubbleProps {
   message: AIChatMessage;
   isStreaming?: boolean;
+  toolCalls?: ToolCallEntry[];
 }
 
-function MessageBubble({ message, isStreaming }: MessageBubbleProps) {
+function MessageBubble({ message, isStreaming, toolCalls }: MessageBubbleProps) {
   const isUser = message.role === 'user';
 
   return (
@@ -580,11 +593,14 @@ function MessageBubble({ message, isStreaming }: MessageBubbleProps) {
             {message.content}
           </div>
         ) : (
-          <div className="prose prose-sm dark:prose-invert max-w-none break-words overflow-wrap-anywhere leading-relaxed min-w-0 [&>p]:my-1 [&>ul]:my-1 [&>ol]:my-1 [&>hr]:my-2 [&>p:first-child]:mt-0 [&>p:last-child]:mb-0 [&>*]:max-w-full [&>*]:min-w-0 [&>pre]:overflow-x-auto [&>pre]:max-w-full [&>pre]:whitespace-pre [&>code]:break-words [&>code]:whitespace-pre-wrap [&_a]:break-all [&_a]:overflow-wrap-anywhere">
-            <ReactMarkdown>{message.content}</ReactMarkdown>
-            {isStreaming && (
-              <span className="inline-block w-1.5 h-4 ml-0.5 bg-current animate-pulse rounded-sm" />
-            )}
+          <div className="min-w-0">
+            <ToolCallTimeline entries={toolCalls} />
+            <div className="prose prose-sm dark:prose-invert max-w-none break-words overflow-wrap-anywhere leading-relaxed min-w-0 [&>p]:my-1 [&>ul]:my-1 [&>ol]:my-1 [&>hr]:my-2 [&>p:first-child]:mt-0 [&>p:last-child]:mb-0 [&>*]:max-w-full [&>*]:min-w-0 [&>pre]:overflow-x-auto [&>pre]:max-w-full [&>pre]:whitespace-pre [&>code]:break-words [&>code]:whitespace-pre-wrap [&_a]:break-all [&_a]:overflow-wrap-anywhere">
+              {message.content && <ReactMarkdown>{message.content}</ReactMarkdown>}
+              {isStreaming && (
+                <span className="inline-block w-1.5 h-4 ml-0.5 bg-current animate-pulse rounded-sm" />
+              )}
+            </div>
           </div>
         )}
       </div>
