@@ -3,7 +3,6 @@ import path from 'path';
 import { query, queryOne } from '../config/database';
 import { DocumentModel } from '../models/document.model';
 import { PaperModel } from '../models/paper.model';
-import { DocumentEventModel } from '../models/document-event.model';
 import { PaperStorageService } from './paper-storage.service';
 import { AppError } from '../middleware/error-handler';
 import { logger } from '../utils/logger';
@@ -127,7 +126,7 @@ export class AIRetrievalService {
   static readonly tools: Tool[] = [
     {
       type: 'function',
-      name: 'getDocumentPlainText',
+      name: 'getDocumentText',
       description: 'Retrieve the latest plain text for the current document.',
       strict: true,
       parameters: {
@@ -141,22 +140,8 @@ export class AIRetrievalService {
     },
     {
       type: 'function',
-      name: 'getDocumentContent',
-      description: 'Retrieve the Lexical JSON editor state for the current document when structure is needed.',
-      strict: true,
-      parameters: {
-        type: 'object',
-        additionalProperties: false,
-        properties: {
-          documentId: { type: 'string' },
-        },
-        required: ['documentId'],
-      },
-    },
-    {
-      type: 'function',
-      name: 'searchDocumentText',
-      description: 'Search the current document plain text and return the most relevant excerpts.',
+      name: 'searchDocument',
+      description: 'Grep-style keyword search over the current document. Returns the most relevant excerpts with their character offsets.',
       strict: true,
       parameters: {
         type: 'object',
@@ -171,26 +156,8 @@ export class AIRetrievalService {
     },
     {
       type: 'function',
-      name: 'getDocumentEvents',
-      description: 'Retrieve writing/editing activity events for process, revision, paste, cursor, or authorship questions.',
-      strict: true,
-      parameters: {
-        type: 'object',
-        additionalProperties: false,
-        properties: {
-          documentId: { type: 'string' },
-          startDate: { type: 'string' },
-          endDate: { type: 'string' },
-          eventType: { type: 'string' },
-          limit: { type: 'integer' },
-        },
-        required: ['documentId', 'startDate', 'endDate', 'eventType', 'limit'],
-      },
-    },
-    {
-      type: 'function',
-      name: 'getLinkedPapers',
-      description: 'Find uploaded PDF papers linked to the current document.',
+      name: 'listLinkedPapers',
+      description: 'List PDF papers linked to the current document (use this before calling getPaperContent to discover paper IDs).',
       strict: true,
       parameters: {
         type: 'object',
@@ -202,49 +169,26 @@ export class AIRetrievalService {
       },
     },
     {
+      // Single discriminated paper-lookup tool replacing searchPaperText /
+      // getPaperPage / getPaperSection. strict:false because exactly one of
+      // query / pageNumber / sectionTitle is supplied per mode.
       type: 'function',
-      name: 'searchPaperText',
-      description: 'Search extracted text chunks from a linked PDF paper.',
-      strict: true,
+      name: 'getPaperContent',
+      description:
+        'Retrieve content from a linked PDF paper. Choose mode = "search" (keyword search; supply query), "page" (specific page; supply pageNumber), or "section" (named section like "Methods"; supply sectionTitle).',
+      strict: false,
       parameters: {
         type: 'object',
         additionalProperties: false,
         properties: {
-          paperId: { type: 'string' },
-          query: { type: 'string' },
-          limit: { type: 'integer' },
+          paperId: { type: 'string', description: 'Paper ID returned by listLinkedPapers.' },
+          mode: { type: 'string', enum: ['search', 'page', 'section'] },
+          query: { type: 'string', description: 'Required when mode="search".' },
+          pageNumber: { type: 'integer', description: 'Required when mode="page" (1-indexed).' },
+          sectionTitle: { type: 'string', description: 'Required when mode="section" (partial match OK).' },
+          limit: { type: 'integer', description: 'Optional result cap for mode="search" (default 10, max 50).' },
         },
-        required: ['paperId', 'query', 'limit'],
-      },
-    },
-    {
-      type: 'function',
-      name: 'getPaperPage',
-      description: 'Retrieve extracted text for a specific PDF page.',
-      strict: true,
-      parameters: {
-        type: 'object',
-        additionalProperties: false,
-        properties: {
-          paperId: { type: 'string' },
-          pageNumber: { type: 'integer' },
-        },
-        required: ['paperId', 'pageNumber'],
-      },
-    },
-    {
-      type: 'function',
-      name: 'getPaperSection',
-      description: 'Retrieve extracted text for a detected section of a linked PDF paper.',
-      strict: true,
-      parameters: {
-        type: 'object',
-        additionalProperties: false,
-        properties: {
-          paperId: { type: 'string' },
-          sectionTitle: { type: 'string' },
-        },
-        required: ['paperId', 'sectionTitle'],
+        required: ['paperId', 'mode'],
       },
     },
   ];
@@ -256,29 +200,51 @@ export class AIRetrievalService {
     args: Record<string, any>
   ): Promise<string> {
     switch (name) {
-      case 'getDocumentPlainText':
-        return JSON.stringify(await this.getDocumentPlainText(userId, this.requireDocumentScope(scopedDocumentId, args.documentId)));
-      case 'getDocumentContent':
-        return JSON.stringify(await this.getDocumentContent(userId, this.requireDocumentScope(scopedDocumentId, args.documentId)));
-      case 'searchDocumentText':
-        return JSON.stringify(await this.searchDocumentText(userId, this.requireDocumentScope(scopedDocumentId, args.documentId), args.query, args.limit));
-      case 'getDocumentEvents':
-        return JSON.stringify(await this.getDocumentEvents(userId, this.requireDocumentScope(scopedDocumentId, args.documentId), {
-          startDate: args.startDate || undefined,
-          endDate: args.endDate || undefined,
-          eventType: args.eventType || undefined,
-          limit: args.limit,
-        }));
-      case 'getLinkedPapers':
-        return JSON.stringify(await this.getLinkedPapers(userId, this.requireDocumentScope(scopedDocumentId, args.documentId)));
-      case 'searchPaperText':
-        return JSON.stringify(await this.searchPaperText(userId, scopedDocumentId, args.paperId, args.query, args.limit));
-      case 'getPaperPage':
-        return JSON.stringify(await this.getPaperPage(userId, scopedDocumentId, args.paperId, args.pageNumber));
-      case 'getPaperSection':
-        return JSON.stringify(await this.getPaperSection(userId, scopedDocumentId, args.paperId, args.sectionTitle));
+      case 'getDocumentText':
+        return JSON.stringify(
+          await this.getDocumentText(userId, this.requireDocumentScope(scopedDocumentId, args.documentId))
+        );
+      case 'searchDocument':
+        return JSON.stringify(
+          await this.searchDocument(
+            userId,
+            this.requireDocumentScope(scopedDocumentId, args.documentId),
+            args.query,
+            args.limit
+          )
+        );
+      case 'listLinkedPapers':
+        return JSON.stringify(
+          await this.listLinkedPapers(userId, this.requireDocumentScope(scopedDocumentId, args.documentId))
+        );
+      case 'getPaperContent':
+        return JSON.stringify(await this.getPaperContent(userId, scopedDocumentId, args));
       default:
         return JSON.stringify({ error: `Unknown tool: ${name}` });
+    }
+  }
+
+  private static async getPaperContent(
+    userId: string,
+    scopedDocumentId: string,
+    args: Record<string, any>
+  ) {
+    const { paperId, mode } = args;
+    if (!paperId || typeof paperId !== 'string') {
+      throw new AppError(400, 'getPaperContent: paperId is required');
+    }
+    switch (mode) {
+      case 'search':
+        if (!args.query) throw new AppError(400, 'getPaperContent: query is required when mode="search"');
+        return this.searchPaperText(userId, scopedDocumentId, paperId, args.query, args.limit);
+      case 'page':
+        if (!args.pageNumber) throw new AppError(400, 'getPaperContent: pageNumber is required when mode="page"');
+        return this.getPaperPage(userId, scopedDocumentId, paperId, args.pageNumber);
+      case 'section':
+        if (!args.sectionTitle) throw new AppError(400, 'getPaperContent: sectionTitle is required when mode="section"');
+        return this.getPaperSection(userId, scopedDocumentId, paperId, args.sectionTitle);
+      default:
+        throw new AppError(400, `getPaperContent: unknown mode "${mode}" (expected "search" | "page" | "section")`);
     }
   }
 
@@ -369,7 +335,7 @@ export class AIRetrievalService {
     }
   }
 
-  private static async getDocumentPlainText(userId: string, documentId: string) {
+  private static async getDocumentText(userId: string, documentId: string) {
     const document = await this.getOwnedDocument(userId, documentId);
     return {
       documentId,
@@ -381,17 +347,7 @@ export class AIRetrievalService {
     };
   }
 
-  private static async getDocumentContent(userId: string, documentId: string) {
-    const document = await this.getOwnedDocument(userId, documentId);
-    return {
-      documentId,
-      title: document.title,
-      content: document.content,
-      updatedAt: document.updatedAt,
-    };
-  }
-
-  private static async searchDocumentText(userId: string, documentId: string, searchQuery: string, limit?: number) {
+  private static async searchDocument(userId: string, documentId: string, searchQuery: string, limit?: number) {
     const document = await this.getOwnedDocument(userId, documentId);
     const terms = searchQuery.toLowerCase().split(/\s+/).filter(Boolean);
     const chunks = makeChunks(document.plainText);
@@ -411,38 +367,7 @@ export class AIRetrievalService {
     return { documentId, query: searchQuery, results };
   }
 
-  private static async getDocumentEvents(
-    userId: string,
-    documentId: string,
-    filters: { startDate?: string; endDate?: string; eventType?: string; limit?: number }
-  ) {
-    await this.getOwnedDocument(userId, documentId);
-    const events = await DocumentEventModel.findByDocumentId(documentId, {
-      startDate: filters.startDate ? new Date(filters.startDate) : undefined,
-      endDate: filters.endDate ? new Date(filters.endDate) : undefined,
-      eventType: filters.eventType || undefined,
-      limit: clampLimit(filters.limit, 100, 500),
-    } as any);
-
-    return {
-      documentId,
-      events: events.map(event => ({
-        id: event.id,
-        eventType: event.eventType,
-        timestamp: event.timestamp,
-        keyCode: event.keyCode,
-        keyChar: event.keyChar,
-        cursorPosition: event.cursorPosition,
-        selectionStart: event.selectionStart,
-        selectionEnd: event.selectionEnd,
-        textBefore: event.textBefore ? excerpt(event.textBefore, 500) : undefined,
-        textAfter: event.textAfter ? excerpt(event.textAfter, 500) : undefined,
-        metadata: event.metadata,
-      })),
-    };
-  }
-
-  private static async getLinkedPapers(userId: string, documentId: string) {
+  private static async listLinkedPapers(userId: string, documentId: string) {
     await this.getOwnedDocument(userId, documentId);
     const papers = await query<any>(
       `SELECT id, title, abstract, keywords, pdf_page_count, status, created_at
