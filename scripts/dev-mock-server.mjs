@@ -167,8 +167,9 @@ const server = createServer(async (req, res) => {
 
   if (p === '/health') return json(res, 200, { status: 'ok', mock: true });
 
+  // Auth endpoints — frontend expects response.data.user / response.data.accessToken
   if (p === '/api/v1/auth/me') {
-    return ok(res, MOCK_USER);
+    return ok(res, { user: MOCK_USER });
   }
   if (p === '/api/v1/auth/login' && method === 'POST') {
     await readBody(req);
@@ -185,15 +186,20 @@ const server = createServer(async (req, res) => {
     return ok(res, { baseUrl: 'mock://local', model: 'mock-llm', hasApiKey: true, maskedApiKey: 'mock-****' });
   }
 
+  // Documents — frontend useDocument expects response.data.data.document /
+  // response.data.data.paper / response.data.data.documents.
   if (p === '/api/v1/documents' && method === 'GET') {
     return ok(res, { documents: [MOCK_DOC], total: 1 });
   }
-  if (p.startsWith('/api/v1/documents/') && method === 'GET') {
-    return ok(res, MOCK_DOC);
+  if (p.match(/^\/api\/v1\/documents\/[^/]+\/paper$/) && method === 'GET') {
+    return ok(res, { paper: null });
   }
-  if (p.startsWith('/api/v1/documents/') && method === 'PUT') {
+  if (p.match(/^\/api\/v1\/documents\/[^/]+$/) && method === 'GET') {
+    return ok(res, { document: MOCK_DOC });
+  }
+  if (p.match(/^\/api\/v1\/documents\/[^/]+$/) && method === 'PUT') {
     await readBody(req);
-    return ok(res, MOCK_DOC);
+    return ok(res, { document: MOCK_DOC });
   }
   if (p.match(/^\/api\/v1\/documents\/[^/]+\/events$/) && method === 'POST') {
     const body = await readBody(req);
