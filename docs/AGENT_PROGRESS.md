@@ -13,11 +13,12 @@ Feature and bug-fix work should follow this loop:
 1. Create or pick a GitHub issue. **One feature = one issue**, even if it has multiple sub-tasks. Tightly-coupled work that touches the same files / domain ships as ONE consolidated issue with internal Task sections, not as 4 separate top-level issues. Reserve separate issues for genuinely independent slices or distinct bugs.
 2. Branch from the target integration branch.
 3. Code the smallest coherent slice.
-4. Commit with the issue number in the message.
+4. **勤 commit** — within a branch, split work into small logical commits, one per Task section / file group / orthogonal concern. Each commit message references the issue number.
 5. Push and open a PR against the integration branch.
 6. Run local verification where practical and watch GitHub checks.
-7. **The user manually merges PRs.** Agents never merge to integration locally / via gh.
-8. After merge, the agent closes the issue, updates this tracker and the epic checklist, then deletes the merged feature branch.
+7. For **any slice that ships a visible UX change**, the agent runs the mock-track local dev (`pnpm dev:mock` + `pnpm dev:frontend-user`) and opens `http://localhost:3002/dev-bypass-login.html` for the user, then posts step-by-step click instructions and **waits for the user's verdict** before declaring the slice done. See `docs/LOCAL_DEV.md` for the canonical procedure shared by Claude Code and Codex.
+8. **The user manually merges PRs.** Agents never merge to integration locally / via gh.
+9. After merge, the agent closes the issue, updates this tracker and the epic checklist, then deletes the merged feature branch.
 
 Lightweight coordination docs, handoff notes, and tracker updates can skip issue creation when the user asks for quick shared context. Do not physically delete issues. Close completed issues with a comment that names the merged PR. When an issue is folded into another or superseded, close it with a comment pointing at the new tracker.
 
