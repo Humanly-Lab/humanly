@@ -5,14 +5,12 @@ CREATE TABLE IF NOT EXISTS documents (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     title VARCHAR(500) NOT NULL,
-    description TEXT,
     content JSONB NOT NULL DEFAULT '{}'::jsonb,
     plain_text TEXT DEFAULT '',
     status VARCHAR(50) DEFAULT 'draft' CHECK (status IN ('draft', 'published', 'archived')),
     version INTEGER DEFAULT 1,
     word_count INTEGER DEFAULT 0,
     character_count INTEGER DEFAULT 0,
-    environment_config JSONB,
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW(),
     last_edited_at TIMESTAMP DEFAULT NOW()
@@ -24,7 +22,6 @@ CREATE INDEX idx_documents_created_at ON documents(created_at DESC);
 CREATE INDEX idx_documents_updated_at ON documents(updated_at DESC);
 CREATE INDEX idx_documents_last_edited_at ON documents(last_edited_at DESC);
 CREATE INDEX idx_documents_user_status ON documents(user_id, status);
-CREATE INDEX idx_documents_environment_config ON documents USING GIN(environment_config) WHERE environment_config IS NOT NULL;
 -- Full-text search index on plain_text
 CREATE INDEX idx_documents_plain_text_search ON documents USING GIN(to_tsvector('english', plain_text));
 
@@ -73,11 +70,9 @@ SELECT add_compression_policy('document_events', INTERVAL '7 days', if_not_exist
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS certificates (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    submission_id UUID,
     document_id UUID NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     certificate_type VARCHAR(50) DEFAULT 'full_authorship' CHECK (certificate_type IN ('full_authorship', 'partial_authorship')),
-    status VARCHAR(50) NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'superseded', 'historical')),
 
     -- Certificate data
     title VARCHAR(500) NOT NULL,
@@ -107,7 +102,6 @@ CREATE TABLE IF NOT EXISTS certificates (
 );
 
 CREATE INDEX idx_certificates_document_id ON certificates(document_id);
-CREATE INDEX idx_certificates_submission_id ON certificates(submission_id);
 CREATE INDEX idx_certificates_user_id ON certificates(user_id);
 CREATE INDEX idx_certificates_verification_token ON certificates(verification_token);
 CREATE INDEX idx_certificates_created_at ON certificates(created_at DESC);
@@ -180,31 +174,3 @@ COMMENT ON COLUMN document_events.editor_state_before IS 'Full Lexical editor st
 COMMENT ON COLUMN document_events.editor_state_after IS 'Full Lexical editor state snapshot after change';
 COMMENT ON COLUMN certificates.signature IS 'JWT signature for certificate verification';
 COMMENT ON COLUMN certificates.verification_token IS 'Public token for certificate verification';
-
--- ============================================================================
--- Submissions table - Immutable task submissions linked to certificates
--- ============================================================================
-CREATE TABLE IF NOT EXISTS submissions (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    task_id UUID NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    document_id UUID NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
-    certificate_id UUID REFERENCES certificates(id) ON DELETE SET NULL,
-    submitted_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    payload_snapshot JSONB NOT NULL,
-    plain_text_snapshot TEXT NOT NULL DEFAULT '',
-    supersedes_submission_id UUID REFERENCES submissions(id) ON DELETE SET NULL,
-    status VARCHAR(50) NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'historical')),
-    created_at TIMESTAMP DEFAULT NOW()
-);
-
-ALTER TABLE certificates
-    ADD CONSTRAINT fk_certificates_submission
-    FOREIGN KEY (submission_id) REFERENCES submissions(id) ON DELETE SET NULL;
-
-CREATE INDEX idx_submissions_task_user_submitted_at ON submissions(task_id, user_id, submitted_at DESC);
-CREATE INDEX idx_submissions_document_id ON submissions(document_id);
-CREATE INDEX idx_submissions_certificate_id ON submissions(certificate_id);
-CREATE INDEX idx_submissions_status ON submissions(status);
-
-COMMENT ON TABLE submissions IS 'Immutable task submission snapshots for audit and certificate binding';
