@@ -11,6 +11,6 @@ test('logs in and lands on the documents page', async ({ page }) => {
   await page.getByRole('button', { name: /sign in/i }).click();
 
   await expect(page).toHaveURL(/\/documents$/);
-  await expect(page.getByRole('heading', { name: /my documents/i })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /my documents/i, level: 1 })).toBeVisible();
   await expect(page.getByRole('button', { name: /new document/i })).toBeVisible();
 });

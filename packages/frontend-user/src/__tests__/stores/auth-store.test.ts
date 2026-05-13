@@ -138,7 +138,7 @@ describe('checkAuth', () => {
 
   it('sets user when token is valid', async () => {
     (TokenManager.getAccessToken as jest.Mock).mockReturnValueOnce('valid-token');
-    mockApi.get.mockResolvedValueOnce({ data: { data: { user: fakeUser } } });
+    mockApi.get.mockResolvedValueOnce({ data: { user: fakeUser } });
 
     await useAuthStore.getState().checkAuth();
 

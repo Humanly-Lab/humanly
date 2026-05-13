@@ -7,9 +7,32 @@ import {
   AISuggestion,
   AIChatRequest,
   AIChatResponse,
+  AgentToolCallPayload,
+  AgentToolResultPayload,
+  AgentTurnStartPayload,
+  AgentTurnEndPayload,
 } from '@humanly/shared';
 import api from '@/lib/api-client';
 import { getSocket, initializeSocket, emitEvent, onEvent, offEvent } from '@/lib/socket-client';
+
+/**
+ * Tool-call entry in the per-message agentic timeline.
+ *
+ * `status` flips from `pending` to `done` when the matching `ai:tool-result`
+ * frame arrives. `result` is the raw JSON string the backend tool returned;
+ * the chat UI (#05) decodes and pretty-prints it inside a collapsible card.
+ */
+export interface ToolCallEntry {
+  toolCallId: string;
+  toolName: string;
+  args: Record<string, any>;
+  result?: string;
+  isError?: boolean;
+  durationMs?: number;
+  startedAt: number;
+  completedAt?: number;
+  status: 'pending' | 'done';
+}
 
 /**
  * AI Store State
@@ -26,6 +49,17 @@ interface AIState {
 
   // Suggestions
   activeSuggestions: AISuggestion[];
+
+  // Agentic tool-call timelines, keyed by assistant messageId. Populated by
+  // the ai:tool-call / ai:tool-result WebSocket frames during a streaming
+  // turn; rendered by the ToolCallCard component (#9). Initially keyed by
+  // the in-flight WebSocket messageId, then re-keyed to the persisted
+  // AIChatMessage.id on ai:response-complete.
+  toolCallTimelines: Record<string, ToolCallEntry[]>;
+
+  // The WebSocket-side messageId for the response currently being streamed,
+  // used to bridge tool-call timelines onto the final persisted message id.
+  streamingMessageId: string | null;
 
   // Logs
   logs: AIInteractionLog[];
@@ -86,6 +120,8 @@ const initialState = {
   isStreaming: false,
   streamingContent: '',
   activeSuggestions: [],
+  toolCallTimelines: {} as Record<string, ToolCallEntry[]>,
+  streamingMessageId: null,
   logs: [],
   logsTotal: 0,
   isPanelOpen: false,
@@ -221,6 +257,8 @@ export const useAIStore = create<AIState>()(
           currentSession: null,
           activeSuggestions: [],
           quotedText: null,
+          toolCallTimelines: {},
+          streamingMessageId: null,
           logs: deletedSessionId
             ? get().logs.filter((log) => log.sessionId !== deletedSessionId)
             : get().logs,
@@ -250,6 +288,8 @@ export const useAIStore = create<AIState>()(
           activeSuggestions: [],
           quotedText: null,
           error: null,
+          toolCallTimelines: {},
+          streamingMessageId: null,
           logs: deletedSessionId
             ? get().logs.filter((log) => log.sessionId !== deletedSessionId)
             : get().logs,
@@ -464,12 +504,12 @@ export const useAIStore = create<AIState>()(
         listenersSetup = true;
 
         // Response start
-        onEvent('ai:response-start', ({ sessionId, messageId }) => {
-          set({ isStreaming: true, streamingContent: '' });
+        onEvent('ai:response-start', ({ messageId }) => {
+          set({ isStreaming: true, streamingContent: '', streamingMessageId: messageId });
         });
 
         // Response chunk (streaming)
-        onEvent('ai:response-chunk', ({ sessionId, messageId, chunk }) => {
+        onEvent('ai:response-chunk', ({ chunk }) => {
           set((state) => ({
             streamingContent: state.streamingContent + chunk,
           }));
@@ -494,6 +534,7 @@ export const useAIStore = create<AIState>()(
                     },
                 isStreaming: false,
                 streamingContent: '',
+                streamingMessageId: null,
               };
             }
 
@@ -510,6 +551,15 @@ export const useAIStore = create<AIState>()(
                   status: 'active' as const,
                 };
 
+            // Re-key the tool-call timeline from the in-flight WebSocket
+            // messageId onto the persisted AIChatMessage.id so the chat UI
+            // can look it up by the same id it renders.
+            let toolCallTimelines = state.toolCallTimelines;
+            if (state.streamingMessageId && toolCallTimelines[state.streamingMessageId]) {
+              const { [state.streamingMessageId]: timeline, ...rest } = toolCallTimelines;
+              toolCallTimelines = { ...rest, [response.message.id]: timeline };
+            }
+
             // If we were streaming, the content was already shown via streamingContent
             // Just convert it to a proper message, don't duplicate
             if (state.isStreaming && state.streamingContent) {
@@ -519,6 +569,8 @@ export const useAIStore = create<AIState>()(
                 activeSuggestions: response.suggestions || state.activeSuggestions,
                 isStreaming: false,
                 streamingContent: '', // Clear streaming content since message is now in messages array
+                streamingMessageId: null,
+                toolCallTimelines,
               };
             }
 
@@ -529,22 +581,84 @@ export const useAIStore = create<AIState>()(
               activeSuggestions: response.suggestions || state.activeSuggestions,
               isStreaming: false,
               streamingContent: '',
+              streamingMessageId: null,
+              toolCallTimelines,
             };
           });
         });
 
         // Suggestions
-        onEvent('ai:suggestion', ({ sessionId, suggestions }) => {
+        onEvent('ai:suggestion', ({ suggestions }) => {
           set({ activeSuggestions: suggestions });
         });
 
         // Error
-        onEvent('ai:error', ({ sessionId, message, code }) => {
+        onEvent('ai:error', ({ message }) => {
           set({
             isStreaming: false,
             streamingContent: '',
             error: message,
           });
+        });
+
+        // ── Agentic tool-call lifecycle ──────────────────────────────────
+        // turn-start / turn-end mostly carry semantic boundaries for the UI;
+        // the actual tool work flows through tool-call → tool-result. We
+        // log all four so the agentic chain is visible in DevTools, even
+        // before the ToolCallCard UI lands in #05.
+
+        onEvent('ai:turn-start', (payload: AgentTurnStartPayload) => {
+          console.log('[agent] turn-start', payload);
+        });
+
+        onEvent('ai:tool-call', (payload: AgentToolCallPayload) => {
+          console.log('[agent] tool-call', payload);
+          set((state) => {
+            const existing = state.toolCallTimelines[payload.messageId] || [];
+            const entry: ToolCallEntry = {
+              toolCallId: payload.toolCallId,
+              toolName: payload.toolName,
+              args: payload.args,
+              startedAt: Date.now(),
+              status: 'pending',
+            };
+            return {
+              toolCallTimelines: {
+                ...state.toolCallTimelines,
+                [payload.messageId]: [...existing, entry],
+              },
+            };
+          });
+        });
+
+        onEvent('ai:tool-result', (payload: AgentToolResultPayload) => {
+          console.log('[agent] tool-result', payload);
+          set((state) => {
+            const existing = state.toolCallTimelines[payload.messageId];
+            if (!existing) return state;
+            const updated = existing.map((entry) =>
+              entry.toolCallId === payload.toolCallId
+                ? {
+                    ...entry,
+                    result: payload.result,
+                    isError: payload.isError,
+                    durationMs: payload.durationMs,
+                    completedAt: Date.now(),
+                    status: 'done' as const,
+                  }
+                : entry
+            );
+            return {
+              toolCallTimelines: {
+                ...state.toolCallTimelines,
+                [payload.messageId]: updated,
+              },
+            };
+          });
+        });
+
+        onEvent('ai:turn-end', (payload: AgentTurnEndPayload) => {
+          console.log('[agent] turn-end', payload);
         });
       },
 
@@ -554,6 +668,10 @@ export const useAIStore = create<AIState>()(
         offEvent('ai:response-complete');
         offEvent('ai:suggestion');
         offEvent('ai:error');
+        offEvent('ai:turn-start');
+        offEvent('ai:tool-call');
+        offEvent('ai:tool-result');
+        offEvent('ai:turn-end');
         listenersSetup = false;
       },
 

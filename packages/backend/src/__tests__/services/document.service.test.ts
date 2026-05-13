@@ -7,6 +7,13 @@
 
 jest.mock('../../models/document.model');
 jest.mock('../../models/document-event.model');
+jest.mock('../../config/database', () => ({
+  query: jest.fn(),
+  queryOne: jest.fn(),
+}));
+jest.mock('../../config/redis', () => ({
+  cacheDelPattern: jest.fn(),
+}));
 jest.mock('../../utils/logger', () => ({
   logger: { error: jest.fn(), info: jest.fn(), warn: jest.fn(), debug: jest.fn() },
 }));
@@ -16,9 +23,15 @@ jest.mock('../../utils/logger', () => ({
 import { DocumentService } from '../../services/document.service';
 import { DocumentModel } from '../../models/document.model';
 import { DocumentEventModel } from '../../models/document-event.model';
+import { query } from '../../config/database';
 
 const MockDocumentModel = DocumentModel as jest.Mocked<typeof DocumentModel>;
 const MockDocumentEventModel = DocumentEventModel as jest.Mocked<typeof DocumentEventModel>;
+const mockQuery = query as jest.MockedFunction<typeof query>;
+
+beforeEach(() => {
+  mockQuery.mockResolvedValue([]);
+});
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
