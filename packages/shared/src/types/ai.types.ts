@@ -252,4 +252,76 @@ export interface AIServerToClientEvents {
   'ai:response-complete': (data: AIChatResponse) => void;
   'ai:suggestion': (data: { sessionId: string; suggestions: AISuggestion[] }) => void;
   'ai:error': (data: { sessionId: string; message: string; code?: string }) => void;
+  // Agentic tool-call lifecycle events. Emitted by the AgentRunner so the
+  // chat panel can render a Cursor-style tool-call timeline alongside the
+  // streaming assistant text.
+  'ai:turn-start': (data: AgentTurnStartPayload) => void;
+  'ai:tool-call': (data: AgentToolCallPayload) => void;
+  'ai:tool-result': (data: AgentToolResultPayload) => void;
+  'ai:turn-end': (data: AgentTurnEndPayload) => void;
+}
+
+/**
+ * Canonical agent event union emitted internally by the AgentRunner.
+ *
+ * The runner emits these into an event sink; the WebSocket adapter maps each
+ * variant onto the corresponding `ai:*` client event. Persisted interaction
+ * logs and replay tooling also consume this shape.
+ */
+export type AgentEvent =
+  | { type: 'turn-start'; turnIndex: number }
+  | { type: 'text-delta'; text: string }
+  | { type: 'tool-call'; toolCallId: string; toolName: string; args: Record<string, any> }
+  | {
+      type: 'tool-result';
+      toolCallId: string;
+      result: string;
+      isError: boolean;
+      durationMs?: number;
+    }
+  | { type: 'turn-end'; turnIndex: number }
+  | { type: 'error'; message: string; code?: string };
+
+/**
+ * Persisted record of a single tool invocation. Used by interaction logs and
+ * timeline replay; mirrors the on-the-wire `tool-call` / `tool-result` pair.
+ */
+export interface AgentToolCallRecord {
+  toolCallId: string;
+  toolName: string;
+  args: Record<string, any>;
+  result?: string;
+  isError?: boolean;
+  startedAt: string;
+  completedAt?: string;
+  durationMs?: number;
+}
+
+export interface AgentTurnStartPayload {
+  sessionId: string;
+  messageId: string;
+  turnIndex: number;
+}
+
+export interface AgentToolCallPayload {
+  sessionId: string;
+  messageId: string;
+  toolCallId: string;
+  toolName: string;
+  args: Record<string, any>;
+}
+
+export interface AgentToolResultPayload {
+  sessionId: string;
+  messageId: string;
+  toolCallId: string;
+  result: string;
+  isError: boolean;
+  durationMs?: number;
+}
+
+export interface AgentTurnEndPayload {
+  sessionId: string;
+  messageId: string;
+  turnIndex: number;
 }
