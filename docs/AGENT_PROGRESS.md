@@ -1,6 +1,6 @@
 # Agent Progress Tracker
 
-Last updated: 2026-05-14 (#30/#34 merged; #35 table-render PR opened)
+Last updated: 2026-05-14 (#35 merged; #33 closed; #37/#39 cleanup verified)
 
 This document is the shared handoff surface for agents working on `humanly-code`.
 GitHub issues and pull requests remain the source of truth for canonical history;
@@ -58,16 +58,20 @@ Lightweight coordination docs, handoff notes, and tracker updates can skip issue
 ## Open PRs
 
 - **#29** `feat/agentic-chat` → `main` — final integration merge for Epic #4. **Paused** because we are not merging to `main` yet; GitHub currently reports conflicts with `main`, which are expected to be handled only when main integration resumes.
-- **#35** `fix/33-gfm-tables` → `feat/agentic-chat` — renders assistant Markdown tables with GFM support. Awaiting user review/merge.
 
-## Open follow-up issues (post-Epic)
+## Open work outside Epic #4
 
-- **#33** Render assistant Markdown tables with GitHub-flavored Markdown. PR #35 is open.
+- **#38** Admin Create Task form/environment layout alignment. This is separate from the agentic-chat branch and should branch from the relevant user/admin-port integration branch, not from `feat/agentic-chat`.
 
 ### Recently merged follow-ups
 
 - **#30** Permanent real-LLM agentic integration test script merged into `feat/agentic-chat`.
 - **#31 / #34** Reasoning content now flows as `AgentEvent.thinking-delta` and renders in a collapsed Reasoning block.
+- **#33 / #35** Assistant Markdown now supports GitHub-flavored tables via `remark-gfm`, including a browser smoke against the local mock backend.
+
+### Recently merged outside Epic #4
+
+- **#37 / #39** Frontend-user New Document environment form restructure merged into `feat/user-port`; issue closed and remote topic branch deleted.
 
 ## Verification Notes
 
