@@ -16,6 +16,10 @@
  *     GET  /api/v1/documents
  *     GET  /api/v1/documents/:id
  *     POST /api/v1/documents/:id/events
+ *     GET  /api/v1/certificates
+ *     POST /api/v1/certificates
+ *     GET  /api/v1/certificates/:id
+ *     GET  /api/v1/certificates/:id/ai-stats
  *     GET  /api/v1/ai/sessions/:documentId
  *     GET  /api/v1/ai/sessions/detail/:sessionId
  *     POST /api/v1/ai/chat              (legacy silent path; non-streaming)
@@ -115,6 +119,41 @@ const MOCK_DOC = {
   updatedAt: new Date().toISOString(),
   lastEditedAt: new Date().toISOString(),
 };
+
+const mockCertificates = [];
+
+function createMockCertificate(options = {}) {
+  const now = new Date().toISOString();
+  return {
+    id: options.id || uuid(),
+    documentId: options.documentId || MOCK_DOC_ID,
+    userId: MOCK_USER.id,
+    certificateType: options.certificateType || 'full_authorship',
+    title: MOCK_DOC.title,
+    documentSnapshot: MOCK_DOC.content,
+    plainTextSnapshot: MOCK_DOC.plainText,
+    totalEvents: 12,
+    typingEvents: 9,
+    pasteEvents: 1,
+    totalCharacters: MOCK_DOC.characterCount,
+    typedCharacters: MOCK_DOC.characterCount,
+    pastedCharacters: 0,
+    editingTimeSeconds: 420,
+    signature: 'mock-signature',
+    verificationToken: options.verificationToken || uuid(),
+    signerName: options.signerName || null,
+    includeFullText: options.includeFullText ?? true,
+    includeEditHistory: options.includeEditHistory ?? true,
+    isProtected: Boolean(options.accessCode),
+    accessCode: options.accessCode || null,
+    accessCodeHash: options.accessCode ? 'mock-access-code-hash' : null,
+    generatedAt: now,
+    pdfGenerated: false,
+    pdfUrl: null,
+    jsonUrl: null,
+    createdAt: now,
+  };
+}
 
 // ── Tiny helpers ───────────────────────────────────────────────────────────
 
@@ -219,6 +258,50 @@ const server = createServer(async (req, res) => {
     console.log(`[mock] POST /documents/.../events  +${events.length} events`,
       events.map((e) => e.eventType).join(', '));
     return ok(res, { inserted: events.length });
+  }
+
+  // Certificates.
+  if (p === '/api/v1/certificates' && method === 'GET') {
+    const documentId = url.searchParams.get('documentId');
+    const certificates = documentId
+      ? mockCertificates.filter((certificate) => certificate.documentId === documentId)
+      : mockCertificates;
+    return json(res, 200, {
+      success: true,
+      data: certificates,
+      pagination: { total: certificates.length, offset: 0, limit: certificates.length || 50 },
+    });
+  }
+  if (p === '/api/v1/certificates' && method === 'POST') {
+    const body = await readBody(req);
+    const certificate = createMockCertificate(body);
+    mockCertificates.unshift(certificate);
+    return ok(res, { certificate });
+  }
+  if (p.match(/^\/api\/v1\/certificates\/[^/]+\/ai-stats$/) && method === 'GET') {
+    return ok(res, {
+      selectionActions: {
+        total: 1,
+        grammarFixes: 1,
+        improveWriting: 0,
+        simplify: 0,
+        makeFormal: 0,
+        accepted: 0,
+        rejected: 0,
+        acceptanceRate: 0,
+      },
+      aiQuestions: {
+        total: 2,
+        understanding: 1,
+        generation: 1,
+        other: 0,
+      },
+    });
+  }
+  if (p.match(/^\/api\/v1\/certificates\/[^/]+$/) && method === 'GET') {
+    const certificateId = p.split('/').pop();
+    const certificate = mockCertificates.find((item) => item.id === certificateId) || null;
+    return certificate ? ok(res, { certificate }) : json(res, 404, { success: false, message: 'Certificate not found' });
   }
 
   if (p.startsWith('/api/v1/ai/sessions/detail/')) {

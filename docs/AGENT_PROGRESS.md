@@ -1,6 +1,6 @@
 # Agent Progress Tracker
 
-Last updated: 2026-05-14 (#35 merged; #33 closed; #37/#39 cleanup verified)
+Last updated: 2026-05-14 (#40 local smoke bug found; #41 PR opened)
 
 This document is the shared handoff surface for agents working on `humanly-code`.
 GitHub issues and pull requests remain the source of truth for canonical history;
@@ -58,6 +58,11 @@ Lightweight coordination docs, handoff notes, and tracker updates can skip issue
 ## Open PRs
 
 - **#29** `feat/agentic-chat` → `main` — final integration merge for Epic #4. **Paused** because we are not merging to `main` yet; GitHub currently reports conflicts with `main`, which are expected to be handled only when main integration resumes.
+- **#41** `fix/40-mock-certificates` → `feat/agentic-chat` — fixes local mock certificate endpoints so full frontend localhost smoke runs without certificate 404 console errors.
+
+## Open follow-up issues
+
+- **#40** Local mock certificate endpoints for frontend smoke. PR #41 open.
 
 ## Open work outside Epic #4
 

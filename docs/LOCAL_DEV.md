@@ -42,6 +42,7 @@ What the mock backend supports:
 
 - **Auth**: `/auth/me`, `/auth/login`, `/auth/refresh`, `/auth/logout`. The bypass page writes the same mock token the mock server accepts.
 - **Documents**: `GET /documents`, `GET/PUT /documents/:id`, `POST /documents/:id/events` (logs the inserted event types to stdout).
+- **Certificates**: `GET/POST /certificates`, `GET /certificates/:id`, and `GET /certificates/:id/ai-stats` for the list, generate, and detail-page smoke path.
 - **AI**: `GET /ai/settings` (returns `hasApiKey: true` so the selection menu activates), `GET /ai/sessions`, `POST /ai/chat`, `POST /ai/selection-action`, `GET /ai/logs`.
 - **Socket.IO `ai:message`**:
   - Regular chat — emits a typed tool-call lifecycle (`ai:turn-start` / `ai:tool-call` / `ai:tool-result` / `ai:turn-end`) when the user message looks search-like (mentions search/find/where/motivation/grammar/paper), then streams a text reply.
