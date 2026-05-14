@@ -66,7 +66,9 @@ export function DocumentReplay({ token, className = '' }: DocumentReplayProps) {
         setIsLoading(true);
         setError(null);
 
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
+        const apiUrl =
+          process.env.NEXT_PUBLIC_API_URL ||
+          (process.env.NODE_ENV === 'production' ? '/api/v1' : 'http://localhost:3001/api/v1');
         const response = await fetch(`${apiUrl}/certificates/verify/${token}/history`);
 
         if (!response.ok) {

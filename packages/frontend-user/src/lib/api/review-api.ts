@@ -11,7 +11,9 @@ import type {
   AnonymousReview
 } from '@humanly/shared'
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1'
+const API_BASE =
+  process.env.NEXT_PUBLIC_API_URL ||
+  (process.env.NODE_ENV === 'production' ? '/api/v1' : 'http://localhost:3001/api/v1')
 
 // Helper function to get auth token
 function getAuthToken(): string {

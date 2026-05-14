@@ -65,7 +65,9 @@ interface TaskInstructionPaper {
 }
 
 const TASK_ENROLLMENTS_KEY = 'humanly.taskEnrollments';
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL ||
+  (process.env.NODE_ENV === 'production' ? '/api/v1' : 'http://localhost:3001/api/v1');
 const SUBMISSION_SESSION_START_DELAY_MS = 250;
 
 const readTaskEnrollmentForDocument = (documentId: string): TaskEnrollment | null => {
