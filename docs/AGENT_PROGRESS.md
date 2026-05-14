@@ -1,6 +1,6 @@
 # Agent Progress Tracker
 
-Last updated: 2026-05-13 (#23 merged, Epic #4 active sub-issues complete)
+Last updated: 2026-05-14 (real-LLM smoke verified; PR #29 ready, follow-up #31 opened)
 
 This document is the shared handoff surface for agents working on `humanly-code`.
 GitHub issues and pull requests remain the source of truth for canonical history;
@@ -57,11 +57,27 @@ Lightweight coordination docs, handoff notes, and tracker updates can skip issue
 
 ## Open PRs
 
-None. Integration `feat/agentic-chat` is at HEAD with all Epic #4 active sub-issues merged.
+- **#29** `feat/agentic-chat` → `main` — final integration merge for Epic #4. **Verified safe** (real-LLM smoke on 2026-05-14). User merges via UI.
+- **#30** `chore/agentic-integration-test` → `main` — permanent test script (`scripts/agentic-integration-test.mjs`) that produced the smoke. Independent dev infra. User merges via UI.
+
+## Open follow-up issues (post-Epic)
+
+- **#31** Capture reasoning content as `AgentEvent.thinking-delta` for reasoning models. Discovered during the real-LLM smoke: DeepSeek-R1 emits ~2KB of reasoning per turn that the current AgentRunner drops on the floor. Llama-3.3 (current default) is unaffected.
 
 ## Verification Notes
 
-Visual smoke verification for #23 (Quick Action UX Overhaul) ran against the mock track on 2026-05-13. Confirmed:
+### Real-LLM agent smoke (2026-05-14)
+
+`scripts/agentic-integration-test.mjs` invoked the AgentRunner-equivalent loop against the real Together AI endpoint, with the user's ENV 100 syllabus PDF mounted as a linked paper. Two models tested:
+
+- `meta-llama/Llama-3.3-70B-Instruct-Turbo` — **gold-standard run**. 5/5 prompts completed end-to-end; 18 tool calls dispatched (`searchDocument` → `listLinkedPapers` → `getPaperContent(mode='search')`); all 5 final answers correct, including a clean *"I don't have enough evidence"* for a fact not in the PDF (parking permit price).
+- `deepseek-ai/DeepSeek-R1` — proves the parser handles inline reasoning. 1929 chars of reasoning captured per prompt (closes with `</think>` only; Together strips the opening tag). The model does not reliably emit structured `tool_calls` over Together's chat-completions API, which is a model limitation, not an AgentRunner bug. Tracked under follow-up #31 for first-class wiring.
+
+Traces live under `tmp/agent-trace/run-*` (gitignored). The script + how-to is in PR #30.
+
+### Visual smoke for #23 (Quick Action UX Overhaul) — 2026-05-13
+
+Mock track confirmed:
 
 - Streaming typewriter effect on quick-action review card.
 - Voice preservation via `surroundingContext` carrying `documentTitle` + ±200 char windows (mock signal: `[voice-aware: title="..."]` suffix appended).
