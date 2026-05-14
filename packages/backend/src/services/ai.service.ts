@@ -212,7 +212,7 @@ class OpenAIProvider implements AIProvider {
 
   constructor(config?: { apiKey: string; model: string; baseUrl: string }) {
     this.apiKey = config?.apiKey || env.aiApiKey || '';
-    this.model = config?.model || env.aiModel || 'Qwen/Qwen3.5-9B';
+    this.model = config?.model || env.aiModel || 'Qwen/Qwen3.5-397B-A17B';
     this.baseUrl = config?.baseUrl || env.aiBaseUrl || 'https://api.together.xyz/v1';
     this.client = new OpenAI({
       apiKey: this.apiKey || 'missing-api-key',

@@ -22,8 +22,8 @@ import { UserAISettingsModel } from '../models/user-ai-settings.model';
 export class AuthService {
   private static async initializeDefaultAISettings(userId: string): Promise<void> {
     const apiKey = process.env.DEFAULT_AI_API_KEY || process.env.AI_API_KEY;
-    const model = process.env.DEFAULT_AI_MODEL || process.env.AI_MODEL || 'gpt-4o';
-    const baseUrl = process.env.DEFAULT_AI_BASE_URL || process.env.AI_BASE_URL || 'https://api.openai.com/v1';
+    const model = process.env.DEFAULT_AI_MODEL || process.env.AI_MODEL || 'Qwen/Qwen3.5-397B-A17B';
+    const baseUrl = process.env.DEFAULT_AI_BASE_URL || process.env.AI_BASE_URL || 'https://api.together.xyz/v1';
 
     if (!apiKey) {
       logger.info('Skipping default AI settings initialization: no default API key configured', { userId });

@@ -39,6 +39,21 @@ describe('MODEL_WHITELIST', () => {
       expect(unique.size).toBe(models.length);
     });
   });
+
+  it('defaults Together choices to the verified Qwen3.5 agent model', () => {
+    const togetherModels = MODEL_WHITELIST['api.together.xyz'];
+    expect(togetherModels).toEqual([
+      'Qwen/Qwen3.5-397B-A17B',
+      'moonshotai/Kimi-K2.6',
+      'moonshotai/Kimi-K2.5',
+      'deepseek-ai/DeepSeek-V4-Pro',
+      'zai-org/GLM-5.1',
+      'zai-org/GLM-5',
+    ]);
+    expect(togetherModels).not.toContain('Qwen/Qwen3.5-9B');
+    expect(togetherModels).not.toContain('Qwen/Qwen3.6-Plus');
+    expect(togetherModels).not.toContain('meta-llama/Llama-3.3-70B-Instruct-Turbo');
+  });
 });
 
 // ── getWhitelist ─────────────────────────────────────────────────────────────

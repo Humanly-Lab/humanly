@@ -16,7 +16,8 @@
  * Usage:
  *   TOGETHER_API_KEY=tgp_v1_... \
  *   AGENT_TEST_PDF=/path/to/file.pdf \
- *   AGENT_TEST_MODEL='Qwen/Qwen2.5-72B-Instruct-Turbo' \
+ *   AGENT_TEST_MODEL='Qwen/Qwen3.5-397B-A17B' \
+ *   AGENT_TEST_PROMPTS='1,5' \
  *     node scripts/agentic-integration-test.mjs
  */
 
@@ -42,25 +43,90 @@ if (!API_KEY) {
   process.exit(1);
 }
 const BASE_URL = process.env.AGENT_TEST_BASE_URL || 'https://api.together.xyz/v1';
-const MODEL = process.env.AGENT_TEST_MODEL || 'Qwen/Qwen2.5-72B-Instruct-Turbo';
+const MODEL = process.env.AGENT_TEST_MODEL || 'Qwen/Qwen3.5-397B-A17B';
 const PDF_PATH = process.env.AGENT_TEST_PDF
   || path.join(process.env.HOME || '', 'Desktop', 'ENV100-2026F-Summer-Syllabus.pdf');
 const MAX_TURNS = Number(process.env.AGENT_TEST_MAX_TURNS || 8);
 const OUT_DIR = path.join(REPO_ROOT, 'tmp', 'agent-trace');
 fs.mkdirSync(OUT_DIR, { recursive: true });
 
-const PROMPTS = [
+const PROMPT_CASES = [
   // 1. simple lookup — should fire listLinkedPapers then getPaperContent(mode=search)
-  'Who is the instructor for ENV 100 and when are their office hours? Cite the page you found it on.',
+  {
+    prompt: 'Who is the instructor for ENV 100 and when are their office hours? Cite the page you found it on.',
+    minToolCalls: 2,
+    requireTools: ['listLinkedPapers', 'getPaperContent'],
+  },
   // 2. multi-step grading-policy lookup
-  'How is the final grade calculated? List every assessment and its percentage weight.',
+  {
+    prompt: 'How is the final grade calculated? List every assessment and its percentage weight.',
+    minToolCalls: 2,
+    requireTools: ['listLinkedPapers', 'getPaperContent'],
+    finalMustMatch: [/%|percent/i],
+  },
   // 3. fact buried in a section — should drive mode=section or mode=search
-  'What are the learning outcomes of this course?',
+  {
+    prompt: 'What are the learning outcomes of this course?',
+    minToolCalls: 2,
+    requireTools: ['listLinkedPapers', 'getPaperContent'],
+  },
   // 4. requires the model to chain at least two searches
-  'Compare the late-submission policy and the academic-integrity policy. Quote the relevant lines.',
+  {
+    prompt: 'Compare the late-submission policy and the academic-integrity policy. Quote the relevant lines.',
+    minToolCalls: 3,
+    requireTools: ['listLinkedPapers', 'getPaperContent'],
+  },
   // 5. negative test — answer not in document
-  'What is the price of a campus parking permit per semester?',
+  {
+    prompt: 'What is the price of a campus parking permit per semester?',
+    minToolCalls: 2,
+    requireTools: ['listLinkedPapers', 'getPaperContent'],
+    finalMustMatch: [/cannot find|not enough evidence|no evidence|not found|do(?:es)? not (?:state|mention|include|contain)|don['’]?t (?:have|see|contain)|outside the scope/i],
+    finalMustNotMatch: [/\$\s*\d+/],
+  },
+  // 6. route through both current document text and linked PDF
+  {
+    prompt: 'First check the current document notes, then use the linked syllabus PDF. In one sentence, what is ENV 100 about?',
+    minToolCalls: 3,
+    requireTools: ['getDocumentText', 'listLinkedPapers', 'getPaperContent'],
+  },
+  // 7. structured-output edge case — tools should still be used before JSON
+  {
+    prompt: 'Return a JSON object with exactly these keys: instructor, officeHours, assessments. Use only evidence from the PDF.',
+    minToolCalls: 2,
+    requireTools: ['listLinkedPapers', 'getPaperContent'],
+    expectJsonObject: true,
+  },
+  // 8. policy missing/ambiguity edge case
+  {
+    prompt: 'Does the syllabus explicitly say students may use ChatGPT or other generative AI tools? Answer with cited evidence; if there is no explicit evidence, say that.',
+    minToolCalls: 2,
+    requireTools: ['listLinkedPapers', 'getPaperContent'],
+    finalMustMatch: [/prohibit|may not use|restriction|generative AI|artificial intelligence/i],
+  },
+  // 9. partial-evidence edge case — avoid inventing precise dates
+  {
+    prompt: 'Find exact calendar due dates for the major assignments. If exact dates are not listed, say exact dates not found and identify what is listed instead.',
+    minToolCalls: 2,
+    requireTools: ['listLinkedPapers', 'getPaperContent'],
+  },
 ];
+
+function getSelectedPromptCases() {
+  const raw = process.env.AGENT_TEST_PROMPTS;
+  if (!raw) return PROMPT_CASES.map((promptCase, index) => ({ index: index + 1, ...promptCase }));
+
+  const selected = raw.split(',')
+    .map((part) => Number(part.trim()))
+    .filter((index) => Number.isInteger(index) && index >= 1 && index <= PROMPT_CASES.length)
+    .map((index) => ({ index, ...PROMPT_CASES[index - 1] }));
+
+  if (selected.length === 0) {
+    throw new Error(`AGENT_TEST_PROMPTS did not include any valid prompt numbers. Use values from 1 to ${PROMPT_CASES.length}.`);
+  }
+
+  return selected;
+}
 
 // ── Load + index the PDF as the mock "linked paper" ────────────────────────
 
@@ -476,9 +542,76 @@ function summarizeTrace(prompt, trace) {
   return lines.join('\n');
 }
 
+function hasPseudoToolMarkup(text) {
+  return /<function=|<\/tool_call>|<parameter=|<\/function>/i.test(text || '');
+}
+
+function extractJsonObject(text) {
+  const trimmed = (text || '').trim();
+  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  const candidate = fenced ? fenced[1].trim() : trimmed;
+  const start = candidate.indexOf('{');
+  const end = candidate.lastIndexOf('}');
+  if (start < 0 || end <= start) return null;
+
+  try {
+    return JSON.parse(candidate.slice(start, end + 1));
+  } catch {
+    return null;
+  }
+}
+
+function validateTrace(promptNumber, promptCase, trace) {
+  const failures = [];
+  const prompt = promptCase.prompt;
+  const errors = trace.filter((event) => event.type === 'error');
+  const finals = trace.filter((event) => event.type === 'final');
+  const finalText = finals.map((event) => event.text || '').join('\n').trim();
+  const visibleText = trace
+    .filter((event) => event.type === 'text-delta' || event.type === 'final')
+    .map((event) => event.text || '')
+    .join('');
+  const toolCalls = trace.filter((event) => event.type === 'tool-call');
+  const calledTools = new Set(toolCalls.map((event) => event.toolName));
+
+  if (errors.length > 0) {
+    failures.push(`Prompt ${promptNumber}: ${errors.map((event) => event.message).join('; ')}`);
+  }
+  if (!finalText) {
+    failures.push(`Prompt ${promptNumber}: missing non-empty final answer for "${prompt}"`);
+  }
+  if (hasPseudoToolMarkup(visibleText)) {
+    failures.push(`Prompt ${promptNumber}: model leaked pseudo tool-call markup into visible text`);
+  }
+  if (promptCase.minToolCalls && toolCalls.length < promptCase.minToolCalls) {
+    failures.push(`Prompt ${promptNumber}: expected at least ${promptCase.minToolCalls} tool calls, got ${toolCalls.length}`);
+  }
+  for (const toolName of promptCase.requireTools || []) {
+    if (!calledTools.has(toolName)) {
+      failures.push(`Prompt ${promptNumber}: expected tool ${toolName} to be called`);
+    }
+  }
+  for (const pattern of promptCase.finalMustMatch || []) {
+    if (!pattern.test(finalText)) {
+      failures.push(`Prompt ${promptNumber}: final answer did not match ${pattern}`);
+    }
+  }
+  for (const pattern of promptCase.finalMustNotMatch || []) {
+    if (pattern.test(finalText)) {
+      failures.push(`Prompt ${promptNumber}: final answer unexpectedly matched ${pattern}`);
+    }
+  }
+  if (promptCase.expectJsonObject && !extractJsonObject(finalText)) {
+    failures.push(`Prompt ${promptNumber}: expected final answer to contain a parseable JSON object`);
+  }
+
+  return failures;
+}
+
 // ── Run all prompts ───────────────────────────────────────────────────────
 
 const runStamp = new Date().toISOString().replace(/[:.]/g, '-');
+const selectedPromptCases = getSelectedPromptCases();
 const masterSummary = [
   `# Agentic chat integration test`,
   ``,
@@ -486,13 +619,16 @@ const masterSummary = [
   `- Model: \`${MODEL}\``,
   `- Base URL: \`${BASE_URL}\``,
   `- PDF: \`${PDF_PATH}\` (${pages.length} pages)`,
+  `- Prompt cases: ${selectedPromptCases.map((promptCase) => promptCase.index).join(', ')}`,
   ``,
 ];
+const validationFailures = [];
 
-for (let i = 0; i < PROMPTS.length; i++) {
-  const prompt = PROMPTS[i];
-  console.log(`\n==== [${i + 1}/${PROMPTS.length}] ${prompt}\n`);
-  const traceFile = path.join(OUT_DIR, `run-${runStamp}-prompt${i + 1}.json`);
+for (let i = 0; i < selectedPromptCases.length; i++) {
+  const promptCase = selectedPromptCases[i];
+  const prompt = promptCase.prompt;
+  console.log(`\n==== [${i + 1}/${selectedPromptCases.length}; case ${promptCase.index}] ${prompt}\n`);
+  const traceFile = path.join(OUT_DIR, `run-${runStamp}-prompt${promptCase.index}.json`);
   let trace;
   try {
     trace = await runAgent(prompt, traceFile);
@@ -502,12 +638,21 @@ for (let i = 0; i < PROMPTS.length; i++) {
     fs.writeFileSync(traceFile, JSON.stringify(trace, null, 2));
   }
   masterSummary.push(`---`);
-  masterSummary.push(`## Prompt ${i + 1}`);
+  masterSummary.push(`## Prompt ${promptCase.index}`);
   masterSummary.push(summarizeTrace(prompt, trace));
   masterSummary.push('');
+  validationFailures.push(...validateTrace(promptCase.index, promptCase, trace));
 }
 
 const summaryFile = path.join(OUT_DIR, `run-${runStamp}-summary.md`);
 fs.writeFileSync(summaryFile, masterSummary.join('\n'));
 console.log(`\n[done] summary written to ${summaryFile}`);
 console.log(`[done] per-prompt traces in ${OUT_DIR}/run-${runStamp}-prompt*.json`);
+
+if (validationFailures.length > 0) {
+  console.error('\n[failed] agent smoke validation failed:');
+  for (const failure of validationFailures) {
+    console.error(`- ${failure}`);
+  }
+  process.exit(1);
+}

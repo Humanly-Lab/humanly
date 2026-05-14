@@ -1,6 +1,6 @@
 # Agent Progress Tracker
 
-Last updated: 2026-05-14 (#40 local smoke bug found; #41 PR opened)
+Last updated: 2026-05-14 (#43 Qwen3.5 smoke PR opened)
 
 This document is the shared handoff surface for agents working on `humanly-code`.
 GitHub issues and pull requests remain the source of truth for canonical history;
@@ -58,11 +58,10 @@ Lightweight coordination docs, handoff notes, and tracker updates can skip issue
 ## Open PRs
 
 - **#29** `feat/agentic-chat` → `main` — final integration merge for Epic #4. **Paused** because we are not merging to `main` yet; GitHub currently reports conflicts with `main`, which are expected to be handled only when main integration resumes.
-- **#41** `fix/40-mock-certificates` → `feat/agentic-chat` — fixes local mock certificate endpoints so full frontend localhost smoke runs without certificate 404 console errors.
 
 ## Open follow-up issues
 
-- **#40** Local mock certificate endpoints for frontend smoke. PR #41 open.
+- **#42** Use Qwen3.5-397B for real agent smoke and fail on bad model outputs. PR #43 open.
 
 ## Open work outside Epic #4
 
@@ -73,6 +72,7 @@ Lightweight coordination docs, handoff notes, and tracker updates can skip issue
 - **#30** Permanent real-LLM agentic integration test script merged into `feat/agentic-chat`.
 - **#31 / #34** Reasoning content now flows as `AgentEvent.thinking-delta` and renders in a collapsed Reasoning block.
 - **#33 / #35** Assistant Markdown now supports GitHub-flavored tables via `remark-gfm`, including a browser smoke against the local mock backend.
+- **#40 / #41** Local mock certificate endpoints now cover list, generate, detail, and AI-stats smoke paths; full localhost smoke ran with zero new console errors.
 
 ### Recently merged outside Epic #4
 
@@ -82,9 +82,13 @@ Lightweight coordination docs, handoff notes, and tracker updates can skip issue
 
 ### Real-LLM agent smoke (2026-05-14)
 
-`scripts/agentic-integration-test.mjs` invoked the AgentRunner-equivalent loop against the real Together AI endpoint, with the user's ENV 100 syllabus PDF mounted as a linked paper. Two models tested:
+`scripts/agentic-integration-test.mjs` invoked the AgentRunner-equivalent loop against the real Together AI endpoint, with the user's ENV 100 syllabus PDF mounted as a linked paper. Models tested:
 
-- `meta-llama/Llama-3.3-70B-Instruct-Turbo` — **gold-standard run**. 5/5 prompts completed end-to-end; 18 tool calls dispatched (`searchDocument` → `listLinkedPapers` → `getPaperContent(mode='search')`); all 5 final answers correct, including a clean *"I don't have enough evidence"* for a fact not in the PDF (parking permit price).
+- `Qwen/Qwen3.5-397B-A17B` — **target model per user direction**. 9/9 edge prompts completed end-to-end; structured tool calls worked; grading table, learning outcomes, policy comparison, current-doc + linked-PDF routing, structured JSON output, AI-policy lookup, assignment due dates, and negative parking-permit answer all completed correctly. PR #43 updates the script default, product defaults, Together whitelist, and validation so empty finals / pseudo tool-call markup fail the smoke.
+- Curated Together whitelist quick-smoke passed on lookup + missing-evidence prompts for `moonshotai/Kimi-K2.6`, `moonshotai/Kimi-K2.5`, `deepseek-ai/DeepSeek-V4-Pro`, `zai-org/GLM-5.1`, and `zai-org/GLM-5`.
+- `Qwen/Qwen3.6-Plus` — rejected from the curated list for now: returned `finish_reason=tool_calls` with no streamed tool-call payload or final answer on the quick smoke.
+- `meta-llama/Llama-3.3-70B-Instruct-Turbo` — kept out of the curated Together user list for now: it can complete the broader core run, but in the quick missing-evidence smoke it stopped after checking only the current document instead of continuing into the linked PDF.
+- `Qwen/Qwen3.5-9B` — rejected as the default target for now: it emitted structured tools sometimes, but also produced empty final answers and pseudo tool-call XML in visible text.
 - `deepseek-ai/DeepSeek-R1` — proves the parser handles inline reasoning. 1929 chars of reasoning captured per prompt (closes with `</think>` only; Together strips the opening tag). The model does not reliably emit structured `tool_calls` over Together's chat-completions API, which is a model limitation, not an AgentRunner bug. Tracked under follow-up #31 for first-class wiring.
 
 Traces live under `tmp/agent-trace/run-*` (gitignored). The script + how-to is in PR #30.
