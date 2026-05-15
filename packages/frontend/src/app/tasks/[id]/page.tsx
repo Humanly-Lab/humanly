@@ -42,6 +42,10 @@ export default function TaskOverviewPage() {
   const [isLoadingStats, setIsLoadingStats] = useState(true);
   const [isLoadingSubmissions, setIsLoadingSubmissions] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [copyFeedback, setCopyFeedback] = useState<{
+    type: 'success' | 'error';
+    message: string;
+  } | null>(null);
 
   const fetchTask = useCallback(async (showLoading = true) => {
     try {
@@ -139,7 +143,29 @@ export default function TaskOverviewPage() {
   const aiUsageLimit = task?.aiUsageLimit ?? 100;
 
   const copyInviteCode = async () => {
-    await navigator.clipboard.writeText(inviteCode);
+    setCopyFeedback(null);
+
+    if (!navigator.clipboard?.writeText) {
+      setCopyFeedback({
+        type: 'error',
+        message: 'Clipboard copy is not available in this browser. Select the invite code and copy it manually.',
+      });
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(inviteCode);
+      setCopyFeedback({
+        type: 'success',
+        message: 'Invite code copied to clipboard.',
+      });
+    } catch (err) {
+      console.warn('Failed to copy invite code:', err);
+      setCopyFeedback({
+        type: 'error',
+        message: 'Could not copy the invite code. Select the code and copy it manually.',
+      });
+    }
   };
 
   if (isLoadingTask) {
@@ -266,10 +292,26 @@ export default function TaskOverviewPage() {
                 <span className="rounded-md border bg-muted/40 px-2 py-1 font-mono text-sm font-semibold tracking-wider">
                   {inviteCode}
                 </span>
-                <Button variant="ghost" size="icon" onClick={copyInviteCode} title="Copy invite code">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={copyInviteCode}
+                  title="Copy invite code"
+                  aria-label="Copy invite code"
+                >
                   <Copy className="h-4 w-4" />
                 </Button>
               </dd>
+              {copyFeedback && (
+                <p
+                  role={copyFeedback.type === 'error' ? 'alert' : 'status'}
+                  className={`mt-2 text-sm ${
+                    copyFeedback.type === 'error' ? 'text-destructive' : 'text-green-700 dark:text-green-400'
+                  }`}
+                >
+                  {copyFeedback.message}
+                </p>
+              )}
             </div>
             <div>
               <dt className="text-sm font-medium text-muted-foreground">Instruction Files</dt>

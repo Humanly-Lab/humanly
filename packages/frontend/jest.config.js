@@ -8,7 +8,6 @@ module.exports = createJestConfig({
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
     '^@humanly/shared$': '<rootDir>/../../packages/shared/src/index.ts',
-    '^@humanly/editor$': '<rootDir>/../../packages/editor/src/index.ts',
   },
   testMatch: ['**/__tests__/**/*.test.ts', '**/__tests__/**/*.test.tsx'],
 });
