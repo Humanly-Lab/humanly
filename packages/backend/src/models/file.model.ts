@@ -15,12 +15,16 @@ export class FileModel {
         mime_type,
         storage_provider,
         storage_key,
+        storage_bucket,
+        storage_region,
+        storage_etag,
         file_size,
         checksum,
         page_count,
+        upload_status,
         legacy_source_id
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
       RETURNING ${this.columns}
     `;
 
@@ -35,9 +39,13 @@ export class FileModel {
       data.mimeType,
       data.storageProvider,
       data.storageKey,
+      data.storageBucket || null,
+      data.storageRegion || null,
+      data.storageEtag || null,
       data.fileSize,
       data.checksum,
       data.pageCount || null,
+      data.uploadStatus || 'ready',
       data.legacySourceId || null,
     ]);
 
@@ -87,9 +95,13 @@ export class FileModel {
     mime_type as "mimeType",
     storage_provider as "storageProvider",
     storage_key as "storageKey",
+    storage_bucket as "storageBucket",
+    storage_region as "storageRegion",
+    storage_etag as "storageEtag",
     file_size as "fileSize",
     checksum,
     page_count as "pageCount",
+    upload_status as "uploadStatus",
     legacy_source_id as "legacySourceId",
     created_at as "createdAt",
     updated_at as "updatedAt"

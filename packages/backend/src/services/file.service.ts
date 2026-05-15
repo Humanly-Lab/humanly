@@ -107,7 +107,7 @@ export class FileService {
     }
 
     await this.assertCanRead(appFile, userId);
-    return FileStorageService.getStream(appFile.storageKey);
+    return FileStorageService.getStream(appFile);
   }
 
   static async deleteFile(fileId: string, userId: string): Promise<void> {
@@ -118,7 +118,7 @@ export class FileService {
 
     await this.assertCanManage(appFile, userId);
     if (!appFile.legacySourceId) {
-      await FileStorageService.delete(appFile.storageKey);
+      await FileStorageService.delete(appFile);
     }
     await FileModel.delete(fileId);
   }
@@ -174,9 +174,13 @@ export class FileService {
       mimeType: input.file.mimetype,
       storageProvider: stored.storageProvider,
       storageKey: stored.storageKey,
+      storageBucket: stored.storageBucket,
+      storageRegion: stored.storageRegion,
+      storageEtag: stored.storageEtag,
       fileSize: stored.fileSize,
       checksum: stored.checksum,
       pageCount: null,
+      uploadStatus: stored.uploadStatus,
     });
   }
 

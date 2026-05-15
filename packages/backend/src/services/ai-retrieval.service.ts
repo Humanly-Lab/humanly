@@ -296,7 +296,7 @@ export class AIRetrievalService {
       return;
     }
 
-    const buffer = await FileStorageService.getBuffer(appFile.storageKey);
+    const buffer = await FileStorageService.getBuffer(appFile);
 
     try {
       const pages = await extractPdfPages(buffer);

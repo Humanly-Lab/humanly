@@ -1,93 +1,97 @@
 import crypto from 'crypto';
-import fs from 'fs-extra';
 import path from 'path';
-import { Readable } from 'stream';
 import { AppError } from '../middleware/error-handler';
+import { GcsFileStorageAdapter } from './file-storage/gcs-file-storage.adapter';
+import { LocalFileStorageAdapter } from './file-storage/local-file-storage.adapter';
+import type {
+  FileStorageAdapter,
+  FileStorageLocator,
+  FileStorageProvider,
+  NormalizedFileStorageLocator,
+  StoredFile,
+} from './file-storage/types';
 
 export class FileStorageService {
-  private static storageRoot = process.env.UPLOAD_DIR
-    ? process.env.UPLOAD_DIR
-    : path.join(__dirname, '../../storage');
+  private static readonly localAdapter = new LocalFileStorageAdapter();
+  private static readonly gcsAdapter = new GcsFileStorageAdapter();
 
   static async init(): Promise<void> {
-    await fs.ensureDir(this.storageRoot);
+    await this.writeAdapter().init();
   }
 
-  static async store(file: Buffer, fileId: string): Promise<{
-    storageProvider: string;
-    storageKey: string;
-    checksum: string;
-    fileSize: number;
-  }> {
-    await this.init();
-
+  static async store(file: Buffer, fileId: string): Promise<StoredFile> {
     const checksum = crypto.createHash('sha256').update(file).digest('hex');
-    const directory = path.join(this.storageRoot, 'files', fileId);
-    await fs.ensureDir(directory);
+    const storageKey = this.buildObjectKey(fileId, checksum);
+    return this.writeAdapter().store(file, storageKey, checksum);
+  }
 
-    const filename = `${checksum}.pdf`;
-    const absolutePath = path.join(directory, filename);
-    await fs.writeFile(absolutePath, file);
+  static async getStream(locator: FileStorageLocator) {
+    const normalized = this.normalizeLocator(locator);
+    return this.readAdapter(normalized.storageProvider).getStream(normalized);
+  }
 
+  static async getBuffer(locator: FileStorageLocator): Promise<Buffer> {
+    const normalized = this.normalizeLocator(locator);
+    return this.readAdapter(normalized.storageProvider).getBuffer(normalized);
+  }
+
+  static async delete(locator: FileStorageLocator): Promise<void> {
+    const normalized = this.normalizeLocator(locator);
+    return this.readAdapter(normalized.storageProvider).delete(normalized);
+  }
+
+  private static writeAdapter(): FileStorageAdapter {
+    return this.adapterForProvider(this.activeProvider());
+  }
+
+  private static readAdapter(provider: FileStorageProvider): FileStorageAdapter {
+    return this.adapterForProvider(provider);
+  }
+
+  private static adapterForProvider(provider: FileStorageProvider): FileStorageAdapter {
+    if (provider === 'local') {
+      return this.localAdapter;
+    }
+
+    if (!this.isGcsAdapterEnabled()) {
+      throw new AppError(409, 'File unavailable in this environment');
+    }
+
+    return this.gcsAdapter;
+  }
+
+  private static isGcsAdapterEnabled(): boolean {
+    return this.activeProvider() === 'gcs';
+  }
+
+  private static normalizeLocator(locator: FileStorageLocator): NormalizedFileStorageLocator {
+    if (typeof locator === 'string') {
+      return {
+        storageProvider: 'local',
+        storageKey: locator,
+      };
+    }
+
+    const storageProvider = locator.storageProvider === 'gcs' ? 'gcs' : 'local';
     return {
-      storageProvider: 'local',
-      storageKey: path.join('files', fileId, filename),
-      checksum,
-      fileSize: file.length,
+      storageProvider,
+      storageKey: locator.storageKey,
+      storageBucket: locator.storageBucket,
     };
   }
 
-  static async getStream(storageKey: string): Promise<Readable> {
-    const absolutePath = await this.resolveAndVerify(storageKey);
-    return fs.createReadStream(absolutePath);
+  private static activeProvider(): FileStorageProvider {
+    return process.env.FILE_STORAGE_PROVIDER?.toLowerCase() === 'gcs' ? 'gcs' : 'local';
   }
 
-  static async getBuffer(storageKey: string): Promise<Buffer> {
-    const absolutePath = await this.resolveAndVerify(storageKey);
-    return fs.readFile(absolutePath);
-  }
+  private static buildObjectKey(fileId: string, checksum: string): string {
+    const prefix = (process.env.FILE_STORAGE_KEY_PREFIX || process.env.GCS_UPLOAD_PREFIX || 'files')
+      .trim()
+      .replace(/^\/+|\/+$/g, '');
 
-  static async delete(storageKey: string): Promise<void> {
-    const absolutePath = path.isAbsolute(storageKey)
-      ? storageKey
-      : path.join(this.storageRoot, storageKey);
-
-    if (!(await fs.pathExists(absolutePath))) {
-      return;
-    }
-
-    const realPath = await fs.realpath(absolutePath);
-    const realStorageRoot = await fs.realpath(this.storageRoot);
-
-    if (!realPath.startsWith(realStorageRoot + path.sep) && realPath !== realStorageRoot) {
-      throw new AppError(403, 'Invalid file path');
-    }
-
-    await fs.remove(realPath);
-
-    const parentDirectory = path.dirname(realPath);
-    const files = await fs.readdir(parentDirectory).catch(() => []);
-    if (files.length === 0) {
-      await fs.remove(parentDirectory);
-    }
-  }
-
-  private static async resolveAndVerify(storageKey: string): Promise<string> {
-    const absolutePath = path.isAbsolute(storageKey)
-      ? storageKey
-      : path.join(this.storageRoot, storageKey);
-
-    if (!(await fs.pathExists(absolutePath))) {
-      throw new AppError(404, 'File not found');
-    }
-
-    const realPath = await fs.realpath(absolutePath);
-    const realStorageRoot = await fs.realpath(this.storageRoot);
-
-    if (!realPath.startsWith(realStorageRoot + path.sep) && realPath !== realStorageRoot) {
-      throw new AppError(403, 'Invalid file path');
-    }
-
-    return realPath;
+    const filename = `${checksum}.pdf`;
+    return prefix
+      ? path.posix.join(prefix, fileId, filename)
+      : path.posix.join(fileId, filename);
   }
 }

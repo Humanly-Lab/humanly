@@ -59,9 +59,13 @@ function makeAppFile(overrides: Record<string, unknown> = {}) {
     mimeType: 'application/pdf',
     storageProvider: 'local',
     storageKey: 'files/file-1/checksum.pdf',
+    storageBucket: null,
+    storageRegion: null,
+    storageEtag: null,
     fileSize: 10,
     checksum: 'checksum',
     pageCount: null,
+    uploadStatus: 'ready',
     legacySourceId: null,
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -75,8 +79,12 @@ describe('FileService', () => {
     MockFileStorageService.store.mockResolvedValue({
       storageProvider: 'local',
       storageKey: 'files/file-1/checksum.pdf',
+      storageBucket: null,
+      storageRegion: null,
+      storageEtag: null,
       checksum: 'checksum',
       fileSize: 10,
+      uploadStatus: 'ready',
     });
     MockAIRetrievalService.indexFile.mockResolvedValue(undefined);
   });
@@ -99,6 +107,38 @@ describe('FileService', () => {
     expect(file.id).toBe('file-1');
   });
 
+  it('records GCS object metadata when document PDF upload uses GCS storage', async () => {
+    MockDocumentModel.findByIdAndUserId.mockResolvedValue({ id: 'doc-1', title: 'My Document' } as any);
+    MockFileStorageService.store.mockResolvedValueOnce({
+      storageProvider: 'gcs',
+      storageKey: 'files/file-1/checksum.pdf',
+      storageBucket: 'humanly-prod-pdfs',
+      storageRegion: 'US',
+      storageEtag: 'etag-1',
+      checksum: 'checksum',
+      fileSize: 10,
+      uploadStatus: 'ready',
+    });
+    MockFileModel.create.mockResolvedValue(makeAppFile({
+      storageProvider: 'gcs',
+      storageBucket: 'humanly-prod-pdfs',
+      storageRegion: 'US',
+      storageEtag: 'etag-1',
+    }) as any);
+
+    await FileService.uploadDocumentFile('doc-1', 'user-1', makeMulterFile(), 'Source PDF');
+
+    expect(MockFileModel.create).toHaveBeenCalledWith(expect.objectContaining({
+      documentId: 'doc-1',
+      storageProvider: 'gcs',
+      storageKey: 'files/file-1/checksum.pdf',
+      storageBucket: 'humanly-prod-pdfs',
+      storageRegion: 'US',
+      storageEtag: 'etag-1',
+      uploadStatus: 'ready',
+    }));
+  });
+
   it('rejects task instruction uploads by non-owners', async () => {
     MockTaskModel.findById.mockResolvedValue({ id: 'task-1', userId: 'owner-1' } as any);
 
@@ -107,6 +147,15 @@ describe('FileService', () => {
     ).rejects.toMatchObject({ statusCode: 403 });
 
     expect(MockFileStorageService.store).not.toHaveBeenCalled();
+  });
+
+  it('checks read permissions before opening file storage streams', async () => {
+    MockFileModel.findById.mockResolvedValue(makeAppFile({ documentId: 'doc-1' }) as any);
+    MockDocumentModel.isOwner.mockResolvedValue(false);
+
+    await expect(FileService.streamFile('file-1', 'user-2')).rejects.toMatchObject({ statusCode: 403 });
+
+    expect(MockFileStorageService.getStream).not.toHaveBeenCalled();
   });
 
   it('allows enrolled users to stream task instruction files', async () => {
@@ -122,7 +171,10 @@ describe('FileService', () => {
     await FileService.streamFile('file-1', 'user-1');
 
     expect(MockTaskModel.hasEnrollment).toHaveBeenCalledWith('task-1', 'user-1');
-    expect(MockFileStorageService.getStream).toHaveBeenCalledWith('files/file-1/checksum.pdf');
+    expect(MockFileStorageService.getStream).toHaveBeenCalledWith(expect.objectContaining({
+      storageKey: 'files/file-1/checksum.pdf',
+      storageProvider: 'local',
+    }));
   });
 
   it('does not delete legacy physical storage when removing backfilled file records', async () => {
