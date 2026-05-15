@@ -19,6 +19,9 @@ jest.mock('../../config/redis', () => ({
 jest.mock('../../utils/logger', () => ({
   logger: { error: jest.fn(), info: jest.fn(), warn: jest.fn(), debug: jest.fn() },
 }));
+jest.mock('../../services/file-storage.service', () => ({
+  FileStorageService: { delete: jest.fn() },
+}));
 
 // ── Imports ───────────────────────────────────────────────────────────────────
 
@@ -28,6 +31,8 @@ import { DocumentEventModel } from '../../models/document-event.model';
 import { SessionModel } from '../../models/session.model';
 import { query, queryOne, transaction } from '../../config/database';
 import { cacheDelPattern } from '../../config/redis';
+import { FileStorageService } from '../../services/file-storage.service';
+import { logger } from '../../utils/logger';
 
 const MockDocumentModel = DocumentModel as jest.Mocked<typeof DocumentModel>;
 const MockDocumentEventModel = DocumentEventModel as jest.Mocked<typeof DocumentEventModel>;
@@ -36,6 +41,8 @@ const mockQuery = query as jest.MockedFunction<typeof query>;
 const mockQueryOne = queryOne as jest.MockedFunction<typeof queryOne>;
 const mockTransaction = transaction as jest.MockedFunction<typeof transaction>;
 const mockCacheDelPattern = cacheDelPattern as jest.MockedFunction<typeof cacheDelPattern>;
+const MockFileStorageService = FileStorageService as jest.Mocked<typeof FileStorageService>;
+const mockLogger = logger as jest.Mocked<typeof logger>;
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -49,6 +56,32 @@ function makeDocument(overrides: Partial<any> = {}): any {
     status: 'draft',
     wordCount: 2,
     characterCount: 11,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    ...overrides,
+  };
+}
+
+function makeFile(overrides: Partial<any> = {}): any {
+  return {
+    id: 'file-1',
+    ownerUserId: 'user-1',
+    documentId: 'doc-1',
+    taskId: null,
+    purpose: 'document_source_pdf',
+    title: 'source.pdf',
+    originalFilename: 'source.pdf',
+    mimeType: 'application/pdf',
+    storageProvider: 'local',
+    storageKey: 'files/file-1/source.pdf',
+    storageBucket: null,
+    storageRegion: null,
+    storageEtag: null,
+    fileSize: 100,
+    checksum: 'checksum-1',
+    pageCount: null,
+    uploadStatus: 'ready',
+    legacySourceId: null,
     createdAt: new Date(),
     updatedAt: new Date(),
     ...overrides,
@@ -233,20 +266,91 @@ describe('DocumentService.updateDocument', () => {
 // ── deleteDocument ────────────────────────────────────────────────────────────
 
 describe('DocumentService.deleteDocument', () => {
-  it('deletes document successfully', async () => {
-    mockTransaction.mockResolvedValueOnce({ deleted: true, taskIds: ['task-1'] });
+  it('collects document files, deletes the document, and clears task analytics cache', async () => {
+    const file = makeFile();
+    const queryMock = jest.fn()
+      .mockResolvedValueOnce({ rowCount: 1, rows: [{ id: 'doc-1' }] })
+      .mockResolvedValueOnce({ rows: [{ task_id: 'task-1' }] })
+      .mockResolvedValueOnce({ rows: [file] })
+      .mockResolvedValueOnce({ rowCount: 1, rows: [] })
+      .mockResolvedValueOnce({ rowCount: 1, rows: [{ id: 'doc-1' }] });
+    mockTransaction.mockImplementationOnce(async (callback: any) => callback({ query: queryMock }));
 
     await expect(DocumentService.deleteDocument('doc-1', 'user-1')).resolves.not.toThrow();
+
     expect(mockTransaction).toHaveBeenCalled();
+    expect(queryMock).toHaveBeenNthCalledWith(
+      3,
+      expect.stringContaining('FROM files'),
+      ['doc-1', 'user-1']
+    );
     expect(mockCacheDelPattern).toHaveBeenCalledWith('analytics:task-1:*');
+    expect(MockFileStorageService.delete).toHaveBeenCalledWith(file);
   });
 
   it('throws 404 when document not found', async () => {
-    mockTransaction.mockResolvedValueOnce({ deleted: false, taskIds: [] });
+    mockTransaction.mockResolvedValueOnce({ deleted: false, taskIds: [], files: [] });
 
     await expect(DocumentService.deleteDocument('doc-1', 'user-1')).rejects.toMatchObject({
       statusCode: 404,
     });
+    expect(MockFileStorageService.delete).not.toHaveBeenCalled();
+  });
+
+  it('deletes storage objects for non-legacy document files after database delete', async () => {
+    const localFile = makeFile({ id: 'local-file', storageKey: 'files/local-file/source.pdf' });
+    const gcsFile = makeFile({
+      id: 'gcs-file',
+      storageProvider: 'gcs',
+      storageBucket: 'humanly-prod-pdfs',
+      storageKey: 'files/gcs-file/source.pdf',
+      storageEtag: 'etag-1',
+    });
+    mockTransaction.mockResolvedValueOnce({
+      deleted: true,
+      taskIds: [],
+      files: [localFile, gcsFile],
+    });
+
+    await expect(DocumentService.deleteDocument('doc-1', 'user-1')).resolves.not.toThrow();
+
+    expect(MockFileStorageService.delete).toHaveBeenCalledTimes(2);
+    expect(MockFileStorageService.delete).toHaveBeenCalledWith(localFile);
+    expect(MockFileStorageService.delete).toHaveBeenCalledWith(gcsFile);
+  });
+
+  it('skips legacy file storage objects', async () => {
+    const legacyFile = makeFile({ legacySourceId: 'legacy-paper-1' });
+    mockTransaction.mockResolvedValueOnce({
+      deleted: true,
+      taskIds: [],
+      files: [legacyFile],
+    });
+
+    await DocumentService.deleteDocument('doc-1', 'user-1');
+
+    expect(MockFileStorageService.delete).not.toHaveBeenCalled();
+  });
+
+  it('logs storage deletion failures without rolling back document deletion', async () => {
+    const file = makeFile();
+    const error = new Error('storage delete failed');
+    mockTransaction.mockResolvedValueOnce({ deleted: true, taskIds: [], files: [file] });
+    MockFileStorageService.delete.mockRejectedValueOnce(error);
+
+    await expect(DocumentService.deleteDocument('doc-1', 'user-1')).resolves.not.toThrow();
+
+    expect(mockLogger.error).toHaveBeenCalledWith(
+      'Failed to delete document file storage object',
+      expect.objectContaining({
+        error,
+        documentId: 'doc-1',
+        userId: 'user-1',
+        fileId: 'file-1',
+        storageProvider: 'local',
+        storageKey: 'files/file-1/source.pdf',
+      })
+    );
   });
 });
 
