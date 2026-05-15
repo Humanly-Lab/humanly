@@ -21,6 +21,7 @@ global.fetch = mockFetch;
 import {
   AIService,
   ThinkingContentSplitter,
+  buildFinalAnswerSynthesisPrompt,
   buildToolCallRepairPrompt,
   classifyQuestionCategory,
   shouldRepairEmptyToolCallResponse,
@@ -106,6 +107,14 @@ describe('tool-call repair helpers', () => {
     expect(prompt).toContain('listLinkedPapers');
     expect(prompt).toContain('getPaperContent');
     expect(prompt).toContain('Do not write XML');
+  });
+
+  it('builds a no-tools final answer prompt for budget exhaustion', () => {
+    const prompt = buildFinalAnswerSynthesisPrompt('the maximum of 20 tool calls was reached');
+    expect(prompt).toContain('Do not call any more tools');
+    expect(prompt).toContain('maximum of 20 tool calls');
+    expect(prompt).toContain('tool results already available');
+    expect(prompt).toContain('Never return an empty answer');
   });
 });
 

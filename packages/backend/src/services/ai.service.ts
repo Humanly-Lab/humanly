@@ -42,6 +42,7 @@ const THINK_OPEN_TAG = '<think>';
 const THINK_CLOSE_TAG = '</think>';
 const IMPLICIT_THINKING_MAX_CHARS = 4096;
 const IMPLICIT_THINKING_MAX_CHUNKS = 24;
+const AGENT_MAX_TOOL_CALLS = 20;
 
 export interface ThinkingSplit {
   visible: string;
@@ -190,6 +191,20 @@ Retry by emitting exactly one or more valid tool calls using JSON arguments.
 Do not write XML, pseudo-tags, or prose tool calls.`;
 }
 
+export function buildFinalAnswerSynthesisPrompt(reason: string): string {
+  return `Internal final-answer instruction:
+Retrieval is stopping now because ${reason}. Do not call any more tools.
+
+Use only the conversation and tool results already available above. Produce the best possible user-facing answer:
+- answer the user's original question when the gathered evidence is enough;
+- cite page numbers or document sources when they appear in the tool results;
+- explicitly say what evidence is missing or uncertain;
+- if no relevant evidence was found, say that clearly;
+- mention briefly that retrieval was cut short only if that affects confidence.
+
+Never return an empty answer.`;
+}
+
 interface AgentChatOptions {
   userId: string;
   documentId: string;
@@ -260,8 +275,10 @@ class OpenAIProvider implements AIProvider {
     }));
 
     let response: any;
-    for (let i = 0; i < 6; i++) {
-      emitAgentEvent(options.onAgentEvent, { type: 'turn-start', turnIndex: i });
+    let toolCallsUsed = 0;
+    let turnIndex = 0;
+    while (toolCallsUsed < AGENT_MAX_TOOL_CALLS) {
+      emitAgentEvent(options.onAgentEvent, { type: 'turn-start', turnIndex });
       try {
         response = await this.client.responses.create({
           model: this.model,
@@ -280,13 +297,13 @@ class OpenAIProvider implements AIProvider {
         logger.info('AI agent completed without additional tool calls', {
           userId: options.userId,
           documentId: options.documentId,
-          iteration: i + 1,
+          iteration: turnIndex + 1,
         });
         const split = splitStaticThinking(response.output_text || '');
         emitThinkingDelta(options.onAgentEvent, split.thinking);
-        emitAgentEvent(options.onAgentEvent, { type: 'turn-end', turnIndex: i });
+        emitAgentEvent(options.onAgentEvent, { type: 'turn-end', turnIndex });
         return {
-          content: split.visible,
+          content: split.visible.trim() || 'I could not produce a final answer from the available context.',
           tokensUsed: response.usage ? {
             input: response.usage.input_tokens,
             output: response.usage.output_tokens,
@@ -294,10 +311,28 @@ class OpenAIProvider implements AIProvider {
         };
       }
 
+      if (toolCallsUsed + toolCalls.length > AGENT_MAX_TOOL_CALLS) {
+        logger.warn('AI Responses agent requested more tools than the remaining tool budget', {
+          userId: options.userId,
+          documentId: options.documentId,
+          iteration: turnIndex + 1,
+          requestedTools: toolCalls.length,
+          toolCallsUsed,
+          maxToolCalls: AGENT_MAX_TOOL_CALLS,
+        });
+        emitAgentEvent(options.onAgentEvent, { type: 'turn-end', turnIndex });
+        return this.finalizeResponsesCompletion(
+          input,
+          `the maximum of ${AGENT_MAX_TOOL_CALLS} tool calls would be exceeded`,
+          options,
+          response
+        );
+      }
+
       logger.info('AI agent requested retrieval tools', {
         userId: options.userId,
         documentId: options.documentId,
-        iteration: i + 1,
+        iteration: turnIndex + 1,
         tools: toolCalls.map((toolCall: any) => toolCall.name),
       });
 
@@ -353,17 +388,18 @@ class OpenAIProvider implements AIProvider {
           call_id: toolCall.call_id,
           output,
         });
+        toolCallsUsed += 1;
       }
-      emitAgentEvent(options.onAgentEvent, { type: 'turn-end', turnIndex: i });
+      emitAgentEvent(options.onAgentEvent, { type: 'turn-end', turnIndex });
+      turnIndex += 1;
     }
 
-    return {
-      content: response?.output_text || 'I could not complete retrieval within the tool-call limit.',
-      tokensUsed: response?.usage ? {
-        input: response.usage.input_tokens,
-        output: response.usage.output_tokens,
-      } : undefined,
-    };
+    return this.finalizeResponsesCompletion(
+      input,
+      `the maximum of ${AGENT_MAX_TOOL_CALLS} tool calls was reached`,
+      options,
+      response
+    );
   }
 
   async agentStreamChat(
@@ -415,6 +451,47 @@ class OpenAIProvider implements AIProvider {
     ];
   }
 
+  private async finalizeResponsesCompletion(
+    input: any[],
+    reason: string,
+    options: AgentChatOptions,
+    previousResponse?: any
+  ): Promise<{ content: string; tokensUsed?: { input: number; output: number } }> {
+    logger.warn('AI Responses agent finalizing after retrieval budget guard', {
+      userId: options.userId,
+      documentId: options.documentId,
+      reason,
+    });
+
+    let response: any;
+    try {
+      response = await this.client.responses.create({
+        model: this.model,
+        input: [
+          ...input,
+          { role: 'user', content: buildFinalAnswerSynthesisPrompt(reason) },
+        ],
+        max_output_tokens: options.maxTokens || 2048,
+      });
+    } catch (error) {
+      this.handleSDKError(error);
+    }
+
+    const split = splitStaticThinking(response.output_text || '');
+    emitThinkingDelta(options.onAgentEvent, split.thinking);
+    const content = split.visible.trim()
+      || 'I reached the retrieval limit before the model produced a final answer, and I could not synthesize a reliable answer from the retrieved evidence.';
+    const usage = response.usage || previousResponse?.usage;
+
+    return {
+      content,
+      tokensUsed: usage ? {
+        input: usage.input_tokens,
+        output: usage.output_tokens,
+      } : undefined,
+    };
+  }
+
   private buildChatCompletionTools() {
     return AIRetrievalService.tools.map(tool => ({
       type: 'function' as const,
@@ -436,9 +513,11 @@ class OpenAIProvider implements AIProvider {
 
     let lastUsage: { input: number; output: number } | undefined;
     let emptyToolCallRepairAttempts = 0;
+    let toolCallsUsed = 0;
+    let turnIndex = 0;
 
-    for (let i = 0; i < 6; i++) {
-      emitAgentEvent(options.onAgentEvent, { type: 'turn-start', turnIndex: i });
+    while (toolCallsUsed < AGENT_MAX_TOOL_CALLS) {
+      emitAgentEvent(options.onAgentEvent, { type: 'turn-start', turnIndex });
       let completion: any;
       try {
         completion = await this.client.chat.completions.create({
@@ -467,22 +546,23 @@ class OpenAIProvider implements AIProvider {
             logger.warn('AI agent received empty tool-call finish; retrying with repair instruction', {
               userId: options.userId,
               documentId: options.documentId,
-              iteration: i + 1,
+              iteration: turnIndex + 1,
               transport: 'chat_completions',
             });
             emitThinkingDelta(options.onAgentEvent, 'Retrying retrieval because the provider returned an empty tool-call response.');
             chatMessages.push({ role: 'user', content: buildToolCallRepairPrompt(options.documentId) });
-            emitAgentEvent(options.onAgentEvent, { type: 'turn-end', turnIndex: i });
+            emitAgentEvent(options.onAgentEvent, { type: 'turn-end', turnIndex });
+            turnIndex += 1;
             continue;
           }
 
           logger.warn('AI agent empty tool-call repair failed', {
             userId: options.userId,
             documentId: options.documentId,
-            iteration: i + 1,
+            iteration: turnIndex + 1,
             transport: 'chat_completions',
           });
-          emitAgentEvent(options.onAgentEvent, { type: 'turn-end', turnIndex: i });
+          emitAgentEvent(options.onAgentEvent, { type: 'turn-end', turnIndex });
           return {
             content: 'I could not complete retrieval because the AI provider returned an invalid empty tool-call response.',
             tokensUsed: lastUsage,
@@ -492,22 +572,41 @@ class OpenAIProvider implements AIProvider {
         logger.info('AI agent completed without additional tool calls', {
           userId: options.userId,
           documentId: options.documentId,
-          iteration: i + 1,
+          iteration: turnIndex + 1,
           transport: 'chat_completions',
         });
         const split = splitStaticThinking(assistantMessage.content || '');
         emitThinkingDelta(options.onAgentEvent, split.thinking);
-        emitAgentEvent(options.onAgentEvent, { type: 'turn-end', turnIndex: i });
+        emitAgentEvent(options.onAgentEvent, { type: 'turn-end', turnIndex });
         return {
-          content: split.visible,
+          content: split.visible.trim() || 'I could not produce a final answer from the available context.',
           tokensUsed: lastUsage,
         };
+      }
+
+      if (toolCallsUsed + toolCalls.length > AGENT_MAX_TOOL_CALLS) {
+        logger.warn('AI agent requested more tools than the remaining tool budget', {
+          userId: options.userId,
+          documentId: options.documentId,
+          iteration: turnIndex + 1,
+          transport: 'chat_completions',
+          requestedTools: toolCalls.length,
+          toolCallsUsed,
+          maxToolCalls: AGENT_MAX_TOOL_CALLS,
+        });
+        emitAgentEvent(options.onAgentEvent, { type: 'turn-end', turnIndex });
+        return this.finalizeChatCompletion(
+          chatMessages,
+          `the maximum of ${AGENT_MAX_TOOL_CALLS} tool calls would be exceeded`,
+          options,
+          lastUsage
+        );
       }
 
       logger.info('AI agent requested retrieval tools', {
         userId: options.userId,
         documentId: options.documentId,
-        iteration: i + 1,
+        iteration: turnIndex + 1,
         transport: 'chat_completions',
         tools: toolCalls.map((toolCall: any) => toolCall.function?.name),
       });
@@ -575,14 +674,18 @@ class OpenAIProvider implements AIProvider {
           tool_call_id: toolCall.id,
           content: output,
         });
+        toolCallsUsed += 1;
       }
-      emitAgentEvent(options.onAgentEvent, { type: 'turn-end', turnIndex: i });
+      emitAgentEvent(options.onAgentEvent, { type: 'turn-end', turnIndex });
+      turnIndex += 1;
     }
 
-    return {
-      content: 'I could not complete retrieval within the tool-call limit.',
-      tokensUsed: lastUsage,
-    };
+    return this.finalizeChatCompletion(
+      chatMessages,
+      `the maximum of ${AGENT_MAX_TOOL_CALLS} tool calls was reached`,
+      options,
+      lastUsage
+    );
   }
 
   private async agentStreamChatCompletions(
@@ -594,9 +697,11 @@ class OpenAIProvider implements AIProvider {
     const chatMessages = this.buildChatCompletionMessages(messages, options.documentId);
     let lastUsage: { input: number; output: number } | undefined;
     let emptyToolCallRepairAttempts = 0;
+    let toolCallsUsed = 0;
+    let turnIndex = 0;
 
-    for (let i = 0; i < 6; i++) {
-      emitAgentEvent(options.onAgentEvent, { type: 'turn-start', turnIndex: i });
+    while (toolCallsUsed < AGENT_MAX_TOOL_CALLS) {
+      emitAgentEvent(options.onAgentEvent, { type: 'turn-start', turnIndex });
       let completion: any;
       try {
         completion = await this.client.chat.completions.create({
@@ -625,24 +730,25 @@ class OpenAIProvider implements AIProvider {
             logger.warn('AI agent received empty tool-call finish; retrying with repair instruction', {
               userId: options.userId,
               documentId: options.documentId,
-              iteration: i + 1,
+              iteration: turnIndex + 1,
               transport: 'chat_completions',
             });
             emitThinkingDelta(options.onAgentEvent, 'Retrying retrieval because the provider returned an empty tool-call response.');
             chatMessages.push({ role: 'user', content: buildToolCallRepairPrompt(options.documentId) });
-            emitAgentEvent(options.onAgentEvent, { type: 'turn-end', turnIndex: i });
+            emitAgentEvent(options.onAgentEvent, { type: 'turn-end', turnIndex });
+            turnIndex += 1;
             continue;
           }
 
           logger.warn('AI agent empty tool-call repair failed', {
             userId: options.userId,
             documentId: options.documentId,
-            iteration: i + 1,
+            iteration: turnIndex + 1,
             transport: 'chat_completions',
           });
           const fallback = 'I could not complete retrieval because the AI provider returned an invalid empty tool-call response.';
           onChunk(fallback);
-          emitAgentEvent(options.onAgentEvent, { type: 'turn-end', turnIndex: i });
+          emitAgentEvent(options.onAgentEvent, { type: 'turn-end', turnIndex });
           return {
             content: fallback,
             tokensUsed: lastUsage,
@@ -652,11 +758,41 @@ class OpenAIProvider implements AIProvider {
         logger.info('AI agent final response streaming started', {
           userId: options.userId,
           documentId: options.documentId,
-          iteration: i + 1,
+          iteration: turnIndex + 1,
           transport: 'chat_completions',
         });
         const finalContent = await this.streamFinalChatCompletion(chatMessages, onChunk, options);
-        emitAgentEvent(options.onAgentEvent, { type: 'turn-end', turnIndex: i });
+        emitAgentEvent(options.onAgentEvent, { type: 'turn-end', turnIndex });
+        return {
+          content: finalContent,
+          tokensUsed: lastUsage,
+        };
+      }
+
+      if (toolCallsUsed + toolCalls.length > AGENT_MAX_TOOL_CALLS) {
+        logger.warn('AI streaming agent requested more tools than the remaining tool budget', {
+          userId: options.userId,
+          documentId: options.documentId,
+          iteration: turnIndex + 1,
+          transport: 'chat_completions',
+          requestedTools: toolCalls.length,
+          toolCallsUsed,
+          maxToolCalls: AGENT_MAX_TOOL_CALLS,
+        });
+        const finalContent = await this.streamFinalChatCompletion(
+          [
+            ...chatMessages,
+            {
+              role: 'user',
+              content: buildFinalAnswerSynthesisPrompt(
+                `the maximum of ${AGENT_MAX_TOOL_CALLS} tool calls would be exceeded`
+              ),
+            },
+          ],
+          onChunk,
+          options
+        );
+        emitAgentEvent(options.onAgentEvent, { type: 'turn-end', turnIndex });
         return {
           content: finalContent,
           tokensUsed: lastUsage,
@@ -666,7 +802,7 @@ class OpenAIProvider implements AIProvider {
       logger.info('AI agent requested retrieval tools', {
         userId: options.userId,
         documentId: options.documentId,
-        iteration: i + 1,
+        iteration: turnIndex + 1,
         transport: 'chat_completions',
         tools: toolCalls.map((toolCall: any) => toolCall.function?.name),
       });
@@ -734,12 +870,23 @@ class OpenAIProvider implements AIProvider {
           tool_call_id: toolCall.id,
           content: output,
         });
+        toolCallsUsed += 1;
       }
-      emitAgentEvent(options.onAgentEvent, { type: 'turn-end', turnIndex: i });
+      emitAgentEvent(options.onAgentEvent, { type: 'turn-end', turnIndex });
+      turnIndex += 1;
     }
 
-    const fallback = 'I could not complete retrieval within the tool-call limit.';
-    onChunk(fallback);
+    const fallback = await this.streamFinalChatCompletion(
+      [
+        ...chatMessages,
+        {
+          role: 'user',
+          content: buildFinalAnswerSynthesisPrompt(`the maximum of ${AGENT_MAX_TOOL_CALLS} tool calls was reached`),
+        },
+      ],
+      onChunk,
+      options
+    );
     return {
       content: fallback,
       tokensUsed: lastUsage,
@@ -788,7 +935,58 @@ class OpenAIProvider implements AIProvider {
       onChunk(flushed.visible);
     }
 
+    if (!fullContent.trim()) {
+      const fallback = 'I could not produce a final answer from the available context.';
+      fullContent = fallback;
+      onChunk(fallback);
+    }
+
     return fullContent;
+  }
+
+  private async finalizeChatCompletion(
+    chatMessages: any[],
+    reason: string,
+    options: AgentChatOptions,
+    lastUsage?: { input: number; output: number }
+  ): Promise<{ content: string; tokensUsed?: { input: number; output: number } }> {
+    logger.warn('AI agent finalizing after retrieval budget guard', {
+      userId: options.userId,
+      documentId: options.documentId,
+      reason,
+      transport: 'chat_completions',
+    });
+
+    let completion: any;
+    try {
+      completion = await this.client.chat.completions.create({
+        model: this.model,
+        messages: [
+          ...chatMessages,
+          { role: 'user', content: buildFinalAnswerSynthesisPrompt(reason) },
+        ],
+        max_tokens: options.maxTokens || 2048,
+      } as any);
+    } catch (error) {
+      this.handleSDKError(error);
+    }
+
+    const assistantMessage = completion.choices?.[0]?.message || {};
+    emitThinkingDelta(options.onAgentEvent, assistantMessage.reasoning_content || assistantMessage.reasoning || '');
+    const split = splitStaticThinking(assistantMessage.content || '');
+    emitThinkingDelta(options.onAgentEvent, split.thinking);
+
+    const content = split.visible.trim()
+      || 'I reached the retrieval limit before the model produced a final answer, and I could not synthesize a reliable answer from the retrieved evidence.';
+    const usage = completion.usage ? {
+      input: completion.usage.prompt_tokens,
+      output: completion.usage.completion_tokens,
+    } : lastUsage;
+
+    return {
+      content,
+      tokensUsed: usage,
+    };
   }
 
   private handleSDKError(error: unknown): never {
