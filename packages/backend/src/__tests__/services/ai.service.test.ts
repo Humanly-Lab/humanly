@@ -7,6 +7,7 @@
 
 jest.mock('../../models/ai.model');
 jest.mock('../../models/document.model');
+jest.mock('../../models/task.model');
 jest.mock('../../models/user-ai-settings.model');
 jest.mock('../../utils/logger', () => ({
   logger: { error: jest.fn(), info: jest.fn(), warn: jest.fn(), debug: jest.fn() },
@@ -21,10 +22,12 @@ global.fetch = mockFetch;
 import { AIService, classifyQuestionCategory } from '../../services/ai.service';
 import { AIModel } from '../../models/ai.model';
 import { DocumentModel } from '../../models/document.model';
+import { TaskModel } from '../../models/task.model';
 import { UserAISettingsModel } from '../../models/user-ai-settings.model';
 
 const MockAIModel = AIModel as jest.Mocked<typeof AIModel>;
 const MockDocumentModel = DocumentModel as jest.Mocked<typeof DocumentModel>;
+const MockTaskModel = TaskModel as jest.Mocked<typeof TaskModel>;
 const MockUserAISettings = UserAISettingsModel as jest.Mocked<typeof UserAISettingsModel>;
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -139,6 +142,12 @@ describe('AIService.silentChat', () => {
 
   beforeEach(() => {
     MockDocumentModel.isOwner.mockResolvedValue(true);
+    MockDocumentModel.findByIdAndUserId.mockResolvedValue({
+      id: 'doc-1',
+      userId: 'user-1',
+      environmentConfig: { aiAccess: 'on' },
+    } as any);
+    MockTaskModel.findBySubmissionDocument.mockResolvedValue(null);
     MockUserAISettings.getByUserId.mockResolvedValue(makeSettings());
     mockFetch.mockResolvedValue(mockResponsesResponse('Grammar fixed.'));
   });
@@ -227,6 +236,12 @@ describe('AIService.chat', () => {
 
   beforeEach(() => {
     MockDocumentModel.isOwner.mockResolvedValue(true);
+    MockDocumentModel.findByIdAndUserId.mockResolvedValue({
+      id: 'doc-1',
+      userId: 'user-1',
+      environmentConfig: { aiAccess: 'on' },
+    } as any);
+    MockTaskModel.findBySubmissionDocument.mockResolvedValue(null);
     MockUserAISettings.getByUserId.mockResolvedValue(makeSettings());
     MockAIModel.getOrCreateSession.mockResolvedValue(makeSession());
     MockAIModel.createLog.mockResolvedValue(makeLog());

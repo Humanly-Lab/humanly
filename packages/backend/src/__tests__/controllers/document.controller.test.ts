@@ -80,7 +80,7 @@ describe('createDocument', () => {
       expect.objectContaining({ success: true, data: { document: doc } })
     );
     expect(MockDocumentService.createDocument).toHaveBeenCalledWith(
-      'user-1', 'My Doc', {}, 'draft'
+      'user-1', 'My Doc', {}, 'draft', null, null
     );
   });
 
@@ -100,7 +100,7 @@ describe('createDocument', () => {
     await createDocument(req, res);
 
     expect(MockDocumentService.createDocument).toHaveBeenCalledWith(
-      'user-1', 'Doc', {}, 'published'
+      'user-1', 'Doc', {}, 'published', null, null
     );
   });
 });

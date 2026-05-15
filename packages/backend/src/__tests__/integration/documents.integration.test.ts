@@ -101,7 +101,9 @@ describe('documents routes integration', () => {
       'user-1',
       'Research Notes',
       { root: { children: [] } },
-      'draft'
+      'draft',
+      null,
+      null
     );
     expect(response.body).toEqual(
       expect.objectContaining({

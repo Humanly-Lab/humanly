@@ -7,6 +7,15 @@
 
 jest.mock('../../models/document.model');
 jest.mock('../../models/document-event.model');
+jest.mock('../../models/session.model');
+jest.mock('../../config/database', () => ({
+  query: jest.fn(),
+  queryOne: jest.fn(),
+  transaction: jest.fn(),
+}));
+jest.mock('../../config/redis', () => ({
+  cacheDelPattern: jest.fn(),
+}));
 jest.mock('../../utils/logger', () => ({
   logger: { error: jest.fn(), info: jest.fn(), warn: jest.fn(), debug: jest.fn() },
 }));
@@ -16,9 +25,17 @@ jest.mock('../../utils/logger', () => ({
 import { DocumentService } from '../../services/document.service';
 import { DocumentModel } from '../../models/document.model';
 import { DocumentEventModel } from '../../models/document-event.model';
+import { SessionModel } from '../../models/session.model';
+import { query, queryOne, transaction } from '../../config/database';
+import { cacheDelPattern } from '../../config/redis';
 
 const MockDocumentModel = DocumentModel as jest.Mocked<typeof DocumentModel>;
 const MockDocumentEventModel = DocumentEventModel as jest.Mocked<typeof DocumentEventModel>;
+const MockSessionModel = SessionModel as jest.Mocked<typeof SessionModel>;
+const mockQuery = query as jest.MockedFunction<typeof query>;
+const mockQueryOne = queryOne as jest.MockedFunction<typeof queryOne>;
+const mockTransaction = transaction as jest.MockedFunction<typeof transaction>;
+const mockCacheDelPattern = cacheDelPattern as jest.MockedFunction<typeof cacheDelPattern>;
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -217,14 +234,15 @@ describe('DocumentService.updateDocument', () => {
 
 describe('DocumentService.deleteDocument', () => {
   it('deletes document successfully', async () => {
-    MockDocumentModel.delete.mockResolvedValue(true);
+    mockTransaction.mockResolvedValueOnce({ deleted: true, taskIds: ['task-1'] });
 
     await expect(DocumentService.deleteDocument('doc-1', 'user-1')).resolves.not.toThrow();
-    expect(MockDocumentModel.delete).toHaveBeenCalledWith('doc-1', 'user-1');
+    expect(mockTransaction).toHaveBeenCalled();
+    expect(mockCacheDelPattern).toHaveBeenCalledWith('analytics:task-1:*');
   });
 
   it('throws 404 when document not found', async () => {
-    MockDocumentModel.delete.mockResolvedValue(false);
+    mockTransaction.mockResolvedValueOnce({ deleted: false, taskIds: [] });
 
     await expect(DocumentService.deleteDocument('doc-1', 'user-1')).rejects.toMatchObject({
       statusCode: 404,
@@ -259,12 +277,43 @@ describe('DocumentService.trackEvents', () => {
   it('tracks events when user is owner', async () => {
     MockDocumentModel.isOwner.mockResolvedValue(true);
     MockDocumentEventModel.batchInsert.mockResolvedValue(undefined);
+    mockQuery.mockResolvedValueOnce([]);
 
     await DocumentService.trackEvents('doc-1', 'user-1', events);
 
     expect(MockDocumentEventModel.batchInsert).toHaveBeenCalledWith(
       expect.arrayContaining([
         expect.objectContaining({ documentId: 'doc-1', userId: 'user-1' }),
+      ])
+    );
+    expect(mockQuery).toHaveBeenCalledWith(
+      expect.stringContaining('FROM task_enrollments'),
+      ['doc-1']
+    );
+  });
+
+  it('validates session ownership for session-scoped events', async () => {
+    MockDocumentModel.isOwner.mockResolvedValue(true);
+    MockSessionModel.findById.mockResolvedValue({
+      id: 'session-1',
+      taskId: 'task-1',
+      externalUserId: 'user@example.com',
+    } as any);
+    mockQueryOne.mockResolvedValue({ id: 'enrollment-1' } as any);
+    mockQuery.mockResolvedValueOnce([]);
+
+    await DocumentService.trackEvents('doc-1', 'user-1', [
+      { ...events[0], sessionId: 'session-1' },
+    ]);
+
+    expect(MockSessionModel.findById).toHaveBeenCalledWith('session-1');
+    expect(mockQueryOne).toHaveBeenCalledWith(
+      expect.stringContaining('FROM task_enrollments'),
+      ['task-1', 'user-1', 'doc-1', 'user@example.com']
+    );
+    expect(MockDocumentEventModel.batchInsert).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({ sessionId: 'session-1' }),
       ])
     );
   });
