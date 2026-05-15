@@ -34,9 +34,7 @@ export const MODEL_WHITELIST: Record<string, string[]> = {
   'api.together.xyz': [
     'Qwen/Qwen3.5-397B-A17B',
     'moonshotai/Kimi-K2.6',
-    'moonshotai/Kimi-K2.5',
     'deepseek-ai/DeepSeek-V4-Pro',
-    'zai-org/GLM-5.1',
     'zai-org/GLM-5',
   ],
 };
