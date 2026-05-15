@@ -1,9 +1,12 @@
 import { DocumentModel } from '../models/document.model';
 import { DocumentEventModel } from '../models/document-event.model';
 import { SessionModel } from '../models/session.model';
+import { FileModel } from '../models/file.model';
 import { query, queryOne, transaction } from '../config/database';
 import { cacheDelPattern } from '../config/redis';
-import {
+import { FileStorageService } from './file-storage.service';
+import type {
+  AppFile,
   Document,
   DocumentInsertData,
   DocumentUpdateData,
@@ -17,6 +20,12 @@ import {
 } from '@humanly/shared';
 import { AppError } from '../middleware/error-handler';
 import { logger } from '../utils/logger';
+
+type DeleteDocumentResult = {
+  deleted: boolean;
+  taskIds: string[];
+  files: AppFile[];
+};
 
 export class DocumentService {
   /**
@@ -123,7 +132,7 @@ export class DocumentService {
     try {
       logger.info('Deleting document', { documentId, userId });
 
-      const deleteResult: { deleted: boolean; taskIds: string[] } = await transaction(async (client) => {
+      const deleteResult: DeleteDocumentResult = await transaction(async (client) => {
         const documentResult = await client.query(
           `
             SELECT id
@@ -134,7 +143,7 @@ export class DocumentService {
         );
 
         if (documentResult.rowCount === 0) {
-          return { deleted: false, taskIds: [] as string[] };
+          return { deleted: false, taskIds: [] as string[], files: [] };
         }
 
         const linkedTaskResult = await client.query(
@@ -148,6 +157,17 @@ export class DocumentService {
         );
 
         const taskIds = linkedTaskResult.rows.map((row: { task_id: string }) => row.task_id);
+
+        const fileResult = await client.query(
+          `
+            SELECT ${FileModel.columns}
+            FROM files
+            WHERE document_id = $1
+              AND owner_user_id = $2
+          `,
+          [documentId, userId]
+        );
+        const files = fileResult.rows as AppFile[];
 
         await client.query(
           `
@@ -170,6 +190,7 @@ export class DocumentService {
         return {
           deleted: deletedDocumentResult.rowCount > 0,
           taskIds,
+          files,
         };
       });
 
@@ -181,12 +202,40 @@ export class DocumentService {
         deleteResult.taskIds.map((taskId: string) => cacheDelPattern(`analytics:${taskId}:*`))
       );
 
+      await this.deleteDocumentFileStorage(documentId, userId, deleteResult.files);
+
       logger.info('Document deleted successfully', { documentId, userId });
     } catch (error) {
       if (error instanceof AppError) throw error;
       logger.error('Error deleting document', { error, documentId, userId });
       throw error;
     }
+  }
+
+  private static async deleteDocumentFileStorage(
+    documentId: string,
+    userId: string,
+    files: AppFile[]
+  ): Promise<void> {
+    await Promise.all(
+      files
+        .filter((file) => !file.legacySourceId)
+        .map(async (file) => {
+          try {
+            await FileStorageService.delete(file);
+          } catch (error) {
+            logger.error('Failed to delete document file storage object', {
+              error,
+              documentId,
+              userId,
+              fileId: file.id,
+              storageProvider: file.storageProvider,
+              storageBucket: file.storageBucket,
+              storageKey: file.storageKey,
+            });
+          }
+        })
+    );
   }
 
   /**

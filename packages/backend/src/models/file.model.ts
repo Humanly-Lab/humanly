@@ -84,7 +84,7 @@ export class FileModel {
     await query('DELETE FROM files WHERE id = $1', [fileId]);
   }
 
-  private static columns = `
+  static readonly columns = `
     id,
     owner_user_id as "ownerUserId",
     document_id as "documentId",
