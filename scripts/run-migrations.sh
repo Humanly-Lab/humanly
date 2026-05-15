@@ -74,6 +74,12 @@ migration_presence() {
     019_document_description.sql)
       psql_scalar -c "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'documents' AND column_name = 'description');"
       ;;
+    020_unified_files.sql)
+      psql_scalar -c "SELECT to_regclass('public.files') IS NOT NULL AND to_regclass('public.file_pages') IS NOT NULL AND to_regclass('public.file_sections') IS NOT NULL AND to_regclass('public.file_text_chunks') IS NOT NULL;"
+      ;;
+    021_gcs_file_storage.sql)
+      psql_scalar -c "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'files' AND column_name = 'storage_bucket') AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'files' AND column_name = 'storage_etag') AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'files' AND column_name = 'upload_status');"
+      ;;
     *)
       echo "unknown"
       ;;

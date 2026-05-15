@@ -1,17 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { apiClient } from '@/lib/api-client';
 import { uploadPdfForDocument } from '@/lib/document-pdf';
-import type { Document, DocumentEvent } from '@humanly/shared';
-
-export interface LinkedPaper {
-  id: string;
-  title: string;
-  pdfStoragePath: string;
-}
+import type { AppFile, Document, DocumentEvent } from '@humanly/shared';
 
 export function useDocument(documentId: string) {
   const [document, setDocument] = useState<Document | null>(null);
-  const [linkedPaper, setLinkedPaper] = useState<LinkedPaper | null>(null);
+  const [linkedFile, setLinkedFile] = useState<AppFile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -24,13 +18,12 @@ export function useDocument(documentId: string) {
       const doc = response.data.data?.document || null;
       setDocument(doc);
 
-      // Check if there's a linked paper/PDF for this document
+      // Check if there's a linked PDF for this document.
       try {
-        const paperResponse = await apiClient.get(`/documents/${documentId}/paper`);
-        setLinkedPaper(paperResponse.data.data?.paper || null);
+        const fileResponse = await apiClient.get(`/documents/${documentId}/files`);
+        setLinkedFile(fileResponse.data.data?.file || null);
       } catch {
-        // No linked paper - that's fine
-        setLinkedPaper(null);
+        setLinkedFile(null);
       }
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to fetch document');
@@ -88,7 +81,7 @@ export function useDocument(documentId: string) {
 
   return {
     document,
-    linkedPaper,
+    linkedFile,
     isLoading,
     error,
     isSaving,

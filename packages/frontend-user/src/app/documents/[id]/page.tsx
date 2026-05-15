@@ -37,7 +37,7 @@ import {
 } from '@/components/ui/resizable';
 
 // Dynamically import PDFViewer with SSR disabled (PDF.js loaded from CDN)
-const PDFViewer = dynamic(() => import('@/components/review/SimplePDFViewer'), {
+const PDFViewer = dynamic(() => import('@/components/pdf/PDFViewer'), {
   ssr: false,
   loading: () => (
     <div className="flex items-center justify-center h-full bg-gray-100">
@@ -60,10 +60,9 @@ interface TaskEnrollment {
   environmentConfig?: WritingEnvironmentConfig | null;
 }
 
-interface TaskInstructionPaper {
+interface TaskInstructionFile {
   id: string;
   title: string;
-  pdfStoragePath?: string;
 }
 
 const API_URL =
@@ -79,7 +78,7 @@ export default function DocumentEditorPage() {
   const { user } = useAuthStore();
   const {
     document,
-    linkedPaper,
+    linkedFile,
     isLoading,
     error,
     isSaving,
@@ -96,9 +95,9 @@ export default function DocumentEditorPage() {
   const [isSubmittingTask, setIsSubmittingTask] = useState(false);
   const [showCertificateDialog, setShowCertificateDialog] = useState(false);
   const [isUploadingPdf, setIsUploadingPdf] = useState(false);
-  const [taskInstructionPaper, setTaskInstructionPaper] = useState<TaskInstructionPaper | null>(null);
-  const [taskInstructionPapers, setTaskInstructionPapers] = useState<TaskInstructionPaper[]>([]);
-  const [selectedInstructionPaperId, setSelectedInstructionPaperId] = useState<string | null>(null);
+  const [taskInstructionFile, setTaskInstructionFile] = useState<TaskInstructionFile | null>(null);
+  const [taskInstructionFiles, setTaskInstructionFiles] = useState<TaskInstructionFile[]>([]);
+  const [selectedInstructionFileId, setSelectedInstructionFileId] = useState<string | null>(null);
   const [submissionSessionId, setSubmissionSessionId] = useState<string | null>(null);
   const [taskEnrollment, setTaskEnrollment] = useState<TaskEnrollment | null>(null);
   const [isTaskEnrollmentLoading, setIsTaskEnrollmentLoading] = useState(true);
@@ -142,10 +141,10 @@ export default function DocumentEditorPage() {
   }, [toggleAIPanel]);
 
   useEffect(() => {
-    if (linkedPaper) {
+    if (linkedFile) {
       setShowPdfPanel(true);
     }
-  }, [linkedPaper]);
+  }, [linkedFile]);
 
   useEffect(() => {
     let cancelled = false;
@@ -180,12 +179,12 @@ export default function DocumentEditorPage() {
   useEffect(() => {
     let cancelled = false;
 
-    const fetchTaskInstructionPaper = async () => {
+    const fetchTaskInstructionFiles = async () => {
       const enrollment = taskEnrollment;
       if (!enrollment) {
-        setTaskInstructionPaper(null);
-        setTaskInstructionPapers([]);
-        setSelectedInstructionPaperId(null);
+        setTaskInstructionFile(null);
+        setTaskInstructionFiles([]);
+        setSelectedInstructionFileId(null);
         return;
       }
 
@@ -193,29 +192,29 @@ export default function DocumentEditorPage() {
         await apiClient.put(`/tasks/enrollments/${enrollment.id}/submission-document`, {
           documentId,
         });
-        const response = await apiClient.get(`/tasks/enrollments/${enrollment.id}/instruction-paper`);
+        const response = await apiClient.get(`/tasks/enrollments/${enrollment.id}/instruction-files`);
         if (cancelled) return;
-        const papers = response.data.data?.papers || [];
-        const paper = response.data.data?.paper || papers[0] || null;
-        setTaskInstructionPaper(paper);
-        setTaskInstructionPapers(papers);
-        setSelectedInstructionPaperId((currentId) => {
-          if (currentId && papers.some((item: TaskInstructionPaper) => item.id === currentId)) {
+        const files = response.data.data?.files || [];
+        const file = response.data.data?.file || files[0] || null;
+        setTaskInstructionFile(file);
+        setTaskInstructionFiles(files);
+        setSelectedInstructionFileId((currentId) => {
+          if (currentId && files.some((item: TaskInstructionFile) => item.id === currentId)) {
             return currentId;
           }
-          return paper?.id || null;
+          return file?.id || null;
         });
-        if (paper) setShowPdfPanel(true);
+        if (file) setShowPdfPanel(true);
       } catch {
         if (!cancelled) {
-          setTaskInstructionPaper(null);
-          setTaskInstructionPapers([]);
-          setSelectedInstructionPaperId(null);
+          setTaskInstructionFile(null);
+          setTaskInstructionFiles([]);
+          setSelectedInstructionFileId(null);
         }
       }
     };
 
-    fetchTaskInstructionPaper();
+    fetchTaskInstructionFiles();
 
     return () => {
       cancelled = true;
@@ -483,10 +482,10 @@ export default function DocumentEditorPage() {
   // ✅ Overleaf-style canvas: nearly full-width with minimal padding
   // px-2 gives a tiny gutter on edges for a more spacious panel layout
   const CANVAS = 'mx-auto w-full max-w-[2400px] px-3';
-  const selectedInstructionPaper =
-    taskInstructionPapers.find((paper) => paper.id === selectedInstructionPaperId) ||
-    taskInstructionPaper;
-  const displayPaper = selectedInstructionPaper || linkedPaper;
+  const selectedInstructionFile =
+    taskInstructionFiles.find((file) => file.id === selectedInstructionFileId) ||
+    taskInstructionFile;
+  const displayFile = selectedInstructionFile || linkedFile;
   const currentEnvironmentConfig = {
     ...DEFAULT_WRITING_ENVIRONMENT_CONFIG,
     ...(taskEnrollment?.environmentConfig || {}),
@@ -568,7 +567,7 @@ export default function DocumentEditorPage() {
             </div>
 
             <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
-              {!displayPaper && !taskEnrollment && (
+              {!displayFile && !taskEnrollment && (
                 <>
                   <input
                     ref={fileInputRef}
@@ -594,7 +593,7 @@ export default function DocumentEditorPage() {
                 </>
               )}
 
-              {displayPaper && (
+              {displayFile && (
                 <Button
                   variant="outline"
                   size="sm"
@@ -691,23 +690,23 @@ export default function DocumentEditorPage() {
           {/* ✅ Resizable like Overleaf */}
           <ResizablePanelGroup direction="horizontal" className="h-full w-full rounded-md border bg-background">
             {/* PDF */}
-            {displayPaper && showPdfPanel ? (
+            {displayFile && showPdfPanel ? (
               <ResizablePanel defaultSize={38} minSize={22}>
                 <div className="h-full border-r bg-background overflow-hidden flex flex-col">
-                  {taskInstructionPapers.length > 1 ? (
+                  {taskInstructionFiles.length > 1 ? (
                     <div className="shrink-0 border-b bg-background px-3 py-2">
                       <div className="flex max-w-full gap-2 overflow-x-auto pb-1">
-                        {taskInstructionPapers.map((paper, index) => (
+                        {taskInstructionFiles.map((file, index) => (
                           <Button
-                            key={paper.id}
+                            key={file.id}
                             type="button"
-                            variant={paper.id === displayPaper.id ? 'default' : 'outline'}
+                            variant={file.id === displayFile.id ? 'default' : 'outline'}
                             size="sm"
                             className="max-w-[240px] shrink-0 justify-start truncate"
-                            title={paper.title}
-                            onClick={() => setSelectedInstructionPaperId(paper.id)}
+                            title={file.title}
+                            onClick={() => setSelectedInstructionFileId(file.id)}
                           >
-                            <span className="truncate">{paper.title || `File ${index + 1}`}</span>
+                            <span className="truncate">{file.title || `File ${index + 1}`}</span>
                           </Button>
                         ))}
                       </div>
@@ -715,33 +714,31 @@ export default function DocumentEditorPage() {
                   ) : null}
                   <div className="min-h-0 flex-1 overflow-hidden">
                     <PDFViewer
-                      key={displayPaper.id}
-                      paperId={displayPaper.id}
+                      key={displayFile.id}
+                      fileId={displayFile.id}
                       documentId={documentId}
-                      onCommentAdd={() => {}}
-                      comments={[]}
                     />
                   </div>
                 </div>
               </ResizablePanel>
             ) : null}
 
-            {displayPaper && showPdfPanel ? <ResizableHandle withHandle /> : null}
+            {displayFile && showPdfPanel ? <ResizableHandle withHandle /> : null}
 
             {/* Editor */}
             <ResizablePanel
-              defaultSize={displayPaper && showPdfPanel ? (isAIPanelOpen ? 37 : 62) : (isAIPanelOpen ? 70 : 100)}
+              defaultSize={displayFile && showPdfPanel ? (isAIPanelOpen ? 37 : 62) : (isAIPanelOpen ? 70 : 100)}
               minSize={30}
             >
               <div className="h-full overflow-auto">
-                <div className={`${displayPaper || isAIPanelOpen ? 'px-4 py-4' : 'px-6 py-6'} h-full`}>
-                  {!displayPaper && (
+                <div className={`${displayFile || isAIPanelOpen ? 'px-4 py-4' : 'px-6 py-6'} h-full`}>
+                  {!displayFile && (
                     <div className="mb-4 rounded-lg border border-dashed border-border bg-muted/30 p-4">
                       <div>
                         <div>
                           <h2 className="text-sm font-semibold">No PDF linked</h2>
                           <p className="text-sm text-muted-foreground">
-                            You can keep writing here and upload the source PDF later for side-by-side review.
+                            You can keep writing here and upload the source PDF later for side-by-side reference.
                           </p>
                         </div>
                       </div>
@@ -751,7 +748,7 @@ export default function DocumentEditorPage() {
                     documentId={documentId}
                     userId={user?.id}
                     initialContent={document.content}
-                    placeholder={displayPaper ? 'Write your review here...' : 'Start typing your document...'}
+                    placeholder={displayFile ? 'Start writing with your PDF open...' : 'Start typing your document...'}
                     trackingEnabled={true}
                     copyPastePolicy={currentEnvironmentConfig.copyPastePolicy}
                     autoSaveEnabled={true}

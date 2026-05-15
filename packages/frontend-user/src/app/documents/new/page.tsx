@@ -488,7 +488,7 @@ export default function NewDocumentPage() {
 
       toast({
         title: 'Success',
-        description: pdfFile ? 'Document created with PDF for review' : 'Document created successfully',
+        description: pdfFile ? 'Document created with linked PDF' : 'Document created successfully',
       });
       router.push(`/documents/${document.id}`);
     } catch (err: any) {

@@ -40,7 +40,7 @@ jest.mock('@/hooks/use-document', () => ({
       characterCount: 0,
       environmentConfig: { aiAccess: 'off', copyPastePolicy: 'allowed' },
     },
-    linkedPaper: null,
+    linkedFile: null,
     isLoading: false,
     error: null,
     isSaving: false,

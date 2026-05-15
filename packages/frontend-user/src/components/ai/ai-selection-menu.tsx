@@ -33,7 +33,7 @@ interface AISelectionMenuProps {
 
 export type ActionType = 'grammar' | 'improve' | 'simplify' | 'formal';
 
-interface ReviewState {
+interface SuggestionState {
   actionType: ActionType;
   actionLabel: string;
   originalText: string;
@@ -82,7 +82,7 @@ export function AISelectionMenu({
 }: AISelectionMenuProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [loadingAction, setLoadingAction] = useState<ActionType | null>(null);
-  const [reviewState, setReviewState] = useState<ReviewState | null>(null);
+  const [suggestionState, setSuggestionState] = useState<SuggestionState | null>(null);
   const [hasAISettings, setHasAISettings] = useState<boolean | null>(null);
   const [showWarning, setShowWarning] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -119,7 +119,7 @@ export function AISelectionMenu({
     setIsLoading(true);
     setLoadingAction(action.type);
     setErrorMessage(null);
-    setReviewState({
+    setSuggestionState({
       actionType: action.type,
       actionLabel: action.label,
       originalText: selection.text,
@@ -149,7 +149,7 @@ export function AISelectionMenu({
         throw new Error('AI response was empty');
       }
 
-      setReviewState({
+      setSuggestionState({
         actionType: action.type,
         actionLabel: action.label,
         originalText: selection.text,
@@ -163,7 +163,7 @@ export function AISelectionMenu({
       console.error('AI action failed:', error);
       const msg = error?.response?.data?.error || error?.message || 'AI request failed';
       setErrorMessage(msg);
-      setReviewState(null);
+      setSuggestionState(null);
       cancelAIAction();
       setIsLoading(false);
       setLoadingAction(null);
@@ -171,9 +171,9 @@ export function AISelectionMenu({
   };
 
   const handleKeep = async () => {
-    if (!reviewState) return;
+    if (!suggestionState) return;
 
-    const improvedText = reviewState.suggestedText.trim();
+    const improvedText = suggestionState.suggestedText.trim();
     if (!improvedText) {
       setErrorMessage('AI response was empty');
       return;
@@ -184,9 +184,9 @@ export function AISelectionMenu({
     // Track the action in event history (local tracking)
     if (onActionApplied) {
       onActionApplied(
-        reviewState.actionType,
-        reviewState.originalText,
-        reviewState.suggestedText,
+        suggestionState.actionType,
+        suggestionState.originalText,
+        suggestionState.suggestedText,
         replacementResult
       );
     }
@@ -195,44 +195,44 @@ export function AISelectionMenu({
     try {
       await api.post('/ai/selection-action', {
         documentId,
-        logId: reviewState.logId,
-        actionType: reviewState.actionType,
-        originalText: reviewState.originalText,
-        suggestedText: reviewState.suggestedText,
+        logId: suggestionState.logId,
+        actionType: suggestionState.actionType,
+        originalText: suggestionState.originalText,
+        suggestedText: suggestionState.suggestedText,
         decision: 'accepted',
       });
     } catch (error) {
       // Don't block the user flow if tracking fails
     }
 
-    setReviewState(null);
+    setSuggestionState(null);
     onClose();
   };
 
   const handleUndo = async () => {
-    if (!reviewState) return;
+    if (!suggestionState) return;
 
     // Track rejection in the backend
     try {
       await api.post('/ai/selection-action', {
         documentId,
-        logId: reviewState.logId,
-        actionType: reviewState.actionType,
-        originalText: reviewState.originalText,
-        suggestedText: reviewState.suggestedText,
+        logId: suggestionState.logId,
+        actionType: suggestionState.actionType,
+        originalText: suggestionState.originalText,
+        suggestedText: suggestionState.suggestedText,
         decision: 'rejected',
       });
     } catch (error) {
       // Don't block the user flow if tracking fails
     }
 
-    setReviewState(null);
+    setSuggestionState(null);
     cancelAIAction();
     onClose();
   };
 
-  // Review mode: show compact Undo / Keep bar
-  if (reviewState) {
+  // Suggestion mode: show compact Undo / Keep bar
+  if (suggestionState) {
     return (
       <div
         className={cn(
@@ -242,9 +242,9 @@ export function AISelectionMenu({
       >
         <div className="mb-2 flex items-center justify-between gap-3">
           <div className="text-xs font-medium text-foreground">
-            {reviewState.actionLabel}
+            {suggestionState.actionLabel}
           </div>
-          {reviewState.isStreaming ? (
+          {suggestionState.isStreaming ? (
             <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
               Generating...
@@ -252,7 +252,7 @@ export function AISelectionMenu({
           ) : null}
         </div>
         <div className="max-h-40 overflow-y-auto rounded-md bg-muted/40 p-2 text-xs whitespace-pre-wrap text-foreground">
-          {reviewState.suggestedText || 'Waiting for AI response...'}
+          {suggestionState.suggestedText || 'Waiting for AI response...'}
         </div>
         <div className="mt-3 flex items-center gap-2">
           <Button
@@ -262,13 +262,13 @@ export function AISelectionMenu({
             onClick={handleUndo}
           >
             <Undo2 className="h-3.5 w-3.5" />
-            {reviewState.isStreaming ? 'Cancel' : 'Discard'}
+            {suggestionState.isStreaming ? 'Cancel' : 'Discard'}
           </Button>
           <Button
             size="sm"
             className="h-8 px-3 text-xs font-medium gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
             onClick={handleKeep}
-            disabled={reviewState.isStreaming || !reviewState.suggestedText.trim()}
+            disabled={suggestionState.isStreaming || !suggestionState.suggestedText.trim()}
           >
             <Check className="h-3.5 w-3.5" />
             Apply

@@ -21,7 +21,7 @@ import {
   DEFAULT_WRITING_ENVIRONMENT_CONFIG,
   WRITING_AI_MODELS,
   normalizeCopyPastePolicy,
-  type Paper,
+  type AppFile,
   type Task,
   type UserAISettings,
   type WritingAiAccess,
@@ -134,7 +134,7 @@ export default function TaskSettingsPage() {
   const { toast } = useToast();
 
   const [task, setTask] = useState<Task | null>(null);
-  const [papers, setPapers] = useState<Paper[]>([]);
+  const [files, setFiles] = useState<AppFile[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -180,7 +180,7 @@ export default function TaskSettingsPage() {
     },
   });
 
-  const currentInstructionPapers = papers.filter((paper) => paper.keywords?.includes('instructions'));
+  const currentInstructionFiles = files.filter((file) => file.purpose === 'task_instruction_pdf');
   const selectedAiModel = aiModel === CUSTOM_MODEL_VALUE ? customAiModel.trim() : aiModel.trim();
 
   const aiModelOptions = useMemo(() => {
@@ -202,9 +202,9 @@ export default function TaskSettingsPage() {
   const fetchInstructionFiles = useCallback(async () => {
     const response = await api.get<{
       success: boolean;
-      data: Paper[];
-    }>(`/api/v1/tasks/${taskId}/papers`);
-    setPapers(response.data);
+      data: AppFile[];
+    }>(`/api/v1/tasks/${taskId}/files`);
+    setFiles(response.data);
   }, [taskId]);
 
   useEffect(() => {
@@ -449,12 +449,9 @@ export default function TaskSettingsPage() {
         const formData = new FormData();
         formData.append('pdf', file);
         formData.append('title', file.name.replace(/\.pdf$/i, ''));
-        formData.append('authors', JSON.stringify([]));
-        formData.append('abstract', 'Task instruction file');
-        formData.append('keywords', JSON.stringify(['instructions']));
 
         try {
-          await api.post(`/api/v1/tasks/${taskId}/papers`, formData);
+          await api.post(`/api/v1/tasks/${taskId}/files`, formData);
         } catch {
           failed = true;
         }
@@ -510,7 +507,7 @@ export default function TaskSettingsPage() {
         : fallbackEnd.toISOString();
       const configStartTime = timeLimitEnabled ? startTime : undefined;
       const configEndTime = timeLimitEnabled ? endTime : undefined;
-      const hasInstructionPdf = currentInstructionPapers.length > 0 || instructionFiles.length > 0;
+      const hasInstructionPdf = currentInstructionFiles.length > 0 || instructionFiles.length > 0;
       const nextEnvironmentConfig: WritingEnvironmentConfig = {
         ...environmentConfig,
         taskType: 'admin_assigned',
@@ -659,7 +656,7 @@ export default function TaskSettingsPage() {
         </Button>
         <h1 className="text-3xl font-bold">Task Settings</h1>
         <p className="mt-2 text-muted-foreground">
-          Review and edit the same configuration used when this task was created.
+          Inspect and edit the same configuration used when this task was created.
         </p>
       </div>
 
@@ -741,14 +738,14 @@ export default function TaskSettingsPage() {
                   </Button>
                 </div>
 
-                {currentInstructionPapers.length > 0 && (
+                {currentInstructionFiles.length > 0 && (
                   <div className="mt-3 space-y-2">
-                    {currentInstructionPapers.map((paper) => (
-                      <div key={paper.id} className="flex items-center gap-3 rounded-md border bg-muted/40 p-3">
+                    {currentInstructionFiles.map((file) => (
+                      <div key={file.id} className="flex items-center gap-3 rounded-md border bg-muted/40 p-3">
                         <FileText className="h-5 w-5 shrink-0 text-muted-foreground" />
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium" title={paper.title}>
-                            {paper.title}
+                          <p className="truncate text-sm font-medium" title={file.title}>
+                            {file.title}
                           </p>
                           <p className="text-xs text-muted-foreground">
                             Existing PDF

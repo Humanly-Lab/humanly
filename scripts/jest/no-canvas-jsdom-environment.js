@@ -3,7 +3,7 @@ const Module = require('module');
 const originalLoad = Module._load;
 
 Module._load = function loadWithoutNativeCanvas(request, parent, isMain) {
-  if (request === 'canvas') {
+  if (request === 'canvas' || request.startsWith('canvas/')) {
     return {};
   }
 
@@ -11,7 +11,5 @@ Module._load = function loadWithoutNativeCanvas(request, parent, isMain) {
 };
 
 const { TestEnvironment } = require('jest-environment-jsdom');
-
-Module._load = originalLoad;
 
 module.exports = TestEnvironment;

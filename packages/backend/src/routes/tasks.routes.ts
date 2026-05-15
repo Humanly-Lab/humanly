@@ -9,7 +9,6 @@ import {
   listMyTaskEnrollments,
   joinTask,
   leaveTask,
-  getInstructionPaper,
   linkSubmissionDocument,
   startSubmissionSession,
   endSubmissionSession,
@@ -61,12 +60,6 @@ router.get('/my-enrollments', asyncHandler(listMyTaskEnrollments));
  * Remove the current user's enrollment from a task.
  */
 router.delete('/enrollments/:taskId', asyncHandler(leaveTask));
-
-/**
- * GET /api/v1/tasks/enrollments/:taskId/instruction-paper
- * Get instruction PDF metadata for an enrolled task.
- */
-router.get('/enrollments/:taskId/instruction-paper', asyncHandler(getInstructionPaper));
 
 /**
  * PUT /api/v1/tasks/enrollments/:taskId/submission-document

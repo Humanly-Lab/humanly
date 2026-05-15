@@ -2,7 +2,7 @@ import { create } from 'zustand';
 
 export interface PDFTextData {
   documentId: string;
-  paperId: string;
+  fileId: string;
   numPages: number;
   pages: string[]; // text per page
   fullText: string; // all pages concatenated

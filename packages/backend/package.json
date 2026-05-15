@@ -13,6 +13,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
+    "@google-cloud/storage": "^7.19.0",
     "@humanly/shared": "workspace:*",
     "@types/pdfkit": "^0.17.4",
     "@types/qrcode": "^1.5.6",

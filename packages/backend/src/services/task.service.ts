@@ -5,7 +5,6 @@ import {
   PaginationParams,
   TaskListResult,
 } from '../models/task.model';
-import { PaperModel } from '../models/paper.model';
 import { DocumentModel } from '../models/document.model';
 import { SessionModel } from '../models/session.model';
 import { SubmissionModel } from '../models/submission.model';
@@ -177,45 +176,6 @@ export class TaskService {
 
     await TaskModel.unenrollUser(task.id, userId);
     await this.invalidateAnalytics(task.id);
-  }
-
-  /**
-   * Get the instruction PDF for an enrolled user or task owner.
-   */
-  static async getInstructionPaper(taskIdOrInviteCode: string, userId: string) {
-    const normalizedIdentifier = taskIdOrInviteCode.trim();
-    const task = /^[A-Z0-9]{6}$/i.test(normalizedIdentifier)
-      ? await TaskModel.findByInviteCode(normalizedIdentifier.toUpperCase())
-      : await TaskModel.findById(normalizedIdentifier);
-
-    if (!task) {
-      throw new AppError(404, 'Task not found');
-    }
-
-    const hasAccess = task.userId === userId || await TaskModel.hasEnrollment(task.id, userId);
-    if (!hasAccess) {
-      throw new AppError(403, 'Access denied to this task');
-    }
-
-    return PaperModel.findInstructionByTask(task.id);
-  }
-
-  static async getInstructionPapers(taskIdOrInviteCode: string, userId: string) {
-    const normalizedIdentifier = taskIdOrInviteCode.trim();
-    const task = /^[A-Z0-9]{6}$/i.test(normalizedIdentifier)
-      ? await TaskModel.findByInviteCode(normalizedIdentifier.toUpperCase())
-      : await TaskModel.findById(normalizedIdentifier);
-
-    if (!task) {
-      throw new AppError(404, 'Task not found');
-    }
-
-    const hasAccess = task.userId === userId || await TaskModel.hasEnrollment(task.id, userId);
-    if (!hasAccess) {
-      throw new AppError(403, 'Access denied to this task');
-    }
-
-    return PaperModel.findInstructionsByTask(task.id);
   }
 
   /**
