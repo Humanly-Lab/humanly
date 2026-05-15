@@ -31,12 +31,25 @@ psql_scalar() {
   psql_exec -At "$@"
 }
 
+legacy_review_tables_retired() {
+  psql_scalar -c "SELECT EXISTS (SELECT 1 FROM schema_migrations WHERE filename = '022_drop_legacy_review_tables.sql') OR (
+    to_regclass('public.papers') IS NULL
+    AND to_regclass('public.reviews') IS NULL
+    AND to_regclass('public.paper_pages') IS NULL
+    AND to_regclass('public.paper_text_chunks') IS NULL
+  );"
+}
+
 migration_presence() {
   local filename="$1"
 
   case "$filename" in
     006-paper-document-link.sql)
-      psql_scalar -c "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'papers' AND column_name = 'document_id');"
+      if [[ "$(legacy_review_tables_retired)" == "t" ]]; then
+        echo "t"
+      else
+        psql_scalar -c "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'papers' AND column_name = 'document_id');"
+      fi
       ;;
     007_ai_authorship_statistics.sql)
       psql_scalar -c "SELECT to_regclass('public.ai_selection_actions') IS NOT NULL AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'ai_interaction_logs' AND column_name = 'question_category');"
@@ -45,7 +58,11 @@ migration_presence() {
       psql_scalar -c "SELECT to_regclass('public.user_ai_settings') IS NOT NULL;"
       ;;
     010_paper_text_retrieval.sql)
-      psql_scalar -c "SELECT to_regclass('public.paper_pages') IS NOT NULL AND to_regclass('public.paper_sections') IS NOT NULL AND to_regclass('public.paper_text_chunks') IS NOT NULL;"
+      if [[ "$(legacy_review_tables_retired)" == "t" ]]; then
+        echo "t"
+      else
+        psql_scalar -c "SELECT to_regclass('public.paper_pages') IS NOT NULL AND to_regclass('public.paper_sections') IS NOT NULL AND to_regclass('public.paper_text_chunks') IS NOT NULL;"
+      fi
       ;;
     011_user_roles.sql)
       psql_scalar -c "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'users' AND column_name = 'role');"
@@ -79,6 +96,9 @@ migration_presence() {
       ;;
     021_gcs_file_storage.sql)
       psql_scalar -c "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'files' AND column_name = 'storage_bucket') AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'files' AND column_name = 'storage_etag') AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'files' AND column_name = 'upload_status');"
+      ;;
+    022_drop_legacy_review_tables.sql)
+      legacy_review_tables_retired
       ;;
     *)
       echo "unknown"
