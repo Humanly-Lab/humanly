@@ -2,9 +2,9 @@ import OpenAI from 'openai';
 import path from 'path';
 import { query, queryOne } from '../config/database';
 import { DocumentModel } from '../models/document.model';
-import { PaperModel } from '../models/paper.model';
+import { FileModel } from '../models/file.model';
 import { DocumentEventModel } from '../models/document-event.model';
-import { PaperStorageService } from './paper-storage.service';
+import { FileStorageService } from './file-storage.service';
 import { AppError } from '../middleware/error-handler';
 import { logger } from '../utils/logger';
 
@@ -189,8 +189,8 @@ export class AIRetrievalService {
     },
     {
       type: 'function',
-      name: 'getLinkedPapers',
-      description: 'Find uploaded PDF papers linked to the current document.',
+      name: 'getLinkedFiles',
+      description: 'Find uploaded PDF files linked to the current document or its enrolled task.',
       strict: true,
       parameters: {
         type: 'object',
@@ -203,48 +203,48 @@ export class AIRetrievalService {
     },
     {
       type: 'function',
-      name: 'searchPaperText',
-      description: 'Search extracted text chunks from a linked PDF paper.',
+      name: 'searchFileText',
+      description: 'Search extracted text chunks from a linked PDF file.',
       strict: true,
       parameters: {
         type: 'object',
         additionalProperties: false,
         properties: {
-          paperId: { type: 'string' },
+          fileId: { type: 'string' },
           query: { type: 'string' },
           limit: { type: 'integer' },
         },
-        required: ['paperId', 'query', 'limit'],
+        required: ['fileId', 'query', 'limit'],
       },
     },
     {
       type: 'function',
-      name: 'getPaperPage',
+      name: 'getFilePage',
       description: 'Retrieve extracted text for a specific PDF page.',
       strict: true,
       parameters: {
         type: 'object',
         additionalProperties: false,
         properties: {
-          paperId: { type: 'string' },
+          fileId: { type: 'string' },
           pageNumber: { type: 'integer' },
         },
-        required: ['paperId', 'pageNumber'],
+        required: ['fileId', 'pageNumber'],
       },
     },
     {
       type: 'function',
-      name: 'getPaperSection',
-      description: 'Retrieve extracted text for a detected section of a linked PDF paper.',
+      name: 'getFileSection',
+      description: 'Retrieve extracted text for a detected section of a linked PDF file.',
       strict: true,
       parameters: {
         type: 'object',
         additionalProperties: false,
         properties: {
-          paperId: { type: 'string' },
+          fileId: { type: 'string' },
           sectionTitle: { type: 'string' },
         },
-        required: ['paperId', 'sectionTitle'],
+        required: ['fileId', 'sectionTitle'],
       },
     },
   ];
@@ -269,49 +269,49 @@ export class AIRetrievalService {
           eventType: args.eventType || undefined,
           limit: args.limit,
         }));
-      case 'getLinkedPapers':
-        return JSON.stringify(await this.getLinkedPapers(userId, this.requireDocumentScope(scopedDocumentId, args.documentId)));
-      case 'searchPaperText':
-        return JSON.stringify(await this.searchPaperText(userId, scopedDocumentId, args.paperId, args.query, args.limit));
-      case 'getPaperPage':
-        return JSON.stringify(await this.getPaperPage(userId, scopedDocumentId, args.paperId, args.pageNumber));
-      case 'getPaperSection':
-        return JSON.stringify(await this.getPaperSection(userId, scopedDocumentId, args.paperId, args.sectionTitle));
+      case 'getLinkedFiles':
+        return JSON.stringify(await this.getLinkedFiles(userId, this.requireDocumentScope(scopedDocumentId, args.documentId)));
+      case 'searchFileText':
+        return JSON.stringify(await this.searchFileText(userId, scopedDocumentId, args.fileId, args.query, args.limit));
+      case 'getFilePage':
+        return JSON.stringify(await this.getFilePage(userId, scopedDocumentId, args.fileId, args.pageNumber));
+      case 'getFileSection':
+        return JSON.stringify(await this.getFileSection(userId, scopedDocumentId, args.fileId, args.sectionTitle));
       default:
         return JSON.stringify({ error: `Unknown tool: ${name}` });
     }
   }
 
-  static async indexPaper(paperId: string): Promise<void> {
-    const paper = await PaperModel.findById(paperId);
-    if (!paper) {
-      throw new AppError(404, 'Paper not found');
+  static async indexFile(fileId: string): Promise<void> {
+    const appFile = await FileModel.findById(fileId);
+    if (!appFile) {
+      throw new AppError(404, 'File not found');
     }
 
     const existing = await queryOne<{ count: string }>(
-      'SELECT COUNT(*) as count FROM paper_pages WHERE paper_id = $1',
-      [paperId]
+      'SELECT COUNT(*) as count FROM file_pages WHERE file_id = $1',
+      [fileId]
     );
     if (parseInt(existing?.count || '0', 10) > 0) {
       return;
     }
 
-    const buffer = await PaperStorageService.getBuffer(paper.pdfStoragePath);
+    const buffer = await FileStorageService.getBuffer(appFile.storageKey);
 
     try {
       const pages = await extractPdfPages(buffer);
 
-      await query('DELETE FROM paper_pages WHERE paper_id = $1', [paperId]);
-      await query('DELETE FROM paper_sections WHERE paper_id = $1', [paperId]);
-      await query('DELETE FROM paper_text_chunks WHERE paper_id = $1', [paperId]);
+      await query('DELETE FROM file_pages WHERE file_id = $1', [fileId]);
+      await query('DELETE FROM file_sections WHERE file_id = $1', [fileId]);
+      await query('DELETE FROM file_text_chunks WHERE file_id = $1', [fileId]);
 
       for (const page of pages) {
         await query(
-          `INSERT INTO paper_pages (paper_id, page_number, text)
+          `INSERT INTO file_pages (file_id, page_number, text)
            VALUES ($1, $2, $3)
-           ON CONFLICT (paper_id, page_number)
+           ON CONFLICT (file_id, page_number)
            DO UPDATE SET text = EXCLUDED.text, updated_at = NOW()`,
-          [paperId, page.pageNumber, page.text]
+          [fileId, page.pageNumber, page.text]
         );
       }
 
@@ -320,11 +320,11 @@ export class AIRetrievalService {
         for (const chunk of makeChunks(page.text)) {
           if (chunk.trim()) {
             await query(
-              `INSERT INTO paper_text_chunks (paper_id, page_number, chunk_index, text)
+              `INSERT INTO file_text_chunks (file_id, page_number, chunk_index, text)
                VALUES ($1, $2, $3, $4)
-               ON CONFLICT (paper_id, chunk_index)
+               ON CONFLICT (file_id, chunk_index)
                DO UPDATE SET page_number = EXCLUDED.page_number, text = EXCLUDED.text`,
-              [paperId, page.pageNumber, chunkIndex++, chunk]
+              [fileId, page.pageNumber, chunkIndex++, chunk]
             );
           }
         }
@@ -332,14 +332,14 @@ export class AIRetrievalService {
 
       for (const section of detectSections(pages)) {
         await query(
-          `INSERT INTO paper_sections (paper_id, section_title, start_page, end_page, text)
+          `INSERT INTO file_sections (file_id, section_title, start_page, end_page, text)
            VALUES ($1, $2, $3, $4, $5)`,
-          [paperId, section.sectionTitle, section.startPage, section.endPage, section.text]
+          [fileId, section.sectionTitle, section.startPage, section.endPage, section.text]
         );
       }
     } catch (error) {
-      logger.error('Failed to index paper text', { paperId, error });
-      throw new AppError(500, 'Failed to extract paper text');
+      logger.error('Failed to index file text', { fileId, error });
+      throw new AppError(500, 'Failed to extract file text');
     }
   }
 
@@ -358,14 +358,21 @@ export class AIRetrievalService {
     return document;
   }
 
-  private static async assertLinkedPaper(userId: string, documentId: string, paperId: string): Promise<void> {
+  private static async assertLinkedFile(userId: string, documentId: string, fileId: string): Promise<void> {
     await this.getOwnedDocument(userId, documentId);
-    const paper = await queryOne<{ id: string }>(
-      'SELECT id FROM papers WHERE id = $1 AND document_id = $2',
-      [paperId, documentId]
+    const appFile = await queryOne<{ id: string }>(
+      `SELECT files.id
+       FROM files
+       LEFT JOIN task_enrollments te
+         ON te.task_id = files.task_id
+        AND te.user_id = $3
+        AND te.submission_document_id = $2
+       WHERE files.id = $1
+         AND (files.document_id = $2 OR te.id IS NOT NULL)`,
+      [fileId, documentId, userId]
     );
-    if (!paper) {
-      throw new AppError(404, 'Linked paper not found');
+    if (!appFile) {
+      throw new AppError(404, 'Linked file not found');
     }
   }
 
@@ -442,55 +449,66 @@ export class AIRetrievalService {
     };
   }
 
-  private static async getLinkedPapers(userId: string, documentId: string) {
+  private static async getLinkedFiles(userId: string, documentId: string) {
     await this.getOwnedDocument(userId, documentId);
-    const papers = await query<any>(
-      `SELECT id, title, abstract, keywords, pdf_page_count, status, created_at
-       FROM papers
-       WHERE document_id = $1
-       ORDER BY created_at DESC`,
-      [documentId]
+    const files = await query<any>(
+      `SELECT DISTINCT files.id,
+              files.title,
+              files.purpose,
+              files.original_filename,
+              files.page_count,
+              files.file_size,
+              files.created_at
+       FROM files
+       LEFT JOIN task_enrollments te
+         ON te.task_id = files.task_id
+        AND te.user_id = $2
+        AND te.submission_document_id = $1
+       WHERE files.document_id = $1
+          OR te.id IS NOT NULL
+       ORDER BY files.created_at DESC`,
+      [documentId, userId]
     );
     return {
       documentId,
-      papers: papers.map(paper => ({
-        id: paper.id,
-        title: paper.title,
-        abstract: paper.abstract,
-        keywords: paper.keywords,
-        pdfPageCount: paper.pdf_page_count,
-        status: paper.status,
-        createdAt: paper.created_at,
+      files: files.map(file => ({
+        id: file.id,
+        title: file.title,
+        purpose: file.purpose,
+        originalFilename: file.original_filename,
+        pageCount: file.page_count,
+        fileSize: file.file_size,
+        createdAt: file.created_at,
       })),
     };
   }
 
-  private static async searchPaperText(
+  private static async searchFileText(
     userId: string,
     documentId: string,
-    paperId: string,
+    fileId: string,
     searchQuery: string,
     limit?: number
   ) {
-    await this.assertLinkedPaper(userId, documentId, paperId);
-    await this.indexPaper(paperId);
+    await this.assertLinkedFile(userId, documentId, fileId);
+    await this.indexFile(fileId);
 
     const rows = await query<any>(
       `SELECT page_number, section_title, text,
               ts_rank(to_tsvector('english', text), plainto_tsquery('english', $2)) AS rank
-       FROM paper_text_chunks
-       WHERE paper_id = $1
+       FROM file_text_chunks
+       WHERE file_id = $1
          AND to_tsvector('english', text) @@ plainto_tsquery('english', $2)
        ORDER BY rank DESC, chunk_index ASC
        LIMIT $3`,
-      [paperId, searchQuery, clampLimit(limit)]
+      [fileId, searchQuery, clampLimit(limit)]
     );
 
     return {
-      paperId,
+      fileId,
       query: searchQuery,
       results: rows.map(row => ({
-        source: 'paper',
+        source: 'file',
         pageNumber: row.page_number,
         sectionTitle: row.section_title,
         text: excerpt(row.text, 2500),
@@ -498,37 +516,37 @@ export class AIRetrievalService {
     };
   }
 
-  private static async getPaperPage(userId: string, documentId: string, paperId: string, pageNumber: number) {
-    await this.assertLinkedPaper(userId, documentId, paperId);
-    await this.indexPaper(paperId);
+  private static async getFilePage(userId: string, documentId: string, fileId: string, pageNumber: number) {
+    await this.assertLinkedFile(userId, documentId, fileId);
+    await this.indexFile(fileId);
 
     const row = await queryOne<{ text: string }>(
-      'SELECT text FROM paper_pages WHERE paper_id = $1 AND page_number = $2',
-      [paperId, pageNumber]
+      'SELECT text FROM file_pages WHERE file_id = $1 AND page_number = $2',
+      [fileId, pageNumber]
     );
     if (!row) {
-      throw new AppError(404, 'Paper page not found');
+      throw new AppError(404, 'File page not found');
     }
-    return { paperId, pageNumber, text: excerpt(row.text) };
+    return { fileId, pageNumber, text: excerpt(row.text) };
   }
 
-  private static async getPaperSection(userId: string, documentId: string, paperId: string, sectionTitle: string) {
-    await this.assertLinkedPaper(userId, documentId, paperId);
-    await this.indexPaper(paperId);
+  private static async getFileSection(userId: string, documentId: string, fileId: string, sectionTitle: string) {
+    await this.assertLinkedFile(userId, documentId, fileId);
+    await this.indexFile(fileId);
 
     const row = await queryOne<any>(
       `SELECT section_title, start_page, end_page, text
-       FROM paper_sections
-       WHERE paper_id = $1 AND lower(section_title) LIKE lower($2)
+       FROM file_sections
+       WHERE file_id = $1 AND lower(section_title) LIKE lower($2)
        ORDER BY length(section_title) ASC
        LIMIT 1`,
-      [paperId, `%${sectionTitle}%`]
+      [fileId, `%${sectionTitle}%`]
     );
     if (!row) {
-      throw new AppError(404, 'Paper section not found');
+      throw new AppError(404, 'File section not found');
     }
     return {
-      paperId,
+      fileId,
       sectionTitle: row.section_title,
       startPage: row.start_page,
       endPage: row.end_page,

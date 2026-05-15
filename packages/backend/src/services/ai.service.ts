@@ -510,7 +510,7 @@ class MockAIProvider implements AIProvider {
     const lowerQuery = query.toLowerCase();
 
     if (lowerQuery.includes('grammar') || lowerQuery.includes('check')) {
-      return 'I\'ve reviewed your text and found a few suggestions:\n\n1. Consider using active voice in paragraph 2\n2. The comma after "However" should be added\n3. "Their" should be "there" in line 5\n\nWould you like me to apply these corrections?';
+      return 'I checked your text and found a few suggestions:\n\n1. Consider using active voice in paragraph 2\n2. The comma after "However" should be added\n3. "Their" should be "there" in line 5\n\nWould you like me to apply these corrections?';
     }
 
     if (lowerQuery.includes('summarize') || lowerQuery.includes('summary')) {
@@ -692,14 +692,14 @@ Guidelines:
 }
 
 function buildRetrievalInstructions(documentId: string): string {
-  return `You are an AI writing assistant integrated into a document editor and PDF review system.
+  return `You are an AI writing assistant integrated into a document editor with optional linked PDFs.
 
 Use the retrieval tools as your source of truth. Do not rely only on preloaded summaries, selected text, or prior chat context when the user asks about the document, writing process, or linked PDF.
 
 Routing:
 - For the current written document, inspect getDocumentPlainText first. Use searchDocumentText for targeted questions and getDocumentContent only when Lexical structure matters.
 - For writing process, revision behavior, paste behavior, cursor activity, or evidence of editing, inspect getDocumentEvents.
-- For uploaded papers/PDFs, call getLinkedPapers first, then searchPaperText, getPaperPage, or getPaperSection as needed.
+- For uploaded PDFs, call getLinkedFiles first, then searchFileText, getFilePage, or getFileSection as needed.
 - If the answer requires multiple sources, call multiple tools and synthesize them.
 
 Current scoped documentId: ${documentId}

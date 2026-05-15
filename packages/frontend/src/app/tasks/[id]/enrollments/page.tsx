@@ -97,7 +97,7 @@ export default function TaskEnrollmentsPage() {
         </Button>
         <h1 className="text-3xl font-bold tracking-tight">Enrolled Users</h1>
         <p className="text-muted-foreground mt-2">
-          Review users enrolled in this task and open their submissions.
+          Inspect users enrolled in this task and open their submissions.
         </p>
       </div>
 

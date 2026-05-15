@@ -158,7 +158,7 @@ export interface AIChatRequest {
       endOffset: number;
     };
     cursorPosition?: number;
-    pdfContext?: string; // PDF document text for answering questions about papers
+    pdfContext?: string; // PDF document text for answering questions about linked files
     selectedText?: string; // Quoted text from editor selection
   };
 }

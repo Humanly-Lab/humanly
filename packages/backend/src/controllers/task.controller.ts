@@ -160,28 +160,6 @@ export async function leaveTask(req: Request, res: Response): Promise<void> {
 }
 
 /**
- * Get the current user's accessible task instruction PDF metadata
- */
-export async function getInstructionPaper(req: Request, res: Response): Promise<void> {
-  const userId = req.user!.userId;
-  const taskId = req.params.taskId;
-
-  if (!taskId) {
-    throw new AppError(400, 'Task ID is required');
-  }
-
-  const papers = await TaskService.getInstructionPapers(taskId, userId);
-
-  res.json({
-    success: true,
-    data: {
-      paper: papers[0] || null,
-      papers,
-    },
-  });
-}
-
-/**
  * Link current user's task enrollment to a submission document
  */
 export async function linkSubmissionDocument(req: Request, res: Response): Promise<void> {

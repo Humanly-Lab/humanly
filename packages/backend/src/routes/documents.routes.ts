@@ -11,7 +11,6 @@ import {
   getDocumentEvents,
   getDocumentStatistics,
 } from '../controllers/document.controller';
-import { getPaperByDocument } from '../controllers/paper.controller';
 
 const router = Router();
 
@@ -81,11 +80,5 @@ router.get('/:id/events', asyncHandler(getDocumentEvents));
  * Get document statistics (event counts, timing, etc.)
  */
 router.get('/:id/stats', asyncHandler(getDocumentStatistics));
-
-/**
- * GET /api/v1/documents/:id/paper
- * Get the paper linked to a document (for PDF review integration)
- */
-router.get('/:id/paper', asyncHandler(getPaperByDocument));
 
 export default router;

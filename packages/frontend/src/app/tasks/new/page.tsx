@@ -353,13 +353,10 @@ export default function NewTaskPage() {
           const formData = new FormData();
           formData.append('pdf', file);
           formData.append('title', file.name.replace(/\.pdf$/i, ''));
-          formData.append('authors', JSON.stringify([]));
-          formData.append('abstract', 'Task instruction file');
-          formData.append('keywords', JSON.stringify(['instructions']));
 
           try {
             await api.post(
-              `/api/v1/tasks/${response.data.id}/papers`,
+              `/api/v1/tasks/${response.data.id}/files`,
               formData
             );
           } catch {

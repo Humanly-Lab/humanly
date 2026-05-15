@@ -14,7 +14,7 @@ import {
   Upload,
   X,
 } from 'lucide-react';
-import type { Paper } from '@humanly/shared';
+import type { AppFile } from '@humanly/shared';
 
 import api, { ApiError, apiClient } from '@/lib/api-client';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -31,15 +31,15 @@ export default function TaskInstructionsPage() {
   const taskId = params.id as string;
   const { toast } = useToast();
 
-  const [papers, setPapers] = useState<Paper[]>([]);
+  const [files, setFiles] = useState<AppFile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
-  const [deletingPaperId, setDeletingPaperId] = useState<string | null>(null);
+  const [deletingFileId, setDeletingFileId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [instructionFile, setInstructionFile] = useState<File | null>(null);
   const [instructionTitle, setInstructionTitle] = useState('');
 
-  const instructionPapers = papers.filter((paper) => paper.keywords?.includes('instructions'));
+  const instructionFiles = files.filter((file) => file.purpose === 'task_instruction_pdf');
 
   const fetchInstructionFiles = useCallback(async () => {
     try {
@@ -47,13 +47,13 @@ export default function TaskInstructionsPage() {
       setError(null);
       const response = await api.get<{
         success: boolean;
-        data: Paper[];
-      }>(`/api/v1/tasks/${taskId}/papers`);
-      setPapers(response.data);
+        data: AppFile[];
+      }>(`/api/v1/tasks/${taskId}/files`);
+      setFiles(response.data);
     } catch (err) {
       const apiError = err as ApiError;
       setError(apiError.message || 'Failed to load instruction files');
-      setPapers([]);
+      setFiles([]);
     } finally {
       setIsLoading(false);
     }
@@ -103,11 +103,8 @@ export default function TaskInstructionsPage() {
       const formData = new FormData();
       formData.append('pdf', instructionFile);
       formData.append('title', instructionTitle.trim() || instructionFile.name.replace(/\.pdf$/i, ''));
-      formData.append('authors', JSON.stringify([]));
-      formData.append('abstract', 'Task instruction file');
-      formData.append('keywords', JSON.stringify(['instructions']));
 
-      await api.post(`/api/v1/tasks/${taskId}/papers`, formData);
+      await api.post(`/api/v1/tasks/${taskId}/files`, formData);
       setInstructionFile(null);
       setInstructionTitle('');
       toast({
@@ -127,9 +124,9 @@ export default function TaskInstructionsPage() {
     }
   };
 
-  const handleView = async (paperId: string) => {
+  const handleView = async (fileId: string) => {
     try {
-      const response = await apiClient.get(`/api/v1/papers/${paperId}/content`, {
+      const response = await apiClient.get(`/api/v1/files/${fileId}/content`, {
         responseType: 'blob',
       });
       const url = URL.createObjectURL(response.data);
@@ -145,13 +142,13 @@ export default function TaskInstructionsPage() {
     }
   };
 
-  const handleDelete = async (paper: Paper) => {
-    if (!confirm(`Delete instruction file "${paper.title}"?`)) return;
+  const handleDelete = async (file: AppFile) => {
+    if (!confirm(`Delete instruction file "${file.title}"?`)) return;
 
     try {
-      setDeletingPaperId(paper.id);
-      await api.delete(`/api/v1/papers/${paper.id}`);
-      setPapers((current) => current.filter((item) => item.id !== paper.id));
+      setDeletingFileId(file.id);
+      await api.delete(`/api/v1/files/${file.id}`);
+      setFiles((current) => current.filter((item) => item.id !== file.id));
       toast({
         title: 'Instruction file deleted',
         description: 'The file was removed from this task.',
@@ -164,7 +161,7 @@ export default function TaskInstructionsPage() {
         variant: 'destructive',
       });
     } finally {
-      setDeletingPaperId(null);
+      setDeletingFileId(null);
     }
   };
 
@@ -278,7 +275,7 @@ export default function TaskInstructionsPage() {
               <AlertTitle>Error loading instruction files</AlertTitle>
               <AlertDescription>{error}</AlertDescription>
             </Alert>
-          ) : instructionPapers.length === 0 ? (
+          ) : instructionFiles.length === 0 ? (
             <div className="h-[220px] flex items-center justify-center rounded-md border">
               <div className="text-center space-y-2">
                 <FileText className="h-8 w-8 text-muted-foreground mx-auto" />
@@ -288,32 +285,32 @@ export default function TaskInstructionsPage() {
             </div>
           ) : (
             <div className="space-y-3">
-              {instructionPapers.map((paper) => (
-                <div key={paper.id} className="flex flex-col gap-3 rounded-md border p-4 sm:flex-row sm:items-center">
+              {instructionFiles.map((file) => (
+                <div key={file.id} className="flex flex-col gap-3 rounded-md border p-4 sm:flex-row sm:items-center">
                   <FileText className="h-5 w-5 shrink-0 text-muted-foreground" />
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <p className="truncate font-medium" title={paper.title}>
-                        {paper.title}
+                      <p className="truncate font-medium" title={file.title}>
+                        {file.title}
                       </p>
                       <Badge variant="secondary">instructions</Badge>
                     </div>
                     <p className="mt-1 text-sm text-muted-foreground">
-                      Uploaded {formatDate(paper.submissionDate)} · {(paper.pdfFileSize / 1024 / 1024).toFixed(2)} MB
+                      Uploaded {formatDate(file.createdAt)} · {(file.fileSize / 1024 / 1024).toFixed(2)} MB
                     </p>
                   </div>
                   <div className="flex gap-2">
-                    <Button variant="outline" size="sm" onClick={() => handleView(paper.id)}>
+                    <Button variant="outline" size="sm" onClick={() => handleView(file.id)}>
                       <Eye className="h-4 w-4 mr-2" />
                       View
                     </Button>
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => handleDelete(paper)}
-                      disabled={deletingPaperId === paper.id}
+                      onClick={() => handleDelete(file)}
+                      disabled={deletingFileId === file.id}
                     >
-                      {deletingPaperId === paper.id ? (
+                      {deletingFileId === file.id ? (
                         <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                       ) : (
                         <Trash2 className="h-4 w-4 mr-2" />

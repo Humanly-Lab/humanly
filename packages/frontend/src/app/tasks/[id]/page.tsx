@@ -207,7 +207,7 @@ export default function TaskOverviewPage() {
       icon: List,
       label: 'Enrolled Users',
       href: `/tasks/${taskId}/enrollments`,
-      description: 'Review enrolled users and their task submissions',
+      description: 'Inspect enrolled users and their task submissions',
     },
     {
       icon: Eye,
@@ -225,7 +225,7 @@ export default function TaskOverviewPage() {
       icon: Download,
       label: 'User Documents',
       href: `/tasks/${taskId}/export`,
-      description: 'Export or review task submissions',
+      description: 'Export or inspect task submissions',
     },
     {
       icon: Settings,

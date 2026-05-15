@@ -14,20 +14,12 @@ import {
   X,
   Loader2,
 } from 'lucide-react'
-import { paperApi } from '@/lib/api/review-api'
-import type { ReviewComment } from '@humanly/shared'
+import { fileApi } from '@/lib/file-api'
 import { usePDFTextStore } from '@/stores/pdf-text-store'
 
 interface PDFViewerProps {
-  paperId: string
+  fileId: string
   documentId?: string
-  onCommentAdd: (comment: {
-    pageNumber: number
-    positionX: number
-    positionY: number
-    selectedText?: string
-  }) => void
-  comments: ReviewComment[]
 }
 
 interface SearchMatch {
@@ -51,7 +43,7 @@ function getTextItemHighlightRect(item: any, matchStart: number, matchLength: nu
   }
 }
 
-export default function SimplePDFViewer({ paperId, documentId, onCommentAdd, comments }: PDFViewerProps) {
+export default function PDFViewer({ fileId, documentId }: PDFViewerProps) {
   const [numPages, setNumPages] = useState<number>(0)
   const [currentPage, setCurrentPage] = useState<number>(1)
   const [textExtractionError, setTextExtractionError] = useState<string | null>(null)
@@ -82,7 +74,7 @@ export default function SimplePDFViewer({ paperId, documentId, onCommentAdd, com
   }, [scale])
 
   // Extract PDF text in background for AI context
-  const extractPDFTextInBackground = useCallback(async (pdf: any, docId: string, pId: string) => {
+  const extractPDFTextInBackground = useCallback(async (pdf: any, docId: string, extractedFileId: string) => {
     try {
       setExtracting(docId, true)
       setTextExtractionError(null)
@@ -94,7 +86,7 @@ export default function SimplePDFViewer({ paperId, documentId, onCommentAdd, com
       }
       const fullText = pages.join('\n\n')
       const summary = pages.slice(0, 2).join('\n\n').substring(0, 2500)
-      setPDFText(docId, { paperId: pId, numPages: pdf.numPages, pages, fullText, summary, isExtracting: false })
+      setPDFText(docId, { fileId: extractedFileId, numPages: pdf.numPages, pages, fullText, summary, isExtracting: false })
     } catch (err: any) {
       const msg = err.message || 'Failed to extract PDF text'
       setTextExtractionError(msg)
@@ -187,7 +179,7 @@ export default function SimplePDFViewer({ paperId, documentId, onCommentAdd, com
         }
         if (!window.pdfjsLib) throw new Error('PDF.js failed to load')
 
-        const url = await paperApi.getPdfBlob(paperId)
+        const url = await fileApi.getPdfBlob(fileId)
         if (cancelled) return
         blobUrl = url
 
@@ -198,10 +190,8 @@ export default function SimplePDFViewer({ paperId, documentId, onCommentAdd, com
         setFitToWidth(true)
         setLoading(false)
 
-        await paperApi.logAccess(paperId, { accessType: 'open' })
-
         if (documentId && !cancelled) {
-          extractPDFTextInBackground(pdf, documentId, paperId)
+          extractPDFTextInBackground(pdf, documentId, fileId)
         }
       } catch (err: any) {
         if (cancelled) return
@@ -223,7 +213,7 @@ export default function SimplePDFViewer({ paperId, documentId, onCommentAdd, com
       }
       pdfDocRef.current = null
     }
-  }, [paperId, documentId, extractPDFTextInBackground])
+  }, [fileId, documentId, extractPDFTextInBackground])
 
   // Render all pages after numPages is set (small delay to let React mount canvases)
   useEffect(() => {
@@ -376,13 +366,12 @@ export default function SimplePDFViewer({ paperId, documentId, onCommentAdd, com
       const firstIdx = matches.length > 0 ? 0 : -1
       setCurrentMatchIndex(firstIdx)
       if (matches.length > 0) jumpToPage(matches[0].pageNumber)
-      paperApi.logAccess(paperId, { accessType: 'search' }).catch(console.error)
     } catch (err) {
       console.error('Error searching PDF:', err)
     } finally {
       setIsSearching(false)
     }
-  }, [searchText, numPages, paperId, getPageTextContent, jumpToPage])
+  }, [searchText, numPages, getPageTextContent, jumpToPage])
 
   const goToNextMatch = useCallback(() => {
     if (searchMatches.length === 0) return
@@ -440,6 +429,7 @@ export default function SimplePDFViewer({ paperId, documentId, onCommentAdd, com
       container.addEventListener('wheel', handleWheel, { passive: false })
       return () => container.removeEventListener('wheel', handleWheel)
     }
+    return undefined
   }, [])
 
   // Disable right-click / Ctrl+S / Ctrl+P
