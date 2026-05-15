@@ -212,9 +212,11 @@ export async function handleAIMessage(
     // The chat-panel listeners filter frames with this sessionId so they
     // never adopt the result as a conversation turn.
     if (data.silent) {
+      const { clientRequestId } = data;
       socket.emit('ai:response-start', {
         sessionId: SILENT_SESSION_ID,
         messageId,
+        clientRequestId,
       });
 
       logger.info('AI silent stream started', {
@@ -222,6 +224,7 @@ export async function handleAIMessage(
         userId,
         documentId,
         messageId,
+        clientRequestId,
       });
 
       await AIService.silentStreamChat(
@@ -231,12 +234,14 @@ export async function handleAIMessage(
           socket.emit('ai:response-chunk', {
             sessionId: SILENT_SESSION_ID,
             messageId,
+            clientRequestId,
             chunk,
           });
         },
         (content: string) => {
           socket.emit('ai:response-complete', {
             sessionId: SILENT_SESSION_ID,
+            clientRequestId,
             message: {
               id: messageId,
               role: 'assistant',
@@ -249,6 +254,7 @@ export async function handleAIMessage(
         (error: Error) => {
           socket.emit('ai:error', {
             sessionId: SILENT_SESSION_ID,
+            clientRequestId,
             message: error.message || 'Silent AI request failed',
             code: 'SILENT_AI_ERROR',
           });

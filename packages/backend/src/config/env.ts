@@ -53,6 +53,7 @@ interface EnvConfig {
   aiBaseUrl?: string;
   aiMaxTokens: number;
   aiTemperature: number;
+  aiAgentMaxToolCalls: number;
   aiRateLimitRequests: number;
   aiRateLimitWindowMs: number;
 
@@ -143,6 +144,7 @@ export const env: EnvConfig = {
   aiBaseUrl: process.env.AI_BASE_URL,
   aiMaxTokens: getEnvNumber('AI_MAX_TOKENS', 2048),
   aiTemperature: parseFloat(getEnv('AI_TEMPERATURE', '0.7')),
+  aiAgentMaxToolCalls: getEnvNumber('AI_AGENT_MAX_TOOL_CALLS', 20),
   aiRateLimitRequests: getEnvNumber('AI_RATE_LIMIT_REQUESTS', 20),
   aiRateLimitWindowMs: getEnvNumber('AI_RATE_LIMIT_WINDOW_MS', 60000),
 

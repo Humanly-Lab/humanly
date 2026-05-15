@@ -263,36 +263,49 @@ export const useAIStore = create<AIState>()(
 
       streamSilent: (documentId, message, context, onChunk) =>
         new Promise<string>((resolve, reject) => {
+          const clientRequestId =
+            typeof crypto !== 'undefined' && 'randomUUID' in crypto
+              ? crypto.randomUUID()
+              : `silent-${Date.now()}-${Math.random().toString(36).slice(2)}`;
           let messageId: string | null = null;
           let finalContent = '';
+          const timeoutId = window.setTimeout(() => {
+            cleanup();
+            reject(new Error('AI request timed out. Please try again.'));
+          }, 90_000);
 
           // Ephemeral listeners scoped to the silent sentinel. They piggy-back
           // on the same ai:response-* channel as chat but are matched on the
           // SILENT_SESSION_ID guard and on messageId once response-start
           // assigns one.
-          const onStart = (data: { sessionId: string; messageId: string }) => {
+          const onStart = (data: { sessionId: string; messageId: string; clientRequestId?: string }) => {
             if (data.sessionId !== SILENT_SESSION_ID) return;
+            if (data.clientRequestId !== clientRequestId) return;
             if (messageId !== null) return; // already locked onto an earlier silent stream
             messageId = data.messageId;
           };
-          const onChunkEvent = (data: { sessionId: string; messageId: string; chunk: string }) => {
+          const onChunkEvent = (data: { sessionId: string; messageId: string; clientRequestId?: string; chunk: string }) => {
             if (data.sessionId !== SILENT_SESSION_ID) return;
+            if (data.clientRequestId !== clientRequestId) return;
             if (messageId === null || data.messageId !== messageId) return;
             onChunk(data.chunk);
           };
-          const onComplete = (response: AIChatResponse) => {
+          const onComplete = (response: AIChatResponse & { clientRequestId?: string }) => {
             if (response.sessionId !== SILENT_SESSION_ID) return;
+            if (response.clientRequestId !== clientRequestId) return;
             if (messageId === null || response.message.id !== messageId) return;
             finalContent = response.message.content;
             cleanup();
             resolve(finalContent);
           };
-          const onError = (data: { sessionId: string; message: string }) => {
+          const onError = (data: { sessionId: string; clientRequestId?: string; message: string }) => {
             if (data.sessionId !== SILENT_SESSION_ID) return;
+            if (data.clientRequestId !== clientRequestId) return;
             cleanup();
             reject(new Error(data.message || 'Silent AI request failed'));
           };
           const cleanup = () => {
+            window.clearTimeout(timeoutId);
             offEvent('ai:response-start', onStart);
             offEvent('ai:response-chunk', onChunkEvent);
             offEvent('ai:response-complete', onComplete);
@@ -315,6 +328,7 @@ export const useAIStore = create<AIState>()(
             documentId,
             message,
             silent: true,
+            clientRequestId,
             context,
           } as AIChatRequest);
         }),

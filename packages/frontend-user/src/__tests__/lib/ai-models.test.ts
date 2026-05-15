@@ -45,9 +45,9 @@ describe('MODEL_WHITELIST', () => {
     expect(togetherModels).toEqual([
       'Qwen/Qwen3.5-397B-A17B',
       'moonshotai/Kimi-K2.6',
-      'deepseek-ai/DeepSeek-V4-Pro',
       'zai-org/GLM-5',
     ]);
+    expect(togetherModels).not.toContain('deepseek-ai/DeepSeek-V4-Pro');
     expect(togetherModels).not.toContain('moonshotai/Kimi-K2.5');
     expect(togetherModels).not.toContain('zai-org/GLM-5.1');
     expect(togetherModels).not.toContain('Qwen/Qwen3.5-9B');

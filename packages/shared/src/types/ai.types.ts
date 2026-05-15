@@ -156,6 +156,10 @@ export interface AIChatRequest {
   // sentinel channel. Used by selection-menu quick actions where the user
   // wants a one-shot rewrite, not a chat turn.
   silent?: boolean;
+  // Client-generated id for matching one-shot silent streams. Multiple quick
+  // actions can overlap when a user retries/cancels quickly, so the shared
+  // `sessionId: 'silent'` sentinel is not specific enough by itself.
+  clientRequestId?: string;
   context?: {
     fullContent?: string;
     selection?: {
@@ -261,11 +265,11 @@ export interface AIClientToServerEvents {
  * WebSocket AI Events - Server to Client
  */
 export interface AIServerToClientEvents {
-  'ai:response-start': (data: { sessionId: string; messageId: string }) => void;
-  'ai:response-chunk': (data: { sessionId: string; messageId: string; chunk: string }) => void;
-  'ai:response-complete': (data: AIChatResponse) => void;
+  'ai:response-start': (data: { sessionId: string; messageId: string; clientRequestId?: string }) => void;
+  'ai:response-chunk': (data: { sessionId: string; messageId: string; clientRequestId?: string; chunk: string }) => void;
+  'ai:response-complete': (data: AIChatResponse & { clientRequestId?: string }) => void;
   'ai:suggestion': (data: { sessionId: string; suggestions: AISuggestion[] }) => void;
-  'ai:error': (data: { sessionId: string; message: string; code?: string }) => void;
+  'ai:error': (data: { sessionId: string; clientRequestId?: string; message: string; code?: string }) => void;
   // Agentic tool-call lifecycle events. Emitted by the AgentRunner so the
   // chat panel can render a Cursor-style tool-call timeline alongside the
   // streaming assistant text.

@@ -42,7 +42,6 @@ const THINK_OPEN_TAG = '<think>';
 const THINK_CLOSE_TAG = '</think>';
 const IMPLICIT_THINKING_MAX_CHARS = 4096;
 const IMPLICIT_THINKING_MAX_CHUNKS = 24;
-const AGENT_MAX_TOOL_CALLS = 20;
 
 export interface ThinkingSplit {
   visible: string;
@@ -205,10 +204,24 @@ Use only the conversation and tool results already available above. Produce the 
 Never return an empty answer.`;
 }
 
+function appendToolBudgetNotice(output: string, remainingToolCalls: number, maxToolCalls: number): string {
+  return [
+    output,
+    '',
+    `[Tool budget: ${remainingToolCalls} of ${maxToolCalls} tool calls remaining. If you have enough evidence to answer the user's question, stop calling tools and produce the final answer.]`,
+  ].join('\n');
+}
+
+function normalizeAgentMaxToolCalls(value: number | undefined): number {
+  if (!Number.isFinite(value) || !value) return 20;
+  return Math.max(1, Math.min(Math.floor(value), 100));
+}
+
 interface AgentChatOptions {
   userId: string;
   documentId: string;
   maxTokens?: number;
+  disableThinking?: boolean;
   onAgentEvent?: AgentEventSink;
 }
 
@@ -232,6 +245,15 @@ interface AIProvider {
     content: string;
     tokensUsed?: { input: number; output: number };
   }>;
+
+  directStreamChat(
+    messages: { role: string; content: string }[],
+    onChunk: (chunk: string) => void,
+    options: AgentChatOptions
+  ): Promise<{
+    content: string;
+    tokensUsed?: { input: number; output: number };
+  }>;
 }
 
 /**
@@ -245,12 +267,14 @@ class OpenAIProvider implements AIProvider {
   private apiKey: string;
   private model: string;
   private baseUrl: string;
+  private maxToolCalls: number;
   private client: OpenAI;
 
-  constructor(config?: { apiKey: string; model: string; baseUrl: string }) {
+  constructor(config?: { apiKey: string; model: string; baseUrl: string; maxToolCalls?: number }) {
     this.apiKey = config?.apiKey || env.aiApiKey || '';
     this.model = config?.model || env.aiModel || 'Qwen/Qwen3.5-397B-A17B';
     this.baseUrl = config?.baseUrl || env.aiBaseUrl || 'https://api.together.xyz/v1';
+    this.maxToolCalls = normalizeAgentMaxToolCalls(config?.maxToolCalls ?? env.aiAgentMaxToolCalls);
     this.client = new OpenAI({
       apiKey: this.apiKey || 'missing-api-key',
       baseURL: this.baseUrl,
@@ -277,7 +301,7 @@ class OpenAIProvider implements AIProvider {
     let response: any;
     let toolCallsUsed = 0;
     let turnIndex = 0;
-    while (toolCallsUsed < AGENT_MAX_TOOL_CALLS) {
+    while (toolCallsUsed < this.maxToolCalls) {
       emitAgentEvent(options.onAgentEvent, { type: 'turn-start', turnIndex });
       try {
         response = await this.client.responses.create({
@@ -311,19 +335,19 @@ class OpenAIProvider implements AIProvider {
         };
       }
 
-      if (toolCallsUsed + toolCalls.length > AGENT_MAX_TOOL_CALLS) {
+      if (toolCallsUsed + toolCalls.length > this.maxToolCalls) {
         logger.warn('AI Responses agent requested more tools than the remaining tool budget', {
           userId: options.userId,
           documentId: options.documentId,
           iteration: turnIndex + 1,
           requestedTools: toolCalls.length,
           toolCallsUsed,
-          maxToolCalls: AGENT_MAX_TOOL_CALLS,
+          maxToolCalls: this.maxToolCalls,
         });
         emitAgentEvent(options.onAgentEvent, { type: 'turn-end', turnIndex });
         return this.finalizeResponsesCompletion(
           input,
-          `the maximum of ${AGENT_MAX_TOOL_CALLS} tool calls would be exceeded`,
+          `the maximum of ${this.maxToolCalls} tool calls would be exceeded`,
           options,
           response
         );
@@ -383,12 +407,12 @@ class OpenAIProvider implements AIProvider {
           durationMs: Date.now() - toolStartedAt,
         });
 
+        toolCallsUsed += 1;
         input.push({
           type: 'function_call_output',
           call_id: toolCall.call_id,
-          output,
+          output: appendToolBudgetNotice(output, this.maxToolCalls - toolCallsUsed, this.maxToolCalls),
         });
-        toolCallsUsed += 1;
       }
       emitAgentEvent(options.onAgentEvent, { type: 'turn-end', turnIndex });
       turnIndex += 1;
@@ -396,7 +420,7 @@ class OpenAIProvider implements AIProvider {
 
     return this.finalizeResponsesCompletion(
       input,
-      `the maximum of ${AGENT_MAX_TOOL_CALLS} tool calls was reached`,
+      `the maximum of ${this.maxToolCalls} tool calls was reached`,
       options,
       response
     );
@@ -422,6 +446,19 @@ class OpenAIProvider implements AIProvider {
       onChunk(response.content);
     }
     return response;
+  }
+
+  async directStreamChat(
+    messages: { role: string; content: string }[],
+    onChunk: (chunk: string) => void,
+    options: AgentChatOptions
+  ): Promise<{ content: string; tokensUsed?: { input: number; output: number } }> {
+    if (!this.apiKey) {
+      throw new AppError(500, 'AI service not configured');
+    }
+
+    const content = await this.streamFinalChatCompletion(messages, onChunk, options);
+    return { content };
   }
 
   private buildChatCompletionMessages(
@@ -516,7 +553,7 @@ class OpenAIProvider implements AIProvider {
     let toolCallsUsed = 0;
     let turnIndex = 0;
 
-    while (toolCallsUsed < AGENT_MAX_TOOL_CALLS) {
+    while (toolCallsUsed < this.maxToolCalls) {
       emitAgentEvent(options.onAgentEvent, { type: 'turn-start', turnIndex });
       let completion: any;
       try {
@@ -584,7 +621,7 @@ class OpenAIProvider implements AIProvider {
         };
       }
 
-      if (toolCallsUsed + toolCalls.length > AGENT_MAX_TOOL_CALLS) {
+      if (toolCallsUsed + toolCalls.length > this.maxToolCalls) {
         logger.warn('AI agent requested more tools than the remaining tool budget', {
           userId: options.userId,
           documentId: options.documentId,
@@ -592,12 +629,12 @@ class OpenAIProvider implements AIProvider {
           transport: 'chat_completions',
           requestedTools: toolCalls.length,
           toolCallsUsed,
-          maxToolCalls: AGENT_MAX_TOOL_CALLS,
+          maxToolCalls: this.maxToolCalls,
         });
         emitAgentEvent(options.onAgentEvent, { type: 'turn-end', turnIndex });
         return this.finalizeChatCompletion(
           chatMessages,
-          `the maximum of ${AGENT_MAX_TOOL_CALLS} tool calls would be exceeded`,
+          `the maximum of ${this.maxToolCalls} tool calls would be exceeded`,
           options,
           lastUsage
         );
@@ -669,12 +706,12 @@ class OpenAIProvider implements AIProvider {
           durationMs: Date.now() - toolStartedAt,
         });
 
+        toolCallsUsed += 1;
         chatMessages.push({
           role: 'tool',
           tool_call_id: toolCall.id,
-          content: output,
+          content: appendToolBudgetNotice(output, this.maxToolCalls - toolCallsUsed, this.maxToolCalls),
         });
-        toolCallsUsed += 1;
       }
       emitAgentEvent(options.onAgentEvent, { type: 'turn-end', turnIndex });
       turnIndex += 1;
@@ -682,7 +719,7 @@ class OpenAIProvider implements AIProvider {
 
     return this.finalizeChatCompletion(
       chatMessages,
-      `the maximum of ${AGENT_MAX_TOOL_CALLS} tool calls was reached`,
+      `the maximum of ${this.maxToolCalls} tool calls was reached`,
       options,
       lastUsage
     );
@@ -700,7 +737,7 @@ class OpenAIProvider implements AIProvider {
     let toolCallsUsed = 0;
     let turnIndex = 0;
 
-    while (toolCallsUsed < AGENT_MAX_TOOL_CALLS) {
+    while (toolCallsUsed < this.maxToolCalls) {
       emitAgentEvent(options.onAgentEvent, { type: 'turn-start', turnIndex });
       let completion: any;
       try {
@@ -769,7 +806,7 @@ class OpenAIProvider implements AIProvider {
         };
       }
 
-      if (toolCallsUsed + toolCalls.length > AGENT_MAX_TOOL_CALLS) {
+      if (toolCallsUsed + toolCalls.length > this.maxToolCalls) {
         logger.warn('AI streaming agent requested more tools than the remaining tool budget', {
           userId: options.userId,
           documentId: options.documentId,
@@ -777,7 +814,7 @@ class OpenAIProvider implements AIProvider {
           transport: 'chat_completions',
           requestedTools: toolCalls.length,
           toolCallsUsed,
-          maxToolCalls: AGENT_MAX_TOOL_CALLS,
+          maxToolCalls: this.maxToolCalls,
         });
         const finalContent = await this.streamFinalChatCompletion(
           [
@@ -785,7 +822,7 @@ class OpenAIProvider implements AIProvider {
             {
               role: 'user',
               content: buildFinalAnswerSynthesisPrompt(
-                `the maximum of ${AGENT_MAX_TOOL_CALLS} tool calls would be exceeded`
+                `the maximum of ${this.maxToolCalls} tool calls would be exceeded`
               ),
             },
           ],
@@ -865,12 +902,12 @@ class OpenAIProvider implements AIProvider {
           durationMs: Date.now() - toolStartedAt,
         });
 
+        toolCallsUsed += 1;
         chatMessages.push({
           role: 'tool',
           tool_call_id: toolCall.id,
-          content: output,
+          content: appendToolBudgetNotice(output, this.maxToolCalls - toolCallsUsed, this.maxToolCalls),
         });
-        toolCallsUsed += 1;
       }
       emitAgentEvent(options.onAgentEvent, { type: 'turn-end', turnIndex });
       turnIndex += 1;
@@ -881,7 +918,7 @@ class OpenAIProvider implements AIProvider {
         ...chatMessages,
         {
           role: 'user',
-          content: buildFinalAnswerSynthesisPrompt(`the maximum of ${AGENT_MAX_TOOL_CALLS} tool calls was reached`),
+          content: buildFinalAnswerSynthesisPrompt(`the maximum of ${this.maxToolCalls} tool calls was reached`),
         },
       ],
       onChunk,
@@ -905,6 +942,9 @@ class OpenAIProvider implements AIProvider {
         messages: chatMessages,
         stream: true,
         max_tokens: options.maxTokens || 2048,
+        ...(options.disableThinking && this.supportsChatTemplateThinkingToggle()
+          ? { chat_template_kwargs: { enable_thinking: false } }
+          : {}),
       } as any);
     } catch (error) {
       this.handleSDKError(error);
@@ -942,6 +982,10 @@ class OpenAIProvider implements AIProvider {
     }
 
     return fullContent;
+  }
+
+  private supportsChatTemplateThinkingToggle(): boolean {
+    return this.baseUrl.includes('api.together.xyz') && this.model.startsWith('Qwen/');
   }
 
   private async finalizeChatCompletion(
@@ -1057,6 +1101,14 @@ class MockAIProvider implements AIProvider {
       content: fullContent,
       tokensUsed: { input: 100, output: words.length },
     };
+  }
+
+  async directStreamChat(
+    messages: { role: string; content: string }[],
+    onChunk: (chunk: string) => void,
+    options: AgentChatOptions
+  ): Promise<{ content: string; tokensUsed?: { input: number; output: number } }> {
+    return this.agentStreamChat(messages, onChunk, options);
   }
 
   private generateMockResponse(query: string): string {
@@ -1372,9 +1424,11 @@ export class AIService {
         { role: 'user', content: request.message },
       ];
 
-      const response = await provider.agentStreamChat(messages, onChunk, {
+      const response = await provider.directStreamChat(messages, onChunk, {
         userId,
         documentId: request.documentId,
+        maxTokens: Math.min(env.aiMaxTokens, 768),
+        disableThinking: true,
       });
 
       logger.info('AI silent stream chat completed', {
