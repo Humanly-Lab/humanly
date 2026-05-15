@@ -29,10 +29,10 @@ export default function HomePage() {
               Admin Login
             </Link>
             <Link
-              href="/tasks"
+              href="/tasks/new"
               className="rounded-md bg-secondary px-6 py-3 text-secondary-foreground transition-colors hover:bg-secondary/90"
             >
-              Open Dashboard
+              Create Task
             </Link>
           </div>
         </div>

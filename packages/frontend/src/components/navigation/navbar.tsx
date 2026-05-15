@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { FolderKanban, BarChart3, LogOut, User, Menu } from 'lucide-react';
+import { FolderKanban, LogOut, User, Menu } from 'lucide-react';
 import { BRAND } from '@humanly/shared';
 import { Button } from '@/components/ui/button';
 import {
@@ -39,11 +39,6 @@ export function Navbar() {
       name: 'Tasks',
       href: '/tasks',
       icon: FolderKanban,
-    },
-    {
-      name: 'Dashboard',
-      href: '/dashboard',
-      icon: BarChart3,
     },
   ];
 
