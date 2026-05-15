@@ -10,12 +10,15 @@ import { SessionModel } from '../models/session.model';
 import { SubmissionModel } from '../models/submission.model';
 import { CertificateModel } from '../models/certificate.model';
 import { DocumentEventModel } from '../models/document-event.model';
+import { FileModel } from '../models/file.model';
 import { CertificateService } from './certificate.service';
-import { Task, TaskWithSnippets, BRAND, getTrackerComment, getIframeComment } from '@humanly/shared';
+import type { AppFile, Task, TaskWithSnippets } from '@humanly/shared';
+import { BRAND, getTrackerComment, getIframeComment } from '@humanly/shared';
 import { AppError } from '../middleware/error-handler';
 import { logger } from '../utils/logger';
 import { env } from '../config/env';
 import { cacheDelPattern } from '../config/redis';
+import { FileStorageService } from './file-storage.service';
 
 export class TaskService {
   private static async invalidateAnalytics(taskId: string): Promise<void> {
@@ -448,10 +451,39 @@ export class TaskService {
 
     logger.info('Deleting task', { taskId, userId });
 
+    const files = await FileModel.findByTask(taskId);
+
     await this.invalidateAnalytics(taskId);
     await TaskModel.delete(taskId);
+    await this.deleteTaskFileStorage(taskId, userId, files);
 
     logger.info('Task deleted successfully', { taskId, userId });
+  }
+
+  private static async deleteTaskFileStorage(
+    taskId: string,
+    userId: string,
+    files: AppFile[]
+  ): Promise<void> {
+    await Promise.all(
+      files
+        .filter((file) => !file.legacySourceId)
+        .map(async (file) => {
+          try {
+            await FileStorageService.delete(file);
+          } catch (error) {
+            logger.error('Failed to delete task file storage object', {
+              error,
+              taskId,
+              userId,
+              fileId: file.id,
+              storageProvider: file.storageProvider,
+              storageBucket: file.storageBucket,
+              storageKey: file.storageKey,
+            });
+          }
+        })
+    );
   }
 
   /**
