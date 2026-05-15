@@ -127,4 +127,12 @@ describe('file routes integration', () => {
     expect(response.headers['content-disposition']).toBe('inline');
     expect(MockFileService.streamFile).toHaveBeenCalledWith('file-1', 'user-1');
   });
+
+  it('requires authentication before streaming file content', async () => {
+    const response = await request(app)
+      .get('/api/v1/files/file-1/content');
+
+    expect(response.status).toBe(401);
+    expect(MockFileService.streamFile).not.toHaveBeenCalled();
+  });
 });
