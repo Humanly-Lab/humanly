@@ -59,16 +59,11 @@ describe('vision capability matrix (locked per provider docs)', () => {
     textOnly('api.deepseek.com', 'deepseek-coder');
   });
 
-  it('OpenRouter: vision flags follow upstream provider model cards', () => {
-    vision('openrouter.ai', 'openai/gpt-4o');
-    vision('openrouter.ai', 'openai/gpt-5.5');
-    vision('openrouter.ai', 'anthropic/claude-3.7-sonnet');
-    vision('openrouter.ai', 'anthropic/claude-opus-4.7');
-    vision('openrouter.ai', 'google/gemini-2.5-pro');
-    vision('openrouter.ai', 'google/gemini-2.5-flash');
-    textOnly('openrouter.ai', 'meta-llama/llama-3.3-70b-instruct');
-    textOnly('openrouter.ai', 'deepseek/deepseek-chat');
-    textOnly('openrouter.ai', 'mistralai/mistral-large');
+  it('OpenRouter: uses the deployed stable text-only model set', () => {
+    textOnly('openrouter.ai', 'qwen/qwen3.5-397b-a17b');
+    textOnly('openrouter.ai', 'moonshotai/kimi-k2.6');
+    textOnly('openrouter.ai', 'deepseek/deepseek-v4-pro');
+    textOnly('openrouter.ai', 'z-ai/glm-5');
   });
 
   it('Together: flags vision per each endpoint\'s "Input modalities" line', () => {

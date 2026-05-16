@@ -4,11 +4,9 @@ const TEXT_ONLY: ModelCapabilities = { inputs: ['text'] };
 const TEXT_AND_IMAGE: ModelCapabilities = { inputs: ['text', 'image'] };
 
 /**
- * Admin-side curated whitelist. Shape mirrors `frontend-user/lib/ai-models.ts`
- * so the same capability-aware helpers can drive both pickers. The model
- * lists diverge intentionally because the two surfaces target different
- * audiences; capability flags are sourced from each provider's published
- * model page.
+ * Admin-side curated whitelist. Keep this in lockstep with
+ * `frontend-user/lib/ai-models.ts` and the backend capability matrix so
+ * task owners see the same stable model set that writers can actually use.
  */
 export const MODEL_WHITELIST: Record<string, AIModelDescriptor[]> = {
   'api.openai.com': [
@@ -36,20 +34,16 @@ export const MODEL_WHITELIST: Record<string, AIModelDescriptor[]> = {
     { id: 'gemini-1.5-flash', capabilities: TEXT_AND_IMAGE },
   ],
   'openrouter.ai': [
-    { id: 'openai/gpt-4o', capabilities: TEXT_AND_IMAGE },
-    { id: 'anthropic/claude-3.7-sonnet', capabilities: TEXT_AND_IMAGE },
-    { id: 'google/gemini-2.5-pro', capabilities: TEXT_AND_IMAGE },
-    { id: 'meta-llama/llama-3.3-70b-instruct', capabilities: TEXT_ONLY },
-    { id: 'deepseek/deepseek-chat', capabilities: TEXT_ONLY },
-    { id: 'mistralai/mistral-large', capabilities: TEXT_ONLY },
+    { id: 'qwen/qwen3.5-397b-a17b', capabilities: TEXT_ONLY },
+    { id: 'moonshotai/kimi-k2.6', capabilities: TEXT_ONLY },
+    { id: 'deepseek/deepseek-v4-pro', capabilities: TEXT_ONLY },
+    { id: 'z-ai/glm-5', capabilities: TEXT_ONLY },
   ],
   'api.together.xyz': [
-    { id: 'Qwen/Qwen3.5-9B', capabilities: TEXT_AND_IMAGE },
-    { id: 'moonshotai/Kimi-K2.5', capabilities: TEXT_AND_IMAGE },
+    { id: 'Qwen/Qwen3.5-397B-A17B', capabilities: TEXT_AND_IMAGE },
+    { id: 'moonshotai/Kimi-K2.6', capabilities: TEXT_AND_IMAGE },
     { id: 'deepseek-ai/DeepSeek-V4-Pro', capabilities: TEXT_ONLY },
-    { id: 'deepseek-ai/DeepSeek-V3', capabilities: TEXT_ONLY },
-    { id: 'meta-llama/Llama-3.3-70B-Instruct-Turbo', capabilities: TEXT_ONLY },
-    { id: 'Qwen/Qwen2.5-7B-Instruct-Turbo', capabilities: TEXT_ONLY },
+    { id: 'zai-org/GLM-5', capabilities: TEXT_ONLY },
   ],
 };
 

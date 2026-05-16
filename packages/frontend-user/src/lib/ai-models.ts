@@ -41,15 +41,13 @@ export const MODEL_WHITELIST: Record<string, AIModelDescriptor[]> = {
     { id: 'gemini-1.5-flash', capabilities: TEXT_AND_IMAGE },
   ],
   'openrouter.ai': [
-    { id: 'openai/gpt-4o', capabilities: TEXT_AND_IMAGE },
-    { id: 'openai/gpt-5.5', capabilities: TEXT_AND_IMAGE },
-    { id: 'anthropic/claude-3.7-sonnet', capabilities: TEXT_AND_IMAGE },
-    { id: 'anthropic/claude-opus-4.7', capabilities: TEXT_AND_IMAGE },
-    { id: 'google/gemini-2.5-pro', capabilities: TEXT_AND_IMAGE },
-    { id: 'google/gemini-2.5-flash', capabilities: TEXT_AND_IMAGE },
-    { id: 'meta-llama/llama-3.3-70b-instruct', capabilities: TEXT_ONLY },
-    { id: 'deepseek/deepseek-chat', capabilities: TEXT_ONLY },
-    { id: 'mistralai/mistral-large', capabilities: TEXT_ONLY },
+    // OpenRouter exposes provider-native ids. Keep this list small and
+    // aligned with the deployed QA matrix instead of surfacing a generic
+    // model catalog.
+    { id: 'qwen/qwen3.5-397b-a17b', capabilities: TEXT_ONLY },
+    { id: 'moonshotai/kimi-k2.6', capabilities: TEXT_ONLY },
+    { id: 'deepseek/deepseek-v4-pro', capabilities: TEXT_ONLY },
+    { id: 'z-ai/glm-5', capabilities: TEXT_ONLY },
   ],
   'api.together.xyz': [
     // Capability flags follow each endpoint's "Input modalities" line on

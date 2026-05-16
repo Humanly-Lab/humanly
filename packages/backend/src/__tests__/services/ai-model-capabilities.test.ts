@@ -32,11 +32,11 @@ describe('backend ai-model-capabilities', () => {
     textOnly('api.together.xyz', 'zai-org/GLM-5');
   });
 
-  it('mirrors the frontend OpenRouter vision flags', () => {
-    vision('openrouter.ai', 'openai/gpt-5.5');
-    vision('openrouter.ai', 'anthropic/claude-opus-4.7');
-    textOnly('openrouter.ai', 'meta-llama/llama-3.3-70b-instruct');
-    textOnly('openrouter.ai', 'mistralai/mistral-large');
+  it('mirrors the frontend OpenRouter stable text-only model set', () => {
+    textOnly('openrouter.ai', 'qwen/qwen3.5-397b-a17b');
+    textOnly('openrouter.ai', 'moonshotai/kimi-k2.6');
+    textOnly('openrouter.ai', 'deepseek/deepseek-v4-pro');
+    textOnly('openrouter.ai', 'z-ai/glm-5');
   });
 
   it('flags DeepSeek direct as text-only', () => {
