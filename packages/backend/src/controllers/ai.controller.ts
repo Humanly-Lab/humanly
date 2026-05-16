@@ -63,6 +63,7 @@ export async function uploadChatImageAttachment(
     mimeType: file.mimetype,
     filename: file.originalname,
     sizeBytes: file.size,
+    imageBytes: file.buffer,
   });
   res.status(201).json({
     success: true,

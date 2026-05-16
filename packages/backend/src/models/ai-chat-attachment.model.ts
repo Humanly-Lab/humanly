@@ -13,6 +13,7 @@ export interface AIChatAttachmentRow {
   mime_type: string;
   filename: string | null;
   size_bytes: number | null;
+  image_bytes: Buffer | null;
   created_at: Date;
 }
 
@@ -31,6 +32,7 @@ export class AIChatAttachmentModel {
     mimeType: string;
     filename?: string;
     sizeBytes?: number;
+    imageBytes?: Buffer;
   }): Promise<void> {
     await query(
       `
@@ -41,9 +43,10 @@ export class AIChatAttachmentModel {
         user_id,
         mime_type,
         filename,
-        size_bytes
+        size_bytes,
+        image_bytes
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       ON CONFLICT (storage_key) DO NOTHING
       `,
       [
@@ -54,6 +57,7 @@ export class AIChatAttachmentModel {
         args.mimeType,
         args.filename ?? null,
         args.sizeBytes ?? null,
+        args.imageBytes ?? null,
       ],
     );
   }
@@ -88,6 +92,7 @@ export class AIChatAttachmentModel {
         mime_type,
         filename,
         size_bytes,
+        image_bytes,
         created_at
       FROM ai_chat_attachments
       WHERE storage_key = $1
