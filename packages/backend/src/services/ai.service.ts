@@ -1909,11 +1909,24 @@ export class AIService {
             );
           }
           try {
-            const buffer = await FileStorageService.getBuffer({
-              storageProvider: attachment.storage_provider,
-              storageBucket: attachment.storage_bucket,
-              storageKey: attachment.storage_key,
-            });
+            let buffer: Buffer;
+            try {
+              buffer = await FileStorageService.getBuffer({
+                storageProvider: attachment.storage_provider,
+                storageBucket: attachment.storage_bucket,
+                storageKey: attachment.storage_key,
+              });
+            } catch (error) {
+              if (
+                error instanceof AppError &&
+                error.statusCode === 404 &&
+                attachment.image_bytes
+              ) {
+                buffer = attachment.image_bytes;
+              } else {
+                throw error;
+              }
+            }
             const base64 = buffer.toString('base64');
             const mimeType = attachment.mime_type || requestedMimeType;
             (part as any).image_url.url = `data:${mimeType};base64,${base64}`;

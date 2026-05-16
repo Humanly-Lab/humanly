@@ -24,6 +24,7 @@ describe('AIChatAttachmentModel', () => {
       mimeType: 'image/png',
       filename: 'upload.png',
       sizeBytes: 1234,
+      imageBytes: Buffer.from('image-bytes'),
     });
 
     expect(mockQuery).toHaveBeenCalledWith(
@@ -36,6 +37,7 @@ describe('AIChatAttachmentModel', () => {
         'image/png',
         'upload.png',
         1234,
+        Buffer.from('image-bytes'),
       ],
     );
   });
@@ -49,6 +51,7 @@ describe('AIChatAttachmentModel', () => {
       mime_type: 'image/png',
       filename: 'upload.png',
       size_bytes: 1234,
+      image_bytes: Buffer.from('image-bytes'),
       created_at: new Date(),
     });
 
@@ -58,6 +61,7 @@ describe('AIChatAttachmentModel', () => {
       storage_key: 'legacy/key',
       storage_provider: 'local',
       user_id: 'user-1',
+      image_bytes: Buffer.from('image-bytes'),
     });
     expect(mockQueryOne).toHaveBeenCalledWith(
       expect.stringContaining('COALESCE(storage_provider'),

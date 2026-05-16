@@ -23,6 +23,7 @@ jest.mock('../../models/ai-chat-attachment.model', () => ({
       mime_type: 'image/png',
       filename: 'upload.png',
       size_bytes: 16,
+      image_bytes: Buffer.from('fallback-image-bytes'),
       created_at: new Date(),
     })),
   },
@@ -64,6 +65,7 @@ import { AIModel } from '../../models/ai.model';
 import { DocumentModel } from '../../models/document.model';
 import { TaskModel } from '../../models/task.model';
 import { UserAISettingsModel } from '../../models/user-ai-settings.model';
+import { AppError } from '../../middleware/error-handler';
 
 const MockAIModel = AIModel as jest.Mocked<typeof AIModel>;
 const MockDocumentModel = DocumentModel as jest.Mocked<typeof DocumentModel>;
@@ -885,6 +887,7 @@ describe('AIService.chat', () => {
         mime_type: 'image/png',
         filename: 'upload.png',
         size_bytes: 16,
+        image_bytes: Buffer.from('fallback-image-bytes'),
         created_at: new Date(),
       });
       MockUserAISettings.getByUserId.mockResolvedValue(
@@ -906,6 +909,41 @@ describe('AIService.chat', () => {
         storageBucket: 'prod-bucket',
         storageKey: 'gcs/key.png',
       });
+    });
+
+    it('falls back to DB image bytes when storage lookup misses', async () => {
+      const { AIChatAttachmentModel } = jest.requireMock('../../models/ai-chat-attachment.model');
+      const { FileStorageService } = jest.requireMock('../../services/file-storage.service');
+      AIChatAttachmentModel.findOwnedByStorageKey.mockResolvedValueOnce({
+        storage_key: 'missing/key.png',
+        storage_provider: 'local',
+        storage_bucket: null,
+        user_id: 'user-1',
+        mime_type: 'image/png',
+        filename: 'upload.png',
+        size_bytes: 20,
+        image_bytes: Buffer.from('db-fallback-image'),
+        created_at: new Date(),
+      });
+      FileStorageService.getBuffer.mockRejectedValueOnce(new AppError(404, 'File not found'));
+      MockUserAISettings.getByUserId.mockResolvedValue(
+        makeSettings({ model: 'gpt-4o', baseUrl: 'https://api.openai.com/v1' }),
+      );
+      MockAIModel.getOrCreateSession.mockResolvedValue(makeSession());
+      const requestWithImage = {
+        ...request,
+        attachments: [
+          { type: 'image', storageKey: 'missing/key.png', mimeType: 'image/png' },
+        ],
+      };
+
+      await expect(
+        AIService.chat('user-1', requestWithImage as any),
+      ).resolves.toMatchObject({ sessionId: 'session-1' });
+      const lastFetchCall = mockFetch.mock.calls[mockFetch.mock.calls.length - 1];
+      expect(lastFetchCall[1].body).toContain(
+        `data:image/png;base64,${Buffer.from('db-fallback-image').toString('base64')}`,
+      );
     });
   });
 });
