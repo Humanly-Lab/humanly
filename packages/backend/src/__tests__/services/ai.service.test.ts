@@ -944,6 +944,68 @@ describe('AIService.chat', () => {
         `data:image/png;base64,${Buffer.from('db-fallback-image').toString('base64')}`,
       );
     });
+
+    it('downgrades missing historical image attachments without blocking the current image', async () => {
+      const { AIChatAttachmentModel } = jest.requireMock('../../models/ai-chat-attachment.model');
+      const { FileStorageService } = jest.requireMock('../../services/file-storage.service');
+      AIChatAttachmentModel.findOwnedByStorageKey
+        .mockResolvedValueOnce({
+          storage_key: 'old/missing.png',
+          storage_provider: 'local',
+          storage_bucket: null,
+          user_id: 'user-1',
+          mime_type: 'image/png',
+          filename: 'old.png',
+          size_bytes: 10,
+          image_bytes: null,
+          created_at: new Date(),
+        })
+        .mockResolvedValueOnce({
+          storage_key: 'new/current.png',
+          storage_provider: 'local',
+          storage_bucket: null,
+          user_id: 'user-1',
+          mime_type: 'image/png',
+          filename: 'current.png',
+          size_bytes: 20,
+          image_bytes: Buffer.from('current-image'),
+          created_at: new Date(),
+        });
+      FileStorageService.getBuffer
+        .mockRejectedValueOnce({ statusCode: 404, message: 'File not found' })
+        .mockResolvedValueOnce(Buffer.from('current-image'));
+      MockUserAISettings.getByUserId.mockResolvedValue(
+        makeSettings({ model: 'gpt-4o', baseUrl: 'https://api.openai.com/v1' }),
+      );
+      MockAIModel.getOrCreateSession.mockResolvedValue(makeSession({
+        messages: [
+          makeMessage({
+            role: 'user',
+            content: 'Earlier image',
+            metadata: {
+              attachments: [
+                { type: 'image', storageKey: 'old/missing.png', mimeType: 'image/png', filename: 'old.png' },
+              ],
+            },
+          }),
+        ],
+      } as any));
+      const requestWithImage = {
+        ...request,
+        attachments: [
+          { type: 'image', storageKey: 'new/current.png', mimeType: 'image/png', filename: 'current.png' },
+        ],
+      };
+
+      await expect(
+        AIService.chat('user-1', requestWithImage as any),
+      ).resolves.toMatchObject({ sessionId: 'session-1' });
+      const lastFetchCall = mockFetch.mock.calls[mockFetch.mock.calls.length - 1];
+      expect(lastFetchCall[1].body).toContain('[Prior image attachment unavailable: old.png]');
+      expect(lastFetchCall[1].body).toContain(
+        `data:image/png;base64,${Buffer.from('current-image').toString('base64')}`,
+      );
+    });
   });
 });
 

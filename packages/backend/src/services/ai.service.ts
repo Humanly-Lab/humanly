@@ -1871,7 +1871,7 @@ export class AIService {
         (a as { type?: string }).type === 'image',
     );
     if (msg.role === 'user' && imageAttachments.length > 0) {
-      return this.buildUserContent(msg.content, imageAttachments);
+      return this.buildUserContent(msg.content, imageAttachments, { historical: true });
     }
     return msg.content;
   }
@@ -1937,7 +1937,24 @@ export class AIService {
             // Strip our internal placeholder fields before dispatch.
             delete (part as any).image_url.mimeType;
             delete (part as any).image_url.filename;
+            delete (part as any).image_url.historical;
           } catch (error) {
+            const storageError = error as { statusCode?: unknown; status?: unknown; message?: unknown };
+            const storageStatus = Number(storageError.statusCode ?? storageError.status);
+            const storageMessage = typeof storageError.message === 'string'
+              ? storageError.message
+              : '';
+            const historical = (part as any).image_url.historical === true;
+            if (
+              historical &&
+              (storageStatus === 404 || storageMessage === 'File not found')
+            ) {
+              const filename = (part as any).image_url.filename || 'image';
+              delete (part as any).image_url;
+              (part as any).type = 'text';
+              (part as any).text = `[Prior image attachment unavailable: ${filename}]`;
+              continue;
+            }
             if (error instanceof AppError) throw error;
             throw new AppError(
               502,
@@ -1960,6 +1977,7 @@ export class AIService {
   private static buildUserContent(
     message: string,
     attachments?: ChatAttachment[],
+    options?: { historical?: boolean },
   ): string | Array<Record<string, unknown>> {
     if (!attachments || attachments.length === 0) {
       return message;
@@ -1981,6 +1999,7 @@ export class AIService {
             url: `humanly-storage:${attachment.storageKey}`,
             mimeType: attachment.mimeType,
             filename: attachment.filename ?? null,
+            historical: options?.historical === true,
           },
         });
       }
