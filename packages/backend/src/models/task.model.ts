@@ -81,6 +81,9 @@ export class TaskModel {
     p.environment_config as "environmentConfig",
     p.is_active as "isActive",
     COALESCE(pe.enrolled_user_count, 0)::int as "enrolledUserCount",
+    COALESCE(ps.document_count, 0)::int as "documentCount",
+    COALESCE(ps.event_count, 0)::int as "eventCount",
+    COALESCE(ps.submission_count, 0)::int as "submissionCount",
     p.created_at as "createdAt", p.updated_at as "updatedAt"
   `;
 
@@ -90,6 +93,28 @@ export class TaskModel {
       FROM task_enrollments
       GROUP BY task_id
     ) pe ON pe.task_id = p.id
+  `;
+
+  private static readonly taskStatsJoin = `
+    LEFT JOIN (
+      SELECT
+        te.task_id,
+        (COUNT(DISTINCT te.submission_document_id)
+          FILTER (WHERE te.submission_document_id IS NOT NULL))::int as document_count,
+        COUNT(DISTINCT sub.id)::int as submission_count,
+        (COUNT(DISTINCT e.id) + COUNT(DISTINCT de.id))::int as event_count
+      FROM task_enrollments te
+      LEFT JOIN users u ON u.id = te.user_id
+      LEFT JOIN sessions s
+        ON s.task_id = te.task_id
+       AND s.external_user_id = u.email
+      LEFT JOIN events e ON e.session_id = s.id
+      LEFT JOIN document_events de ON de.document_id = te.submission_document_id
+      LEFT JOIN submissions sub
+        ON sub.task_id = te.task_id
+       AND sub.user_id = te.user_id
+      GROUP BY te.task_id
+    ) ps ON ps.task_id = p.id
   `;
 
   /**
@@ -113,7 +138,11 @@ export class TaskModel {
                 start_date as "startDate", end_date as "endDate",
                 environment_config as "environmentConfig",
                 is_active as "isActive",
-                0 as "enrolledUserCount", created_at as "createdAt", updated_at as "updatedAt"
+                0 as "enrolledUserCount",
+                0 as "documentCount",
+                0 as "eventCount",
+                0 as "submissionCount",
+                created_at as "createdAt", updated_at as "updatedAt"
     `;
 
     const task = await queryOne<Task>(sql, [
@@ -143,6 +172,7 @@ export class TaskModel {
       SELECT ${this.taskSelect}
       FROM tasks p
       ${this.enrollmentCountJoin}
+      ${this.taskStatsJoin}
       WHERE p.id = $1
     `;
     return queryOne<Task>(sql, [id]);
@@ -176,6 +206,7 @@ export class TaskModel {
       SELECT ${this.taskSelect}
       FROM tasks p
       ${this.enrollmentCountJoin}
+      ${this.taskStatsJoin}
       WHERE p.user_id = $1 ${tasksSearchCondition}
       ORDER BY p.created_at DESC
       LIMIT $2 OFFSET $3
@@ -208,6 +239,7 @@ export class TaskModel {
       SELECT ${this.taskSelect}
       FROM tasks p
       ${this.enrollmentCountJoin}
+      ${this.taskStatsJoin}
       WHERE p.task_token = $1 AND p.is_active = TRUE
     `;
     return queryOne<Task>(sql, [taskToken]);
@@ -222,6 +254,7 @@ export class TaskModel {
       SELECT ${this.taskSelect}
       FROM tasks p
       ${this.enrollmentCountJoin}
+      ${this.taskStatsJoin}
       WHERE UPPER(SUBSTRING(p.task_token FROM 1 FOR 6)) = $1
         AND p.is_active = TRUE
       ORDER BY p.created_at DESC
@@ -238,6 +271,7 @@ export class TaskModel {
       SELECT ${this.taskSelect}
       FROM tasks p
       ${this.enrollmentCountJoin}
+      ${this.taskStatsJoin}
       JOIN task_enrollments te
         ON te.task_id = p.id
        AND te.submission_document_id = $1

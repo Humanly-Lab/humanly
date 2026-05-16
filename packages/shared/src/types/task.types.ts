@@ -18,6 +18,9 @@ export interface Task {
   environmentConfig?: WritingEnvironmentConfig | null;
   isActive: boolean;
   enrolledUserCount?: number;
+  documentCount?: number;
+  eventCount?: number;
+  submissionCount?: number;
   createdAt: Date;
   updatedAt: Date;
 }
