@@ -1705,7 +1705,7 @@ export class AIService {
         throw new AppError(404, 'Document not found');
       }
 
-      const provider = await this.getProviderForUser(userId);
+      const { provider } = await this.getExecutionSettingsForDocument(userId, request.documentId);
 
       const messages: { role: string; content: string }[] = [
         { role: 'system', content: buildQuickActionSystemPrompt(request.context) },
