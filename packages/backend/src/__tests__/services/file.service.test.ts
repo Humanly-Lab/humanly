@@ -139,6 +139,32 @@ describe('FileService', () => {
     }));
   });
 
+  it('rejects empty PDF payloads before storage', async () => {
+    MockDocumentModel.findByIdAndUserId.mockResolvedValue({ id: 'doc-1', title: 'My Document' } as any);
+
+    await expect(
+      FileService.uploadDocumentFile('doc-1', 'user-1', makeMulterFile({
+        size: 0,
+        buffer: Buffer.alloc(0),
+      }), 'Source PDF')
+    ).rejects.toMatchObject({ statusCode: 400, message: 'PDF file is empty' });
+
+    expect(MockFileStorageService.store).not.toHaveBeenCalled();
+  });
+
+  it('rejects application/pdf payloads without a PDF signature before storage', async () => {
+    MockDocumentModel.findByIdAndUserId.mockResolvedValue({ id: 'doc-1', title: 'My Document' } as any);
+
+    await expect(
+      FileService.uploadDocumentFile('doc-1', 'user-1', makeMulterFile({
+        size: 15,
+        buffer: Buffer.from('not really a pdf'),
+      }), 'Source PDF')
+    ).rejects.toMatchObject({ statusCode: 400, message: 'Invalid PDF file' });
+
+    expect(MockFileStorageService.store).not.toHaveBeenCalled();
+  });
+
   it('rejects task instruction uploads by non-owners', async () => {
     MockTaskModel.findById.mockResolvedValue({ id: 'task-1', userId: 'owner-1' } as any);
 

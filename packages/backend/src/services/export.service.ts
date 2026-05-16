@@ -1,10 +1,8 @@
 import { Readable } from 'stream';
 import { pool } from '../config/database';
 import { TaskModel } from '../models/task.model';
-import { Event } from '@humanly/shared';
 import { AppError } from '../middleware/error-handler';
 import { logger } from '../utils/logger';
-import { QueryResult } from 'pg';
 
 export interface ExportFilters {
   startDate?: string;
@@ -61,65 +59,47 @@ export class ExportService {
         totalEvents,
       };
 
-      // Create streaming query
       const client = await pool.connect();
-      const queryStream = client.query({
-        text: sql,
-        values: params,
-        rowMode: 'array',
-      });
-
-      // Create readable stream
-      const stream = new Readable({
-        objectMode: false,
-        read() {},
-      });
-
-      // Start with JSON wrapper
-      stream.push('{\n');
-      stream.push(`  "task": ${JSON.stringify({
-        id: task.id,
-        name: task.name,
-        description: task.description,
-      })},\n`);
-      stream.push(`  "exportDate": "${metadata.exportDate}",\n`);
-      stream.push(`  "filters": ${JSON.stringify(filters)},\n`);
-      stream.push(`  "totalEvents": ${totalEvents},\n`);
-      stream.push('  "events": [\n');
-
-      let isFirst = true;
-      let eventCount = 0;
-
-      queryStream.on('row', (row: any) => {
-        const event = this.mapRowToEvent(row);
-
-        if (!isFirst) {
-          stream.push(',\n');
-        }
-        isFirst = false;
-
-        stream.push('    ' + JSON.stringify(event));
-        eventCount++;
-      });
-
-      queryStream.on('end', () => {
-        stream.push('\n  ]\n');
-        stream.push('}\n');
-        stream.push(null); // Signal end of stream
-        client.release();
-
-        logger.info('JSON export completed', {
-          taskId,
-          userId,
-          eventCount,
-          filters,
+      let rows: any[] = [];
+      try {
+        const result = await client.query({
+          text: sql,
+          values: params,
+          rowMode: 'array',
         });
+        rows = result.rows;
+      } finally {
+        client.release();
+      }
+
+      const chunks: string[] = [
+        '{\n',
+        `  "task": ${JSON.stringify({
+          id: task.id,
+          name: task.name,
+          description: task.description,
+        })},\n`,
+        `  "exportDate": "${metadata.exportDate}",\n`,
+        `  "filters": ${JSON.stringify(filters)},\n`,
+        `  "totalEvents": ${totalEvents},\n`,
+        '  "events": [\n',
+      ];
+
+      rows.forEach((row, index) => {
+        if (index > 0) chunks.push(',\n');
+        chunks.push('    ' + JSON.stringify(this.mapRowToEvent(row)));
       });
 
-      queryStream.on('error', (error) => {
-        logger.error('Error during JSON export streaming', { error, taskId, userId });
-        stream.destroy(error);
-        client.release();
+      chunks.push('\n  ]\n');
+      chunks.push('}\n');
+
+      const stream = Readable.from(chunks);
+
+      logger.info('JSON export completed', {
+        taskId,
+        userId,
+        eventCount: rows.length,
+        filters,
       });
 
       return { stream, metadata };
@@ -169,21 +149,19 @@ export class ExportService {
         totalEvents,
       };
 
-      // Create streaming query
       const client = await pool.connect();
-      const queryStream = client.query({
-        text: sql,
-        values: params,
-        rowMode: 'array',
-      });
+      let rows: any[] = [];
+      try {
+        const result = await client.query({
+          text: sql,
+          values: params,
+          rowMode: 'array',
+        });
+        rows = result.rows;
+      } finally {
+        client.release();
+      }
 
-      // Create readable stream
-      const stream = new Readable({
-        objectMode: false,
-        read() {},
-      });
-
-      // Write CSV header
       const headers = [
         'id',
         'session_id',
@@ -201,32 +179,18 @@ export class ExportService {
         'selection_end',
         'metadata_json',
       ];
-      stream.push(headers.join(',') + '\n');
 
-      let eventCount = 0;
+      const chunks = [
+        `${headers.join(',')}\n`,
+        ...rows.map((row) => `${this.flattenEventToCSV(row)}\n`),
+      ];
+      const stream = Readable.from(chunks);
 
-      queryStream.on('row', (row: any) => {
-        const csvRow = this.flattenEventToCSV(row);
-        stream.push(csvRow + '\n');
-        eventCount++;
-      });
-
-      queryStream.on('end', () => {
-        stream.push(null); // Signal end of stream
-        client.release();
-
-        logger.info('CSV export completed', {
-          taskId,
-          userId,
-          eventCount,
-          filters,
-        });
-      });
-
-      queryStream.on('error', (error) => {
-        logger.error('Error during CSV export streaming', { error, taskId, userId });
-        stream.destroy(error);
-        client.release();
+      logger.info('CSV export completed', {
+        taskId,
+        userId,
+        eventCount: rows.length,
+        filters,
       });
 
       return { stream, metadata };
