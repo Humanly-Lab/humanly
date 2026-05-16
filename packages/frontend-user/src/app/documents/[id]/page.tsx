@@ -153,10 +153,24 @@ export default function DocumentEditorPage() {
       '2': 'improve',
       '3': 'simplify',
       '4': 'formal',
+      '!': 'grammar',
+      '@': 'improve',
+      '#': 'simplify',
+      '$': 'formal',
+    };
+    const quickActionByCode: Record<string, ActionType> = {
+      Digit1: 'grammar',
+      Digit2: 'improve',
+      Digit3: 'simplify',
+      Digit4: 'formal',
+      Numpad1: 'grammar',
+      Numpad2: 'improve',
+      Numpad3: 'simplify',
+      Numpad4: 'formal',
     };
     const handleKeyDown = (event: KeyboardEvent) => {
       if (!(event.metaKey || event.ctrlKey) || !event.shiftKey) return;
-      const actionType = quickActionByKey[event.key];
+      const actionType = quickActionByKey[event.key] || quickActionByCode[event.code];
       if (!actionType || !quickActionTriggerRef.current) return;
       event.preventDefault();
       quickActionTriggerRef.current(actionType);
