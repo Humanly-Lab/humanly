@@ -2178,22 +2178,31 @@ export class AIService {
       // Inline any image attachments as data: URLs just before dispatch.
       await this.inlineImageAttachments(messages as any, userId);
 
-      // Get AI response
-      const response = await provider.agentChat(messages as any, {
+      // Reuse the same retrieval-capable streaming engine as the UI, but
+      // silence chunks for this REST endpoint. Together Qwen is reliable on
+      // the streaming path and can hang on the older non-streaming path (#107).
+      const toolCallCollector = new AgentToolCallCollector();
+      const response = await provider.agentStreamChat(messages as any, () => {}, {
         userId,
         documentId: request.documentId,
+        onAgentEvent: (event) => toolCallCollector.observe(event),
       });
 
       const responseTimeMs = Date.now() - startTime;
 
       // Add assistant message to session
+      const toolCalls = toolCallCollector.finalize();
+      const assistantMetadata: Record<string, any> = { logId: log.id };
+      if (toolCalls.length > 0) {
+        assistantMetadata.toolCalls = toolCalls;
+      }
       let assistantMessage;
       try {
         assistantMessage = await AIModel.addMessage(
           session.id,
           'assistant',
           response.content,
-          { logId: log.id }
+          assistantMetadata
         );
       } catch (error) {
         if (AIService.isSessionMissingError(error)) {
