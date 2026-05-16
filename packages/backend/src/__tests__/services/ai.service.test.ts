@@ -643,6 +643,61 @@ describe('AIService.silentChat', () => {
   });
 });
 
+// ── AIService.silentStreamChat ───────────────────────────────────────────────
+
+describe('AIService.silentStreamChat', () => {
+  const request = {
+    documentId: 'doc-1',
+    message: 'Fix grammar: "This are a focused shortcut sentence."',
+    sessionId: undefined,
+    context: {
+      selection: {
+        text: 'This are a focused shortcut sentence.',
+        startOffset: 0,
+        endOffset: 37,
+      },
+    },
+  };
+
+  beforeEach(() => {
+    MockDocumentModel.isOwner.mockResolvedValue(true);
+    MockDocumentModel.findByIdAndUserId.mockResolvedValue({
+      id: 'doc-1',
+      userId: 'user-1',
+      environmentConfig: { aiAccess: 'on' },
+    } as any);
+    MockTaskModel.findBySubmissionDocument.mockResolvedValue(null);
+    MockUserAISettings.getByUserId.mockResolvedValue(makeSettings({
+      model: 'Qwen/Qwen3.5-397B-A17B',
+      baseUrl: 'https://api.together.xyz/v1',
+    }));
+  });
+
+  it('retries once without streaming when the provider stream has no visible rewrite', async () => {
+    mockFetch
+      .mockResolvedValueOnce(mockChatCompletionStream(''))
+      .mockResolvedValueOnce(mockChatCompletionResponse('This is a focused shortcut sentence.'));
+
+    const chunks: string[] = [];
+    let completed = '';
+    let caughtError: Error | undefined;
+
+    await AIService.silentStreamChat(
+      'user-1',
+      request as any,
+      (chunk) => chunks.push(chunk),
+      (content) => { completed = content; },
+      (error) => { caughtError = error; },
+    );
+
+    expect(caughtError).toBeUndefined();
+    expect(completed).toBe('This is a focused shortcut sentence.');
+    expect(chunks).toEqual(['This is a focused shortcut sentence.']);
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+    expect(JSON.parse(mockFetch.mock.calls[1][1].body).stream).toBe(false);
+  });
+});
+
 // ── AIService.chat ────────────────────────────────────────────────────────────
 
 describe('AIService.chat', () => {

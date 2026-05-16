@@ -1251,6 +1251,36 @@ class OpenAIProvider implements AIProvider {
         fullContent = stripPseudoToolCallMarkup(fullContent);
       }
       if (!fullContent.trim()) {
+        logger.warn('AI direct stream produced no visible content; retrying once without streaming', {
+          userId: options.userId,
+          documentId: options.documentId,
+          model: this.model,
+        });
+        let retry: any;
+        try {
+          retry = await this.client.chat.completions.create({
+            model: this.model,
+            messages: chatMessages,
+            stream: false,
+            max_tokens: options.maxTokens || 2048,
+            ...(options.disableThinking && this.supportsChatTemplateThinkingToggle()
+              ? { chat_template_kwargs: { enable_thinking: false } }
+              : {}),
+          } as any);
+        } catch (error) {
+          this.handleSDKError(error);
+        }
+
+        const retryRawContent = retry?.choices?.[0]?.message?.content;
+        const retryContent = stripPseudoToolCallMarkup(
+          typeof retryRawContent === 'string' ? retryRawContent : ''
+        ).trim();
+        if (retryContent && !containsPseudoToolCall(retryContent)) {
+          fullContent = retryContent;
+          onChunk(retryContent);
+          return fullContent;
+        }
+
         const fallback = 'I could not produce a final answer from the available context.';
         fullContent = fallback;
         onChunk(fallback);
