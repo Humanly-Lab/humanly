@@ -108,6 +108,39 @@ function toAIInteractionLog(row: AIInteractionLogRow): AIInteractionLog {
   };
 }
 
+/**
+ * Thrown when an `ai_chat_messages` insert references a `session_id` that
+ * no longer exists in `ai_chat_sessions` (Postgres FK violation 23503 on
+ * `ai_chat_messages_session_id_fkey`). Surfacing a typed error lets callers
+ * translate it into a clean user-facing message instead of letting the raw
+ * constraint string reach the UI (issue #90).
+ */
+export class AIChatSessionMissingError extends Error {
+  public readonly sessionId: string;
+
+  constructor(sessionId: string) {
+    super(`AI chat session ${sessionId} no longer exists`);
+    this.name = 'AIChatSessionMissingError';
+    this.sessionId = sessionId;
+  }
+}
+
+/**
+ * Postgres error code for foreign key violations. Centralised so the model
+ * layer doesn't sprinkle magic strings across the catch blocks.
+ */
+const PG_FOREIGN_KEY_VIOLATION = '23503';
+
+function isAIChatMessagesSessionFkViolation(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const code = (error as { code?: unknown }).code;
+  const constraint = (error as { constraint?: unknown }).constraint;
+  return (
+    code === PG_FOREIGN_KEY_VIOLATION &&
+    constraint === 'ai_chat_messages_session_id_fkey'
+  );
+}
+
 export class AIModel {
   // ============================================================================
   // Chat Sessions
@@ -258,12 +291,23 @@ export class AIModel {
       RETURNING *
     `;
 
-    const row = await queryOne<AIChatMessageRow>(sql, [
-      sessionId,
-      role,
-      content,
-      JSON.stringify(metadata || {}),
-    ]);
+    let row: AIChatMessageRow | null;
+    try {
+      row = await queryOne<AIChatMessageRow>(sql, [
+        sessionId,
+        role,
+        content,
+        JSON.stringify(metadata || {}),
+      ]);
+    } catch (error) {
+      // Translate the Postgres FK violation into a typed error so the
+      // websocket/REST layer can return a clean message instead of leaking
+      // the constraint name to the user (issue #90).
+      if (isAIChatMessagesSessionFkViolation(error)) {
+        throw new AIChatSessionMissingError(sessionId);
+      }
+      throw error;
+    }
 
     if (!row) {
       throw new Error('Failed to add AI chat message');
