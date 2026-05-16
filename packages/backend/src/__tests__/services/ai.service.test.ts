@@ -488,6 +488,27 @@ function mockResponsesResponse(content: string) {
   });
 }
 
+function mockChatCompletionResponse(content: string) {
+  return new Response(JSON.stringify({
+    id: 'chatcmpl-1',
+    object: 'chat.completion',
+    choices: [
+      {
+        index: 0,
+        finish_reason: 'stop',
+        message: {
+          role: 'assistant',
+          content,
+        },
+      },
+    ],
+    usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
+  }), {
+    status: 200,
+    headers: { 'content-type': 'application/json' },
+  });
+}
+
 function mockChatCompletionStream(content: string) {
   const body = [
     `data: ${JSON.stringify({ choices: [{ delta: { content } }] })}`,
@@ -833,6 +854,29 @@ describe('AIService.chat', () => {
       await expect(
         AIService.chat('user-1', request as any),
       ).resolves.toMatchObject({ sessionId: 'session-1' });
+    });
+
+    it('uses first final Chat Completions content instead of issuing a second empty stream', async () => {
+      MockUserAISettings.getByUserId.mockResolvedValue(
+        makeSettings({
+          model: 'Qwen/Qwen3.5-397B-A17B',
+          baseUrl: 'https://api.together.xyz/v1',
+        }),
+      );
+      mockFetch.mockResolvedValueOnce(mockChatCompletionResponse('Each written assignment is worth 18%, for 36% combined.'));
+      MockAIModel.getOrCreateSession.mockResolvedValue(makeSession());
+      MockAIModel.addMessage
+        .mockResolvedValueOnce(makeMessage({ role: 'user', content: request.message }))
+        .mockImplementationOnce(async (_sessionId, role, content) =>
+          makeMessage({ role, content }),
+        );
+      const fetchCallsBefore = mockFetch.mock.calls.length;
+
+      const result = await AIService.chat('user-1', request as any);
+
+      expect(result.message.content).toContain('18%');
+      expect(result.message.content).toContain('36%');
+      expect(mockFetch.mock.calls.length - fetchCallsBefore).toBe(1);
     });
 
     it('rejects 403 when attachment storageKey is owned by another user', async () => {

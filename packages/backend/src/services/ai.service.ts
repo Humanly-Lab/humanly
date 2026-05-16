@@ -1041,6 +1041,26 @@ class OpenAIProvider implements AIProvider {
           iteration: turnIndex + 1,
           transport: 'chat_completions',
         });
+        if (assistantMessage.content) {
+          const split = splitStaticThinking(assistantMessage.content);
+          emitThinkingDelta(options.onAgentEvent, split.thinking);
+          let visible = split.visible;
+          if (containsPseudoToolCall(visible)) {
+            logger.warn('AI stream stripped pseudo tool-call markup from first final completion', {
+              userId: options.userId,
+              documentId: options.documentId,
+            });
+            visible = stripPseudoToolCallMarkup(visible);
+          }
+          const content = visible.trim()
+            || 'I could not produce a final answer from the available context.';
+          onChunk(content);
+          emitAgentEvent(options.onAgentEvent, { type: 'turn-end', turnIndex });
+          return {
+            content,
+            tokensUsed: lastUsage,
+          };
+        }
         const finalContent = await this.streamFinalChatCompletion(chatMessages, onChunk, options);
         emitAgentEvent(options.onAgentEvent, { type: 'turn-end', turnIndex });
         return {
