@@ -477,6 +477,19 @@ function mockResponsesResponse(content: string) {
   });
 }
 
+function mockChatCompletionStream(content: string) {
+  const body = [
+    `data: ${JSON.stringify({ choices: [{ delta: { content } }] })}`,
+    '',
+    'data: [DONE]',
+    '',
+  ].join('\n');
+  return new Response(body, {
+    status: 200,
+    headers: { 'content-type': 'text/event-stream' },
+  });
+}
+
 // ── classifyQuestionCategory ──────────────────────────────────────────────────
 
 describe('classifyQuestionCategory', () => {
@@ -804,6 +817,7 @@ describe('AIService.chat', () => {
           baseUrl: 'https://api.deepseek.com/v1',
         }),
       );
+      mockFetch.mockResolvedValueOnce(mockChatCompletionStream('Here is the improved text.'));
       MockAIModel.getOrCreateSession.mockResolvedValue(makeSession());
       await expect(
         AIService.chat('user-1', request as any),
