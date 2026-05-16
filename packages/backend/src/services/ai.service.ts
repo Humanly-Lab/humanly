@@ -185,6 +185,8 @@ export function shouldRepairEmptyToolCallResponse(completion: any): boolean {
 //   <function=name> ... </function>
 //   <parameter=foo>bar</parameter>
 //   <tool_use> ... </tool_use>
+//   <｜DSML｜tool_calls> ... </｜DSML｜tool_calls>
+//   {"function":"ls","arguments":{...}}
 // Anchors are loose on purpose so trailing whitespace / line breaks inside
 // the markup also match. The /s flag lets `.` cross newlines.
 const PSEUDO_TOOL_CALL_PATTERNS: RegExp[] = [
@@ -192,7 +194,17 @@ const PSEUDO_TOOL_CALL_PATTERNS: RegExp[] = [
   /<\s*tool_use\b[^>]*>[\s\S]*?<\s*\/\s*tool_use\s*>/gi,
   /<\s*function\s*=\s*[^>]*>[\s\S]*?<\s*\/\s*function\s*>/gi,
   /<\s*parameter\s*=\s*[^>]*>[\s\S]*?<\s*\/\s*parameter\s*>/gi,
+  /<\s*(?:\uFF5C\s*)?DSML\s*[\uFF5C|]\s*tool_calls\b[^>]*>[\s\S]*?<\s*\/\s*(?:\uFF5C\s*)?DSML\s*[\uFF5C|]\s*tool_calls\s*>/gi,
+  /\{\s*"(?:function|name)"\s*:\s*"(?:ls|grep|read)"\s*,\s*"arguments"\s*:\s*\{(?:[^{}]|\{[^{}]*\})*\}\s*\}/gi,
 ];
+
+const PSEUDO_TOOL_CALL_START_PATTERN =
+  /<\s*(?:tool_call\b|tool_use\b|function\s*=|parameter\s*=|(?:\uFF5C\s*)?DSML\s*[\uFF5C|]\s*tool_calls\b)|\{\s*"(?:function|name)"\s*:\s*"(?:ls|grep|read)"\s*,\s*"arguments"\s*:/i;
+
+function findPseudoToolCallStart(text: string): number {
+  const match = PSEUDO_TOOL_CALL_START_PATTERN.exec(text);
+  return match?.index ?? -1;
+}
 
 /** True if `text` contains any prose-encoded tool-call markup. */
 export function containsPseudoToolCall(text: string | null | undefined): boolean {
@@ -218,18 +230,79 @@ export function stripPseudoToolCallMarkup(text: string | null | undefined): stri
   return cleaned.replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
 }
 
+export class PseudoToolCallStreamFilter {
+  private buffer = '';
+  public strippedPseudoToolCall = false;
+
+  push(chunk: string): string {
+    if (!chunk) return '';
+    this.buffer += chunk;
+    return this.drain(false);
+  }
+
+  flush(): string {
+    return this.drain(true);
+  }
+
+  private drain(flush: boolean): string {
+    let visible = '';
+
+    while (this.buffer) {
+      const start = findPseudoToolCallStart(this.buffer);
+      if (start === -1) {
+        if (!flush) {
+          const lastOpen = this.buffer.lastIndexOf('<');
+          const lastJsonOpen = this.buffer.lastIndexOf('{');
+          const holdFrom = [lastOpen, lastJsonOpen]
+            .filter((index) => index >= 0 && this.buffer.length - index < 160)
+            .sort((a, b) => a - b)[0];
+          if (holdFrom !== undefined) {
+            visible += this.buffer.slice(0, holdFrom);
+            this.buffer = this.buffer.slice(holdFrom);
+            return visible;
+          }
+        }
+
+        visible += this.buffer;
+        this.buffer = '';
+        return visible;
+      }
+
+      if (start > 0) {
+        visible += this.buffer.slice(0, start);
+        this.buffer = this.buffer.slice(start);
+        continue;
+      }
+
+      const stripped = stripPseudoToolCallMarkup(this.buffer);
+      if (stripped !== this.buffer) {
+        this.strippedPseudoToolCall = true;
+        this.buffer = stripped;
+        continue;
+      }
+
+      if (flush) {
+        this.strippedPseudoToolCall = true;
+        this.buffer = '';
+      }
+      return visible;
+    }
+
+    return visible;
+  }
+}
+
 export function buildToolCallRepairPrompt(documentId: string): string {
   return `Internal tool-call repair instruction:
-The previous model response ended with finish_reason="tool_calls" but did not include a valid tool_calls payload. Do not answer from memory.
+The previous model response attempted a tool call but did not include a valid structured tool_calls payload. Do not answer from memory.
 
 Retry by emitting exactly one or more valid tool calls using JSON arguments.
 - Current documentId is "${documentId}".
-- For current document text: call getDocumentText with {"documentId":"${documentId}"} or searchDocument with {"documentId":"${documentId}","query":"...","limit":10}.
-- For linked PDFs: first call listLinkedPapers with {"documentId":"${documentId}"}. Then call getPaperContent with one valid mode:
-  - search: {"paperId":"<id from listLinkedPapers>","mode":"search","query":"...","limit":10}
-  - page: {"paperId":"<id from listLinkedPapers>","mode":"page","pageNumber":1}
-  - section: {"paperId":"<id from listLinkedPapers>","mode":"section","sectionTitle":"..."}
-Do not write XML, pseudo-tags, or prose tool calls.`;
+- Available tools are exactly: ls, grep, read.
+- Start with ls using {"documentId":"${documentId}"} to discover readable file ids.
+- Use grep with {"file":"<file id from ls>","pattern":"...","context_before":2,"context_after":4} for targeted lookup.
+- Use read with {"file":"<file id from ls>","offset":1,"limit":80} when grep is not enough or you need nearby context.
+Do not write XML, DSML, pseudo-tags, or prose tool calls.`;
 }
 
 export function buildFinalAnswerSynthesisPrompt(reason: string): string {
@@ -1030,17 +1103,26 @@ class OpenAIProvider implements AIProvider {
     // capture reasoning, do not split". The provider kwarg above silences
     // Qwen's own reasoning channel for free.
     if (options.disableThinking) {
+      const pseudoFilter = new PseudoToolCallStreamFilter();
       for await (const chunk of stream) {
         const content = chunk.choices?.[0]?.delta?.content || '';
         if (content) {
-          fullContent += content;
-          onChunk(content);
+          const visible = pseudoFilter.push(content);
+          if (visible) {
+            fullContent += visible;
+            onChunk(visible);
+          }
         }
+      }
+      const flushed = pseudoFilter.flush();
+      if (flushed) {
+        fullContent += flushed;
+        onChunk(flushed);
       }
       // Quick-action silent path: strip pseudo tool-call markup if the
       // model emitted it. The selection-menu UI shows the result inside
       // a small review card; we never want raw XML there.
-      if (containsPseudoToolCall(fullContent)) {
+      if (pseudoFilter.strippedPseudoToolCall || containsPseudoToolCall(fullContent)) {
         logger.warn('AI silent stream stripped pseudo tool-call markup from output', {
           userId: options.userId,
           documentId: options.documentId,
@@ -1056,6 +1138,7 @@ class OpenAIProvider implements AIProvider {
     }
 
     const thinkingSplitter = new ThinkingContentSplitter();
+    const pseudoFilter = new PseudoToolCallStreamFilter();
     for await (const chunk of stream) {
       const delta = chunk.choices?.[0]?.delta || {};
       const reasoning = delta.reasoning_content || delta.reasoning || '';
@@ -1066,8 +1149,11 @@ class OpenAIProvider implements AIProvider {
         const split = thinkingSplitter.push(content);
         emitThinkingDelta(options.onAgentEvent, split.thinking);
         if (split.visible) {
-          fullContent += split.visible;
-          onChunk(split.visible);
+          const visible = pseudoFilter.push(split.visible);
+          if (visible) {
+            fullContent += visible;
+            onChunk(visible);
+          }
         }
       }
     }
@@ -1075,17 +1161,23 @@ class OpenAIProvider implements AIProvider {
     const flushed = thinkingSplitter.flush();
     emitThinkingDelta(options.onAgentEvent, flushed.thinking);
     if (flushed.visible) {
-      fullContent += flushed.visible;
-      onChunk(flushed.visible);
+      const visible = pseudoFilter.push(flushed.visible);
+      if (visible) {
+        fullContent += visible;
+        onChunk(visible);
+      }
+    }
+    const pseudoFlushed = pseudoFilter.flush();
+    if (pseudoFlushed) {
+      fullContent += pseudoFlushed;
+      onChunk(pseudoFlushed);
     }
 
     // Strip prose-encoded tool-call leaks from the final visible buffer.
-    // The streamed onChunk side may have briefly shown the XML to the
-    // user, but the returned value (which the agent loop uses to decide
-    // whether to retry, and which we store on the message log) is clean.
-    // The caller of streamFinalChatCompletion can compare the original
-    // length vs the cleaned length to know whether to trigger a repair.
-    if (containsPseudoToolCall(fullContent)) {
+    // The stream filter withholds pseudo tool blocks before onChunk, so
+    // users do not see DSML/XML flashes while the final stored value stays
+    // clean as a second layer of defense.
+    if (pseudoFilter.strippedPseudoToolCall || containsPseudoToolCall(fullContent)) {
       logger.warn('AI stream stripped pseudo tool-call markup from final visible content', {
         userId: options.userId,
         documentId: options.documentId,

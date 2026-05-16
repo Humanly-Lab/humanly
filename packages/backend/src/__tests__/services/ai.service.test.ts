@@ -21,6 +21,7 @@ global.fetch = mockFetch;
 
 import {
   AIService,
+  PseudoToolCallStreamFilter,
   ThinkingContentSplitter,
   buildFinalAnswerSynthesisPrompt,
   buildToolCallRepairPrompt,
@@ -100,7 +101,7 @@ describe('tool-call repair helpers', () => {
     expect(shouldRepairEmptyToolCallResponse({
       choices: [{
         finish_reason: 'tool_calls',
-        message: { tool_calls: [{ id: 'call-1', function: { name: 'listLinkedPapers', arguments: '{}' } }] },
+        message: { tool_calls: [{ id: 'call-1', function: { name: 'ls', arguments: '{}' } }] },
       }],
     })).toBe(false);
   });
@@ -108,10 +109,10 @@ describe('tool-call repair helpers', () => {
   it('builds a bounded repair prompt with the scoped document ID and structured tool examples', () => {
     const prompt = buildToolCallRepairPrompt('doc-123');
     expect(prompt).toContain('doc-123');
-    expect(prompt).toContain('finish_reason="tool_calls"');
-    expect(prompt).toContain('listLinkedPapers');
-    expect(prompt).toContain('getPaperContent');
-    expect(prompt).toContain('Do not write XML');
+    expect(prompt).toContain('Available tools are exactly: ls, grep, read');
+    expect(prompt).toContain('{"documentId":"doc-123"}');
+    expect(prompt).toContain('{"file":"<file id from ls>","pattern":"..."');
+    expect(prompt).toContain('Do not write XML, DSML');
   });
 
   it('builds a no-tools final answer prompt for budget exhaustion', () => {
@@ -137,6 +138,16 @@ describe('pseudo tool-call markup helpers', () => {
     expect(containsPseudoToolCall('<function=listLinkedPapers>{}</function>')).toBe(true);
   });
 
+  it('detects DeepSeek DSML tool-call blocks', () => {
+    const input = '<｜DSML｜tool_calls> <｜DSML｜invoke name="grep"> <｜DSML｜parameter name="pattern" string="true">references</｜DSML｜parameter> </｜DSML｜invoke> </｜DSML｜tool_calls>';
+    expect(containsPseudoToolCall(input)).toBe(true);
+  });
+
+  it('detects bare JSON function-call prose leaks', () => {
+    expect(containsPseudoToolCall('{"function":"ls","arguments":{}}')).toBe(true);
+    expect(containsPseudoToolCall('{"name":"grep","arguments":{"file":"doc-1","pattern":"references"}}')).toBe(true);
+  });
+
   it('returns false on clean answers', () => {
     expect(containsPseudoToolCall('The conclusion is on page 21.')).toBe(false);
     expect(containsPseudoToolCall('')).toBe(false);
@@ -156,6 +167,50 @@ describe('pseudo tool-call markup helpers', () => {
   it('strips multiple shapes in the same buffer', () => {
     const input = 'A <tool_call>x</tool_call> B <function=foo>y</function> C <parameter=p>z</parameter> D';
     expect(stripPseudoToolCallMarkup(input)).toBe('A  B  C  D');
+  });
+
+  it('strips DeepSeek DSML blocks', () => {
+    const input = 'A <｜DSML｜tool_calls><｜DSML｜invoke name="grep"></｜DSML｜invoke></｜DSML｜tool_calls> B';
+    expect(stripPseudoToolCallMarkup(input)).toBe('A  B');
+  });
+
+  it('strips bare JSON function-call prose leaks', () => {
+    const input = 'I will check first.\n{"function":"ls","arguments":{}}\n';
+    expect(stripPseudoToolCallMarkup(input)).toBe('I will check first.');
+  });
+
+  it('withholds chunked pseudo tool calls from streaming output', () => {
+    const filter = new PseudoToolCallStreamFilter();
+
+    const first = filter.push('Answer before ');
+    const second = filter.push('<｜DSML｜tool_');
+    const third = filter.push('calls><｜DSML｜invoke name="grep"></｜DSML｜invoke></｜DSML｜tool_calls> after');
+    const flushed = filter.flush();
+
+    expect(first).toBe('Answer before ');
+    expect(second).toBe('');
+    expect(third + flushed).toBe('after');
+    expect(filter.strippedPseudoToolCall).toBe(true);
+  });
+
+  it('withholds chunked JSON pseudo tool calls from streaming output', () => {
+    const filter = new PseudoToolCallStreamFilter();
+
+    const first = filter.push("I'll check first.\n{");
+    const second = filter.push('"function":"');
+    const third = filter.push('ls","arguments":{}}');
+    const flushed = filter.flush();
+
+    expect(first).toBe("I'll check first.\n");
+    expect(second).toBe('');
+    expect(third + flushed).toBe('');
+    expect(filter.strippedPseudoToolCall).toBe(true);
+  });
+
+  it('does not strip normal JSON answers', () => {
+    const input = '{"answer":"ls is a Unix command","confidence":"high"}';
+    expect(containsPseudoToolCall(input)).toBe(false);
+    expect(stripPseudoToolCallMarkup(input)).toBe(input);
   });
 
   it('collapses trailing whitespace introduced by stripping', () => {
