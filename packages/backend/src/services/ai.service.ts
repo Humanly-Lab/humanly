@@ -1,5 +1,5 @@
 import OpenAI from 'openai';
-import { AIModel } from '../models/ai.model';
+import { AIModel, AIChatSessionMissingError } from '../models/ai.model';
 import { DocumentModel } from '../models/document.model';
 import { TaskModel } from '../models/task.model';
 import { AIRetrievalService } from './ai-retrieval.service';
@@ -1737,6 +1737,51 @@ export class AIService {
   }
 
   /**
+   * Identity-tolerant check for the typed FK violation. Jest auto-mocks
+   * replace the constructor identity in unit tests, so we also accept the
+   * `.name` string as a fallback.
+   */
+  private static isSessionMissingError(error: unknown): boolean {
+    return (
+      error instanceof AIChatSessionMissingError ||
+      (typeof error === 'object' &&
+        error !== null &&
+        (error as { name?: string }).name === 'AIChatSessionMissingError')
+    );
+  }
+
+  /**
+   * Resolve a chat session for an incoming request. If the client supplied a
+   * `sessionId` that no longer exists (e.g. the session was deleted from
+   * another tab while the message was in flight), fall back to creating a
+   * fresh session for the document instead of bubbling up a raw "Session not
+   * found" error. This keeps chat usable across stale-session retries and
+   * prevents the downstream `addMessage` insert from triggering the
+   * `ai_chat_messages_session_id_fkey` FK violation that surfaced in issue #90.
+   */
+  private static async resolveChatSession(
+    userId: string,
+    request: AIChatRequest,
+  ): Promise<AIChatSession> {
+    if (request.sessionId) {
+      const existing = await AIModel.findSessionById(request.sessionId);
+      if (existing) return existing;
+
+      logger.warn('Requested AI chat session missing; creating a fresh one', {
+        userId,
+        documentId: request.documentId,
+        requestedSessionId: request.sessionId,
+      });
+    }
+
+    const created = await AIModel.getOrCreateSession(request.documentId, userId);
+    if (!created) {
+      throw new AppError(500, 'Failed to create AI chat session');
+    }
+    return created;
+  }
+
+  /**
    * Process a chat message
    */
   static async chat(
@@ -1751,14 +1796,8 @@ export class AIService {
       throw new AppError(404, 'Document not found');
     }
 
-    // Get or create session
-    const session = request.sessionId
-      ? await AIModel.findSessionById(request.sessionId)
-      : await AIModel.getOrCreateSession(request.documentId, userId);
-
-    if (!session) {
-      throw new AppError(404, 'Session not found');
-    }
+    // Get or create session (self-heals when the client sent a stale sessionId)
+    const session = await this.resolveChatSession(userId, request);
 
     // Classify query type and category
     const queryType = classifyQueryType(request.message);
@@ -1777,7 +1816,17 @@ export class AIService {
 
     try {
       // Add user message to session
-      await AIModel.addMessage(session.id, 'user', request.message);
+      try {
+        await AIModel.addMessage(session.id, 'user', request.message);
+      } catch (error) {
+        if (AIService.isSessionMissingError(error)) {
+          throw new AppError(
+            409,
+            'Chat session is no longer available. Please refresh and try again.',
+          );
+        }
+        throw error;
+      }
 
       // Build conversation history
       const messages: { role: string; content: string }[] = [
@@ -1805,12 +1854,23 @@ export class AIService {
       const responseTimeMs = Date.now() - startTime;
 
       // Add assistant message to session
-      const assistantMessage = await AIModel.addMessage(
-        session.id,
-        'assistant',
-        response.content,
-        { logId: log.id }
-      );
+      let assistantMessage;
+      try {
+        assistantMessage = await AIModel.addMessage(
+          session.id,
+          'assistant',
+          response.content,
+          { logId: log.id }
+        );
+      } catch (error) {
+        if (AIService.isSessionMissingError(error)) {
+          throw new AppError(
+            409,
+            'Chat session is no longer available. Please refresh and try again.',
+          );
+        }
+        throw error;
+      }
 
       // Update log with response
       await AIModel.updateLogWithResponse(log.id, {
@@ -1877,14 +1937,8 @@ export class AIService {
         throw new AppError(404, 'Document not found');
       }
 
-      // Get or create session
-      const session = request.sessionId
-        ? await AIModel.findSessionById(request.sessionId)
-        : await AIModel.getOrCreateSession(request.documentId, userId);
-
-      if (!session) {
-        throw new AppError(404, 'Session not found');
-      }
+      // Get or create session (self-heals when client sent a stale sessionId)
+      const session = await this.resolveChatSession(userId, request);
 
       // Classify query type and category
       const queryType = classifyQueryType(request.message);
@@ -1902,7 +1956,17 @@ export class AIService {
       });
 
       // Add user message to session
-      await AIModel.addMessage(session.id, 'user', request.message);
+      try {
+        await AIModel.addMessage(session.id, 'user', request.message);
+      } catch (error) {
+        if (AIService.isSessionMissingError(error)) {
+          throw new AppError(
+            409,
+            'Chat session is no longer available. Please refresh and try again.',
+          );
+        }
+        throw error;
+      }
 
       // Build conversation history
       const messages: { role: string; content: string }[] = [
@@ -1932,12 +1996,23 @@ export class AIService {
       const responseTimeMs = Date.now() - startTime;
 
       // Add assistant message to session
-      const assistantMessage = await AIModel.addMessage(
-        session.id,
-        'assistant',
-        response.content,
-        { logId: log.id }
-      );
+      let assistantMessage;
+      try {
+        assistantMessage = await AIModel.addMessage(
+          session.id,
+          'assistant',
+          response.content,
+          { logId: log.id }
+        );
+      } catch (error) {
+        if (AIService.isSessionMissingError(error)) {
+          throw new AppError(
+            409,
+            'Chat session is no longer available. Please refresh and try again.',
+          );
+        }
+        throw error;
+      }
 
       // Update log with response
       await AIModel.updateLogWithResponse(log.id, {

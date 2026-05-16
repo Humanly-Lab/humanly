@@ -555,10 +555,38 @@ describe('AIService.chat', () => {
     await expect(AIService.chat('user-1', request as any)).rejects.toMatchObject({ statusCode: 400 });
   });
 
-  it('throws 404 when session not found', async () => {
+  it('throws 500 when getOrCreateSession returns null', async () => {
     MockAIModel.getOrCreateSession.mockResolvedValue(null as any);
 
-    await expect(AIService.chat('user-1', request as any)).rejects.toMatchObject({ statusCode: 404 });
+    await expect(AIService.chat('user-1', request as any)).rejects.toMatchObject({ statusCode: 500 });
+  });
+
+  it('self-heals when a stale sessionId is supplied (issue #90)', async () => {
+    // Stale id passed in — findSessionById returns null, so we should
+    // transparently create a fresh session and complete the chat.
+    MockAIModel.findSessionById.mockResolvedValue(null);
+    MockAIModel.getOrCreateSession.mockResolvedValue(makeSession());
+
+    const result = await AIService.chat('user-1', {
+      ...request,
+      sessionId: 'stale-uuid',
+    } as any);
+
+    expect(MockAIModel.findSessionById).toHaveBeenCalledWith('stale-uuid');
+    expect(MockAIModel.getOrCreateSession).toHaveBeenCalledWith('doc-1', 'user-1');
+    expect(result.sessionId).toBe('session-1');
+  });
+
+  it('translates ai_chat_messages FK violations into a clean 409 (issue #90)', async () => {
+    const { AIChatSessionMissingError } = jest.requireActual('../../models/ai.model');
+    MockAIModel.addMessage.mockRejectedValueOnce(
+      new AIChatSessionMissingError('session-1'),
+    );
+
+    await expect(AIService.chat('user-1', request as any)).rejects.toMatchObject({
+      statusCode: 409,
+      message: expect.stringContaining('Chat session is no longer available'),
+    });
   });
 
   it('updates log with error status on provider failure', async () => {
