@@ -302,6 +302,29 @@ export function stripPseudoToolCallMarkup(text: string | null | undefined): stri
   return cleaned.replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
 }
 
+const QUICK_ACTION_FAILURE_PATTERNS: RegExp[] = [
+  /i\s+could\s+not\s+produce\s+a\s+final\s+answer\s+from\s+the\s+available\s+context/i,
+  /i\s+reached\s+the\s+retrieval\s+limit\s+before\s+the\s+model\s+produced\s+a\s+final\s+answer/i,
+  /could\s+not\s+complete\s+retrieval\s+because\s+the\s+ai\s+provider\s+returned/i,
+  /internal\s+(?:tool-call\s+repair|final-answer)\s+instruction/i,
+];
+
+export function normalizeQuickActionOutput(text: string | null | undefined): string {
+  const cleaned = stripPseudoToolCallMarkup(text).trim().replace(/^["']|["']$/g, '');
+  if (!cleaned) return '';
+  if (containsPseudoToolCall(cleaned)) return '';
+  const lower = cleaned.toLowerCase();
+  if (
+    lower.includes('i could not produce') &&
+    lower.includes('final answer') &&
+    lower.includes('available context')
+  ) {
+    return '';
+  }
+  if (QUICK_ACTION_FAILURE_PATTERNS.some((pattern) => pattern.test(cleaned))) return '';
+  return cleaned;
+}
+
 export class PseudoToolCallStreamFilter {
   private buffer = '';
   public strippedPseudoToolCall = false;
@@ -1792,20 +1815,37 @@ export class AIService {
         { role: 'user', content: request.message },
       ];
 
-      const response = await provider.directStreamChat(messages, onChunk, {
+      // Quick actions edit user-selected text. A bad partial stream is worse
+      // than no suggestion because it can be applied into the editor. Buffer
+      // the provider stream, validate the completed rewrite, then emit one
+      // clean chunk to the UI. This specifically prevents provider/agent
+      // fallback text from being spliced into the user's selected text (#104).
+      let streamedContent = '';
+      const response = await provider.directStreamChat(messages, (chunk: string) => {
+        streamedContent += chunk;
+      }, {
         userId,
         documentId: request.documentId,
         maxTokens: Math.min(env.aiMaxTokens, 768),
         disableThinking: true,
       });
 
+      const content = normalizeQuickActionOutput(response.content || streamedContent);
+      if (!content) {
+        throw new AppError(
+          502,
+          'AI did not return a usable rewrite for the selected text. Please try again.'
+        );
+      }
+
       logger.info('AI silent stream chat completed', {
         userId,
         documentId: request.documentId,
-        bytes: response.content.length,
+        bytes: content.length,
       });
 
-      onComplete(response.content);
+      onChunk(content);
+      onComplete(content);
     } catch (error) {
       logger.error('AI silent stream chat failed', {
         userId,

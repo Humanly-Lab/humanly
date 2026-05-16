@@ -46,6 +46,7 @@ import {
   buildToolCallRepairPrompt,
   classifyQuestionCategory,
   containsPseudoToolCall,
+  normalizeQuickActionOutput,
   shouldRepairEmptyToolCallResponse,
   stripPseudoToolCallMarkup,
 } from '../../services/ai.service';
@@ -381,6 +382,25 @@ describe('buildRetrievalInstructions (#70 prompt)', () => {
     expect(prompt).toContain('synonym');
     expect(prompt).toContain('numbered-heading');
     expect(prompt).toContain('Never fabricate');
+  });
+});
+
+// ── Quick action output guard ─────────────────────────────────────────────────
+
+describe('normalizeQuickActionOutput', () => {
+  it('keeps a normal selected-text rewrite', () => {
+    expect(normalizeQuickActionOutput('"This sentence has been made more formal."'))
+      .toBe('This sentence has been made more formal.');
+  });
+
+  it('rejects final-answer fallback text instead of exposing it to quick actions', () => {
+    expect(normalizeQuickActionOutput(
+      'This isI could not produce a production QA submission for Humanly. The task PDF is open onfinal answer from the left, and I am testing writing provenance, AI assistance, and task submission behavioravailable context.'
+    )).toBe('');
+  });
+
+  it('rejects pseudo tool-call markup in quick-action output', () => {
+    expect(normalizeQuickActionOutput('{"function":"ls","arguments":{}}')).toBe('');
   });
 });
 
