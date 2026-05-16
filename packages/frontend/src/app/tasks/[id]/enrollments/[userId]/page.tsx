@@ -27,8 +27,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { formatDateTime as formatLocalDateTime } from '@/lib/utils';
-
-const FRONTEND_USER_URL = process.env.NEXT_PUBLIC_FRONTEND_USER_URL || 'http://localhost:3002';
+import { buildCertificateVerifyUrl } from '@/lib/certificate-url';
 
 interface TaskEnrollment {
   id: string;
@@ -114,10 +113,6 @@ export default function EnrollmentSubmissionsPage() {
   };
 
   const latestSubmission = submissions[0] || null;
-
-  const buildCertificateUrl = (verificationToken: string) => (
-    `${FRONTEND_USER_URL}/verify/${encodeURIComponent(verificationToken)}`
-  );
 
   return (
     <div className="space-y-6">
@@ -221,7 +216,7 @@ export default function EnrollmentSubmissionsPage() {
                         size="sm"
                       >
                         <a
-                          href={buildCertificateUrl(latestSubmission.certificateVerificationToken)}
+                          href={buildCertificateVerifyUrl(latestSubmission.certificateVerificationToken)}
                           onClick={(event) => event.stopPropagation()}
                         >
                           <Award className="h-4 w-4 mr-2" />
@@ -305,7 +300,7 @@ export default function EnrollmentSubmissionsPage() {
                                 size="sm"
                               >
                                 <a
-                                  href={buildCertificateUrl(submission.certificateVerificationToken)}
+                                  href={buildCertificateVerifyUrl(submission.certificateVerificationToken)}
                                   onClick={(event) => event.stopPropagation()}
                                 >
                                   <Award className="h-4 w-4 mr-1" />

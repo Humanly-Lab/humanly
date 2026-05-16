@@ -17,10 +17,9 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { cn, formatDateTime } from '@/lib/utils';
+import { buildCertificateVerifyUrl } from '@/lib/certificate-url';
 
 import type { AdminSubmission, TaskEnrollment } from './types';
-
-const FRONTEND_USER_URL = process.env.NEXT_PUBLIC_FRONTEND_USER_URL || 'http://localhost:3002';
 
 interface SubmissionPanelProps {
   taskId: string;
@@ -35,10 +34,6 @@ interface SubmissionPanelProps {
 
 const sortSubmissions = (submissions: AdminSubmission[]) => (
   [...submissions].sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime())
-);
-
-const buildCertificateUrl = (verificationToken: string) => (
-  `${FRONTEND_USER_URL}/verify/${encodeURIComponent(verificationToken)}`
 );
 
 export function SubmissionPanel({
@@ -91,7 +86,7 @@ export function SubmissionPanel({
     return (
       <Button asChild variant="outline" size="sm">
         <a
-          href={buildCertificateUrl(submission.certificateVerificationToken)}
+          href={buildCertificateVerifyUrl(submission.certificateVerificationToken)}
           onClick={(event) => event.stopPropagation()}
         >
           <Award className="mr-1 h-4 w-4" />
