@@ -917,6 +917,9 @@ class OpenAIProvider implements AIProvider {
           tools: chatTools,
           tool_choice: 'auto',
           max_tokens: options.maxTokens || 2048,
+          ...(this.supportsChatTemplateThinkingToggle()
+            ? { chat_template_kwargs: { enable_thinking: false } }
+            : {}),
         } as any, this.requestOptions() as any)
       );
 
@@ -1121,6 +1124,9 @@ class OpenAIProvider implements AIProvider {
           tools: chatTools,
           tool_choice: 'auto',
           max_tokens: options.maxTokens || 2048,
+          ...(this.supportsChatTemplateThinkingToggle()
+            ? { chat_template_kwargs: { enable_thinking: false } }
+            : {}),
         } as any, this.requestOptions() as any)
       );
 
@@ -2324,9 +2330,21 @@ export class AIService {
 
     let buffered = '';
     try {
+      const compactReferenceContext = await AIRetrievalService.buildCompactReferenceContext(
+        options.userId,
+        options.documentId
+      );
+      const fallbackMessages = compactReferenceContext
+        ? [
+            ...messages.slice(0, 1),
+            { role: 'system', content: compactReferenceContext },
+            ...messages.slice(1),
+          ]
+        : messages;
+
       const { value: directResponse, timedOut } = await withAIProviderTimeout(
         provider.directStreamChat(
-          messages as any,
+          fallbackMessages as any,
           (chunk: string) => {
             buffered += chunk;
           },
@@ -2462,13 +2480,6 @@ export class AIService {
       const messages: { role: string; content: any }[] = [
         { role: 'system', content: buildSystemPrompt(request.context) },
       ];
-      const referenceContext = await AIRetrievalService.buildCompactReferenceContext(
-        userId,
-        request.documentId
-      );
-      if (referenceContext) {
-        messages.push({ role: 'system', content: referenceContext });
-      }
 
       // Add previous messages (last 10 for context). User turns with image
       // attachments stored on metadata.attachments must be rebuilt as
@@ -2680,13 +2691,6 @@ export class AIService {
       const messages: { role: string; content: any }[] = [
         { role: 'system', content: buildSystemPrompt(request.context) },
       ];
-      const referenceContext = await AIRetrievalService.buildCompactReferenceContext(
-        userId,
-        request.documentId
-      );
-      if (referenceContext) {
-        messages.push({ role: 'system', content: referenceContext });
-      }
 
       // Add previous messages (last 10 for context). User turns with
       // image attachments are rebuilt as multimodal content parts so
@@ -2737,7 +2741,6 @@ export class AIService {
         providerTimeoutMs,
         () => {
           const fallback = buildProviderTimeoutFallback(providerTimeoutMs);
-          onChunk(fallback);
           return {
             content: fallback,
             tokensUsed: undefined,

@@ -807,24 +807,21 @@ describe('AIService.chat', () => {
     expect(result.logId).toBe('log-1');
   });
 
-  it('injects compact reference context before provider dispatch', async () => {
+  it('keeps normal agent dispatch tool-first instead of injecting compact snapshots', async () => {
     MockUserAISettings.getByUserId.mockResolvedValue(makeSettings({
       model: 'Qwen/Qwen3.5-397B-A17B',
       baseUrl: 'https://api.together.xyz/v1',
     }));
-    jest.spyOn(AIRetrievalService, 'buildCompactReferenceContext')
+    const compactSpy = jest.spyOn(AIRetrievalService, 'buildCompactReferenceContext')
       .mockResolvedValueOnce('Uploaded reference snapshot:\nReference file: syllabus.pdf');
     mockFetch.mockResolvedValueOnce(mockChatCompletionResponse('The instructor is listed in the snapshot.'));
 
     await AIService.chat('user-1', request as any);
 
     const body = JSON.parse(mockFetch.mock.calls[mockFetch.mock.calls.length - 1][1].body);
-    expect(body.messages).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        role: 'system',
-        content: expect.stringContaining('Uploaded reference snapshot'),
-      }),
-    ]));
+    expect(compactSpy).not.toHaveBeenCalled();
+    expect(JSON.stringify(body.messages)).not.toContain('Uploaded reference snapshot');
+    expect(body.chat_template_kwargs).toEqual({ enable_thinking: false });
   });
 
   it('retries transient 503s on OpenAI-compatible chat completions', async () => {
