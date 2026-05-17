@@ -12,6 +12,13 @@ change, after deployment infrastructure changes, or whenever the user asks for
 
 Use `docs/LOCAL_DEV.md` instead for small local visual smoke tests.
 
+Use `docs/REGRESSION_GUARD.md` whenever a phase finds a potential bug. Check
+`docs/REGRESSION_LEDGER.md` before calling a finding "new".
+
+This playbook is intentionally browser-agent-assisted manual QA, not a promise
+of full unattended UI automation. Stable failures should be converted into
+lower-level tests or build/provider gates after they are fixed.
+
 ## Control Issue
 
 Every full production QA pass gets one GitHub control issue.
@@ -51,6 +58,12 @@ until the end to write the report.
 - Confirm GitHub Actions and production deployment after every merged fix.
 - File every confirmed bug as a separate issue and link it from the QA control
   issue.
+- Classify every confirmed bug as `type:regression`, `type:old-gap`,
+  `type:new-bug`, `type:provider`, or `type:infra`.
+- Check the regression ledger before filing a bug. A matching closed ledger row
+  means the finding is a regression until proven otherwise.
+- Every product bug fix needs a regression lock: a test, build gate, provider
+  smoke check, or an explicit manual-only rationale.
 - If a bug is safe to fix in scope: issue -> branch -> commit -> PR -> CI ->
   merge -> deploy -> production retest.
 - If a bug is infra, broad architecture, or product policy, leave it open with
@@ -109,6 +122,8 @@ Check:
 
 - Current branch, local worktree status, and latest main commit.
 - Open PRs.
+- Open bug issues and known residuals.
+- Regression ledger rows relevant to the changed subsystem.
 - Latest CI/deploy status.
 - App/admin proxied API health or authenticated 401.
 - Direct API TLS status, if relevant.
@@ -364,8 +379,11 @@ Goal: close the loop on issues found during the pass.
 
 For each bug:
 
+- Search old issues/PRs and `docs/REGRESSION_LEDGER.md`.
+- Classify it using `docs/REGRESSION_GUARD.md`.
 - File an issue.
 - Fix on a branch if in scope.
+- Add or update the regression lock.
 - Commit and PR.
 - Watch CI.
 - Merge/deploy according to current repo policy.
@@ -412,7 +430,12 @@ Key evidence:
 
 Bugs:
 - None.
-- Or: #123 / PR #124, retested on production.
+- Or: #123 / PR #124, `type:old-gap`, retested on production.
+
+Regression guard:
+- Ledger checked: yes/no.
+- Matching prior issue/PR:
+- Regression lock added/updated:
 
 Residual:
 - ...

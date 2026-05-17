@@ -1,0 +1,68 @@
+# Regression Ledger
+
+This ledger records bugs found during production QA that should not silently
+reappear. It is not a replacement for tests; it tells future agents what to
+search for before filing "new" bugs.
+
+Update this file when a QA-discovered bug adds a reusable risk pattern.
+
+## Recent QA Retrospective
+
+The repeated "new bug after full QA" pattern was mostly not the same fixed bug
+returning. It came from three different buckets:
+
+| Bucket | Issues | What happened | Future guard |
+| --- | --- | --- | --- |
+| Old coverage gap | #117, #120, #121, #122, #124, #128, #136, #138, #140, #141 | The behavior already existed, but earlier QA did not touch that edge path or build surface. | Expand the playbook and add a lower-level regression lock when fixed. |
+| Newly introduced app/provider behavior | #104, #110, #115 | A recent AI/editor/storage change created a real product bug. | Link the likely PR, add targeted tests, then retest the adjacent workflow. |
+| Provider or infra contract drift | #105, #107, #126, #131, #133 | External provider/domain behavior changed or was slower/different than local assumptions. | Classify separately, verify app degradation is bounded, and keep provider smoke checks explicit. |
+
+So a later QA pass finding more bugs is not automatically bad. It is bad only
+when a closed ledger row returns without its regression lock catching it. Future
+QA reports should name the bucket before filing the issue.
+
+| Issue | Symptom | Classification | Fixed by | Regression lock |
+| --- | --- | --- | --- | --- |
+| #103 | Deployed AI model picker showed stale generic model list. | `type:old-gap` | #108 | Model whitelist tests and provider settings QA. |
+| #104 | Quick actions could splice fallback text into selected text output. | `type:new-bug` | #106 | Quick-action fallback/output tests. |
+| #105 | Direct `api.writehumanly.net` TLS certificate does not match hostname. | `type:infra` | Open | Keep direct API checks separate from app/admin proxy checks. |
+| #107 | Non-streaming AI chat timed out with Together Qwen on personal document. | `type:provider` | #109 | REST chat reuses streaming agent path; AI smoke checks bounded behavior. |
+| #110 | Uploaded chat image attachments returned file-not-found during vision chat. | `type:new-bug` | #111, #112, #113, #114 | Attachment ownership/storage fallback tests. |
+| #115 | Agentic text chat returned empty final-answer fallback after multimodal history. | `type:new-bug` | #116 | AI chat completion selection tests. |
+| #117 | Admin submission certificate links pointed to localhost in production. | `type:old-gap` | #118 | Certificate URL tests and admin submission certificate-link test. |
+| #120 | Malformed JSON and invalid UUID-like params could return 500. | `type:old-gap` | #123 | Error-handler/integration negative tests. |
+| #121 | PDF uploads accepted fake or empty `application/pdf` payloads. | `type:old-gap` | #123 | File/PDF validation tests. |
+| #122 | Task export JSON/CSV endpoints returned 500 in production. | `type:old-gap` | #123 | Export service streaming tests; expanded by #141. |
+| #124 | Real browser quick-action shortcuts did not trigger with shifted digit keys. | `type:old-gap` | #125 | Shortcut handling component/workflow tests plus manual browser check. |
+| #126 | Quick actions could fail when provider stream returned no visible rewrite. | `type:provider` | #127 | Quick-action empty stream retry tests. |
+| #128 | Admin task cards showed `0 docs / 0 logs` despite recorded submissions. | `type:old-gap` | #129 | Task card stats tests and admin dashboard QA. |
+| #131 | Together `/models` returned top-level array, parsed as empty catalog. | `type:provider` | #132 | AI settings controller tests for array and `{ data }` catalogs. |
+| #133 | AI chat could hang indefinitely on retrieval-heavy task questions. | `type:provider` | #134, #135 | Provider timeout and hard-timeout tests; QA checks bounded fallback. |
+| #136 | Small reference-file QA over-relied on slow tool loops. | `type:old-gap` | #137 | Reference prefetch tests and grounded small-PDF smoke. |
+| #138 | Task submissions did not mark submission sessions completed, causing 0% analytics completion. | `type:old-gap` | #139 | Task submission/session completion tests and analytics QA. |
+| #140 | Local backend `tsc` build failed despite Jest passing. | `type:old-gap` | #145 | CI `pnpm build:all` gate. |
+| #141 | Export route/docs mismatch and export omitted user-portal `document_events`. | `type:old-gap` | #145 | Export route integration test and export service document-event tests. |
+
+## How To Use
+
+Before opening a new bug:
+
+1. Search this table for the symptom.
+2. If it matches a closed row, classify the finding as `type:regression`.
+3. If it resembles a row but hits a new adjacent path, classify as
+   `type:old-gap` and expand the regression lock.
+4. If it involves provider model/catalog/rate behavior, classify as
+   `type:provider` unless the app hangs, corrupts output, leaks secrets, or
+   fails to surface a bounded error.
+
+## Regression Lock Standards
+
+A row is not complete unless it names a lock:
+
+- Test file or test category.
+- CI/build gate.
+- Provider smoke script.
+- Manual checklist item when automation is not practical.
+
+If a bug returns, update the original row with the regression issue and explain
+why the lock missed it.
