@@ -1,6 +1,6 @@
 # Agent Progress Tracker
 
-Last updated: 2026-05-17 (#140/#141 backend build + export cleanup in progress)
+Last updated: 2026-05-17 (#146 regression guard + CI build gate in progress)
 
 This document is the shared handoff surface for agents working on `humanly-code`.
 GitHub issues and pull requests remain the source of truth for canonical history;
@@ -71,6 +71,7 @@ Lightweight coordination docs, handoff notes, and tracker updates can skip issue
 - **#63** Hide raw model reasoning and show realtime AI activity. Raw provider reasoning should not render as user-visible chain-of-thought; the UI should show status/activity like reading files, searching, and composing.
 - **#72** Store uploaded PDFs in Google Cloud Storage. Local Docker currently mounts `packages/backend/storage` into the backend container; production-grade storage still needs GCS.
 - **#105** Direct `api.writehumanly.net` TLS certificate hostname mismatch. The production app/admin proxied API paths work and are the current QA path.
+- **#146** Regression discipline guide, bug ledger, classification labels, and CI build gate. In progress.
 
 ## Open work outside Epic #4
 
@@ -94,8 +95,8 @@ Lightweight coordination docs, handoff notes, and tracker updates can skip issue
 
 - **#37 / #39** Frontend-user New Document environment form restructure merged into `feat/user-port`; issue closed and remote topic branch deleted.
 - **#130** Full production regression completed on 2026-05-17. Final report lives in issue #130. Fixed #131/#132, #133/#134/#135, #136/#137, and #138/#139; residual #105 remains.
-- **#140 / #141** In progress: backend `tsc` build debt is fixed locally, and task export now mounts at `/api/v1/tasks/:taskId/export/*` while exporting both tracker `events` and user-portal `document_events`.
 - **#142 / #143** Reusable production QA playbook, QA control issue initializer, architecture backlog, and analytics query indexes merged to `main`.
+- **#140 / #141 / #145** Backend build debt and export route/document-event semantics fixed and merged to `main`; production deploy succeeded.
 
 ## Verification Notes
 

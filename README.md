@@ -150,6 +150,8 @@ Full production regression uses a reusable Phase 0 baseline plus 14-phase
 playbook:
 
 - Guide: [docs/PRODUCTION_QA_PLAYBOOK.md](docs/PRODUCTION_QA_PLAYBOOK.md)
+- Regression guard: [docs/REGRESSION_GUARD.md](docs/REGRESSION_GUARD.md)
+- Regression ledger: [docs/REGRESSION_LEDGER.md](docs/REGRESSION_LEDGER.md)
 - Architecture/performance backlog:
   [docs/ARCHITECTURE_OPTIMIZATION_BACKLOG.md](docs/ARCHITECTURE_OPTIMIZATION_BACKLOG.md)
 

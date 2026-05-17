@@ -43,6 +43,8 @@ Rules for this QA pass:
 - Use production-hosted pages and APIs, not local mocks.
 - Record each phase result immediately as an issue comment.
 - File confirmed product bugs as separate issues and link them here.
+- Before filing a bug, check \`docs/REGRESSION_LEDGER.md\` and classify it as \`type:regression\`, \`type:old-gap\`, \`type:new-bug\`, \`type:provider\`, or \`type:infra\`.
+- Every fixed product bug needs a regression lock: test, build gate, provider smoke, or explicit manual-only rationale.
 - If a confirmed bug is fixable in scope, create branch -> commit -> PR -> CI -> merge/deploy -> retest.
 - Do not print API keys or passwords in comments.
 
@@ -51,6 +53,7 @@ ${phases.map((phase, index) => `- [ ] Phase ${index}: ${phase}`).join('\n')}
 
 ## Linked Bugs / PRs
 - Add fixed bugs and residual issues here as the pass runs.
+- Include each bug's classification and regression lock.
 
 ## Local Runtime Artifact
 - Store local-only secrets and runtime IDs in \`/tmp/qa-<run-id>.json\`.
@@ -58,6 +61,7 @@ ${phases.map((phase, index) => `- [ ] Phase ${index}: ${phase}`).join('\n')}
 
 ## Playbook
 Follow \`docs/PRODUCTION_QA_PLAYBOOK.md\`.
+Use \`docs/REGRESSION_GUARD.md\` and \`docs/REGRESSION_LEDGER.md\` before filing bugs.
 `;
 
 const args = [
