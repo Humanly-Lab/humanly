@@ -1,6 +1,6 @@
 # Agent Progress Tracker
 
-Last updated: 2026-05-17 (#146 regression guard + CI build gate in progress)
+Last updated: 2026-05-17 (issue authoring guide added; #105 upgraded to Kordi-style)
 
 This document is the shared handoff surface for agents working on `humanly-code`.
 GitHub issues and pull requests remain the source of truth for canonical history;
@@ -11,6 +11,8 @@ this file is the fast-read summary of what to do next and what not to forget.
 Feature and bug-fix work should follow this loop:
 
 1. Create or pick a GitHub issue. **One feature = one issue**, even if it has multiple sub-tasks. Tightly-coupled work that touches the same files / domain ships as ONE consolidated issue with internal Task sections, not as 4 separate top-level issues. Reserve separate issues for genuinely independent slices or distinct bugs.
+   - Every new issue must follow `docs/ISSUE_AUTHORING_GUIDE.md` and match the Kordi-style quality bar: target branch, classification, problem, expected behavior, repro, likely failure path, scope, acceptance criteria, out-of-scope boundaries, file pointers, and references.
+   - Before coding from an existing open issue, upgrade the issue body if it is too thin. Do not implement from a vague one-paragraph issue.
 2. Branch from the target integration branch.
 3. Code the smallest coherent slice.
 4. **勤 commit** — within a branch, split work into small logical commits, one per Task section / file group / orthogonal concern. Each commit message references the issue number.
@@ -71,7 +73,6 @@ Lightweight coordination docs, handoff notes, and tracker updates can skip issue
 - **#63** Hide raw model reasoning and show realtime AI activity. Raw provider reasoning should not render as user-visible chain-of-thought; the UI should show status/activity like reading files, searching, and composing.
 - **#72** Store uploaded PDFs in Google Cloud Storage. Local Docker currently mounts `packages/backend/storage` into the backend container; production-grade storage still needs GCS.
 - **#105** Direct `api.writehumanly.net` TLS certificate hostname mismatch. The production app/admin proxied API paths work and are the current QA path.
-- **#146** Regression discipline guide, bug ledger, classification labels, and CI build gate. In progress.
 
 ## Open work outside Epic #4
 
@@ -97,6 +98,7 @@ Lightweight coordination docs, handoff notes, and tracker updates can skip issue
 - **#130** Full production regression completed on 2026-05-17. Final report lives in issue #130. Fixed #131/#132, #133/#134/#135, #136/#137, and #138/#139; residual #105 remains.
 - **#142 / #143** Reusable production QA playbook, QA control issue initializer, architecture backlog, and analytics query indexes merged to `main`.
 - **#140 / #141 / #145** Backend build debt and export route/document-event semantics fixed and merged to `main`; production deploy succeeded.
+- **#146 / #147** Regression discipline guide, bug ledger, classification labels, Kordi-style issue authoring guide, and CI `build:all` gate merged to `main`; production deploy succeeded.
 
 ## Verification Notes
 
