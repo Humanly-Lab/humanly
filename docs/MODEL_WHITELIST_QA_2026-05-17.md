@@ -113,10 +113,30 @@ Direct provider image smoke passed for:
 - OpenRouter `openai/gpt-5.4-mini`.
 - OpenRouter `google/gemini-3.1-flash-lite`.
 
-Production Humanly image-input testing for the newly added OpenRouter vision
-models must be rerun after this whitelist change is deployed. Before deploy,
-the production backend still treats those ids as unknown and therefore
-text-only.
+Post-deploy Humanly image-input canary:
+
+- Artifact:
+  `tmp/openrouter-image-canary-20260517T230116.json`
+- Result:
+  10/10 passed.
+- Production path covered:
+  fresh user registration, document creation, PNG chat attachment upload,
+  user-level OpenRouter settings, REST AI chat image input, and backend
+  capability gating.
+
+Vision models that successfully read the image:
+
+- `qwen/qwen3.5-397b-a17b`
+- `qwen/qwen3.5-9b`
+- `moonshotai/kimi-k2.6`
+- `anthropic/claude-sonnet-4.6`
+- `openai/gpt-5.4-mini`
+- `google/gemini-3.1-flash-lite`
+
+Text-only models that correctly rejected image input:
+
+- `deepseek/deepseek-v4-pro`
+- `z-ai/glm-5.1`
 
 ## Regression Notes
 
