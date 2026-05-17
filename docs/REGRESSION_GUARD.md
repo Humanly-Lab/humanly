@@ -148,7 +148,8 @@ After a main deploy with product changes, run this short smoke:
 1. App and admin `/health` return 200.
 2. User login and admin login work.
 3. User opens a personal or task document.
-4. Qwen AI chat answers one grounded PDF question.
+4. One stable AI chat model answers one grounded PDF question
+   (for example Together Kimi or OpenRouter Qwen; do not use Together Qwen).
 5. Four quick actions return selected-text rewrites only.
 6. User submits an enrolled task document.
 7. Admin submissions/analytics show the submission.

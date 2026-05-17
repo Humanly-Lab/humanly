@@ -14,6 +14,8 @@ This directory is the entry point for maintainers and agents working on
 
 - `PRODUCTION_QA_PLAYBOOK.md` - reusable end-to-end production test plan.
 - `BACKEND_STRESS_TESTING.md` - backend/document/file stress harness.
+- `AI_USAGE_STRESS_TEST_REPORT_2026-05-17.md` - baseline production AI usage
+  stress report across stable models, PDFs, UI chat, and quick actions.
 - `REGRESSION_GUARD.md` - how to decide whether a finding is old, new, or a
   regression.
 - `REGRESSION_LEDGER.md` - recurring bug patterns and manual locks.

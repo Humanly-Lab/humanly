@@ -42,6 +42,7 @@ QA reports should name the bucket before filing the issue.
 | #138 | Task submissions did not mark submission sessions completed, causing 0% analytics completion. | `type:old-gap` | #139 | Task submission/session completion tests and analytics QA. |
 | #140 | Local backend `tsc` build failed despite Jest passing. | `type:old-gap` | #145 | CI `pnpm build:all` gate. |
 | #141 | Export route/docs mismatch and export omitted user-portal `document_events`. | `type:old-gap` | #145 | Export route integration test and export service document-event tests. |
+| #170 | Together Kimi quick actions could return empty rewrites because the provider spent the response budget in reasoning unless thinking was disabled. | `type:provider` | #171 | Backend quick-action tests assert Together Kimi sends `chat_template_kwargs.enable_thinking=false`; post-deploy four-action quick-action canary. |
 
 ## How To Use
 
