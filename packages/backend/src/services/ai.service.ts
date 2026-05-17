@@ -432,6 +432,32 @@ function normalizeProviderTimeoutMs(value: number | undefined): number {
   return Math.max(5000, Math.min(Math.floor(value), 180000));
 }
 
+function buildProviderTimeoutFallback(timeoutMs: number): string {
+  return `The AI request took longer than ${Math.round(timeoutMs / 1000)} seconds and was stopped before it could finish. Please try again with a narrower question.`;
+}
+
+async function withAIProviderTimeout<T>(
+  operation: Promise<T>,
+  timeoutMs: number,
+  onTimeout: () => T
+): Promise<{ value: T; timedOut: boolean }> {
+  let timeout: NodeJS.Timeout | undefined;
+  const timeoutPromise = new Promise<{ value: T; timedOut: boolean }>((resolve) => {
+    timeout = setTimeout(() => {
+      resolve({ value: onTimeout(), timedOut: true });
+    }, timeoutMs);
+  });
+
+  try {
+    return await Promise.race([
+      operation.then(value => ({ value, timedOut: false })),
+      timeoutPromise,
+    ]);
+  } finally {
+    if (timeout) clearTimeout(timeout);
+  }
+}
+
 interface AgentChatOptions {
   userId: string;
   documentId: string;
@@ -2301,11 +2327,25 @@ export class AIService {
       // silence chunks for this REST endpoint. Together Qwen is reliable on
       // the streaming path and can hang on the older non-streaming path (#107).
       const toolCallCollector = new AgentToolCallCollector();
-      const response = await provider.agentStreamChat(messages as any, () => {}, {
-        userId,
-        documentId: request.documentId,
-        onAgentEvent: (event) => toolCallCollector.observe(event),
-      });
+      let ignoreLateProviderEvents = false;
+      const providerTimeoutMs = normalizeProviderTimeoutMs(env.aiProviderTimeoutMs);
+      const { value: response, timedOut } = await withAIProviderTimeout(
+        provider.agentStreamChat(messages as any, () => {}, {
+          userId,
+          documentId: request.documentId,
+          onAgentEvent: (event) => {
+            if (!ignoreLateProviderEvents) {
+              toolCallCollector.observe(event);
+            }
+          },
+        }),
+        providerTimeoutMs,
+        () => ({
+          content: buildProviderTimeoutFallback(providerTimeoutMs),
+          tokensUsed: undefined,
+        })
+      );
+      ignoreLateProviderEvents = timedOut;
 
       const responseTimeMs = Date.now() - startTime;
 
@@ -2482,18 +2522,38 @@ export class AIService {
       // session reloads (#94). The websocket layer still gets every event
       // in real time via the wrapped sink.
       const toolCallCollector = new AgentToolCallCollector();
+      let ignoreLateProviderEvents = false;
       const wrappedAgentEvent: AgentEventSink = (event) => {
+        if (ignoreLateProviderEvents) return;
         toolCallCollector.observe(event);
         if (onAgentEvent) emitAgentEvent(onAgentEvent, event);
       };
 
       // Use the retrieval-capable agent and stream the final response once any
       // needed retrieval tool calls have completed.
-      const response = await provider.agentStreamChat(messages as any, onChunk, {
-        userId,
-        documentId: request.documentId,
-        onAgentEvent: wrappedAgentEvent,
-      });
+      const providerTimeoutMs = normalizeProviderTimeoutMs(env.aiProviderTimeoutMs);
+      const safeOnChunk = (chunk: string) => {
+        if (!ignoreLateProviderEvents) {
+          onChunk(chunk);
+        }
+      };
+      const { value: response, timedOut } = await withAIProviderTimeout(
+        provider.agentStreamChat(messages as any, safeOnChunk, {
+          userId,
+          documentId: request.documentId,
+          onAgentEvent: wrappedAgentEvent,
+        }),
+        providerTimeoutMs,
+        () => {
+          const fallback = buildProviderTimeoutFallback(providerTimeoutMs);
+          onChunk(fallback);
+          return {
+            content: fallback,
+            tokensUsed: undefined,
+          };
+        }
+      );
+      ignoreLateProviderEvents = timedOut;
 
       const responseTimeMs = Date.now() - startTime;
 
