@@ -1,9 +1,8 @@
 # Local Dev Quickstart
 
 Canonical procedure for spinning up `humanly-code` on a developer / agent
-machine for manual smoke tests and visible-feature verification. Claude
-Code and Codex both follow this exact procedure so handoffs do not need
-to re-explain how to run the platform.
+machine for manual smoke tests and visible-feature verification. This is the
+local browser-smoke reference for Codex development.
 
 ## Two tracks
 
@@ -71,19 +70,19 @@ pnpm dev:frontend-user       # :3002
 
 Then log in through the regular `/login` route at `http://localhost:3002/login`.
 
-## Agent handoff protocol for manual tests
+## Agent protocol for manual tests
 
-When an agent (Claude Code or Codex) finishes a slice that needs a visible browser smoke test:
+When Codex finishes a slice that needs a visible browser smoke test:
 
 1. **Run the mock track** in two background processes (`pnpm dev:mock`, `pnpm dev:frontend-user`).
 2. **Open the user portal** at `http://localhost:3002/dev-bypass-login.html` for the human.
 3. **Post step-by-step click instructions** referencing the exact buttons and the exact expected outcomes (e.g. "select the line containing `they are bad grammar`, press `Cmd+Shift+1`, expect typewriter streaming + a red/green diff in the review card").
 4. **Wait** for the human's verdict before invoking commit / push / PR or before declaring the slice done.
 
-The mock backend is the contract Claude and Codex both target. If a new
-PR adds a flow the mock does not yet support, the same PR (or a sibling
-PR opened first) should extend `scripts/dev-mock-server.mjs` and this
-file, so the next agent does not start cold.
+The mock backend is the local UX contract. If a new PR adds a flow the mock does
+not yet support, the same PR (or a sibling PR opened first) should extend
+`scripts/dev-mock-server.mjs` and this file, so the next run does not start
+cold.
 
 ## Stopping everything
 

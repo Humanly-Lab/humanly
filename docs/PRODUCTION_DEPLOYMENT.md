@@ -11,7 +11,7 @@ Storage, and does not introduce Kubernetes, GKE, or Cloud Run.
 ## Deployment Flow
 
 ```text
-push to main
+product push to main
   -> GitHub Actions builds backend, frontend-user, and frontend images
   -> GitHub Actions pushes commit-SHA tags to Artifact Registry
   -> GitHub Actions SSHes into the production VM
@@ -21,6 +21,11 @@ push to main
   -> VM runs pending SQL migrations
   -> docker compose up -d backend frontend-user frontend nginx
 ```
+
+Docs-only pushes to `main` are ignored by `.github/workflows/deploy.yml`.
+Related small product PRs can be merged into an `integration/<theme>` or
+`release/<theme>` branch first, then shipped through one final PR to `main` so
+production deploys once.
 
 Production service compatibility is unchanged:
 

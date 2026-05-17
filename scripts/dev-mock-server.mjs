@@ -2,7 +2,7 @@
 /**
  * Local dev mock backend for humanly-code manual smoke tests.
  *
- * Lets Claude Code / Codex / any agent spin up a full visual demo without
+ * Lets Codex / any agent spin up a full visual demo without
  * Docker, without a real LLM key, and without the real Postgres /
  * TimescaleDB / Redis stack. The frontend (`@humanly/frontend-user`)
  * connects normally to http://localhost:3001 and ws://localhost:3001.
