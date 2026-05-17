@@ -8,6 +8,7 @@ Production:
 
 - User portal: https://app.writehumanly.net/
 - Admin dashboard: https://admin.writehumanly.net/
+- Direct API/tracker host: https://api.writehumanly.net/
 
 ## Monorepo Layout
 

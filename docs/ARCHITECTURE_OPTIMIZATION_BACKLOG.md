@@ -73,25 +73,13 @@ Implemented approach:
 These are likely worthwhile but should be planned rather than silently slipped
 into a QA docs PR.
 
-### 1. Direct API TLS / Domain Policy
+### 1. Durable Object Storage For Uploads
 
-Residual issue: #105.
+Residual issue: #72.
 
-Decision needed:
-
-- Should `api.writehumanly.net` be a supported public domain, or should all
-  clients use app/admin proxied API paths?
-
-If supported:
-
-- Reissue TLS cert including `api.writehumanly.net`.
-- Add direct API health checks to deploy verification.
-- Confirm tracker snippets and CORS policy use the intended API base.
-
-If not supported:
-
-- Remove or de-emphasize direct API URLs from docs/config.
-- Ensure snippets use app/admin or a deliberately supported API hostname.
+Current production still stores uploads on the VM filesystem. Move uploaded PDFs
+and AI attachments to Google Cloud Storage before traffic or document volume
+grows.
 
 ### 2. Export Semantics
 

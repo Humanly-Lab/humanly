@@ -56,10 +56,11 @@ until the end to write the report.
   `/tmp/qa-<run-id>.json`.
 - Use fresh QA accounts when practical. Account emails can be logged; passwords
   cannot.
-- Prefer the production app/admin proxied API paths:
+- Product UI flows should use the production app/admin proxied API paths:
   `https://app.writehumanly.net/api/v1` and
   `https://admin.writehumanly.net/api/v1`.
-- Keep direct `api.writehumanly.net` checks separate from product flow checks.
+- `https://api.writehumanly.net` is the supported direct API/tracker hostname.
+  Keep its TLS/health checks separate from app/admin UI flow checks.
 - Confirm GitHub Actions and production deployment after every merged fix.
 - File every confirmed bug as a separate issue and link it from the QA control
   issue.

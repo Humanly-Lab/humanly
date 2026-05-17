@@ -164,7 +164,8 @@ Do not file a product bug for:
 - Provider credit exhaustion.
 - Provider 429/503 when the app surfaces a bounded, clear error.
 - A manual QA harness mistake.
-- Direct `api.writehumanly.net` failure when the product intentionally uses
-  app/admin proxy paths, unless the direct API domain is declared supported.
+- A direct `api.writehumanly.net` product-flow failure when the tested UI path
+  intentionally uses app/admin proxy paths. Direct API TLS/health failures are
+  infra bugs because `api.writehumanly.net` is a supported public hostname.
 
 Still record these in the QA control issue as caveats or residual risks.

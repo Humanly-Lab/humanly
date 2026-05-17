@@ -20,6 +20,8 @@ product push to main
   -> docker compose pull backend frontend-user frontend
   -> VM runs pending SQL migrations
   -> docker compose up -d backend frontend-user frontend nginx
+  -> deploy script expands TLS cert SANs when needed and restarts nginx
+  -> GitHub Actions verifies app/admin/api health endpoints over HTTPS
 ```
 
 Docs-only pushes to `main` are ignored by `.github/workflows/deploy.yml`.
@@ -34,7 +36,8 @@ Production service compatibility is unchanged:
 - `frontend` listens on port `3000` inside the Compose network and is served
   from `admin.writehumanly.net`.
 - `nginx` routes `app.writehumanly.net` to `frontend-user` and
-  `admin.writehumanly.net` to `frontend`. Both hostnames proxy `/api`,
+  `admin.writehumanly.net` to `frontend`. `api.writehumanly.net` is the
+  supported direct API/tracker hostname. All three hostnames proxy `/api`,
   `/health`, `/tracker/`, and `/socket.io/` to `backend`.
 - `postgres`, `redis`, volumes, networks, health checks, and backend `.env`
   behavior are preserved.
@@ -45,19 +48,37 @@ Production uses subdomains under the existing `writehumanly.net` domain:
 
 - `app.writehumanly.net`: end-user portal (`frontend-user`).
 - `admin.writehumanly.net`: admin dashboard (`frontend`).
+- `api.writehumanly.net`: direct API, tracker, health, and Socket.IO host.
 
-Add this DNS record before enabling the admin dashboard:
+All three records should point at the production VM external IP:
 
 ```text
 Type: A
+Name: app
+Value: 34.30.217.221
+
+Type: A
 Name: admin
+Value: 34.30.217.221
+
+Type: A
+Name: api
 Value: 34.30.217.221
 ```
 
 The TLS certificate mounted at `nginx/ssl/fullchain.pem` must also include
-`admin.writehumanly.net`. If the current certificate only covers
-`app.writehumanly.net`, renew/reissue it with both hostnames before expecting
-clean HTTPS for the admin dashboard.
+`app.writehumanly.net`, `admin.writehumanly.net`, and `api.writehumanly.net`.
+`scripts/deploy.sh` calls `scripts/ensure-production-cert.sh` after nginx is
+running; the script expands the Let's Encrypt certificate automatically when a
+supported hostname is missing from the certificate SAN.
+
+Manual certificate repair from the VM:
+
+```bash
+cd /home/humanly/humanly
+bash scripts/ensure-production-cert.sh
+docker compose -f docker-compose.prod.yml up -d --no-deps --force-recreate nginx
+```
 
 ## Required GCP Setup
 
@@ -287,8 +308,9 @@ export FRONTEND_IMAGE="REGION-docker.pkg.dev/PROJECT_ID/humanly/humanly-frontend
 bash scripts/deploy.sh
 ```
 
-The script prunes only dangling images. It does not run `docker image prune -a`,
-so tagged images needed for rollback are not aggressively deleted by deploys.
+The deploy script prunes unused images after a successful release. Rollback
+works only for image tags still present in Artifact Registry; if a previous tag
+is not cached on the VM, Docker pulls it again during manual rollback.
 
 ## Production Compose Images
 
