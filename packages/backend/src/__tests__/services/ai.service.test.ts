@@ -771,6 +771,51 @@ describe('AIService.silentStreamChat', () => {
     expect(mockFetch).toHaveBeenCalledTimes(2);
     expect(JSON.parse(mockFetch.mock.calls[1][1].body).stream).toBe(false);
   });
+
+  it('disables Together Kimi thinking so quick actions receive visible content', async () => {
+    MockUserAISettings.getByUserId.mockResolvedValue(makeSettings({
+      model: 'moonshotai/Kimi-K2.6',
+      baseUrl: 'https://api.together.xyz/v1',
+    }));
+    mockFetch.mockResolvedValueOnce(mockChatCompletionStream('This is a focused shortcut sentence.'));
+
+    const chunks: string[] = [];
+    let completed = '';
+    let caughtError: Error | undefined;
+
+    await AIService.silentStreamChat(
+      'user-1',
+      request as any,
+      (chunk) => chunks.push(chunk),
+      (content) => { completed = content; },
+      (error) => { caughtError = error; },
+    );
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    expect(body.chat_template_kwargs).toEqual({ enable_thinking: false });
+    expect(caughtError).toBeUndefined();
+    expect(completed).toBe('This is a focused shortcut sentence.');
+    expect(chunks).toEqual(['This is a focused shortcut sentence.']);
+  });
+
+  it('does not send Together-only thinking kwargs to OpenRouter Kimi', async () => {
+    MockUserAISettings.getByUserId.mockResolvedValue(makeSettings({
+      model: 'moonshotai/kimi-k2.6',
+      baseUrl: 'https://openrouter.ai/api/v1',
+    }));
+    mockFetch.mockResolvedValueOnce(mockChatCompletionStream('This is a focused shortcut sentence.'));
+
+    await AIService.silentStreamChat(
+      'user-1',
+      request as any,
+      () => {},
+      () => {},
+      () => {},
+    );
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    expect(body.chat_template_kwargs).toBeUndefined();
+  });
 });
 
 // ── AIService.chat ────────────────────────────────────────────────────────────

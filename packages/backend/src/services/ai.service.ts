@@ -1477,7 +1477,13 @@ class OpenAIProvider implements AIProvider {
   }
 
   private supportsChatTemplateThinkingToggle(): boolean {
-    return this.baseUrl.includes('api.together.xyz') && this.model.startsWith('Qwen/');
+    if (!this.baseUrl.includes('api.together.xyz')) return false;
+    return [
+      'Qwen/Qwen3.5-397B-A17B',
+      'moonshotai/Kimi-K2.6',
+      'deepseek-ai/DeepSeek-V4-Pro',
+      'zai-org/GLM-5',
+    ].includes(this.model);
   }
 
   private async finalizeChatCompletion(
