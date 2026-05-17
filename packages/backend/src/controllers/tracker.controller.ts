@@ -67,7 +67,7 @@ export class TrackerController {
           error: 'File not found',
           message: filename.endsWith('.html')
             ? 'Test file not found'
-            : 'Please build the tracker package first: npm run build:tracker',
+            : 'Please build the tracker package first: pnpm build:tracker',
         });
         return;
       }
