@@ -13,6 +13,7 @@ This directory is the entry point for maintainers and agents working on
 ## QA And Regression
 
 - `PRODUCTION_QA_PLAYBOOK.md` - reusable end-to-end production test plan.
+- `BACKEND_STRESS_TESTING.md` - backend/document/file stress harness.
 - `REGRESSION_GUARD.md` - how to decide whether a finding is old, new, or a
   regression.
 - `REGRESSION_LEDGER.md` - recurring bug patterns and manual locks.

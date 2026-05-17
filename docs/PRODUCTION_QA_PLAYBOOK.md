@@ -15,6 +15,10 @@ Use `docs/LOCAL_DEV.md` instead for small local visual smoke tests.
 Use `docs/REGRESSION_GUARD.md` whenever a phase finds a potential bug. Check
 `docs/REGRESSION_LEDGER.md` before calling a finding "new".
 
+Use `docs/BACKEND_STRESS_TESTING.md` for backend/document/file load and fixture
+coverage. Keep stress runs separate from browser QA reports unless the QA issue
+explicitly calls for load testing.
+
 This playbook is intentionally browser-agent-assisted manual QA, not a promise
 of full unattended UI automation. Stable failures should be converted into
 lower-level tests or build/provider gates after they are fixed.
