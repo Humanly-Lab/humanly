@@ -211,7 +211,7 @@ docker-compose up -d --build backend
 - `POST /events` - Batch event ingestion
 - `POST /submit` - Submit session
 
-### Analytics Endpoints (`/projects/:id/analytics`)
+### Analytics Endpoints (`/tasks/:taskId/analytics`)
 
 - `GET /summary` - Summary statistics
 - `GET /events-timeline` - Events over time
@@ -219,7 +219,7 @@ docker-compose up -d --build backend
 - `GET /users` - User activity list
 - `GET /sessions/:sessionId` - Session details
 
-### Export Endpoints (`/projects/:id/export`)
+### Export Endpoints (`/tasks/:taskId/export`)
 
 - `GET /json` - Export as JSON
 - `GET /csv` - Export as CSV

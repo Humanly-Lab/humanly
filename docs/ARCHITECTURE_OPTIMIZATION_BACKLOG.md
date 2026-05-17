@@ -53,19 +53,19 @@ Expected effect:
 
 ### 3. Fix Local Backend `tsc` Build Debt
 
-Status: open residual #140.
+Status: fixed in #140/#141 cleanup branch.
 
 Why:
 
 - CI tests pass and production deploy works, but local backend build failure
   makes developer confidence worse and hides true type regressions.
 
-Suggested approach:
+Implemented approach:
 
 - Add missing `@types/pg`.
 - Type Express routers explicitly.
 - Fix JWT `expiresIn` typing.
-- Clean unused params/imports or relax no-unused where intentional.
+- Relax backend `noUnused*` build blocking; keep unused-code cleanup in lint/review.
 - Make controller return paths explicit.
 
 ## Medium-Risk Improvements To Discuss
@@ -95,14 +95,9 @@ If not supported:
 
 ### 2. Export Semantics
 
-Residual issue: #141.
+Status: fixed in #140/#141 cleanup branch.
 
-Decision needed:
-
-- Should task export include user-portal `document_events`, legacy tracker
-  `events`, or both?
-
-Recommended direction:
+Implemented direction:
 
 - Export both with an `eventSource` field (`tracker` / `document`) and make the
   route live under `/api/v1/tasks/:taskId/export/*`.
@@ -178,4 +173,3 @@ These are not immediate tasks.
   and long-running export generation.
 - Add observability: structured request IDs, endpoint latency histograms,
   provider latency/error metrics, and dashboard query timing.
-

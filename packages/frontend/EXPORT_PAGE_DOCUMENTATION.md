@@ -93,9 +93,8 @@ The data export page is located at `/app/(dashboard)/projects/[id]/export/page.t
 
 #### Export Endpoints
 ```
-GET /api/v1/projects/:id/export/json
-GET /api/v1/projects/:id/export/csv
-GET /api/v1/projects/:id/export/preview
+GET /api/v1/tasks/:taskId/export/json
+GET /api/v1/tasks/:taskId/export/csv
 ```
 
 #### Query Parameters
@@ -257,25 +256,21 @@ yarn install
 The backend must implement the following endpoints:
 
 ### Export Preview
-```
-GET /api/v1/projects/:id/export/preview
-Response: {
-  estimatedRecordCount: number;
-  estimatedFileSize: string;
-  sampleData: any[];
-}
-```
+
+Not currently implemented. The task analytics placeholder route is
+`GET /api/v1/tasks/:taskId/analytics/export`, but it does not return preview
+counts or sample rows yet.
 
 ### JSON Export
 ```
-GET /api/v1/projects/:id/export/json
+GET /api/v1/tasks/:taskId/export/json
 Response: Blob (application/json or application/zip)
 Headers: Content-Disposition: attachment; filename="export-{id}-{date}.json"
 ```
 
 ### CSV Export
 ```
-GET /api/v1/projects/:id/export/csv
+GET /api/v1/tasks/:taskId/export/csv
 Response: Blob (text/csv or application/zip)
 Headers: Content-Disposition: attachment; filename="export-{id}-{date}.csv"
 ```
