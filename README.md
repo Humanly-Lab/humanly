@@ -144,6 +144,21 @@ pnpm build:tracker
 pnpm build:all
 ```
 
+### Production QA
+
+Full production regression uses a reusable Phase 0 baseline plus 14-phase
+playbook:
+
+- Guide: [docs/PRODUCTION_QA_PLAYBOOK.md](docs/PRODUCTION_QA_PLAYBOOK.md)
+- Architecture/performance backlog:
+  [docs/ARCHITECTURE_OPTIMIZATION_BACKLOG.md](docs/ARCHITECTURE_OPTIMIZATION_BACKLOG.md)
+
+Create a new traceable QA control issue with:
+
+```bash
+pnpm qa:create-issue
+```
+
 ### Docker Development
 
 ```bash

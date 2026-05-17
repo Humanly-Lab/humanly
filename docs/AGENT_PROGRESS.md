@@ -1,6 +1,6 @@
 # Agent Progress Tracker
 
-Last updated: 2026-05-15 (#89 agent smoke pseudo-call checks opened)
+Last updated: 2026-05-17 (#142 production QA playbook + architecture backlog)
 
 This document is the shared handoff surface for agents working on `humanly-code`.
 GitHub issues and pull requests remain the source of truth for canonical history;
@@ -71,6 +71,10 @@ Lightweight coordination docs, handoff notes, and tracker updates can skip issue
 - **#63** Hide raw model reasoning and show realtime AI activity. Raw provider reasoning should not render as user-visible chain-of-thought; the UI should show status/activity like reading files, searching, and composing.
 - **#72** Store uploaded PDFs in Google Cloud Storage. Local Docker currently mounts `packages/backend/storage` into the backend container; production-grade storage still needs GCS.
 - **#87** Fix local backend/build:all TypeScript build failures. Tests are green, frontend builds pass, and Docker backend build emits despite TS errors, but local `pnpm build:backend` / `pnpm build:all` still fail under strict `tsc`.
+- **#105** Direct `api.writehumanly.net` TLS certificate hostname mismatch. The production app/admin proxied API paths work and are the current QA path.
+- **#140** Local backend `tsc` build fails on existing TypeScript debt. Full Jest regression passes; this remains a dev/build hygiene issue.
+- **#141** Export API route/docs mismatch and export omits user-portal document events. Not visible in the current admin UI, but backend/API semantics need cleanup.
+- **#142** Reusable production QA playbook and architecture optimization backlog. Adds the reusable 14-phase QA process and low-risk analytics indexes.
 
 ## Open work outside Epic #4
 
@@ -93,6 +97,7 @@ Lightweight coordination docs, handoff notes, and tracker updates can skip issue
 ### Recently merged outside Epic #4
 
 - **#37 / #39** Frontend-user New Document environment form restructure merged into `feat/user-port`; issue closed and remote topic branch deleted.
+- **#130** Full production regression completed on 2026-05-17. Final report lives in issue #130. Fixed #131/#132, #133/#134/#135, #136/#137, and #138/#139; residuals are #105, #140, and #141.
 
 ## Verification Notes
 
