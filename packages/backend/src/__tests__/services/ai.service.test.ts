@@ -58,6 +58,7 @@ import {
   buildToolCallRepairPrompt,
   classifyQuestionCategory,
   containsPseudoToolCall,
+  normalizeAgentTimeoutDirectFallbackOutput,
   normalizeProviderTimeoutMs,
   normalizeQuickActionOutput,
   shouldRepairEmptyToolCallResponse,
@@ -175,6 +176,27 @@ describe('provider timeout helpers', () => {
   it('surfaces the configured timeout in fallback copy', () => {
     expect(buildProviderTimeoutFallback(180000)).toContain('180 seconds');
     expect(buildProviderTimeoutFallback(180000)).not.toContain('60 seconds');
+  });
+
+  it('accepts a clean direct fallback answer after agent timeout', () => {
+    expect(normalizeAgentTimeoutDirectFallbackOutput(
+      'Dr. Mark Hathaway; office hours are Mondays, 2-3 PM.'
+    )).toBe('Dr. Mark Hathaway; office hours are Mondays, 2-3 PM.');
+  });
+
+  it('rejects timeout/final-answer fallback text from direct fallback recovery', () => {
+    expect(normalizeAgentTimeoutDirectFallbackOutput(
+      'The AI request took longer than 180 seconds and was stopped before it could finish.'
+    )).toBe('');
+    expect(normalizeAgentTimeoutDirectFallbackOutput(
+      'I could not produce a final answer from the available context.'
+    )).toBe('');
+  });
+
+  it('rejects pseudo tool-call text from direct fallback recovery', () => {
+    expect(normalizeAgentTimeoutDirectFallbackOutput(
+      '{"function":"ls","arguments":{}}'
+    )).toBe('');
   });
 });
 
@@ -822,6 +844,28 @@ describe('AIService.chat', () => {
     expect(mockFetch).toHaveBeenCalledTimes(2);
     const finalBody = JSON.parse(mockFetch.mock.calls[1][1].body);
     expect(finalBody.model).toBe('Qwen/Qwen3.5-397B-A17B');
+  });
+
+  it('recovers an agent timeout with a direct snapshot fallback', async () => {
+    jest.useFakeTimers();
+    MockUserAISettings.getByUserId.mockResolvedValue(makeSettings({
+      model: 'Qwen/Qwen3.5-397B-A17B',
+      baseUrl: 'https://api.together.xyz/v1',
+    }));
+    jest.spyOn(AIRetrievalService, 'buildCompactReferenceContext')
+      .mockResolvedValueOnce('Uploaded reference snapshot:\nDr. Mark Hathaway. Office hours Mondays, 2-3 PM.');
+    mockFetch
+      .mockImplementationOnce(() => new Promise(() => {}))
+      .mockResolvedValueOnce(mockChatCompletionStream('Dr. Mark Hathaway; office hours are Mondays, 2-3 PM.'));
+
+    const promise = AIService.chat('user-1', request as any);
+    await Promise.resolve();
+    await jest.advanceTimersByTimeAsync(180000);
+    await promise;
+
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+    expect(MockAIModel.addMessage.mock.calls[1][2]).toContain('Dr. Mark Hathaway');
+    jest.useRealTimers();
   });
 
   it('uses existing session when sessionId is provided', async () => {

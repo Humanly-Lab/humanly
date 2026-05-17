@@ -325,6 +325,15 @@ export function normalizeQuickActionOutput(text: string | null | undefined): str
   return cleaned;
 }
 
+export function normalizeAgentTimeoutDirectFallbackOutput(text: string | null | undefined): string {
+  const cleaned = stripPseudoToolCallMarkup(text).trim();
+  if (!cleaned || containsPseudoToolCall(cleaned)) return '';
+  if (QUICK_ACTION_FAILURE_PATTERNS.some((pattern) => pattern.test(cleaned))) return '';
+  if (/took longer than \d+ seconds and was stopped before it could finish/i.test(cleaned)) return '';
+  const split = splitStaticThinking(cleaned);
+  return split.visible.trim();
+}
+
 export class PseudoToolCallStreamFilter {
   private buffer = '';
   public strippedPseudoToolCall = false;
@@ -439,6 +448,7 @@ export function buildProviderTimeoutFallback(timeoutMs: number): string {
 const RETRYABLE_PROVIDER_STATUSES = new Set([408, 409, 425, 429, 500, 502, 503, 504]);
 const PROVIDER_RETRY_ATTEMPTS = 2;
 const PROVIDER_RETRY_BASE_DELAY_MS = 250;
+const DIRECT_TIMEOUT_FALLBACK_MS = 45000;
 
 async function withAIProviderTimeout<T>(
   operation: Promise<T>,
@@ -2293,6 +2303,84 @@ export class AIService {
     }
   }
 
+  private static async recoverAgentTimeoutWithDirectFallback(
+    provider: AIProvider,
+    messages: { role: string; content: any }[],
+    onChunk: (chunk: string) => void,
+    options: AgentChatOptions,
+    timeoutMs: number,
+  ): Promise<{
+    content: string;
+    tokensUsed?: { input: number; output: number };
+    recovered: boolean;
+  }> {
+    const timeoutFallback = buildProviderTimeoutFallback(timeoutMs);
+
+    logger.warn('AI agent timed out; attempting direct snapshot fallback', {
+      userId: options.userId,
+      documentId: options.documentId,
+      timeoutMs,
+    });
+
+    let buffered = '';
+    try {
+      const { value: directResponse, timedOut } = await withAIProviderTimeout(
+        provider.directStreamChat(
+          messages as any,
+          (chunk: string) => {
+            buffered += chunk;
+          },
+          {
+            ...options,
+            maxTokens: Math.min(options.maxTokens || env.aiMaxTokens, 1024),
+            disableThinking: true,
+          },
+        ),
+        DIRECT_TIMEOUT_FALLBACK_MS,
+        () => ({ content: '', tokensUsed: undefined })
+      );
+
+      if (!timedOut) {
+        const content = normalizeAgentTimeoutDirectFallbackOutput(
+          directResponse.content || buffered
+        );
+        if (content) {
+          onChunk(content);
+          logger.info('AI direct snapshot fallback recovered timed-out agent turn', {
+            userId: options.userId,
+            documentId: options.documentId,
+            bytes: content.length,
+          });
+          return {
+            content,
+            tokensUsed: directResponse.tokensUsed,
+            recovered: true,
+          };
+        }
+      }
+
+      logger.warn('AI direct snapshot fallback did not produce usable content', {
+        userId: options.userId,
+        documentId: options.documentId,
+        timedOut,
+        bytes: buffered.length,
+      });
+    } catch (error) {
+      logger.warn('AI direct snapshot fallback failed after agent timeout', {
+        userId: options.userId,
+        documentId: options.documentId,
+        error,
+      });
+    }
+
+    onChunk(timeoutFallback);
+    return {
+      content: timeoutFallback,
+      tokensUsed: undefined,
+      recovered: false,
+    };
+  }
+
   /**
    * Process a chat message
    */
@@ -2413,7 +2501,7 @@ export class AIService {
       const toolCallCollector = new AgentToolCallCollector();
       let ignoreLateProviderEvents = false;
       const providerTimeoutMs = normalizeProviderTimeoutMs(env.aiProviderTimeoutMs);
-      const { value: response, timedOut } = await withAIProviderTimeout(
+      let { value: response, timedOut } = await withAIProviderTimeout(
         provider.agentStreamChat(messages as any, () => {}, {
           userId,
           documentId: request.documentId,
@@ -2430,6 +2518,18 @@ export class AIService {
         })
       );
       ignoreLateProviderEvents = timedOut;
+      if (timedOut) {
+        response = await this.recoverAgentTimeoutWithDirectFallback(
+          provider,
+          messages as any,
+          () => {},
+          {
+            userId,
+            documentId: request.documentId,
+          },
+          providerTimeoutMs,
+        );
+      }
 
       const responseTimeMs = Date.now() - startTime;
 
@@ -2628,7 +2728,7 @@ export class AIService {
           onChunk(chunk);
         }
       };
-      const { value: response, timedOut } = await withAIProviderTimeout(
+      let { value: response, timedOut } = await withAIProviderTimeout(
         provider.agentStreamChat(messages as any, safeOnChunk, {
           userId,
           documentId: request.documentId,
@@ -2645,6 +2745,19 @@ export class AIService {
         }
       );
       ignoreLateProviderEvents = timedOut;
+      if (timedOut) {
+        response = await this.recoverAgentTimeoutWithDirectFallback(
+          provider,
+          messages as any,
+          onChunk,
+          {
+            userId,
+            documentId: request.documentId,
+            onAgentEvent: wrappedAgentEvent,
+          },
+          providerTimeoutMs,
+        );
+      }
 
       const responseTimeMs = Date.now() - startTime;
 
