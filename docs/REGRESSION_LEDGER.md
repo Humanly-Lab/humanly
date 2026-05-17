@@ -25,7 +25,7 @@ QA reports should name the bucket before filing the issue.
 | --- | --- | --- | --- | --- |
 | #103 | Deployed AI model picker showed stale generic model list. | `type:old-gap` | #108 | Model whitelist tests and provider settings QA. |
 | #104 | Quick actions could splice fallback text into selected text output. | `type:new-bug` | #106 | Quick-action fallback/output tests. |
-| #105 | Direct `api.writehumanly.net` TLS certificate does not match hostname. | `type:infra` | Open | Keep direct API checks separate from app/admin proxy checks. |
+| #105 | Direct `api.writehumanly.net` TLS certificate does not match hostname. | `type:infra` | #155 | Deploy cert-SAN guard plus post-deploy app/admin/api HTTPS health checks. |
 | #107 | Non-streaming AI chat timed out with Together Qwen on personal document. | `type:provider` | #109 | REST chat reuses streaming agent path; AI smoke checks bounded behavior. |
 | #110 | Uploaded chat image attachments returned file-not-found during vision chat. | `type:new-bug` | #111, #112, #113, #114 | Attachment ownership/storage fallback tests. |
 | #115 | Agentic text chat returned empty final-answer fallback after multimodal history. | `type:new-bug` | #116 | AI chat completion selection tests. |
