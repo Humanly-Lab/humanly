@@ -151,10 +151,12 @@ After a main deploy with product changes, run this short smoke:
 4. One currently funded stable AI chat model answers one grounded PDF question
    (for example Together Kimi; OpenRouter Qwen is valid only when the
    OpenRouter account has credits; do not use Together Qwen).
-5. Four quick actions return selected-text rewrites only.
-6. User submits an enrolled task document.
-7. Admin submissions/analytics show the submission.
-8. Public certificate verify page loads.
+5. When a funded vision-capable model is available, one image attachment turn
+   works and non-vision models hide or refuse the image attachment path.
+6. Four quick actions return selected-text rewrites only.
+7. User submits an enrolled task document.
+8. Admin submissions/analytics show the submission.
+9. Public certificate verify page loads.
 
 This does not replace the full 14-phase playbook; it catches obvious deploy
 breakage quickly.

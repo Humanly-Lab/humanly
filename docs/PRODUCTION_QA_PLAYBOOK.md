@@ -96,6 +96,8 @@ Recommended:
   Qwen only after confirming the OpenRouter account has credits.
 - A secondary model list for catalog checks: Qwen, Kimi, DeepSeek, GLM.
 - A small structured PDF, such as a syllabus.
+- A small PNG/JPEG with visible text or an obvious object for image-input
+  canaries.
 - A longer paper PDF for reference-retrieval stress, when provider rate limits
   permit.
 

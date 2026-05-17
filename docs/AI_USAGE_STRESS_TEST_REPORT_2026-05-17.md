@@ -202,6 +202,13 @@ This pass explicitly rechecked prior high-risk AI bugs:
 | DeepSeek DSML visible tool-call leakage | DeepSeek on Together and OpenRouter across PDF matrix | not reproduced |
 | Final-answer fallback leakage | dirty/fallback regex scan on all rows + UI canary | not reproduced |
 
+Not covered by this pass:
+
+- Multimodal image-input turns were not part of the PDF-centric stress matrix.
+  #110 and #115 remain in the regression ledger, but they were not re-run in
+  this pass and need a dedicated production canary before calling full AI chat
+  coverage complete.
+
 ## Residual Risks
 
 These are not current product bugs, but they remain live areas to keep testing:
@@ -210,6 +217,9 @@ These are not current product bugs, but they remain live areas to keep testing:
   be classified as provider behavior if Humanly surfaces a bounded error.
 - OpenRouter compatibility results do not imply the current OpenRouter account
   has credits. Check credits before exposing OpenRouter models as active options.
+- Image-input behavior depends on model capability flags, attachment storage,
+  and provider vision support. Re-test it separately from PDF retrieval because
+  passing agentic PDF QA does not prove multimodal chat is healthy.
 - Full editor-selection UI automation is still browser-agent-assisted rather
   than a stable CI harness. Keep lower-level quick-action tests strong.
 - Model lists should stay small and QA-backed. Do not add a model to the user
@@ -227,8 +237,10 @@ Before calling a future AI usage release healthy:
 3. Require real tool calls for agent chat rows.
 4. Scan every answer for DSML, pseudo tool calls, JSON tool-call prose, and
    final-answer fallback text.
-5. Manually review quality-suspect rows before filing bugs.
-6. Run production UI canaries for model picker, reasoning/tool cards, final
+5. Run one image attachment turn with a funded vision-capable model and one
+   non-vision model gating check.
+6. Manually review quality-suspect rows before filing bugs.
+7. Run production UI canaries for model picker, reasoning/tool cards, final
    answer rendering, and the four quick actions.
-7. If a bug is found, add or update a regression ledger row and retest
+8. If a bug is found, add or update a regression ledger row and retest
    production after deploy.
