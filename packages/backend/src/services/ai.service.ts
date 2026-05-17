@@ -436,6 +436,10 @@ function buildProviderTimeoutFallback(timeoutMs: number): string {
   return `The AI request took longer than ${Math.round(timeoutMs / 1000)} seconds and was stopped before it could finish. Please try again with a narrower question.`;
 }
 
+const RETRYABLE_PROVIDER_STATUSES = new Set([408, 409, 425, 429, 500, 502, 503, 504]);
+const PROVIDER_RETRY_ATTEMPTS = 2;
+const PROVIDER_RETRY_BASE_DELAY_MS = 250;
+
 async function withAIProviderTimeout<T>(
   operation: Promise<T>,
   timeoutMs: number,
@@ -456,6 +460,50 @@ async function withAIProviderTimeout<T>(
   } finally {
     if (timeout) clearTimeout(timeout);
   }
+}
+
+function getProviderErrorStatus(error: unknown): number | undefined {
+  const sdkError = error as any;
+  return typeof sdkError?.status === 'number' ? sdkError.status : undefined;
+}
+
+function getProviderErrorDetail(error: unknown): string {
+  const sdkError = error as any;
+  return sdkError?.error?.message || sdkError?.message || '';
+}
+
+function getProviderErrorName(error: unknown): string {
+  const sdkError = error as any;
+  return sdkError?.name || sdkError?.constructor?.name || '';
+}
+
+function isRetryableProviderError(error: unknown): boolean {
+  const status = getProviderErrorStatus(error);
+  if (status && RETRYABLE_PROVIDER_STATUSES.has(status)) {
+    return true;
+  }
+
+  const detail = getProviderErrorDetail(error);
+  const errorName = getProviderErrorName(error);
+  return (
+    errorName === 'APIConnectionError'
+    || errorName === 'APIConnectionTimeoutError'
+    || errorName === 'TimeoutError'
+    || /ECONNRESET|ECONNREFUSED|ETIMEDOUT|ENOTFOUND|network|socket|temporar(?:y|ily)|timed?\s*out|timeout/i.test(detail)
+  );
+}
+
+function providerRetryDelayMs(attemptIndex: number): number {
+  if (env.nodeEnv === 'test') {
+    return 0;
+  }
+  const jitter = Math.floor(Math.random() * 100);
+  return (PROVIDER_RETRY_BASE_DELAY_MS * (2 ** attemptIndex)) + jitter;
+}
+
+async function sleep(ms: number): Promise<void> {
+  if (ms <= 0) return;
+  await new Promise(resolve => setTimeout(resolve, ms));
 }
 
 interface AgentChatOptions {
@@ -544,6 +592,43 @@ class OpenAIProvider implements AIProvider {
     };
   }
 
+  private async withProviderRetry<T>(
+    label: string,
+    options: AgentChatOptions,
+    operation: () => Promise<T>
+  ): Promise<T> {
+    let lastError: unknown;
+
+    for (let attempt = 0; attempt <= PROVIDER_RETRY_ATTEMPTS; attempt += 1) {
+      try {
+        return await operation();
+      } catch (error) {
+        lastError = error;
+        if (!isRetryableProviderError(error) || attempt >= PROVIDER_RETRY_ATTEMPTS) {
+          break;
+        }
+
+        const delayMs = providerRetryDelayMs(attempt);
+        logger.warn('Retrying transient AI provider error', {
+          userId: options.userId,
+          documentId: options.documentId,
+          model: this.model,
+          baseUrl: this.baseUrl,
+          label,
+          attempt: attempt + 1,
+          nextAttempt: attempt + 2,
+          maxAttempts: PROVIDER_RETRY_ATTEMPTS + 1,
+          status: getProviderErrorStatus(error),
+          errorName: getProviderErrorName(error),
+          delayMs,
+        });
+        await sleep(delayMs);
+      }
+    }
+
+    this.handleSDKError(lastError);
+  }
+
   async agentChat(
     messages: { role: string; content: string }[],
     options: AgentChatOptions
@@ -566,18 +651,16 @@ class OpenAIProvider implements AIProvider {
     let turnIndex = 0;
     while (toolCallsUsed < this.maxToolCalls) {
       emitAgentEvent(options.onAgentEvent, { type: 'turn-start', turnIndex });
-      try {
-        response = await this.client.responses.create({
+      response = await this.withProviderRetry('responses.agent', options, () =>
+        this.client.responses.create({
           model: this.model,
           input,
           instructions: buildRetrievalInstructions(options.documentId),
           tools: AIRetrievalService.tools,
           max_output_tokens: options.maxTokens || 2048,
           parallel_tool_calls: true,
-        }, this.requestOptions());
-      } catch (error) {
-        this.handleSDKError(error);
-      }
+        }, this.requestOptions())
+      );
 
       const toolCalls = response.output?.filter((item: any) => item.type === 'function_call') || [];
       if (toolCalls.length === 0) {
@@ -764,18 +847,16 @@ class OpenAIProvider implements AIProvider {
     });
 
     let response: any;
-    try {
-      response = await this.client.responses.create({
+    response = await this.withProviderRetry('responses.finalize', options, () =>
+      this.client.responses.create({
         model: this.model,
         input: [
           ...input,
           { role: 'user', content: buildFinalAnswerSynthesisPrompt(reason) },
         ],
         max_output_tokens: options.maxTokens || 2048,
-      }, this.requestOptions());
-    } catch (error) {
-      this.handleSDKError(error);
-    }
+      }, this.requestOptions())
+    );
 
     const split = splitStaticThinking(response.output_text || '');
     emitThinkingDelta(options.onAgentEvent, split.thinking);
@@ -819,17 +900,15 @@ class OpenAIProvider implements AIProvider {
     while (toolCallsUsed < this.maxToolCalls) {
       emitAgentEvent(options.onAgentEvent, { type: 'turn-start', turnIndex });
       let completion: any;
-      try {
-        completion = await this.client.chat.completions.create({
+      completion = await this.withProviderRetry('chat.agent', options, () =>
+        this.client.chat.completions.create({
           model: this.model,
           messages: chatMessages,
           tools: chatTools,
           tool_choice: 'auto',
           max_tokens: options.maxTokens || 2048,
-        } as any, this.requestOptions() as any);
-      } catch (error) {
-        this.handleSDKError(error);
-      }
+        } as any, this.requestOptions() as any)
+      );
 
       lastUsage = completion.usage ? {
         input: completion.usage.prompt_tokens,
@@ -1025,17 +1104,15 @@ class OpenAIProvider implements AIProvider {
     while (toolCallsUsed < this.maxToolCalls) {
       emitAgentEvent(options.onAgentEvent, { type: 'turn-start', turnIndex });
       let completion: any;
-      try {
-        completion = await this.client.chat.completions.create({
+      completion = await this.withProviderRetry('chat.stream-agent', options, () =>
+        this.client.chat.completions.create({
           model: this.model,
           messages: chatMessages,
           tools: chatTools,
           tool_choice: 'auto',
           max_tokens: options.maxTokens || 2048,
-        } as any, this.requestOptions() as any);
-      } catch (error) {
-        this.handleSDKError(error);
-      }
+        } as any, this.requestOptions() as any)
+      );
 
       lastUsage = completion.usage ? {
         input: completion.usage.prompt_tokens,
@@ -1241,8 +1318,8 @@ class OpenAIProvider implements AIProvider {
     options: AgentChatOptions
   ): Promise<string> {
     let stream: any;
-    try {
-      stream = await this.client.chat.completions.create({
+    stream = await this.withProviderRetry('chat.final-stream', options, () =>
+      this.client.chat.completions.create({
         model: this.model,
         messages: chatMessages,
         stream: true,
@@ -1250,10 +1327,8 @@ class OpenAIProvider implements AIProvider {
         ...(options.disableThinking && this.supportsChatTemplateThinkingToggle()
           ? { chat_template_kwargs: { enable_thinking: false } }
           : {}),
-      } as any, this.requestOptions() as any);
-    } catch (error) {
-      this.handleSDKError(error);
-    }
+      } as any, this.requestOptions() as any)
+    );
 
     let fullContent = '';
 
@@ -1299,8 +1374,8 @@ class OpenAIProvider implements AIProvider {
           model: this.model,
         });
         let retry: any;
-        try {
-          retry = await this.client.chat.completions.create({
+        retry = await this.withProviderRetry('chat.direct-nonstream-retry', options, () =>
+          this.client.chat.completions.create({
             model: this.model,
             messages: chatMessages,
             stream: false,
@@ -1308,10 +1383,8 @@ class OpenAIProvider implements AIProvider {
             ...(options.disableThinking && this.supportsChatTemplateThinkingToggle()
               ? { chat_template_kwargs: { enable_thinking: false } }
               : {}),
-          } as any, this.requestOptions() as any);
-        } catch (error) {
-          this.handleSDKError(error);
-        }
+          } as any, this.requestOptions() as any)
+        );
 
         const retryRawContent = retry?.choices?.[0]?.message?.content;
         const retryContent = stripPseudoToolCallMarkup(
@@ -1405,18 +1478,16 @@ class OpenAIProvider implements AIProvider {
     });
 
     let completion: any;
-    try {
-      completion = await this.client.chat.completions.create({
+    completion = await this.withProviderRetry('chat.finalize', options, () =>
+      this.client.chat.completions.create({
         model: this.model,
         messages: [
           ...chatMessages,
           { role: 'user', content: buildFinalAnswerSynthesisPrompt(reason) },
         ],
         max_tokens: options.maxTokens || 2048,
-      } as any, this.requestOptions() as any);
-    } catch (error) {
-      this.handleSDKError(error);
-    }
+      } as any, this.requestOptions() as any)
+    );
 
     const assistantMessage = completion.choices?.[0]?.message || {};
     emitThinkingDelta(options.onAgentEvent, assistantMessage.reasoning_content || assistantMessage.reasoning || '');
@@ -1439,9 +1510,9 @@ class OpenAIProvider implements AIProvider {
   private handleSDKError(error: unknown): never {
     const sdkError = error as any;
     logger.error('OpenAI API error', { status: sdkError?.status, error: sdkError });
-    const detail = sdkError?.error?.message || sdkError?.message || '';
+    const detail = getProviderErrorDetail(error);
     const prefix = 'AI Provider: ';
-    const errorName = sdkError?.name || sdkError?.constructor?.name || '';
+    const errorName = getProviderErrorName(error);
 
     if (
       errorName === 'APIConnectionTimeoutError'
@@ -1462,6 +1533,12 @@ class OpenAIProvider implements AIProvider {
     }
     if (sdkError?.status === 404) {
       throw new AppError(400, detail ? `${prefix}${detail}` : `Model "${this.model}" not found. Please check your AI settings.`);
+    }
+    if (sdkError?.status && sdkError.status >= 500 && sdkError.status <= 599) {
+      throw new AppError(
+        502,
+        `${prefix}the provider is temporarily unavailable after retrying. Please try again in a moment or ask a narrower question.`
+      );
     }
 
     throw new AppError(sdkError?.status || 502, detail ? `${prefix}${detail}` : 'AI service error');

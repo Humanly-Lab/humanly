@@ -610,6 +610,34 @@ describe('AIService.silentChat', () => {
     await expect(AIService.silentChat('user-1', request as any)).rejects.toMatchObject({
       statusCode: 502,
     });
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('retries transient provider 503s before surfacing a response', async () => {
+    mockFetch
+      .mockResolvedValueOnce(new Response(JSON.stringify({ error: { message: 'Service unavailable' } }), {
+        status: 503,
+        headers: { 'content-type': 'application/json' },
+      }))
+      .mockResolvedValueOnce(mockResponsesResponse('Recovered after retry.'));
+
+    const result = await AIService.silentChat('user-1', request as any);
+
+    expect(result.message.content).toBe('Recovered after retry.');
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('returns a friendly bounded error after retryable provider failures are exhausted', async () => {
+    mockFetch.mockResolvedValue(new Response(JSON.stringify({ error: { message: 'Service unavailable' } }), {
+      status: 503,
+      headers: { 'content-type': 'application/json' },
+    }));
+
+    await expect(AIService.silentChat('user-1', request as any)).rejects.toMatchObject({
+      statusCode: 502,
+      message: expect.stringContaining('temporarily unavailable after retrying'),
+    });
+    expect(mockFetch).toHaveBeenCalledTimes(3);
   });
 
   it('throws 429 on rate limit from provider', async () => {
@@ -632,6 +660,7 @@ describe('AIService.silentChat', () => {
     await expect(AIService.silentChat('user-1', request as any)).rejects.toMatchObject({
       statusCode: 400,
     });
+    expect(mockFetch).toHaveBeenCalledTimes(1);
   });
 
   it('uses retrieval-capable Responses API for silent chat', async () => {
@@ -752,6 +781,25 @@ describe('AIService.chat', () => {
         content: expect.stringContaining('Uploaded reference snapshot'),
       }),
     ]));
+  });
+
+  it('retries transient 503s on OpenAI-compatible chat completions', async () => {
+    MockUserAISettings.getByUserId.mockResolvedValue(makeSettings({
+      model: 'Qwen/Qwen3.5-397B-A17B',
+      baseUrl: 'https://api.together.xyz/v1',
+    }));
+    mockFetch
+      .mockResolvedValueOnce(new Response(JSON.stringify({ error: { message: 'Service unavailable' } }), {
+        status: 503,
+        headers: { 'content-type': 'application/json' },
+      }))
+      .mockResolvedValueOnce(mockChatCompletionResponse('Recovered from Together retry.'));
+
+    await AIService.chat('user-1', request as any);
+
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+    const finalBody = JSON.parse(mockFetch.mock.calls[1][1].body);
+    expect(finalBody.model).toBe('Qwen/Qwen3.5-397B-A17B');
   });
 
   it('uses existing session when sessionId is provided', async () => {
