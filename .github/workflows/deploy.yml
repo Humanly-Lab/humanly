@@ -3,6 +3,9 @@ name: Deploy to Production
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
 
 concurrency:
   group: production-deploy
