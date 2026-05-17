@@ -66,7 +66,8 @@ docker compose -f "$COMPOSE_FILE" up -d --no-deps --force-recreate nginx
 echo "==> Current service status"
 docker compose -f "$COMPOSE_FILE" ps
 
-echo "==> Clean up dangling images"
-docker image prune -f --filter "dangling=true"
+echo "==> Clean up unused Docker resources"
+docker image prune -af
+docker container prune -f
 
 echo "==> Deploy complete"
