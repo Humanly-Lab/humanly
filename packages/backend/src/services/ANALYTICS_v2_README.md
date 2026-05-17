@@ -380,7 +380,7 @@ Submitted tracker sessions:
 sessions.submitted = true
 ```
 
-Current user portal submission sessions:
+User portal submission sessions before the user submits the task document:
 
 ```text
 sessions.submitted = false
@@ -392,9 +392,9 @@ Legacy derived document sessions:
 submitted = false
 ```
 
-Because user portal submission sessions are currently always `submitted = false`,
-user portal submission activity can increase `totalSessions` without increasing
-`submittedSessionCount`.
+When the user submits the task document, the latest task-scoped user portal
+session is marked submitted so the admin analytics completion rate reflects the
+submission.
 
 If `totalSessions = 0`, the value is `0`.
 
@@ -867,7 +867,7 @@ duration. It is not weighted by session count.
 For tracker data in user activity, `lastActive` is based on
 `MAX(sessions.session_start)`, not the latest tracker event timestamp.
 
-### User Portal Submission Completion Is Always False
+### User Portal Submission Completion
 
-User portal submission sessions currently have `submitted = false`, so they do
-not increase `completionRate`.
+User portal submission sessions increase `completionRate` after the user submits
+the task document.

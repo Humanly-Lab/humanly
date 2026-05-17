@@ -294,7 +294,8 @@ export class TaskService {
   static async submitTaskDocument(
     taskIdOrInviteCode: string,
     userId: string,
-    documentId: string
+    documentId: string,
+    userEmail?: string
   ) {
     const normalizedIdentifier = taskIdOrInviteCode.trim();
     const task = /^[A-Z0-9]{6}$/i.test(normalizedIdentifier)
@@ -349,6 +350,11 @@ export class TaskService {
     });
 
     const submissionWithCertificate = await SubmissionModel.attachCertificate(submission.id, certificate.id);
+
+    if (userEmail) {
+      await SessionModel.markLatestSubmittedForTaskUser(task.id, userEmail);
+    }
+
     await this.invalidateAnalytics(task.id);
 
     return {

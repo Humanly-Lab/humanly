@@ -251,7 +251,7 @@ export async function endSubmissionSession(req: Request, res: Response): Promise
  * Submit current user's task document and generate a certificate.
  */
 export async function submitTaskDocument(req: Request, res: Response): Promise<void> {
-  const userId = req.user!.userId;
+  const { userId, email } = req.user!;
   const taskId = req.params.taskId;
   const { documentId } = req.body;
 
@@ -263,7 +263,7 @@ export async function submitTaskDocument(req: Request, res: Response): Promise<v
     throw new AppError(400, 'Document ID is required');
   }
 
-  const result = await TaskService.submitTaskDocument(taskId, userId, documentId);
+  const result = await TaskService.submitTaskDocument(taskId, userId, documentId, email);
 
   res.status(201).json({
     success: true,

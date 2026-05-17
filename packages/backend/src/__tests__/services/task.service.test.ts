@@ -1,5 +1,10 @@
 jest.mock('../../models/task.model');
+jest.mock('../../models/document.model');
+jest.mock('../../models/session.model');
+jest.mock('../../models/submission.model');
+jest.mock('../../models/certificate.model');
 jest.mock('../../models/file.model');
+jest.mock('../../services/certificate.service');
 jest.mock('../../services/file-storage.service', () => ({
   FileStorageService: { delete: jest.fn() },
 }));
@@ -12,16 +17,30 @@ jest.mock('../../utils/logger', () => ({
 
 import { TaskService } from '../../services/task.service';
 import { TaskModel } from '../../models/task.model';
+import { DocumentModel } from '../../models/document.model';
+import { SessionModel } from '../../models/session.model';
+import { SubmissionModel } from '../../models/submission.model';
+import { CertificateModel } from '../../models/certificate.model';
 import { FileModel } from '../../models/file.model';
+import { CertificateService } from '../../services/certificate.service';
 import { FileStorageService } from '../../services/file-storage.service';
 import { cacheDelPattern } from '../../config/redis';
 import { logger } from '../../utils/logger';
 
 const MockTaskModel = TaskModel as jest.Mocked<typeof TaskModel>;
+const MockDocumentModel = DocumentModel as jest.Mocked<typeof DocumentModel>;
+const MockSessionModel = SessionModel as jest.Mocked<typeof SessionModel>;
+const MockSubmissionModel = SubmissionModel as jest.Mocked<typeof SubmissionModel>;
+const MockCertificateModel = CertificateModel as jest.Mocked<typeof CertificateModel>;
 const MockFileModel = FileModel as jest.Mocked<typeof FileModel>;
+const MockCertificateService = CertificateService as jest.Mocked<typeof CertificateService>;
 const MockFileStorageService = FileStorageService as jest.Mocked<typeof FileStorageService>;
 const mockCacheDelPattern = cacheDelPattern as jest.MockedFunction<typeof cacheDelPattern>;
 const mockLogger = logger as jest.Mocked<typeof logger>;
+
+beforeEach(() => {
+  jest.clearAllMocks();
+});
 
 function makeTask(overrides: Partial<any> = {}): any {
   return {
@@ -71,6 +90,84 @@ function makeFile(overrides: Partial<any> = {}): any {
     ...overrides,
   };
 }
+
+function makeDocument(overrides: Partial<any> = {}): any {
+  return {
+    id: 'doc-1',
+    userId: 'user-1',
+    title: 'Submission',
+    content: { root: { children: [] } },
+    plainText: 'Submission text',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    ...overrides,
+  };
+}
+
+function makeSubmission(overrides: Partial<any> = {}): any {
+  return {
+    id: 'submission-1',
+    taskId: 'task-1',
+    userId: 'user-1',
+    documentId: 'doc-1',
+    certificateId: null,
+    submittedAt: new Date(),
+    payloadSnapshot: { root: { children: [] } },
+    plainTextSnapshot: 'Submission text',
+    supersedesSubmissionId: null,
+    status: 'active',
+    createdAt: new Date(),
+    ...overrides,
+  };
+}
+
+function makeCertificate(overrides: Partial<any> = {}): any {
+  return {
+    id: 'certificate-1',
+    submissionId: 'submission-1',
+    documentId: 'doc-1',
+    userId: 'user-1',
+    certificateType: 'full_authorship',
+    status: 'active',
+    verificationToken: 'verification-token-1',
+    createdAt: new Date(),
+    ...overrides,
+  };
+}
+
+describe('TaskService.submitTaskDocument', () => {
+  it('marks the latest user submission session as submitted', async () => {
+    const task = makeTask({
+      startDate: new Date(Date.now() - 60_000),
+      endDate: new Date(Date.now() + 60_000),
+    });
+    const submission = makeSubmission();
+    const certificate = makeCertificate();
+
+    MockTaskModel.findById.mockResolvedValue(task);
+    MockTaskModel.hasEnrollment.mockResolvedValue(true);
+    MockTaskModel.linkSubmissionDocument.mockResolvedValue(true);
+    MockDocumentModel.findByIdAndUserId.mockResolvedValue(makeDocument());
+    MockSubmissionModel.findLatestForUserTask.mockResolvedValue(null);
+    MockSubmissionModel.markHistoricalForUserTask.mockResolvedValue(undefined);
+    MockSubmissionModel.create.mockResolvedValue(submission);
+    MockSubmissionModel.attachCertificate.mockResolvedValue({
+      ...submission,
+      certificateId: certificate.id,
+    });
+    MockCertificateModel.markSupersededForDocument.mockResolvedValue(undefined);
+    MockCertificateService.generateCertificate.mockResolvedValue(certificate);
+    MockSessionModel.markLatestSubmittedForTaskUser.mockResolvedValue(undefined);
+
+    await TaskService.submitTaskDocument('task-1', 'user-1', 'doc-1', 'student@example.com');
+
+    expect(MockSessionModel.markLatestSubmittedForTaskUser).toHaveBeenCalledWith(
+      'task-1',
+      'student@example.com'
+    );
+    expect(mockCacheDelPattern).toHaveBeenCalledWith('analytics:task-1:*');
+  });
+});
 
 describe('TaskService.deleteTask', () => {
   it('deletes task instruction storage after deleting the task', async () => {
