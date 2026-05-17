@@ -13,6 +13,11 @@ The goal is simple:
 
 Use this with `docs/PRODUCTION_QA_PLAYBOOK.md`.
 
+All confirmed bug issues must follow `docs/ISSUE_AUTHORING_GUIDE.md`. The
+required standard is Kordi-style: problem, expected behavior, repro, suspected
+failure path, scope, acceptance criteria, out-of-scope boundaries, file
+pointers, and references. Do not file one-paragraph placeholder bugs.
+
 ## Required Classification
 
 Every confirmed QA finding must use one primary classification:
@@ -55,7 +60,8 @@ gh pr list --repo ShenzheZhu/humanly --state all --search "<keyword>"
 
 ## Bug Issue Template
 
-Use this shape for confirmed bugs:
+Use `docs/ISSUE_AUTHORING_GUIDE.md` as the canonical template. At minimum,
+confirmed QA bugs must include this regression-specific block:
 
 ```markdown
 ## Classification

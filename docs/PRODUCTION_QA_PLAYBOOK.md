@@ -19,6 +19,11 @@ This playbook is intentionally browser-agent-assisted manual QA, not a promise
 of full unattended UI automation. Stable failures should be converted into
 lower-level tests or build/provider gates after they are fixed.
 
+When filing a bug, follow `docs/ISSUE_AUTHORING_GUIDE.md`. Humanly issues should
+match the Kordi-style quality bar: detailed problem, repro, expected behavior,
+suspected failure path, scope, acceptance criteria, out-of-scope notes, file
+pointers, and references.
+
 ## Control Issue
 
 Every full production QA pass gets one GitHub control issue.
