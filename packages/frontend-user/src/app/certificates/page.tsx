@@ -105,7 +105,7 @@ export default function CertificatesPage() {
                     </h3>
                     {certificate.certificateType && (
                       <Badge variant={certificate.certificateType === 'full_authorship' ? 'default' : 'secondary'} className="shrink-0">
-                        {certificate.certificateType === 'full_authorship' ? 'Full' : 'Partial'}
+                        {certificate.certificateType === 'full_authorship' ? 'Certificate' : 'Partial'}
                       </Badge>
                     )}
                   </div>

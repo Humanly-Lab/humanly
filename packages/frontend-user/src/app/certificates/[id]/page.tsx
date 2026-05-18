@@ -251,29 +251,15 @@ export default function CertificateDetailPage() {
   return (
     <div className="container mx-auto max-w-5xl px-4 py-8">
       <div className="mb-8">
-        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex min-w-0 flex-wrap items-center gap-2 text-sm text-muted-foreground">
-            <Button
-              onClick={() => router.push('/certificates')}
-              variant="outline"
-              size="sm"
-              className="shrink-0"
-            >
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Certificates
-            </Button>
-            <span>/</span>
-            <span className="truncate text-foreground">Certificate details</span>
-          </div>
-          <Button
-            onClick={() => router.push('/documents')}
-            variant="ghost"
-            size="sm"
-            className="self-start sm:self-auto"
-          >
-            Back to Workspace
-          </Button>
-        </div>
+        <Button
+          onClick={() => router.push('/certificates')}
+          variant="outline"
+          size="sm"
+          className="mb-6"
+        >
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back to Certificates
+        </Button>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex-1">
             <div className="flex items-center gap-3">
@@ -289,7 +275,7 @@ export default function CertificateDetailPage() {
             variant={certificate.certificateType === 'full_authorship' ? 'default' : 'secondary'}
             className="text-sm sm:text-base px-3 py-1 sm:px-4 sm:py-2 self-start"
           >
-            {certificate.certificateType === 'full_authorship' ? 'Full Authorship' : 'Partial Authorship'}
+            {certificate.certificateType === 'full_authorship' ? 'Authorship Certificate' : 'Partial Certificate'}
           </Badge>
         </div>
       </div>
