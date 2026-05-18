@@ -71,6 +71,11 @@ function isVisibleConversationHistoryLog(log: AIInteractionLog): boolean {
     && !isQuickActionHistoryLog(log);
 }
 
+function formatModelOptionLabel(baseUrl: string, modelId: string): string {
+  const modality = modelSupportsImage(baseUrl, modelId) ? 'image+text' : 'text only';
+  return `${modelId} (${modality})`;
+}
+
 export function AIAssistantPanel({
   documentId,
   onClose,
@@ -627,15 +632,14 @@ export function AIAssistantPanel({
               >
                 {availableModels.map((m) => (
                   <option key={m} value={m}>
-                    {/* HTML <option> can't render JSX badges, so the
-                        capability flag is shown as a trailing text marker.
-                        Vision-capable models get a small 🖼 marker (#93). */}
-                    {modelSupportsImage(currentBaseUrl, m) ? `${m} 🖼` : m}
+                    {formatModelOptionLabel(currentBaseUrl, m)}
                   </option>
                 ))}
                 {/* If current model not in list, add it */}
                 {!availableModels.includes(currentModel) && (
-                  <option value={currentModel}>{currentModel}</option>
+                  <option value={currentModel}>
+                    {formatModelOptionLabel(currentBaseUrl, currentModel)}
+                  </option>
                 )}
               </select>
               <ChevronsUpDown className="absolute right-1.5 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground pointer-events-none" />
