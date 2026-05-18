@@ -4,8 +4,9 @@ import { useRouter } from 'next/navigation';
 import { useCertificates } from '@/hooks/use-certificates';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Award } from 'lucide-react';
+import { ArrowLeft, Award } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
 
 export default function CertificatesPage() {
   const router = useRouter();
@@ -43,6 +44,15 @@ export default function CertificatesPage() {
   return (
     <div className="container mx-auto max-w-7xl px-4 py-8">
       <div className="mb-8">
+        <Button
+          variant="outline"
+          size="sm"
+          className="mb-5"
+          onClick={() => router.push('/documents')}
+        >
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back to Workspace
+        </Button>
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">My Certificates</h1>
         <p className="text-sm sm:text-base text-muted-foreground mt-2">
           Proof of authorship generated from your personal documents
