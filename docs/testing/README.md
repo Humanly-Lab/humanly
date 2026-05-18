@@ -233,6 +233,17 @@ OPENROUTER_API_KEY=... \
 pnpm qa:ai:usage
 ```
 
+Shortcut-style reasoning-off smoke:
+
+```bash
+QA_AI_EXECUTE=1 \
+QA_AI_DISABLE_REASONING=1 \
+QA_AI_PROVIDER=openrouter \
+QA_AI_MODELS=qwen/qwen3.5-9b,moonshotai/kimi-k2.6 \
+OPENROUTER_API_KEY=... \
+pnpm qa:ai:usage
+```
+
 The baseline matrix manifest lives at:
 
 ```text

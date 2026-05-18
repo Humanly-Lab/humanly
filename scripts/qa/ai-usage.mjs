@@ -73,6 +73,8 @@ Environment / flags:
   QA_AI_QUERY_TYPES / --query-types    Comma-separated manifest query ids
   QA_AI_SHORTCUT_MAX_TOKENS                Shortcut smoke max_tokens (default 1024)
   QA_AI_CHAT_MAX_TOKENS                Chat tool smoke max_tokens (default 4096)
+  QA_AI_DISABLE_REASONING=1 / --disable-reasoning
+                                      Disable provider reasoning for shortcut-style smoke
   QA_AI_IMAGE_EXECUTE=1 / --image-execute  Run provider image-input smoke
   QA_AI_IMAGE_MODELS / --image-models      Comma-separated vision model ids. Defaults to selected models.
   QA_AI_APP_EXECUTE=1 / --app-execute  Run Humanly app-level AI smoke
@@ -121,6 +123,11 @@ const shortcutMaxTokens = intArg(
   1024,
 );
 const chatMaxTokens = intArg("chat-max-tokens", "QA_AI_CHAT_MAX_TOKENS", 4096);
+const disableReasoning = boolArg(
+  "disable-reasoning",
+  "QA_AI_DISABLE_REASONING",
+  false,
+);
 const imageExecute = boolArg("image-execute", "QA_AI_IMAGE_EXECUTE", false);
 const imageModels =
   parseList(arg("image-models", process.env.QA_AI_IMAGE_MODELS)) || models;
@@ -196,6 +203,17 @@ function expandMatrix(manifest, modelIds) {
       })),
     ),
   );
+}
+
+function providerDisableReasoningParams() {
+  if (!disableReasoning) return {};
+  if (providerName === "openrouter") {
+    return { reasoning: { effort: "none" } };
+  }
+  if (providerName === "together") {
+    return { chat_template_kwargs: { enable_thinking: false } };
+  }
+  return {};
 }
 
 function crc32(buffer) {
@@ -494,6 +512,7 @@ if (!execute) {
                 ],
                 max_tokens: shortcutMaxTokens,
                 temperature: 0,
+                ...providerDisableReasoningParams(),
               }),
             },
           );
@@ -519,6 +538,7 @@ if (!execute) {
               status: response.status,
               contentPreview: content.trim().slice(0, 160),
               hasReasoning: Boolean(reasoning),
+              disableReasoning,
             },
           };
         },
@@ -656,6 +676,7 @@ if (!execute) {
                   ],
                   max_tokens: shortcutMaxTokens,
                   temperature: 0,
+                  ...providerDisableReasoningParams(),
                 }),
               },
             );
@@ -678,6 +699,7 @@ if (!execute) {
               details: {
                 status: response.status,
                 contentPreview: content.trim().slice(0, 160),
+                disableReasoning,
               },
             };
           },

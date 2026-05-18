@@ -689,6 +689,23 @@ class OpenAIProvider implements AIProvider {
     };
   }
 
+  private supportsOpenRouterReasoningToggle(): boolean {
+    return this.baseUrl.includes('openrouter.ai');
+  }
+
+  private disableThinkingParams(options: AgentChatOptions): Record<string, unknown> {
+    if (!options.disableThinking) return {};
+
+    return {
+      ...(this.supportsChatTemplateThinkingToggle()
+        ? { chat_template_kwargs: { enable_thinking: false } }
+        : {}),
+      ...(this.supportsOpenRouterReasoningToggle()
+        ? { reasoning: { effort: 'none' } }
+        : {}),
+    };
+  }
+
   private async withProviderRetry<T>(
     label: string,
     options: AgentChatOptions,
@@ -1427,9 +1444,7 @@ class OpenAIProvider implements AIProvider {
         messages: chatMessages,
         stream: true,
         max_tokens: options.maxTokens || 2048,
-        ...(options.disableThinking && this.supportsChatTemplateThinkingToggle()
-          ? { chat_template_kwargs: { enable_thinking: false } }
-          : {}),
+        ...this.disableThinkingParams(options),
       } as any, this.requestOptions() as any)
     );
 
@@ -1483,9 +1498,7 @@ class OpenAIProvider implements AIProvider {
             messages: chatMessages,
             stream: false,
             max_tokens: options.maxTokens || 2048,
-            ...(options.disableThinking && this.supportsChatTemplateThinkingToggle()
-              ? { chat_template_kwargs: { enable_thinking: false } }
-              : {}),
+            ...this.disableThinkingParams(options),
           } as any, this.requestOptions() as any)
         );
 

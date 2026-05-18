@@ -48,6 +48,17 @@ OPENROUTER_API_KEY=... \
 pnpm qa:ai:usage
 ```
 
+Shortcut-style reasoning-off smoke for reasoning-heavy models:
+
+```bash
+QA_AI_EXECUTE=1 \
+QA_AI_DISABLE_REASONING=1 \
+QA_AI_PROVIDER=openrouter \
+QA_AI_MODELS=qwen/qwen3.5-9b,moonshotai/kimi-k2.6 \
+OPENROUTER_API_KEY=... \
+pnpm qa:ai:usage
+```
+
 Humanly app-level smoke:
 
 ```bash
@@ -76,6 +87,9 @@ the QA issue/report.
 - Never paste provider keys into issues, PRs, reports, or final answers.
 - Use Browser E2E Phase C2 for model dropdown, image button gating, editor, and
   visible tool-card behavior.
+- Use `QA_AI_DISABLE_REASONING=1` when reproducing shortcut/quick-action
+  behavior for reasoning-heavy providers. Normal chat/tool behavior should be
+  tested without that flag unless the task explicitly concerns shortcuts.
 - Treat provider outages, quota, or account-balance failures as provider/infra
   first; rerun before changing product code.
 - A successful provider smoke is not proof of full Humanly browser behavior.

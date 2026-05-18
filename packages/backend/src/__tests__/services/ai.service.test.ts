@@ -811,9 +811,9 @@ describe('AIService.silentStreamChat', () => {
     expect(chunks).toEqual(['This is a focused shortcut sentence.']);
   });
 
-  it('does not send Together-only thinking kwargs to OpenRouter Kimi', async () => {
+  it('disables OpenRouter reasoning for quick actions without Together-only kwargs', async () => {
     MockUserAISettings.getByUserId.mockResolvedValue(makeSettings({
-      model: 'moonshotai/kimi-k2.6',
+      model: 'qwen/qwen3.5-9b',
       baseUrl: 'https://openrouter.ai/api/v1',
     }));
     mockFetch.mockResolvedValueOnce(mockChatCompletionStream('This is a focused shortcut sentence.'));
@@ -828,6 +828,29 @@ describe('AIService.silentStreamChat', () => {
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     expect(body.chat_template_kwargs).toBeUndefined();
+    expect(body.reasoning).toEqual({ effort: 'none' });
+  });
+
+  it('keeps OpenRouter reasoning disabled on quick-action non-stream retry', async () => {
+    MockUserAISettings.getByUserId.mockResolvedValue(makeSettings({
+      model: 'qwen/qwen3.5-9b',
+      baseUrl: 'https://openrouter.ai/api/v1',
+    }));
+    mockFetch
+      .mockResolvedValueOnce(mockChatCompletionStream(''))
+      .mockResolvedValueOnce(mockChatCompletionResponse('This is a focused shortcut sentence.'));
+
+    await AIService.silentStreamChat(
+      'user-1',
+      request as any,
+      () => {},
+      () => {},
+      () => {},
+    );
+
+    const retryBody = JSON.parse(mockFetch.mock.calls[1][1].body);
+    expect(retryBody.stream).toBe(false);
+    expect(retryBody.reasoning).toEqual({ effort: 'none' });
   });
 
   it('uses the configured shortcut token budget for quick actions', async () => {
@@ -988,6 +1011,22 @@ describe('AIService.chat', () => {
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     expect(body.max_tokens).toBe(3072);
+  });
+
+  it('does not disable OpenRouter reasoning for normal chat requests', async () => {
+    MockUserAISettings.getByUserId.mockResolvedValue(makeSettings({
+      model: 'qwen/qwen3.5-9b',
+      baseUrl: 'https://openrouter.ai/api/v1',
+      shortcutMaxTokens: 1024,
+      chatMaxTokens: 4096,
+    }));
+    mockFetch.mockResolvedValueOnce(mockChatCompletionResponse('Here is the improved text.'));
+
+    await AIService.chat('user-1', request as any);
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    expect(body.reasoning).toBeUndefined();
+    expect(body.chat_template_kwargs).toBeUndefined();
   });
 
   it('lets task environment token budget override the task owner setting', async () => {
