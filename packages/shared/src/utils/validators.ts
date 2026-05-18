@@ -18,6 +18,10 @@ const writingEnvironmentConfigSchema = z.object({
   aiAccess: z.enum(['off', 'readonly', 'full']),
   allowedModels: z.array(z.string().min(1).max(100)).max(20),
   customModels: z.array(z.string().min(1).max(100)).max(20).optional(),
+  aiTokenBudget: z.object({
+    responseMaxTokens: z.number().int().min(256).max(16384).optional(),
+    agentMaxTokens: z.number().int().min(256).max(16384).optional(),
+  }).optional(),
   aiUsageLimit: z.object({
     mode: z.enum(['unlimited', 'max_requests', 'max_tokens', 'time_restricted']),
     maxRequests: z.number().int().positive().max(1000000).optional(),

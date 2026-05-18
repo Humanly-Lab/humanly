@@ -20,6 +20,11 @@ import {
   ChatAttachment,
   ModelCapabilities,
   AgentToolCallRecord,
+  AI_AGENT_MAX_TOKENS_DEFAULT,
+  AI_MAX_TOKENS_MAX,
+  AI_MAX_TOKENS_MIN,
+  AI_RESPONSE_MAX_TOKENS_DEFAULT,
+  WritingEnvironmentConfig,
 } from '@humanly/shared';
 import { AppError } from '../middleware/error-handler';
 import { logger } from '../utils/logger';
@@ -558,12 +563,45 @@ interface AIProvider {
 interface AIExecutionSettings {
   provider: AIProvider;
   modelVersion: string;
+  responseMaxTokens: number;
+  agentMaxTokens: number;
   /**
    * Raw provider base URL. Used by capability gating (#93) to look up the
    * resolved model's input modalities so the websocket layer can refuse
    * IMAGE_NOT_SUPPORTED requests before dispatching to the provider.
    */
   baseUrl: string;
+}
+
+function normalizeConfiguredMaxTokens(value: unknown, fallback: number): number {
+  const parsed = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.min(AI_MAX_TOKENS_MAX, Math.max(AI_MAX_TOKENS_MIN, Math.round(parsed)));
+}
+
+function resolveEffectiveTokenBudget(
+  settings: { responseMaxTokens?: number; agentMaxTokens?: number },
+  environmentConfig?: WritingEnvironmentConfig | null,
+): { responseMaxTokens: number; agentMaxTokens: number } {
+  const responseFallback = normalizeConfiguredMaxTokens(
+    settings.responseMaxTokens,
+    AI_RESPONSE_MAX_TOKENS_DEFAULT,
+  );
+  const agentFallback = normalizeConfiguredMaxTokens(
+    settings.agentMaxTokens,
+    AI_AGENT_MAX_TOKENS_DEFAULT,
+  );
+
+  return {
+    responseMaxTokens: normalizeConfiguredMaxTokens(
+      environmentConfig?.aiTokenBudget?.responseMaxTokens,
+      responseFallback,
+    ),
+    agentMaxTokens: normalizeConfiguredMaxTokens(
+      environmentConfig?.aiTokenBudget?.agentMaxTokens,
+      agentFallback,
+    ),
+  };
 }
 
 /**
@@ -1908,6 +1946,7 @@ export class AIService {
       if (!settings) {
         throw new AppError(400, 'Please configure your AI settings first');
       }
+      const tokenBudget = resolveEffectiveTokenBudget(settings);
 
       return {
         provider: new OpenAIProvider({
@@ -1916,6 +1955,8 @@ export class AIService {
           model: settings.model,
         }),
         modelVersion: settings.model,
+        responseMaxTokens: tokenBudget.responseMaxTokens,
+        agentMaxTokens: tokenBudget.agentMaxTokens,
         baseUrl: settings.baseUrl,
       };
     }
@@ -1939,6 +1980,7 @@ export class AIService {
     if (!model) {
       throw new AppError(400, 'No AI model is configured for this task');
     }
+    const tokenBudget = resolveEffectiveTokenBudget(ownerSettings, taskConfig);
 
     return {
       provider: new OpenAIProvider({
@@ -1947,6 +1989,8 @@ export class AIService {
         model,
       }),
       modelVersion: model,
+      responseMaxTokens: tokenBudget.responseMaxTokens,
+      agentMaxTokens: tokenBudget.agentMaxTokens,
       baseUrl: ownerSettings.baseUrl,
     };
   }
@@ -1965,7 +2009,7 @@ export class AIService {
       throw new AppError(404, 'Document not found');
     }
 
-    const { provider } = await this.getExecutionSettingsForDocument(userId, request.documentId);
+    const { provider, responseMaxTokens } = await this.getExecutionSettingsForDocument(userId, request.documentId);
 
     // Build simple messages without conversation history
     const messages: { role: string; content: string }[] = [
@@ -1977,6 +2021,7 @@ export class AIService {
     const response = await provider.agentChat(messages, {
       userId,
       documentId: request.documentId,
+      maxTokens: responseMaxTokens,
     });
 
     logger.info('AI silent chat completed', {
@@ -2012,7 +2057,7 @@ export class AIService {
         throw new AppError(404, 'Document not found');
       }
 
-      const { provider } = await this.getExecutionSettingsForDocument(userId, request.documentId);
+      const { provider, responseMaxTokens } = await this.getExecutionSettingsForDocument(userId, request.documentId);
 
       const messages: { role: string; content: string }[] = [
         { role: 'system', content: buildQuickActionSystemPrompt(request.context) },
@@ -2030,7 +2075,7 @@ export class AIService {
       }, {
         userId,
         documentId: request.documentId,
-        maxTokens: Math.min(env.aiMaxTokens, 768),
+        maxTokens: responseMaxTokens,
         disableThinking: true,
       });
 
@@ -2357,7 +2402,10 @@ export class AIService {
           },
           {
             ...options,
-            maxTokens: Math.min(options.maxTokens || env.aiMaxTokens, 1024),
+            maxTokens: normalizeConfiguredMaxTokens(
+              options.maxTokens,
+              AI_RESPONSE_MAX_TOKENS_DEFAULT,
+            ),
             disableThinking: true,
           },
         ),
@@ -2424,7 +2472,13 @@ export class AIService {
     // Resolve provider + model first so the session can capture the
     // capability snapshot at creation, and so capability gating runs
     // before we touch the DB at all (#93).
-    const { provider: providerForChat, modelVersion: modelVersionForChat, baseUrl: baseUrlForChat } =
+    const {
+      provider: providerForChat,
+      modelVersion: modelVersionForChat,
+      baseUrl: baseUrlForChat,
+      responseMaxTokens: responseMaxTokensForChat,
+      agentMaxTokens: agentMaxTokensForChat,
+    } =
       await this.getExecutionSettingsForDocument(userId, request.documentId);
     const capabilitiesForChat = resolveCapabilitiesOrSafeDefault(
       baseUrlForChat,
@@ -2522,6 +2576,7 @@ export class AIService {
         provider.agentStreamChat(messages as any, () => {}, {
           userId,
           documentId: request.documentId,
+          maxTokens: agentMaxTokensForChat,
           onAgentEvent: (event) => {
             if (!ignoreLateProviderEvents) {
               toolCallCollector.observe(event);
@@ -2543,6 +2598,7 @@ export class AIService {
           {
             userId,
             documentId: request.documentId,
+            maxTokens: responseMaxTokensForChat,
           },
           providerTimeoutMs,
         );
@@ -2642,7 +2698,7 @@ export class AIService {
       // Resolve provider + model first so the session snapshot can be
       // captured at creation and capability gating (#93) runs before any
       // DB writes or provider calls.
-      const { provider, modelVersion, baseUrl } =
+      const { provider, modelVersion, baseUrl, responseMaxTokens, agentMaxTokens } =
         await this.getExecutionSettingsForDocument(userId, request.documentId);
       const capabilities = resolveCapabilitiesOrSafeDefault(baseUrl, modelVersion);
 
@@ -2742,6 +2798,7 @@ export class AIService {
         provider.agentStreamChat(messages as any, safeOnChunk, {
           userId,
           documentId: request.documentId,
+          maxTokens: agentMaxTokens,
           onAgentEvent: wrappedAgentEvent,
         }),
         providerTimeoutMs,
@@ -2762,6 +2819,7 @@ export class AIService {
           {
             userId,
             documentId: request.documentId,
+            maxTokens: responseMaxTokens,
             onAgentEvent: wrappedAgentEvent,
           },
           providerTimeoutMs,

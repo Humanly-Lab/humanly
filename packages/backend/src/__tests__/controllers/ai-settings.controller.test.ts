@@ -4,7 +4,7 @@ jest.mock('../../utils/logger', () => ({
 }));
 
 import { Request, Response } from 'express';
-import { testConnection } from '../../controllers/ai-settings.controller';
+import { saveSettings, testConnection } from '../../controllers/ai-settings.controller';
 import { UserAISettingsModel } from '../../models/user-ai-settings.model';
 
 const MockUserAISettingsModel = UserAISettingsModel as jest.Mocked<typeof UserAISettingsModel>;
@@ -81,5 +81,72 @@ describe('testConnection', () => {
       message: 'Connection successful. Found 2 models.',
       models: ['Qwen/Qwen3.5-397B-A17B', 'moonshotai/Kimi-K2.6'],
     }));
+  });
+});
+
+describe('saveSettings', () => {
+  beforeEach(() => {
+    MockUserAISettingsModel.getByUserId.mockReset();
+    MockUserAISettingsModel.upsert.mockReset();
+  });
+
+  it('saves configurable token budgets with an existing key', async () => {
+    MockUserAISettingsModel.getByUserId.mockResolvedValue({
+      apiKey: 'sk-existing',
+      baseUrl: 'https://api.together.xyz/v1',
+      model: 'moonshotai/Kimi-K2.6',
+      responseMaxTokens: 1024,
+      agentMaxTokens: 2048,
+      maskedApiKey: 'sk-ex...ing',
+      updatedAt: new Date().toISOString(),
+    });
+    MockUserAISettingsModel.upsert.mockResolvedValue(undefined);
+
+    const req = makeReq({
+      body: {
+        apiKey: '__use_existing__',
+        baseUrl: 'https://api.together.xyz/v1',
+        model: 'moonshotai/Kimi-K2.6',
+        responseMaxTokens: 2048,
+        agentMaxTokens: 4096,
+      },
+    });
+    const res = makeRes();
+
+    await saveSettings(req, res);
+
+    expect(MockUserAISettingsModel.upsert).toHaveBeenCalledWith(
+      'user-1',
+      'sk-existing',
+      'https://api.together.xyz/v1',
+      'moonshotai/Kimi-K2.6',
+      {
+        responseMaxTokens: 2048,
+        agentMaxTokens: 4096,
+      },
+    );
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: true }));
+  });
+
+  it('rejects token budgets outside the supported range', async () => {
+    const req = makeReq({
+      body: {
+        apiKey: 'sk-test',
+        baseUrl: 'https://api.together.xyz/v1',
+        model: 'moonshotai/Kimi-K2.6',
+        responseMaxTokens: 32,
+        agentMaxTokens: 2048,
+      },
+    });
+    const res = makeRes();
+
+    await saveSettings(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      success: false,
+      error: expect.stringContaining('Token budget must be between'),
+    }));
+    expect(MockUserAISettingsModel.upsert).not.toHaveBeenCalled();
   });
 });

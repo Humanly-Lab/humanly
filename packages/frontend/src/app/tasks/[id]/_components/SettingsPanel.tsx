@@ -17,6 +17,10 @@ import {
   XCircle,
 } from 'lucide-react';
 import {
+  AI_AGENT_MAX_TOKENS_DEFAULT,
+  AI_MAX_TOKENS_MAX,
+  AI_MAX_TOKENS_MIN,
+  AI_RESPONSE_MAX_TOKENS_DEFAULT,
   DEFAULT_WRITING_ENVIRONMENT_CONFIG,
   WRITING_AI_MODELS,
   normalizeCopyPastePolicy,
@@ -121,6 +125,10 @@ const mergeEnvironmentConfig = (config?: WritingEnvironmentConfig | null): Writi
   aiUsageLimit: {
     mode: 'max_requests',
     maxRequests: config?.aiUsageLimit?.maxRequests || 100,
+  },
+  aiTokenBudget: {
+    responseMaxTokens: config?.aiTokenBudget?.responseMaxTokens || AI_RESPONSE_MAX_TOKENS_DEFAULT,
+    agentMaxTokens: config?.aiTokenBudget?.agentMaxTokens || AI_AGENT_MAX_TOKENS_DEFAULT,
   },
   time: {
     ...DEFAULT_WRITING_ENVIRONMENT_CONFIG.time,
@@ -346,6 +354,17 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
     }));
   };
 
+  const setAiTokenBudget = (patch: NonNullable<WritingEnvironmentConfig['aiTokenBudget']>) => {
+    setEnvironmentConfig((current) => ({
+      ...current,
+      aiTokenBudget: {
+        responseMaxTokens: current.aiTokenBudget?.responseMaxTokens || AI_RESPONSE_MAX_TOKENS_DEFAULT,
+        agentMaxTokens: current.aiTokenBudget?.agentMaxTokens || AI_AGENT_MAX_TOKENS_DEFAULT,
+        ...patch,
+      },
+    }));
+  };
+
   const setAiAccess = (nextAccess: WritingAiAccess) => {
     const defaultModel = aiModel || aiModelOptions[0] || 'gpt-4.1';
 
@@ -494,6 +513,8 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
           apiKey: aiApiKey.trim() || USE_EXISTING_AI_KEY,
           baseUrl: aiBaseUrl.trim() || DEFAULT_AI_BASE_URL,
           model: selectedAiModel,
+          responseMaxTokens: environmentConfig.aiTokenBudget?.responseMaxTokens || AI_RESPONSE_MAX_TOKENS_DEFAULT,
+          agentMaxTokens: environmentConfig.aiTokenBudget?.agentMaxTokens || AI_AGENT_MAX_TOKENS_DEFAULT,
         });
       }
 
@@ -925,6 +946,40 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
                         />
                       </div>
                     )}
+
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div className="space-y-2">
+                        <FormLabel htmlFor="ai-response-max-tokens">Response Tokens</FormLabel>
+                        <Input
+                          id="ai-response-max-tokens"
+                          type="number"
+                          min={AI_MAX_TOKENS_MIN}
+                          max={AI_MAX_TOKENS_MAX}
+                          value={environmentConfig.aiTokenBudget?.responseMaxTokens || AI_RESPONSE_MAX_TOKENS_DEFAULT}
+                          disabled={isSaving}
+                          onChange={(event) => setAiTokenBudget({
+                            responseMaxTokens: Number(event.target.value) || AI_RESPONSE_MAX_TOKENS_DEFAULT,
+                          })}
+                        />
+                        <FormDescription>Quick actions and fallback answers.</FormDescription>
+                      </div>
+
+                      <div className="space-y-2">
+                        <FormLabel htmlFor="ai-agent-max-tokens">Agent Tokens</FormLabel>
+                        <Input
+                          id="ai-agent-max-tokens"
+                          type="number"
+                          min={AI_MAX_TOKENS_MIN}
+                          max={AI_MAX_TOKENS_MAX}
+                          value={environmentConfig.aiTokenBudget?.agentMaxTokens || AI_AGENT_MAX_TOKENS_DEFAULT}
+                          disabled={isSaving}
+                          onChange={(event) => setAiTokenBudget({
+                            agentMaxTokens: Number(event.target.value) || AI_AGENT_MAX_TOKENS_DEFAULT,
+                          })}
+                        />
+                        <FormDescription>Chat turns with retrieval tools.</FormDescription>
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>

@@ -44,6 +44,10 @@ import {
   toLocalDateTimeInputValue,
 } from '@/lib/utils';
 import {
+  AI_AGENT_MAX_TOKENS_DEFAULT,
+  AI_MAX_TOKENS_MAX,
+  AI_MAX_TOKENS_MIN,
+  AI_RESPONSE_MAX_TOKENS_DEFAULT,
   DEFAULT_WRITING_ENVIRONMENT_CONFIG,
   WRITING_AI_MODELS,
   normalizeCopyPastePolicy,
@@ -148,6 +152,13 @@ export default function NewTaskPage() {
         setMaskedAiKey(settings.maskedApiKey || '');
         setAiBaseUrl(settings.baseUrl || DEFAULT_AI_BASE_URL);
         setAiModel(settings.model || '');
+        setEnvironmentConfig((current) => ({
+          ...current,
+          aiTokenBudget: {
+            responseMaxTokens: settings.responseMaxTokens || AI_RESPONSE_MAX_TOKENS_DEFAULT,
+            agentMaxTokens: settings.agentMaxTokens || AI_AGENT_MAX_TOKENS_DEFAULT,
+          },
+        }));
       } catch {
         if (!cancelled) {
           setHasExistingAiKey(false);
@@ -193,6 +204,17 @@ export default function NewTaskPage() {
       ...current,
       allowedModels: model ? [model] : [],
       customModels: isCustomModel && model ? [model] : [],
+    }));
+  };
+
+  const setAiTokenBudget = (patch: NonNullable<WritingEnvironmentConfig['aiTokenBudget']>) => {
+    setEnvironmentConfig((current) => ({
+      ...current,
+      aiTokenBudget: {
+        responseMaxTokens: current.aiTokenBudget?.responseMaxTokens || AI_RESPONSE_MAX_TOKENS_DEFAULT,
+        agentMaxTokens: current.aiTokenBudget?.agentMaxTokens || AI_AGENT_MAX_TOKENS_DEFAULT,
+        ...patch,
+      },
     }));
   };
 
@@ -283,6 +305,8 @@ export default function NewTaskPage() {
           apiKey: aiApiKey.trim() || USE_EXISTING_AI_KEY,
           baseUrl: aiBaseUrl.trim() || DEFAULT_AI_BASE_URL,
           model: selectedAiModel,
+          responseMaxTokens: environmentConfig.aiTokenBudget?.responseMaxTokens || AI_RESPONSE_MAX_TOKENS_DEFAULT,
+          agentMaxTokens: environmentConfig.aiTokenBudget?.agentMaxTokens || AI_AGENT_MAX_TOKENS_DEFAULT,
         });
       }
 
@@ -662,6 +686,40 @@ export default function NewTaskPage() {
                         />
                       </div>
                     )}
+
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div className="space-y-2">
+                        <FormLabel htmlFor="ai-response-max-tokens">Response Tokens</FormLabel>
+                        <Input
+                          id="ai-response-max-tokens"
+                          type="number"
+                          min={AI_MAX_TOKENS_MIN}
+                          max={AI_MAX_TOKENS_MAX}
+                          value={environmentConfig.aiTokenBudget?.responseMaxTokens || AI_RESPONSE_MAX_TOKENS_DEFAULT}
+                          disabled={isSubmitting}
+                          onChange={(event) => setAiTokenBudget({
+                            responseMaxTokens: Number(event.target.value) || AI_RESPONSE_MAX_TOKENS_DEFAULT,
+                          })}
+                        />
+                        <FormDescription>Quick actions and fallback answers.</FormDescription>
+                      </div>
+
+                      <div className="space-y-2">
+                        <FormLabel htmlFor="ai-agent-max-tokens">Agent Tokens</FormLabel>
+                        <Input
+                          id="ai-agent-max-tokens"
+                          type="number"
+                          min={AI_MAX_TOKENS_MIN}
+                          max={AI_MAX_TOKENS_MAX}
+                          value={environmentConfig.aiTokenBudget?.agentMaxTokens || AI_AGENT_MAX_TOKENS_DEFAULT}
+                          disabled={isSubmitting}
+                          onChange={(event) => setAiTokenBudget({
+                            agentMaxTokens: Number(event.target.value) || AI_AGENT_MAX_TOKENS_DEFAULT,
+                          })}
+                        />
+                        <FormDescription>Chat turns with retrieval tools.</FormDescription>
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>

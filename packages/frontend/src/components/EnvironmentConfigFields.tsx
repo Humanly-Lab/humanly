@@ -1,6 +1,10 @@
 'use client';
 
 import {
+  AI_AGENT_MAX_TOKENS_DEFAULT,
+  AI_MAX_TOKENS_MAX,
+  AI_MAX_TOKENS_MIN,
+  AI_RESPONSE_MAX_TOKENS_DEFAULT,
   DEFAULT_WRITING_ENVIRONMENT_CONFIG,
   WRITING_AI_MODELS,
   normalizeCopyPastePolicy,
@@ -209,6 +213,44 @@ export default function EnvironmentConfigFields({
                 .filter(Boolean),
             }))}
           />
+        </div>
+      )}
+
+      {config.aiAccess !== 'off' && (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-2">
+            <Label>Response Tokens</Label>
+            <Input
+              type="number"
+              min={AI_MAX_TOKENS_MIN}
+              max={AI_MAX_TOKENS_MAX}
+              value={config.aiTokenBudget?.responseMaxTokens || AI_RESPONSE_MAX_TOKENS_DEFAULT}
+              disabled={disabled}
+              onChange={(event) => onChange(setNested(config, {
+                aiTokenBudget: {
+                  responseMaxTokens: Number(event.target.value) || AI_RESPONSE_MAX_TOKENS_DEFAULT,
+                  agentMaxTokens: config.aiTokenBudget?.agentMaxTokens || AI_AGENT_MAX_TOKENS_DEFAULT,
+                },
+              }))}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Agent Tokens</Label>
+            <Input
+              type="number"
+              min={AI_MAX_TOKENS_MIN}
+              max={AI_MAX_TOKENS_MAX}
+              value={config.aiTokenBudget?.agentMaxTokens || AI_AGENT_MAX_TOKENS_DEFAULT}
+              disabled={disabled}
+              onChange={(event) => onChange(setNested(config, {
+                aiTokenBudget: {
+                  responseMaxTokens: config.aiTokenBudget?.responseMaxTokens || AI_RESPONSE_MAX_TOKENS_DEFAULT,
+                  agentMaxTokens: Number(event.target.value) || AI_AGENT_MAX_TOKENS_DEFAULT,
+                },
+              }))}
+            />
+          </div>
         </div>
       )}
 

@@ -467,6 +467,8 @@ function makeSettings(overrides: Partial<any> = {}): any {
     apiKey: 'sk-test',
     baseUrl: 'https://api.openai.com/v1',
     model: 'gpt-4o',
+    responseMaxTokens: 1024,
+    agentMaxTokens: 2048,
     maskedApiKey: 'sk-te...st',
     updatedAt: new Date().toISOString(),
     ...overrides,
@@ -816,6 +818,27 @@ describe('AIService.silentStreamChat', () => {
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     expect(body.chat_template_kwargs).toBeUndefined();
   });
+
+  it('uses the configured response token budget for quick actions', async () => {
+    MockUserAISettings.getByUserId.mockResolvedValue(makeSettings({
+      model: 'Qwen/Qwen3.5-397B-A17B',
+      baseUrl: 'https://api.together.xyz/v1',
+      responseMaxTokens: 1536,
+      agentMaxTokens: 4096,
+    }));
+    mockFetch.mockResolvedValueOnce(mockChatCompletionStream('This is a focused shortcut sentence.'));
+
+    await AIService.silentStreamChat(
+      'user-1',
+      request as any,
+      () => {},
+      () => {},
+      () => {},
+    );
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    expect(body.max_tokens).toBe(1536);
+  });
 });
 
 // ── AIService.chat ────────────────────────────────────────────────────────────
@@ -867,6 +890,51 @@ describe('AIService.chat', () => {
     expect(compactSpy).not.toHaveBeenCalled();
     expect(JSON.stringify(body.messages)).not.toContain('Uploaded reference snapshot');
     expect(body.chat_template_kwargs).toEqual({ enable_thinking: false });
+  });
+
+  it('uses the configured agent token budget for personal document chat', async () => {
+    MockUserAISettings.getByUserId.mockResolvedValue(makeSettings({
+      model: 'Qwen/Qwen3.5-397B-A17B',
+      baseUrl: 'https://api.together.xyz/v1',
+      responseMaxTokens: 1024,
+      agentMaxTokens: 3072,
+    }));
+    mockFetch.mockResolvedValueOnce(mockChatCompletionResponse('Here is the improved text.'));
+
+    await AIService.chat('user-1', request as any);
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    expect(body.max_tokens).toBe(3072);
+  });
+
+  it('lets task environment token budget override the task owner setting', async () => {
+    MockTaskModel.findBySubmissionDocument.mockResolvedValue({
+      id: 'task-1',
+      userId: 'admin-1',
+      allowedLlmModels: [],
+      environmentConfig: {
+        aiAccess: 'full',
+        allowedModels: ['Qwen/Qwen3.5-397B-A17B'],
+        aiTokenBudget: {
+          responseMaxTokens: 2048,
+          agentMaxTokens: 4096,
+        },
+      },
+    } as any);
+    MockUserAISettings.getByUserId.mockResolvedValue(makeSettings({
+      model: 'moonshotai/Kimi-K2.6',
+      baseUrl: 'https://api.together.xyz/v1',
+      responseMaxTokens: 1024,
+      agentMaxTokens: 2048,
+    }));
+    mockFetch.mockResolvedValueOnce(mockChatCompletionResponse('Task-scoped answer.'));
+
+    await AIService.chat('user-1', request as any);
+
+    expect(MockUserAISettings.getByUserId).toHaveBeenCalledWith('admin-1');
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    expect(body.model).toBe('Qwen/Qwen3.5-397B-A17B');
+    expect(body.max_tokens).toBe(4096);
   });
 
   it('retries transient 503s on OpenAI-compatible chat completions', async () => {

@@ -6,6 +6,11 @@ export type WritingSubmissionMode = 'single' | 'multiple';
 export type CopyPastePolicy = 'allowed' | 'blocked';
 export type WritingEnvironmentPreset = 'default_writing' | 'no_ai' | 'ai_assisted' | 'timed_writing' | 'custom';
 
+export interface WritingAiTokenBudget {
+  responseMaxTokens?: number;
+  agentMaxTokens?: number;
+}
+
 export interface WritingEnvironmentConfig {
   preset?: WritingEnvironmentPreset;
   taskType: WritingTaskType;
@@ -17,6 +22,7 @@ export interface WritingEnvironmentConfig {
   aiAccess: WritingAiAccess;
   allowedModels: string[];
   customModels?: string[];
+  aiTokenBudget?: WritingAiTokenBudget;
   aiUsageLimit: {
     mode: WritingAiUsageLimitMode;
     maxRequests?: number;
@@ -56,6 +62,10 @@ export const DEFAULT_WRITING_ENVIRONMENT_CONFIG: WritingEnvironmentConfig = {
   aiAccess: 'off',
   allowedModels: [],
   customModels: [],
+  aiTokenBudget: {
+    responseMaxTokens: 1024,
+    agentMaxTokens: 2048,
+  },
   aiUsageLimit: {
     mode: 'unlimited',
   },

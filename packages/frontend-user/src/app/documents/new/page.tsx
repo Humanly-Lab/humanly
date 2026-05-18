@@ -12,6 +12,10 @@ import {
   XCircle,
 } from 'lucide-react';
 import {
+  AI_AGENT_MAX_TOKENS_DEFAULT,
+  AI_MAX_TOKENS_MAX,
+  AI_MAX_TOKENS_MIN,
+  AI_RESPONSE_MAX_TOKENS_DEFAULT,
   WRITING_AI_MODELS,
   WRITING_ENVIRONMENT_PRESETS,
   normalizeCopyPastePolicy,
@@ -105,6 +109,7 @@ const normalizeImportedEnvironmentConfig = (value: unknown): WritingEnvironmentC
   const imported = value;
   const instructions = isRecord(imported.instructions) ? imported.instructions : {};
   const aiUsageLimit = isRecord(imported.aiUsageLimit) ? imported.aiUsageLimit : {};
+  const aiTokenBudget = isRecord(imported.aiTokenBudget) ? imported.aiTokenBudget : {};
   const time = isRecord(imported.time) ? imported.time : {};
   const submission = isRecord(imported.submission) ? imported.submission : {};
   const traceability = isRecord(imported.traceability) ? imported.traceability : {};
@@ -136,6 +141,14 @@ const normalizeImportedEnvironmentConfig = (value: unknown): WritingEnvironmentC
     aiUsageLimit: {
       ...base.aiUsageLimit,
       mode: usageMode,
+    },
+    aiTokenBudget: {
+      responseMaxTokens: isPositiveNumber(aiTokenBudget.responseMaxTokens)
+        ? aiTokenBudget.responseMaxTokens
+        : base.aiTokenBudget?.responseMaxTokens || AI_RESPONSE_MAX_TOKENS_DEFAULT,
+      agentMaxTokens: isPositiveNumber(aiTokenBudget.agentMaxTokens)
+        ? aiTokenBudget.agentMaxTokens
+        : base.aiTokenBudget?.agentMaxTokens || AI_AGENT_MAX_TOKENS_DEFAULT,
     },
     time: {
       ...base.time,
@@ -210,6 +223,13 @@ export default function NewDocumentPage() {
         setMaskedAiKey(settings.maskedApiKey || '');
         setAiBaseUrl(settings.baseUrl || DEFAULT_AI_BASE_URL);
         setAiModel(settings.model || '');
+        setEnvironmentConfig((current) => ({
+          ...current,
+          aiTokenBudget: {
+            responseMaxTokens: settings.responseMaxTokens || AI_RESPONSE_MAX_TOKENS_DEFAULT,
+            agentMaxTokens: settings.agentMaxTokens || AI_AGENT_MAX_TOKENS_DEFAULT,
+          },
+        }));
       } catch {
         if (!cancelled) {
           setHasExistingAiKey(false);
@@ -324,6 +344,17 @@ export default function NewDocumentPage() {
       ...current,
       allowedModels: model ? [model] : [],
       customModels: isCustomModel && model ? [model] : [],
+    }));
+  };
+
+  const setAiTokenBudget = (patch: NonNullable<WritingEnvironmentConfig['aiTokenBudget']>) => {
+    markCustom((current) => ({
+      ...current,
+      aiTokenBudget: {
+        responseMaxTokens: current.aiTokenBudget?.responseMaxTokens || AI_RESPONSE_MAX_TOKENS_DEFAULT,
+        agentMaxTokens: current.aiTokenBudget?.agentMaxTokens || AI_AGENT_MAX_TOKENS_DEFAULT,
+        ...patch,
+      },
     }));
   };
 
@@ -466,6 +497,8 @@ export default function NewDocumentPage() {
           apiKey: aiApiKey.trim() || USE_EXISTING_AI_KEY,
           baseUrl: aiBaseUrl.trim() || DEFAULT_AI_BASE_URL,
           model: selectedAiModel,
+          responseMaxTokens: configToCreate.aiTokenBudget?.responseMaxTokens || AI_RESPONSE_MAX_TOKENS_DEFAULT,
+          agentMaxTokens: configToCreate.aiTokenBudget?.agentMaxTokens || AI_AGENT_MAX_TOKENS_DEFAULT,
         });
 
         configToCreate = {
@@ -780,6 +813,40 @@ export default function NewDocumentPage() {
                       />
                     </div>
                   )}
+
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="grid gap-2">
+                      <Label htmlFor="ai-response-max-tokens">Response Tokens</Label>
+                      <Input
+                        id="ai-response-max-tokens"
+                        type="number"
+                        min={AI_MAX_TOKENS_MIN}
+                        max={AI_MAX_TOKENS_MAX}
+                        value={environmentConfig.aiTokenBudget?.responseMaxTokens || AI_RESPONSE_MAX_TOKENS_DEFAULT}
+                        onChange={(event) => setAiTokenBudget({
+                          responseMaxTokens: Number(event.target.value) || AI_RESPONSE_MAX_TOKENS_DEFAULT,
+                        })}
+                        disabled={isCreating}
+                      />
+                      <p className="text-xs text-muted-foreground">Quick actions and fallback answers.</p>
+                    </div>
+
+                    <div className="grid gap-2">
+                      <Label htmlFor="ai-agent-max-tokens">Agent Tokens</Label>
+                      <Input
+                        id="ai-agent-max-tokens"
+                        type="number"
+                        min={AI_MAX_TOKENS_MIN}
+                        max={AI_MAX_TOKENS_MAX}
+                        value={environmentConfig.aiTokenBudget?.agentMaxTokens || AI_AGENT_MAX_TOKENS_DEFAULT}
+                        onChange={(event) => setAiTokenBudget({
+                          agentMaxTokens: Number(event.target.value) || AI_AGENT_MAX_TOKENS_DEFAULT,
+                        })}
+                        disabled={isCreating}
+                      />
+                      <p className="text-xs text-muted-foreground">Chat turns with retrieval tools.</p>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>

@@ -1,6 +1,12 @@
 import { Request, Response } from 'express';
 import { UserAISettingsModel } from '../models/user-ai-settings.model';
 import { logger } from '../utils/logger';
+import {
+  AI_AGENT_MAX_TOKENS_DEFAULT,
+  AI_MAX_TOKENS_MAX,
+  AI_MAX_TOKENS_MIN,
+  AI_RESPONSE_MAX_TOKENS_DEFAULT,
+} from '@humanly/shared';
 
 type ProviderModelsResponse =
   | Array<{ id?: unknown }>
@@ -9,6 +15,26 @@ type ProviderModelsResponse =
       error?: { message?: string };
       message?: string;
     };
+
+function parseTokenBudget(
+  value: unknown,
+  fallback: number
+): { ok: true; value: number } | { ok: false; error: string } {
+  if (value === undefined || value === null || value === '') {
+    return { ok: true, value: fallback };
+  }
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || !Number.isInteger(parsed)) {
+    return { ok: false, error: 'Token budget must be an integer' };
+  }
+  if (parsed < AI_MAX_TOKENS_MIN || parsed > AI_MAX_TOKENS_MAX) {
+    return {
+      ok: false,
+      error: `Token budget must be between ${AI_MAX_TOKENS_MIN} and ${AI_MAX_TOKENS_MAX}`,
+    };
+  }
+  return { ok: true, value: parsed };
+}
 
 export async function getSettings(req: Request, res: Response): Promise<void> {
   const userId = (req as any).user.userId;
@@ -22,7 +48,7 @@ export async function getSettings(req: Request, res: Response): Promise<void> {
 
 export async function saveSettings(req: Request, res: Response): Promise<void> {
   const userId = (req as any).user.userId;
-  const { apiKey, baseUrl, model } = req.body;
+  const { apiKey, baseUrl, model, responseMaxTokens, agentMaxTokens } = req.body;
 
   if (!baseUrl || !model) {
     res.status(400).json({
@@ -45,8 +71,8 @@ export async function saveSettings(req: Request, res: Response): Promise<void> {
 
   // If apiKey is '__use_existing__', keep the current key but update other fields
   let keyToSave = apiKey;
+  const existing = await UserAISettingsModel.getByUserId(userId);
   if (!apiKey || apiKey === '__use_existing__') {
-    const existing = await UserAISettingsModel.getByUserId(userId);
     if (!existing) {
       res.status(400).json({
         success: false,
@@ -57,8 +83,33 @@ export async function saveSettings(req: Request, res: Response): Promise<void> {
     keyToSave = existing.apiKey;
   }
 
-  await UserAISettingsModel.upsert(userId, keyToSave, baseUrl, model);
-  logger.info('AI settings saved', { userId });
+  const parsedResponseMaxTokens = parseTokenBudget(
+    responseMaxTokens,
+    existing?.responseMaxTokens ?? AI_RESPONSE_MAX_TOKENS_DEFAULT
+  );
+  if (!parsedResponseMaxTokens.ok) {
+    res.status(400).json({ success: false, error: parsedResponseMaxTokens.error });
+    return;
+  }
+
+  const parsedAgentMaxTokens = parseTokenBudget(
+    agentMaxTokens,
+    existing?.agentMaxTokens ?? AI_AGENT_MAX_TOKENS_DEFAULT
+  );
+  if (!parsedAgentMaxTokens.ok) {
+    res.status(400).json({ success: false, error: parsedAgentMaxTokens.error });
+    return;
+  }
+
+  await UserAISettingsModel.upsert(userId, keyToSave, baseUrl, model, {
+    responseMaxTokens: parsedResponseMaxTokens.value,
+    agentMaxTokens: parsedAgentMaxTokens.value,
+  });
+  logger.info('AI settings saved', {
+    userId,
+    responseMaxTokens: parsedResponseMaxTokens.value,
+    agentMaxTokens: parsedAgentMaxTokens.value,
+  });
 
   res.json({ success: true, message: 'AI settings saved successfully' });
 }
