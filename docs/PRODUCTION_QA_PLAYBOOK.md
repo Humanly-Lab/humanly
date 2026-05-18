@@ -12,6 +12,10 @@ change, after deployment infrastructure changes, or whenever the user asks for
 
 Use `docs/LOCAL_DEV.md` instead for small local visual smoke tests.
 
+Use `docs/testing/README.md` to run a smaller QA layer when the change does not
+need the full 14-phase production pass. The modular layer split is: backend
+contract, AI usage, deploy smoke, and browser-agent-assisted E2E.
+
 Use `docs/REGRESSION_GUARD.md` whenever a phase finds a potential bug. Check
 `docs/REGRESSION_LEDGER.md` before calling a finding "new".
 

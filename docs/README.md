@@ -12,6 +12,10 @@ This directory is the entry point for maintainers and agents working on
 
 ## QA And Regression
 
+- `testing/README.md` - modular QA framework: backend contract, AI usage,
+  deploy smoke, and browser-agent-assisted E2E layers.
+- `testing/BROWSER_E2E_SKILL.md` - reusable browser E2E guide for user/admin
+  flows that require visual/editor judgment.
 - `PRODUCTION_QA_PLAYBOOK.md` - reusable end-to-end production test plan.
 - `BACKEND_STRESS_TESTING.md` - backend/document/file stress harness.
 - `AI_USAGE_STRESS_TEST_REPORT_2026-05-17.md` - baseline production AI usage
