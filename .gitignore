@@ -74,6 +74,9 @@ temp/
 # ── Local assistant state ─────────────────────────────────────────────────────
 .claude/
 .AGENTS/
+!.agents/
+!.agents/skills/
+!.agents/skills/**
 /CLAUDE.md
 /AGENTS.md
 /DEPLOY.md

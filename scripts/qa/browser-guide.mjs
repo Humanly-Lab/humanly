@@ -16,8 +16,13 @@ const root = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "../..",
 );
-const guide = path.join(root, "docs/testing/BROWSER_E2E_SKILL.md");
+const skill = path.join(root, ".agents/skills/humanly-browser-e2e/SKILL.md");
+const guide = path.join(root, "docs/testing/BROWSER_E2E_PLAYBOOK.md");
 const framework = path.join(root, "docs/testing/README.md");
+const modelMatrixReference = path.join(
+  root,
+  ".agents/skills/humanly-browser-e2e/references/ai-model-matrix.md",
+);
 
 const PHASES = [
   {
@@ -34,6 +39,11 @@ const PHASES = [
     id: "C",
     title: "AI Chat",
     goal: "Agentic chat, tool UI, reasoning/final separation, negative lookups, model switching, and image gating.",
+  },
+  {
+    id: "C2",
+    title: "Focused AI Model Matrix",
+    goal: "Curated model selection, image+text/text-only labels, image gating, grounded PDF QA, tool UI, no raw markup, and follow-up stability.",
   },
   {
     id: "D",
@@ -95,8 +105,10 @@ function renderPhasePacket(report, phases, target, issue) {
     `Run ID: \`${report.run.id}\``,
     `Target: ${target || "unspecified"}`,
     `QA Control Issue: ${issue || "unspecified"}`,
+    `Skill: \`${skill}\``,
     `Guide: \`${guide}\``,
     `Framework: \`${framework}\``,
+    `Model Matrix Reference: \`${modelMatrixReference}\``,
     "",
     "Use one issue comment per phase. Replace placeholders as you execute.",
   ];
@@ -193,8 +205,10 @@ await runCheck(
     return {
       details: {
         phaseCount: selectedPhases.length,
+        skill,
         guide,
         framework,
+        modelMatrixReference,
       },
     };
   },
@@ -208,7 +222,7 @@ for (const phase of selectedPhases) {
     status: "skip",
     details: {
       reason:
-        "Browser-agent-assisted phase; execute manually with docs/testing/BROWSER_E2E_SKILL.md.",
+        "Browser-agent-assisted phase; execute manually with the Humanly Browser E2E repo skill and playbook.",
       goal: phase.goal,
     },
   });
@@ -232,15 +246,17 @@ console.log(
   "Humanly browser E2E is browser-agent-assisted, not fully unattended.",
 );
 console.log("");
+console.log(`Skill: ${skill}`);
 console.log(`Guide: ${guide}`);
 console.log(`Framework: ${framework}`);
+console.log(`Model matrix reference: ${modelMatrixReference}`);
 console.log(`Phase packet: ${report.artifacts.phasePacket}`);
 console.log("");
 console.log("Recommended flow:");
 console.log(
   "1. Create a QA control issue if this is a production/full regression pass.",
 );
-console.log("2. Follow the browser guide phase-by-phase.");
+console.log("2. Use the repo skill and follow the browser guide phase-by-phase.");
 console.log("3. Record each phase result in the issue immediately.");
 console.log("4. File confirmed bugs with docs/ISSUE_AUTHORING_GUIDE.md.");
 printReportLocation(report);

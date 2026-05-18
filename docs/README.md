@@ -14,8 +14,18 @@ This directory is the entry point for maintainers and agents working on
 
 - `testing/README.md` - modular QA framework: backend contract, AI usage,
   deploy smoke, and browser-agent-assisted E2E layers.
-- `testing/BROWSER_E2E_SKILL.md` - reusable browser E2E guide for user/admin
-  flows that require visual/editor judgment.
+- `.agents/skills/humanly-browser-e2e/SKILL.md` - Codex repo skill for browser
+  E2E user/admin QA and focused AI model matrix checks.
+- `.agents/skills/humanly-backend-contract/SKILL.md` - Codex repo skill for
+  lightweight backend/API/auth/document/file/AI-settings contract checks.
+- `.agents/skills/humanly-ai-usage/SKILL.md` - Codex repo skill for
+  provider/model/tool/image/app-level AI usage checks.
+- `.agents/skills/humanly-deploy-smoke/SKILL.md` - Codex repo skill for
+  deployment, TLS, proxy, static asset, and API reachability checks.
+- `.agents/skills/humanly-backend-stress/SKILL.md` - Codex repo skill for
+  heavier backend document/event/file stress probes.
+- `testing/BROWSER_E2E_PLAYBOOK.md` - human-readable browser E2E playbook for
+  user/admin flows that require visual/editor judgment.
 - `PRODUCTION_QA_PLAYBOOK.md` - reusable end-to-end production test plan.
 - `BACKEND_STRESS_TESTING.md` - backend/document/file stress harness.
 - `AI_USAGE_STRESS_TEST_REPORT_2026-05-17.md` - baseline production AI usage
@@ -25,8 +35,8 @@ This directory is the entry point for maintainers and agents working on
 - `REGRESSION_GUARD.md` - how to decide whether a finding is old, new, or a
   regression.
 - `REGRESSION_LEDGER.md` - recurring bug patterns and manual locks.
-- `skills/humanly-regression-guard/SKILL.md` - compact skill wrapper for the
-  regression process.
+- `.agents/skills/humanly-regression-guard/SKILL.md` - Codex repo skill wrapper
+  for the regression process.
 
 ## Deployment And Operations
 

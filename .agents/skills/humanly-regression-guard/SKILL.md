@@ -1,7 +1,12 @@
+---
+name: humanly-regression-guard
+description: Use when running Humanly QA, filing a QA bug, fixing a QA bug, comparing old versus new findings, or preparing a release report that must classify regressions and prevent recurring bugs.
+---
+
 # Humanly Regression Guard
 
-Use this skill whenever you are running Humanly QA, filing a bug found during
-QA, fixing a QA bug, or preparing a release report.
+Use this skill whenever a Humanly QA finding might become an issue, bug fix, or
+release note.
 
 ## Core Rule
 

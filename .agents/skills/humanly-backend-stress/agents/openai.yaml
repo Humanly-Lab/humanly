@@ -1,0 +1,6 @@
+interface:
+  display_name: "Humanly Backend Stress"
+  short_description: "Run heavier backend document/event/file stress probes."
+  default_prompt: "Run the Humanly backend stress skill at the requested intensity and summarize the report."
+policy:
+  allow_implicit_invocation: true
