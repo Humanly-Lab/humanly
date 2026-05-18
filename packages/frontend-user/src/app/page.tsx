@@ -26,7 +26,6 @@ export default function HomePage() {
       </header>
 
       <section className="mx-auto flex min-h-[calc(100vh-5.5rem)] max-w-3xl flex-col items-center justify-center px-6 pb-24 pt-12 text-center sm:px-8">
-        <img src="/humanly.svg" alt="" className="mb-7 h-16 w-16" />
         <h1 className="text-6xl font-semibold leading-none sm:text-7xl">
           {BRAND.name}
         </h1>
