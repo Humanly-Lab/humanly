@@ -122,9 +122,12 @@ Humanly uses layered confidence, not one enormous brittle UI harness:
 
 1. `pnpm test` for unit/service/component workflow coverage.
 2. `pnpm build:all` in CI to catch type/build drift.
-3. Production QA playbook for browser-agent-assisted human-visible flows.
-4. Real provider smoke for Together/OpenRouter behavior.
-5. Post-deploy canary: a short human or agent-run smoke on app/admin.
+3. `pnpm qa:backend:contract` for lightweight API contract checks.
+4. `pnpm qa:ai:usage` for real provider/model behavior.
+5. `pnpm qa:deploy:smoke` for deployment, TLS, proxy, and health surfaces.
+6. `docs/testing/BROWSER_E2E_SKILL.md` for browser-agent-assisted
+   human-visible flows.
+7. Post-deploy canary: a short human or agent-run smoke on app/admin.
 
 ## UI Automation Boundary
 

@@ -11,6 +11,9 @@ Humanly's first reusable backend stress harness lives at
 - synthetic PDF upload, indexing, listing, and streaming;
 - expected rejection probes for `.docx`, `.md`, and `.pptx`.
 
+For lightweight API contract checks, use `pnpm qa:backend:contract` first. This
+stress harness is for heavier file/event/load coverage.
+
 The product is currently PDF-first for uploaded reference files. DOCX, Markdown,
 and PPTX probes are intentionally expected to return HTTP 400 today. Adding
 native ingestion for those formats is product work and should get its own issue.
