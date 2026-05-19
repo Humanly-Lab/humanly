@@ -981,7 +981,7 @@ export default function NewDocumentPage() {
           </Button>
           <Button onClick={handleCreateDocument} disabled={isCreating}>
             {isCreating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {isCreating ? 'Creating...' : pdfFile ? 'Create & Upload PDF' : 'Create Document'}
+            {isCreating ? 'Creating...' : 'Create Writing'}
           </Button>
         </CardFooter>
       </Card>
