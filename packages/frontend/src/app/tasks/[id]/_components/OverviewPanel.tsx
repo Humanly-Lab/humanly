@@ -18,17 +18,6 @@ interface OverviewPanelProps {
   isLoadingSubmissions: boolean;
 }
 
-const getServiceTypeLabel = (type: string | null | undefined) => {
-  if (!type) return 'Not specified';
-  const labels: Record<string, string> = {
-    qualtrics: 'Qualtrics',
-    'google-forms': 'Google Forms',
-    custom: 'Custom',
-    other: 'Other',
-  };
-  return labels[type] || type;
-};
-
 export function OverviewPanel({
   task,
   stats,
@@ -138,13 +127,6 @@ export function OverviewPanel({
               )}
             </div>
             <div>
-              <dt className="text-sm font-medium text-muted-foreground">Instruction Files</dt>
-              <dd className="mt-1 flex items-center gap-2 text-sm">
-                <FileText className="h-4 w-4 text-muted-foreground" />
-                Ready for task files API
-              </dd>
-            </div>
-            <div>
               <dt className="text-sm font-medium text-muted-foreground">Status</dt>
               <dd className="mt-1 text-sm">
                 <span
@@ -175,10 +157,6 @@ export function OverviewPanel({
                 <BrainCircuit className="h-4 w-4 text-muted-foreground" />
                 {aiUsageLimit.toLocaleString()} requests per user
               </dd>
-            </div>
-            <div>
-              <dt className="text-sm font-medium text-muted-foreground">External Service</dt>
-              <dd className="mt-1 text-sm">{getServiceTypeLabel(task.externalServiceType)}</dd>
             </div>
           </div>
         </CardContent>

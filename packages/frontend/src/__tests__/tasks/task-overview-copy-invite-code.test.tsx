@@ -266,6 +266,9 @@ describe('admin task overview invite code copy button', () => {
     expect(within(overviewRegion as HTMLElement).getByText(
       adminLocalTimeFormatter.format(taskFixture.endDate)
     )).toBeInTheDocument();
+    expect(within(overviewRegion as HTMLElement).queryByText('Instruction Files')).not.toBeInTheDocument();
+    expect(within(overviewRegion as HTMLElement).queryByText('Ready for task files API')).not.toBeInTheDocument();
+    expect(within(overviewRegion as HTMLElement).queryByText('External Service')).not.toBeInTheDocument();
     expect(overviewRegion as HTMLElement).not.toHaveTextContent(/GMT|UTC/);
     fireEvent.click(screen.getByRole('button', { name: /copy invite code/i }));
 
