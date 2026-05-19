@@ -35,6 +35,11 @@ const sortSubmissions = (submissions: AdminSubmission[]) => (
   [...submissions].sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime())
 );
 
+const formatSubmissionCount = (count: number) => {
+  if (count === 0) return 'No submissions yet';
+  return `${count.toLocaleString()} ${count === 1 ? 'submission' : 'submissions'}`;
+};
+
 export function SubmissionPanel({
   taskId,
   enrollments,
@@ -135,18 +140,24 @@ export function SubmissionPanel({
                     key={enrollment.id}
                     type="button"
                     className={cn(
-                      'w-full rounded-md border px-3 py-2 text-left transition-colors hover:bg-accent',
+                      'w-full rounded-md border px-3 py-2.5 text-left transition-colors hover:bg-accent',
                       selectedUserId === enrollment.userId ? 'border-primary bg-primary/5' : 'bg-background'
                     )}
                     onClick={() => setSelectedUserId(enrollment.userId)}
                   >
                     <div className="flex items-center justify-between gap-2">
                       <span className="truncate text-sm font-medium">{enrollment.email}</span>
-                      <ChevronRight className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                      <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
                     </div>
-                    <div className="mt-2 flex items-center justify-between gap-2">
-                      <span className="text-xs text-muted-foreground">Submissions</span>
-                      <Badge variant="secondary">{userSubmissionCount}</Badge>
+                    <div className="mt-1.5 flex items-center gap-2 text-xs text-muted-foreground">
+                      <span
+                        aria-hidden="true"
+                        className={cn(
+                          'h-1.5 w-1.5 rounded-full',
+                          userSubmissionCount > 0 ? 'bg-emerald-500' : 'bg-muted-foreground/40'
+                        )}
+                      />
+                      <span>{formatSubmissionCount(userSubmissionCount)}</span>
                     </div>
                   </button>
                 );

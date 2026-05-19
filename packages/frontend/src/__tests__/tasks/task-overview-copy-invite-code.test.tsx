@@ -200,8 +200,13 @@ describe('admin task overview invite code copy button', () => {
     expect(screen.queryByText('user-1')).not.toBeInTheDocument();
     expect(screen.queryByText('user-2')).not.toBeInTheDocument();
     expect(screen.queryByRole('columnheader', { name: 'Status' })).not.toBeInTheDocument();
+    const submittedUserButton = screen.getByRole('button', { name: /user@example.com/i });
+    const quietUserButton = screen.getByRole('button', { name: /quiet@example.com/i });
+    expect(within(submittedUserButton).getByText('2 submissions')).toBeInTheDocument();
+    expect(within(quietUserButton).getByText('No submissions yet')).toBeInTheDocument();
+    expect(within(submittedUserButton).queryByText('Submissions')).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: /user@example.com/i }));
+    fireEvent.click(submittedUserButton);
 
     expect(await screen.findByText('Older Essay')).toBeInTheDocument();
     expect(screen.queryByRole('columnheader', { name: 'Status' })).not.toBeInTheDocument();
@@ -210,8 +215,9 @@ describe('admin task overview invite code copy button', () => {
       'http://localhost:3002/verify/cert-token-123'
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /quiet@example.com/i }));
-    expect(await screen.findByText('No submissions yet')).toBeInTheDocument();
+    fireEvent.click(quietUserButton);
+    expect(await screen.findByRole('heading', { name: 'quiet@example.com' })).toBeInTheDocument();
+    expect(screen.getByText('This user has not submitted a task document.')).toBeInTheDocument();
   });
 
   it('refreshes users and submissions together from the submission tab', async () => {
