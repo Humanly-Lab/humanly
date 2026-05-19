@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Task } from '@humanly/shared';
 import api, { ApiError } from '@/lib/api-client';
+import { formatDateTime } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -151,14 +152,6 @@ export default function TasksPage() {
     const count = getCompletionCount(task);
     return `${count.toLocaleString()} ${count === 1 ? 'completion' : 'completions'}`;
   };
-
-  const formatCardDate = (date: Date | string) => (
-    new Intl.DateTimeFormat('en-US', {
-      month: 'long',
-      day: 'numeric',
-      year: 'numeric',
-    }).format(typeof date === 'string' ? new Date(date) : date)
-  );
 
   /**
    * Load tasks on mount
@@ -398,7 +391,7 @@ export default function TasksPage() {
                 </div>
                 <div className="flex items-center gap-3">
                   <Calendar className="h-4 w-4 text-muted-foreground" />
-                  <span>Created {formatCardDate(task.createdAt)}</span>
+                  <span>Created {formatDateTime(task.createdAt)}</span>
                 </div>
               </div>
             </CardContent>

@@ -19,6 +19,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { formatDateTime } from '@/lib/utils';
 
 import type { TaskEnrollment } from './types';
 
@@ -27,21 +28,6 @@ interface UsersPanelProps {
   isLoading: boolean;
   error: string | null;
   onRefresh: () => void;
-}
-
-function formatAdminLocalDateTime(date: string | null) {
-  if (!date) return 'No activity yet';
-
-  const parsedDate = new Date(date);
-  if (Number.isNaN(parsedDate.getTime())) return 'Not available';
-
-  return new Intl.DateTimeFormat(undefined, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  }).format(parsedDate);
 }
 
 export function UsersPanel({
@@ -135,10 +121,12 @@ export function UsersPanel({
                       <TableCell>
                         <div className="font-medium">{enrollment.email}</div>
                       </TableCell>
-                      <TableCell>{formatAdminLocalDateTime(enrollment.joinedAt)}</TableCell>
+                      <TableCell>{formatDateTime(enrollment.joinedAt)}</TableCell>
                       <TableCell className="text-right font-mono">{enrollment.submissionCount}</TableCell>
                       <TableCell className="text-right font-mono">{enrollment.eventCount}</TableCell>
-                      <TableCell>{formatAdminLocalDateTime(enrollment.lastActivity)}</TableCell>
+                      <TableCell>
+                        {enrollment.lastActivity ? formatDateTime(enrollment.lastActivity) : 'No activity yet'}
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

@@ -48,6 +48,14 @@ const taskFixture = {
   updatedAt: '2026-05-15T23:53:00.000Z',
 };
 
+const adminLocalDateTimeFormatter = new Intl.DateTimeFormat('en-US', {
+  year: 'numeric',
+  month: 'short',
+  day: 'numeric',
+  hour: 'numeric',
+  minute: '2-digit',
+});
+
 describe('admin task list card actions', () => {
   const openOptionsMenu = () => {
     fireEvent.click(screen.getByRole('button', { name: /options/i }), { detail: 1 });
@@ -75,7 +83,9 @@ describe('admin task list card actions', () => {
     expect(await screen.findByRole('heading', { name: 'Humanly Draft' })).toBeInTheDocument();
     expect(screen.getByText('A concise writing assignment.')).toBeInTheDocument();
     expect(screen.getByText('2 completions')).toBeInTheDocument();
-    expect(screen.getByText('Created May 15, 2026')).toBeInTheDocument();
+    const createdText = `Created ${adminLocalDateTimeFormatter.format(new Date(taskFixture.createdAt))}`;
+    expect(screen.getByText(createdText)).toBeInTheDocument();
+    expect(screen.getByText(createdText)).not.toHaveTextContent(/GMT|UTC/);
     expect(screen.queryByText('D5D791')).not.toBeInTheDocument();
     expect(screen.queryByText('100 AI limit')).not.toBeInTheDocument();
     expect(screen.queryByText('gpt-4o-mini')).not.toBeInTheDocument();

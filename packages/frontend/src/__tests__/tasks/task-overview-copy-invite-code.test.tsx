@@ -156,6 +156,14 @@ const submissionsFixture = [
   },
 ];
 
+const adminLocalTimeFormatter = new Intl.DateTimeFormat('en-US', {
+  year: 'numeric',
+  month: 'short',
+  day: 'numeric',
+  hour: 'numeric',
+  minute: '2-digit',
+});
+
 function mockTaskOverviewResponses() {
   mockApiGet.mockImplementation((url: string) => {
     if (url === '/api/v1/ai/settings') {
@@ -215,6 +223,18 @@ describe('admin task overview invite code copy button', () => {
     render(<TaskDetailPage />);
 
     await screen.findByRole('heading', { name: 'Clipboard Task' });
+    const overviewRegion = screen.getByText('Task Overview').closest('.rounded-lg');
+    expect(overviewRegion).not.toBeNull();
+    expect(within(overviewRegion as HTMLElement).getByText(
+      adminLocalTimeFormatter.format(taskFixture.createdAt)
+    )).toBeInTheDocument();
+    expect(within(overviewRegion as HTMLElement).getByText(
+      adminLocalTimeFormatter.format(taskFixture.startDate)
+    )).toBeInTheDocument();
+    expect(within(overviewRegion as HTMLElement).getByText(
+      adminLocalTimeFormatter.format(taskFixture.endDate)
+    )).toBeInTheDocument();
+    expect(overviewRegion as HTMLElement).not.toHaveTextContent(/GMT|UTC/);
     fireEvent.click(screen.getByRole('button', { name: /copy invite code/i }));
 
     await waitFor(() => {
@@ -321,13 +341,6 @@ describe('admin task overview invite code copy button', () => {
     expect(activeUserRow).not.toBeNull();
     expect(within(activeUserRow!).getByText('2')).toBeInTheDocument();
     expect(within(activeUserRow!).getByText('42')).toBeInTheDocument();
-    const adminLocalTimeFormatter = new Intl.DateTimeFormat(undefined, {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-    });
     expect(within(activeUserRow!).getByText(
       adminLocalTimeFormatter.format(new Date('2026-05-01T12:00:00.000Z'))
     )).toBeInTheDocument();

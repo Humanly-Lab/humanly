@@ -6,7 +6,7 @@ import type { Task } from '@humanly/shared';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { formatDate, formatDateTime } from '@/lib/utils';
+import { formatDateTime } from '@/lib/utils';
 
 import type { AdminSubmission, TaskStats } from './types';
 
@@ -93,7 +93,7 @@ export function OverviewPanel({
               <dt className="text-sm font-medium text-muted-foreground">Created</dt>
               <dd className="mt-1 flex items-center gap-2 text-sm">
                 <Calendar className="h-4 w-4 text-muted-foreground" />
-                {formatDate(task.createdAt)}
+                {formatDateTime(task.createdAt)}
               </dd>
             </div>
             <div>
