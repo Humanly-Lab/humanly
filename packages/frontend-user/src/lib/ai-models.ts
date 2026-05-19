@@ -3,6 +3,39 @@ import type { AIModelDescriptor, ModelCapabilities } from '@humanly/shared';
 const TEXT_ONLY: ModelCapabilities = { inputs: ['text'] };
 const TEXT_AND_IMAGE: ModelCapabilities = { inputs: ['text', 'image'] };
 
+export const TOGETHER_AI_BASE_URL = 'https://api.together.xyz/v1';
+export const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
+
+export const CUSTOM_AI_PROVIDER_VALUE = 'custom';
+
+export const AI_PROVIDER_OPTIONS = [
+  {
+    value: 'together',
+    label: 'Together AI',
+    baseUrl: TOGETHER_AI_BASE_URL,
+  },
+  {
+    value: 'openrouter',
+    label: 'OpenRouter',
+    baseUrl: OPENROUTER_BASE_URL,
+  },
+  {
+    value: CUSTOM_AI_PROVIDER_VALUE,
+    label: 'Custom',
+    baseUrl: null,
+  },
+] as const;
+
+export type AIProviderOptionValue = typeof AI_PROVIDER_OPTIONS[number]['value'];
+
+export function getProviderValueForBaseUrl(baseUrl: string): AIProviderOptionValue {
+  const normalized = baseUrl.trim().replace(/\/+$/, '');
+  const knownProvider = AI_PROVIDER_OPTIONS.find(
+    provider => provider.baseUrl && provider.baseUrl.replace(/\/+$/, '') === normalized
+  );
+  return knownProvider?.value ?? CUSTOM_AI_PROVIDER_VALUE;
+}
+
 /**
  * Curated chat-model whitelist per provider host. Each entry carries a
  * static capability descriptor so the model picker can render a "Vision"

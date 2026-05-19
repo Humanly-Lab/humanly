@@ -452,7 +452,7 @@ export function AISelectionMenu({
             <div className="text-xs">
               <p className="font-medium text-foreground">AI not configured</p>
               <p className="text-muted-foreground mt-0.5">
-                Please configure your AI settings (API Key, Base URL, Model) in the AI panel first.
+                Please configure your AI settings (API Key, Provider, Model) in the AI panel first.
               </p>
               <Button
                 variant="ghost"

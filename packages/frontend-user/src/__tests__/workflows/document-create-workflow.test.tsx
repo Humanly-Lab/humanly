@@ -71,7 +71,7 @@ describe('document creation workflow', () => {
     render(<NewDocumentPage />);
 
     await screen.findByRole('heading', { name: /new document/i });
-    await user.click(screen.getByRole('button', { name: /^create document$/i }));
+    await user.click(screen.getByRole('button', { name: /^create writing$/i }));
 
     expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({
       title: 'Error',
@@ -89,7 +89,7 @@ describe('document creation workflow', () => {
     expect(screen.queryByText('Writing Control')).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/ai api key/i)).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: /^create document$/i }));
+    await user.click(screen.getByRole('button', { name: /^create writing$/i }));
 
     await waitFor(() => {
       expect(mockCreateDocument).toHaveBeenCalledWith(
@@ -145,8 +145,8 @@ describe('document creation workflow', () => {
     await user.click(await screen.findByRole('option', { name: 'AI On' }));
 
     await user.type(screen.getByLabelText(/ai api key/i), 'sk-or-test');
-    await user.clear(screen.getByLabelText(/base url/i));
-    await user.type(screen.getByLabelText(/base url/i), 'https://openrouter.ai/api/v1');
+    await user.click(screen.getByRole('combobox', { name: /ai provider/i }));
+    await user.click(await screen.findByRole('option', { name: 'OpenRouter' }));
     await user.click(screen.getByRole('button', { name: /test connection/i }));
 
     expect(await screen.findByText('qwen/qwen3.5-397b-a17b')).toBeInTheDocument();

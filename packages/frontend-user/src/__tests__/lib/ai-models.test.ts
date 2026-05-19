@@ -6,7 +6,12 @@
  */
 
 import {
+  AI_PROVIDER_OPTIONS,
+  CUSTOM_AI_PROVIDER_VALUE,
   MODEL_WHITELIST,
+  OPENROUTER_BASE_URL,
+  TOGETHER_AI_BASE_URL,
+  getProviderValueForBaseUrl,
   getWhitelist,
   getModelDescriptors,
   getModelCapabilities,
@@ -108,5 +113,26 @@ describe('whitelist accessors', () => {
   it('tolerates malformed base URLs', () => {
     expect(getWhitelist('not a url')).toBeNull();
     expect(getModelDescriptors('')).toBeNull();
+  });
+});
+
+describe('provider options', () => {
+  it('offers Together AI, OpenRouter, and Custom provider choices', () => {
+    expect(AI_PROVIDER_OPTIONS.map(option => option.label)).toEqual([
+      'Together AI',
+      'OpenRouter',
+      'Custom',
+    ]);
+    expect(AI_PROVIDER_OPTIONS.map(option => option.baseUrl)).toEqual([
+      TOGETHER_AI_BASE_URL,
+      OPENROUTER_BASE_URL,
+      null,
+    ]);
+  });
+
+  it('maps canonical provider URLs back to provider values', () => {
+    expect(getProviderValueForBaseUrl(`${TOGETHER_AI_BASE_URL}/`)).toBe('together');
+    expect(getProviderValueForBaseUrl(OPENROUTER_BASE_URL)).toBe('openrouter');
+    expect(getProviderValueForBaseUrl('https://example.com/v1')).toBe(CUSTOM_AI_PROVIDER_VALUE);
   });
 });

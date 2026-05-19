@@ -47,9 +47,15 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
 import { useDocuments } from '@/hooks/use-documents';
 import { apiClient } from '@/lib/api-client';
-import { getWhitelist } from '@/lib/ai-models';
+import {
+  AI_PROVIDER_OPTIONS,
+  CUSTOM_AI_PROVIDER_VALUE,
+  TOGETHER_AI_BASE_URL,
+  getProviderValueForBaseUrl,
+  getWhitelist,
+} from '@/lib/ai-models';
 
-const DEFAULT_AI_BASE_URL = 'https://api.together.xyz/v1';
+const DEFAULT_AI_BASE_URL = TOGETHER_AI_BASE_URL;
 const CUSTOM_MODEL_VALUE = '__custom_model__';
 const USE_EXISTING_AI_KEY = '__use_existing__';
 const IMPORT_ENVIRONMENT_VALUE = 'import_environment';
@@ -347,6 +353,19 @@ export default function NewDocumentPage() {
     }));
   };
 
+  const updateAiBaseUrl = (nextBaseUrl: string, resetModel = false) => {
+    setAiBaseUrl(nextBaseUrl);
+    setAiConnectionResult(null);
+    setTestedAiModels([]);
+
+    if (resetModel) {
+      const nextModel = getWhitelist(nextBaseUrl)?.[0] || '';
+      setAiModel(nextModel);
+      setCustomAiModel('');
+      setEnvironmentAiModel(nextModel);
+    }
+  };
+
   const setAiTokenBudget = (patch: NonNullable<WritingEnvironmentConfig['aiTokenBudget']>) => {
     markCustom((current) => ({
       ...current,
@@ -409,6 +428,14 @@ export default function NewDocumentPage() {
       });
       return;
     }
+    const baseUrlToTest = aiBaseUrl.trim();
+    if (!baseUrlToTest) {
+      setAiConnectionResult({
+        success: false,
+        message: 'Select a provider or enter a custom base URL before testing the connection.',
+      });
+      return;
+    }
 
     setIsTestingAiConnection(true);
     setAiConnectionResult(null);
@@ -417,7 +444,7 @@ export default function NewDocumentPage() {
     try {
       const response = await apiClient.post('/ai/settings/test', {
         apiKey: aiApiKey.trim() || USE_EXISTING_AI_KEY,
-        baseUrl: aiBaseUrl.trim() || DEFAULT_AI_BASE_URL,
+        baseUrl: baseUrlToTest,
       });
       const result = response.data || {};
 
@@ -427,9 +454,9 @@ export default function NewDocumentPage() {
       });
 
       if (result.success) {
-        const curatedModels = getWhitelist(aiBaseUrl.trim() || DEFAULT_AI_BASE_URL) || [];
+        const fallbackModels = getWhitelist(baseUrlToTest) || [];
         const modelsFromApi = Array.isArray(result.models) ? result.models.filter(Boolean) : [];
-        const nextModels = curatedModels.length ? curatedModels : modelsFromApi;
+        const nextModels = fallbackModels.length ? fallbackModels : modelsFromApi;
 
         setTestedAiModels(nextModels);
 
@@ -493,9 +520,19 @@ export default function NewDocumentPage() {
           return;
         }
 
+        const baseUrlToSave = aiBaseUrl.trim();
+        if (!baseUrlToSave) {
+          toast({
+            title: 'AI provider required',
+            description: 'Select a provider or enter a custom base URL before creating an AI-enabled document.',
+            variant: 'destructive',
+          });
+          return;
+        }
+
         await apiClient.put('/ai/settings', {
           apiKey: aiApiKey.trim() || USE_EXISTING_AI_KEY,
-          baseUrl: aiBaseUrl.trim() || DEFAULT_AI_BASE_URL,
+          baseUrl: baseUrlToSave,
           model: selectedAiModel,
           shortcutMaxTokens: configToCreate.aiTokenBudget?.shortcutMaxTokens || AI_SHORTCUT_MAX_TOKENS_DEFAULT,
           chatMaxTokens: configToCreate.aiTokenBudget?.chatMaxTokens || AI_CHAT_MAX_TOKENS_DEFAULT,
@@ -817,19 +854,40 @@ export default function NewDocumentPage() {
                         </div>
 
                         <div className="grid gap-2">
-                          <Label htmlFor="ai-base-url">Base URL</Label>
-                          <Input
-                            id="ai-base-url"
-                            value={aiBaseUrl}
-                            onChange={(event) => {
-                              setAiBaseUrl(event.target.value);
-                              setAiConnectionResult(null);
-                              setTestedAiModels([]);
+                          <Label>Provider</Label>
+                          <Select
+                            value={getProviderValueForBaseUrl(aiBaseUrl)}
+                            onValueChange={(value) => {
+                              const provider = AI_PROVIDER_OPTIONS.find(option => option.value === value);
+                              updateAiBaseUrl(provider?.baseUrl ?? '', true);
                             }}
-                            placeholder={DEFAULT_AI_BASE_URL}
                             disabled={isCreating}
-                          />
+                          >
+                            <SelectTrigger aria-label="AI provider">
+                              <SelectValue placeholder="Select provider" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {AI_PROVIDER_OPTIONS.map((provider) => (
+                                <SelectItem key={provider.value} value={provider.value}>
+                                  {provider.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </div>
+
+                        {getProviderValueForBaseUrl(aiBaseUrl) === CUSTOM_AI_PROVIDER_VALUE && (
+                          <div className="grid gap-2 sm:col-span-2">
+                            <Label htmlFor="ai-base-url">Custom Base URL</Label>
+                            <Input
+                              id="ai-base-url"
+                              value={aiBaseUrl}
+                              onChange={(event) => updateAiBaseUrl(event.target.value, true)}
+                              placeholder={DEFAULT_AI_BASE_URL}
+                              disabled={isCreating}
+                            />
+                          </div>
+                        )}
                       </div>
 
                       {aiModel === CUSTOM_MODEL_VALUE && (

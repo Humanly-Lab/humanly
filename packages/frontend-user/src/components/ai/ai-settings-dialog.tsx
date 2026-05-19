@@ -37,7 +37,13 @@ import {
   AI_SHORTCUT_MAX_TOKENS_DEFAULT,
   UserAISettings,
 } from '@humanly/shared';
-import { getWhitelist } from '@/lib/ai-models';
+import {
+  AI_PROVIDER_OPTIONS,
+  CUSTOM_AI_PROVIDER_VALUE,
+  TOGETHER_AI_BASE_URL,
+  getProviderValueForBaseUrl,
+  getWhitelist,
+} from '@/lib/ai-models';
 
 interface AISettingsDialogProps {
   onSettingsChanged?: () => void;
@@ -48,7 +54,7 @@ export function AISettingsDialog({ onSettingsChanged }: AISettingsDialogProps) {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
   // Form state
-  const [baseUrl, setBaseUrl] = useState('https://api.together.xyz/v1');
+  const [baseUrl, setBaseUrl] = useState(TOGETHER_AI_BASE_URL);
   const [apiKey, setApiKey] = useState('');
   const [model, setModel] = useState('');
   const [shortcutMaxTokens, setShortcutMaxTokens] = useState(AI_SHORTCUT_MAX_TOKENS_DEFAULT);
@@ -70,6 +76,15 @@ export function AISettingsDialog({ onSettingsChanged }: AISettingsDialogProps) {
     [baseUrl, models]
   );
   const [maskedKey, setMaskedKey] = useState('');
+
+  const updateBaseUrl = (nextBaseUrl: string, resetModel = false) => {
+    setBaseUrl(nextBaseUrl);
+    setTestResult(null);
+    setModels([]);
+    if (resetModel) {
+      setModel(getWhitelist(nextBaseUrl)?.[0] ?? '');
+    }
+  };
 
   // Load existing settings when dialog opens
   useEffect(() => {
@@ -94,7 +109,7 @@ export function AISettingsDialog({ onSettingsChanged }: AISettingsDialogProps) {
       } else {
         setHasExisting(false);
         setMaskedKey('');
-        setBaseUrl('https://api.together.xyz/v1');
+        setBaseUrl(TOGETHER_AI_BASE_URL);
         setApiKey('');
         setModel('');
         setShortcutMaxTokens(AI_SHORTCUT_MAX_TOKENS_DEFAULT);
@@ -113,6 +128,11 @@ export function AISettingsDialog({ onSettingsChanged }: AISettingsDialogProps) {
       setTestResult({ success: false, message: 'Please enter an API key' });
       return;
     }
+    const baseUrlToTest = baseUrl.trim();
+    if (!baseUrlToTest) {
+      setTestResult({ success: false, message: 'Please select a provider or enter a custom base URL' });
+      return;
+    }
 
     setTesting(true);
     setTestResult(null);
@@ -121,7 +141,7 @@ export function AISettingsDialog({ onSettingsChanged }: AISettingsDialogProps) {
     try {
       const data: any = await api.post('/ai/settings/test', {
         apiKey: keyToTest || '__use_existing__',
-        baseUrl,
+        baseUrl: baseUrlToTest,
       });
       setTestResult({
         success: data.success,
@@ -158,12 +178,17 @@ export function AISettingsDialog({ onSettingsChanged }: AISettingsDialogProps) {
       setTestResult({ success: false, message: 'Please enter an API key' });
       return;
     }
+    const baseUrlToSave = baseUrl.trim();
+    if (!baseUrlToSave) {
+      setTestResult({ success: false, message: 'Please select a provider or enter a custom base URL' });
+      return;
+    }
 
     setSaving(true);
     try {
       await api.put('/ai/settings', {
         apiKey: apiKey || '__use_existing__',
-        baseUrl,
+        baseUrl: baseUrlToSave,
         model,
         shortcutMaxTokens,
         chatMaxTokens,
@@ -222,23 +247,43 @@ export function AISettingsDialog({ onSettingsChanged }: AISettingsDialogProps) {
             </div>
           ) : (
             <div className="space-y-4 min-w-0">
-              {/* Base URL */}
+              {/* Provider */}
               <div className="space-y-2">
-                <Label className="text-xs font-medium">Base URL</Label>
-                <Input
-                  value={baseUrl}
-                  onChange={(e) => {
-                    setBaseUrl(e.target.value);
-                    setTestResult(null);
-                    setModels([]);
+                <Label className="text-xs font-medium">Provider</Label>
+                <Select
+                  value={getProviderValueForBaseUrl(baseUrl)}
+                  onValueChange={(value) => {
+                    const provider = AI_PROVIDER_OPTIONS.find(option => option.value === value);
+                    updateBaseUrl(provider?.baseUrl ?? '', true);
                   }}
-                  placeholder="https://api.together.xyz/v1"
-                  className="text-sm"
-                />
+                >
+                  <SelectTrigger className="text-sm" aria-label="AI provider">
+                    <SelectValue placeholder="Select provider" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {AI_PROVIDER_OPTIONS.map((provider) => (
+                      <SelectItem key={provider.value} value={provider.value}>
+                        {provider.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <p className="text-[10px] text-muted-foreground">
-                  Together AI or any OpenAI-compatible API with tool calling
+                  Choose a supported provider, or use Custom for any OpenAI-compatible API with tool calling.
                 </p>
               </div>
+
+              {getProviderValueForBaseUrl(baseUrl) === CUSTOM_AI_PROVIDER_VALUE && (
+                <div className="space-y-2">
+                  <Label className="text-xs font-medium">Custom Base URL</Label>
+                  <Input
+                    value={baseUrl}
+                    onChange={(e) => updateBaseUrl(e.target.value, true)}
+                    placeholder={TOGETHER_AI_BASE_URL}
+                    className="text-sm"
+                  />
+                </div>
+              )}
 
               {/* API Key */}
               <div className="space-y-2">
