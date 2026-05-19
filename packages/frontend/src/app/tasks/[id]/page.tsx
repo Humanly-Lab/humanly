@@ -186,7 +186,6 @@ export default function TaskDetailPage() {
       case 'users':
         return (
           <UsersPanel
-            taskId={taskId}
             enrollments={enrollments}
             isLoading={isLoadingEnrollments}
             error={enrollmentsError}

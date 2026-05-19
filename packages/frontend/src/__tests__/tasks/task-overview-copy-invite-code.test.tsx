@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 
 import TaskDetailPage from '@/app/tasks/[id]/page';
 
@@ -200,6 +200,32 @@ describe('admin task overview invite code copy button', () => {
       'href',
       'http://localhost:3002/verify/cert-token-123'
     );
+  });
+
+  it('shows the users tab as a read-only enrollment overview', async () => {
+    mockSearchParams = new URLSearchParams('tab=users');
+
+    render(<TaskDetailPage />);
+
+    await screen.findByRole('heading', { name: 'Clipboard Task' });
+    expect(await screen.findAllByRole('heading', { name: 'Enrolled Users' })).toHaveLength(2);
+    expect(screen.getByText('Current Enrollments')).toBeInTheDocument();
+    expect(screen.getByText('Total Submissions')).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Submissions' })).toBeInTheDocument();
+
+    expect(screen.queryByText('Inspect users enrolled in this task and open their submissions.')).not.toBeInTheDocument();
+    expect(screen.queryByText('Click a user to view their latest submission and submission history.')).not.toBeInTheDocument();
+    expect(screen.queryByText('user-1')).not.toBeInTheDocument();
+    expect(screen.queryByText('user-2')).not.toBeInTheDocument();
+    expect(screen.queryByText('No document yet')).not.toBeInTheDocument();
+
+    const activeUserRow = screen.getByText('user@example.com').closest('tr');
+    expect(activeUserRow).not.toBeNull();
+    expect(within(activeUserRow!).getByText('2')).toBeInTheDocument();
+    expect(within(activeUserRow!).getByText('42')).toBeInTheDocument();
+
+    fireEvent.click(activeUserRow!);
+    expect(mockPush).not.toHaveBeenCalled();
   });
 
   it('updates the task tab query when a tab is selected', async () => {
