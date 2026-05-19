@@ -18,7 +18,6 @@ import { Mail, Lock, AlertCircle, Loader2, CheckCircle2 } from 'lucide-react';
 const loginSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
   password: z.string().min(8, 'Password must be at least 8 characters'),
-  rememberMe: z.boolean().optional(),
 });
 
 type LoginForm = z.infer<typeof loginSchema>;
@@ -39,9 +38,6 @@ export default function LoginPage() {
     clearErrors,
   } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
-    defaultValues: {
-      rememberMe: false,
-    },
   });
 
   const onSubmit = async (data: LoginForm) => {
@@ -196,22 +192,6 @@ export default function LoginPage() {
             )}
           </div>
 
-          <div className="flex items-center space-x-2">
-            <input
-              type="checkbox"
-              id="rememberMe"
-              className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-              disabled={isLoading}
-              {...register('rememberMe')}
-            />
-            <Label
-              htmlFor="rememberMe"
-              className="text-sm font-normal cursor-pointer"
-            >
-              Remember me
-            </Label>
-          </div>
-
           <Button type="submit" className="w-full" disabled={isLoading}>
             {isLoading ? (
               <>
@@ -225,14 +205,25 @@ export default function LoginPage() {
         </form>
       </CardContent>
 
-      <CardFooter className="flex justify-center">
+      <CardFooter className="flex flex-col items-center gap-3">
         <p className="text-sm text-muted-foreground">
           Do not have an account?{' '}
           <Link
             href="/register"
-            className="text-primary hover:underline font-medium"
+            className="font-medium text-primary hover:underline"
           >
             Sign up
+          </Link>
+        </p>
+        <p className="text-center text-xs text-muted-foreground">
+          By signing in, you agree to our{' '}
+          <Link
+            href="https://app.writehumanly.net/terms"
+            target="_blank"
+            rel="noreferrer"
+            className="underline hover:text-foreground"
+          >
+            Terms of Service
           </Link>
         </p>
       </CardFooter>
