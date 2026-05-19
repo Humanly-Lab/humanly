@@ -5,11 +5,17 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Task } from '@humanly/shared';
 import api, { ApiError } from '@/lib/api-client';
-import { formatDate, formatDateTime } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
   Plus,
   Search,
@@ -17,13 +23,11 @@ import {
   Settings,
   Trash2,
   Calendar,
-  Activity,
   Users,
   AlertCircle,
   Folder,
-  Copy,
-  BrainCircuit,
-  FileText
+  Loader2,
+  MoreHorizontal,
 } from 'lucide-react';
 
 /**
@@ -34,6 +38,7 @@ interface TaskWithStats extends Task {
   sessionCount?: number;
   enrolledUserCount?: number;
   documentCount?: number;
+  submissionCount?: number;
   aiUsageLimit?: number;
   allowedAiModels?: string[];
   allowedLlmModels?: string[];
@@ -52,6 +57,7 @@ export default function TasksPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [deletingTaskId, setDeletingTaskId] = useState<string | null>(null);
+  const [openOptionsTaskId, setOpenOptionsTaskId] = useState<string | null>(null);
 
   const itemsPerPage = 9; // 3x3 grid
 
@@ -139,22 +145,20 @@ export default function TasksPage() {
    */
   const totalPages = Math.ceil(filteredTasks.length / itemsPerPage);
 
-  const getInviteCode = (task: TaskWithStats) => (
-    task.inviteCode || task.taskToken?.slice(0, 6).toUpperCase() || 'PENDING'
-  );
+  const getCompletionCount = (task: TaskWithStats) => task.submissionCount ?? 0;
 
-  const getAllowedModels = (task: TaskWithStats) => (
-    task.allowedLlmModels?.length
-      ? task.allowedLlmModels
-      : task.allowedAiModels?.length
-        ? task.allowedAiModels
-        : ['GPT-4o mini']
-  );
-
-  const copyInviteCode = async (task: TaskWithStats) => {
-    const inviteCode = getInviteCode(task);
-    await navigator.clipboard.writeText(inviteCode);
+  const formatCompletionCount = (task: TaskWithStats) => {
+    const count = getCompletionCount(task);
+    return `${count.toLocaleString()} ${count === 1 ? 'completion' : 'completions'}`;
   };
+
+  const formatCardDate = (date: Date | string) => (
+    new Intl.DateTimeFormat('en-US', {
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric',
+    }).format(typeof date === 'string' ? new Date(date) : date)
+  );
 
   /**
    * Load tasks on mount
@@ -365,7 +369,7 @@ export default function TasksPage() {
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             type="search"
-            placeholder="Search tasks or invite codes..."
+            placeholder="Search tasks..."
             className="pl-10"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -378,115 +382,85 @@ export default function TasksPage() {
         {paginatedTasks.map((task) => (
           <Card key={task.id} className="flex flex-col hover:shadow-lg transition-shadow">
             <CardHeader>
-              <CardTitle className="flex items-start justify-between">
-                <span className="truncate" title={task.name}>
-                  {task.name}
-                </span>
-                <span className={`ml-2 px-2 py-1 text-xs rounded-full flex-shrink-0 ${
-                  task.isActive
-                    ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
-                    : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'
-                }`}>
-                  {task.isActive ? 'Active' : 'Inactive'}
-                </span>
+              <CardTitle className="truncate" title={task.name}>
+                {task.name}
               </CardTitle>
-              {task.description && (
-                <CardDescription className="line-clamp-2" title={task.description}>
-                  {task.description}
-                </CardDescription>
-              )}
+              <CardDescription className="line-clamp-3 min-h-[3.75rem]" title={task.description || undefined}>
+                {task.description || 'No description provided.'}
+              </CardDescription>
             </CardHeader>
 
-            <CardContent className="flex-1 space-y-3">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Calendar className="h-4 w-4" />
-                <span>Created {formatDate(task.createdAt)}</span>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 text-sm text-muted-foreground">
-                <div>
-                  <div className="font-medium text-foreground">Begin</div>
-                  <div>{formatDateTime(task.startDate)}</div>
+            <CardContent className="flex-1">
+              <div className="space-y-2 text-sm text-muted-foreground">
+                <div className="flex items-center gap-3">
+                  <Users className="h-4 w-4 text-muted-foreground" />
+                  <span>{formatCompletionCount(task)}</span>
                 </div>
-                <div>
-                  <div className="font-medium text-foreground">Deadline</div>
-                  <div>{formatDateTime(task.endDate)}</div>
+                <div className="flex items-center gap-3">
+                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                  <span>Created {formatCardDate(task.createdAt)}</span>
                 </div>
               </div>
-
-              <button
-                type="button"
-                className="flex w-full items-center justify-between rounded-md border bg-muted/30 px-3 py-2 text-left text-sm transition-colors hover:bg-muted"
-                onClick={() => copyInviteCode(task)}
-                title="Copy invite code"
-              >
-                <span className="font-mono font-semibold tracking-wider">{getInviteCode(task)}</span>
-                <Copy className="h-4 w-4 text-muted-foreground" />
-              </button>
-
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <div className="flex items-center gap-1.5 text-muted-foreground">
-                  <Users className="h-4 w-4" />
-                  <span>{task.enrolledUserCount ?? task.sessionCount ?? 0} users</span>
-                </div>
-                <div className="flex items-center gap-1.5 text-muted-foreground">
-                  <FileText className="h-4 w-4" />
-                  <span>{task.documentCount ?? 0} docs</span>
-                </div>
-                <div className="flex items-center gap-1.5 text-muted-foreground">
-                  <Activity className="h-4 w-4" />
-                  <span>{task.eventCount ?? 0} logs</span>
-                </div>
-                <div className="flex items-center gap-1.5 text-muted-foreground">
-                  <BrainCircuit className="h-4 w-4" />
-                  <span>{task.aiUsageLimit ?? 100} AI limit</span>
-                </div>
-              </div>
-
-              <div className="flex flex-wrap gap-1.5">
-                {getAllowedModels(task).map((model) => (
-                  <span key={model} className="rounded-md bg-secondary px-2 py-1 text-xs text-secondary-foreground">
-                    {model}
-                  </span>
-                ))}
-              </div>
-
-              {task.externalServiceType && (
-                <div className="text-xs text-muted-foreground">
-                  Source: {task.externalServiceType}
-                </div>
-              )}
             </CardContent>
 
-            <CardFooter className="flex gap-2 pt-4 border-t">
+            <CardFooter className="flex pt-4 border-t space-x-2">
               <Button
                 variant="default"
                 size="sm"
-                className="flex-1"
+                className="w-full"
                 onClick={() => router.push(`/tasks/${task.id}`)}
               >
                 <Eye className="mr-2 h-4 w-4" />
                 View
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => router.push(`/tasks/${task.id}?tab=setting`)}
+              <DropdownMenu
+                open={openOptionsTaskId === task.id}
+                onOpenChange={(open) => setOpenOptionsTaskId(open ? task.id : null)}
               >
-                <Settings className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="destructive"
-                size="sm"
-                disabled={deletingTaskId === task.id}
-                onClick={() => handleDeleteTask(task.id, task.name)}
-              >
-                {deletingTaskId === task.id ? (
-                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-background border-t-transparent" />
-                ) : (
-                  <Trash2 className="h-4 w-4" />
-                )}
-              </Button>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="min-w-[120px]"
+                    onPointerDown={(event) => event.preventDefault()}
+                    onClick={(event) => {
+                      if (event.detail === 0) return;
+                      setOpenOptionsTaskId((currentTaskId) => (
+                        currentTaskId === task.id ? null : task.id
+                      ));
+                    }}
+                  >
+                    <MoreHorizontal className="mr-2 h-4 w-4" />
+                    Options
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="end"
+                  className="w-44"
+                >
+                  <DropdownMenuItem onClick={() => router.push(`/tasks/${task.id}`)}>
+                    <Eye className="mr-2 h-4 w-4" />
+                    View Details
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => router.push(`/tasks/${task.id}?tab=setting`)}>
+                    <Settings className="mr-2 h-4 w-4" />
+                    Edit Setting
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className="text-destructive focus:text-destructive"
+                    disabled={deletingTaskId === task.id}
+                    onClick={() => handleDeleteTask(task.id, task.name)}
+                  >
+                    {deletingTaskId === task.id ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="mr-2 h-4 w-4" />
+                    )}
+                    Delete
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </CardFooter>
           </Card>
         ))}
