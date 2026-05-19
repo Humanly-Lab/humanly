@@ -247,13 +247,24 @@ export const useAuthStore = create<AuthState>()(
 
         const token = TokenManager.getAccessToken();
         if (!token) {
-          set({
-            user: null,
-            isAuthenticated: false,
-            isLoading: false,
-            error: null,
-          });
-          return;
+          try {
+            const refreshResponse = await api.post<{
+              success: boolean;
+              data: {
+                accessToken: string;
+              };
+            }>('/auth/refresh', {}, { skipAuthRedirect: true });
+            TokenManager.setAccessToken(refreshResponse.data.accessToken);
+          } catch {
+            TokenManager.clearTokens();
+            set({
+              user: null,
+              isAuthenticated: false,
+              isLoading: false,
+              error: null,
+            });
+            return;
+          }
         }
 
         try {
@@ -262,7 +273,7 @@ export const useAuthStore = create<AuthState>()(
             data: {
               user: User;
             };
-          }>('/auth/me');
+          }>('/auth/me', { skipAuthRedirect: true });
 
           set({
             user: response.data?.user || null,
