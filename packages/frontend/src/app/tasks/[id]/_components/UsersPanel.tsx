@@ -1,9 +1,7 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
 import {
   AlertCircle,
-  Eye,
   FileText,
   Loader2,
   RefreshCcw,
@@ -11,9 +9,8 @@ import {
 } from 'lucide-react';
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Table,
   TableBody,
@@ -27,7 +24,6 @@ import { formatDateTime as formatLocalDateTime } from '@/lib/utils';
 import type { TaskEnrollment } from './types';
 
 interface UsersPanelProps {
-  taskId: string;
   enrollments: TaskEnrollment[];
   isLoading: boolean;
   error: string | null;
@@ -35,14 +31,11 @@ interface UsersPanelProps {
 }
 
 export function UsersPanel({
-  taskId,
   enrollments,
   isLoading,
   error,
   onRefresh,
 }: UsersPanelProps) {
-  const router = useRouter();
-
   const formatDateTime = (date: string | null) => {
     if (!date) return 'No activity yet';
     return formatLocalDateTime(date);
@@ -54,9 +47,6 @@ export function UsersPanel({
     <div className="space-y-6">
       <div className="space-y-1">
         <h2 className="text-2xl font-semibold tracking-tight">Enrolled Users</h2>
-        <p className="text-muted-foreground mt-2">
-          Inspect users enrolled in this task and open their submissions.
-        </p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
@@ -85,7 +75,6 @@ export function UsersPanel({
           <div className="flex items-start justify-between gap-4">
             <div>
               <CardTitle>Current Enrollments</CardTitle>
-              <CardDescription>Click a user to view their latest submission and submission history.</CardDescription>
             </div>
             <Button variant="outline" size="sm" onClick={onRefresh} disabled={isLoading}>
               {isLoading ? (
@@ -125,51 +114,22 @@ export function UsersPanel({
                 <TableHeader>
                   <TableRow>
                     <TableHead>User</TableHead>
-                    <TableHead>Document</TableHead>
                     <TableHead>Joined</TableHead>
+                    <TableHead className="text-right">Submissions</TableHead>
                     <TableHead className="text-right">Events</TableHead>
                     <TableHead>Last Activity</TableHead>
-                    <TableHead className="w-[80px]"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {enrollments.map((enrollment) => (
-                    <TableRow
-                      key={enrollment.id}
-                      className="cursor-pointer"
-                      onClick={() => router.push(`/tasks/${taskId}/enrollments/${enrollment.userId}`)}
-                    >
+                    <TableRow key={enrollment.id}>
                       <TableCell>
-                        <div className="space-y-1">
-                          <div className="font-medium">{enrollment.email}</div>
-                          <div className="font-mono text-xs text-muted-foreground">{enrollment.userId}</div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {enrollment.documentId ? (
-                          <div className="flex items-center gap-2">
-                            <FileText className="h-4 w-4 text-muted-foreground" />
-                            <span>{enrollment.documentTitle || 'Submission Document'}</span>
-                          </div>
-                        ) : (
-                          <Badge variant="secondary">No document yet</Badge>
-                        )}
+                        <div className="font-medium">{enrollment.email}</div>
                       </TableCell>
                       <TableCell>{formatDateTime(enrollment.joinedAt)}</TableCell>
+                      <TableCell className="text-right font-mono">{enrollment.submissionCount}</TableCell>
                       <TableCell className="text-right font-mono">{enrollment.eventCount}</TableCell>
                       <TableCell>{formatDateTime(enrollment.lastActivity)}</TableCell>
-                      <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            router.push(`/tasks/${taskId}/enrollments/${enrollment.userId}`);
-                          }}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
