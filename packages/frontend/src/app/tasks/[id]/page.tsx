@@ -179,8 +179,10 @@ export default function TaskDetailPage() {
             isLoadingEnrollments={isLoadingEnrollments}
             isLoadingSubmissions={isLoadingSubmissions}
             enrollmentsError={enrollmentsError}
-            onRefreshEnrollments={() => fetchEnrollments()}
-            onRefreshSubmissions={() => fetchSubmissions()}
+            onRefresh={() => {
+              fetchEnrollments();
+              fetchSubmissions();
+            }}
           />
         );
       case 'users':

@@ -189,17 +189,49 @@ describe('admin task overview invite code copy button', () => {
 
     await screen.findByRole('heading', { name: 'Clipboard Task' });
     expect(await screen.findByRole('heading', { name: /latest submissions/i })).toBeInTheDocument();
-    expect(screen.getByText('Latest Essay')).toBeInTheDocument();
+    const latestTable = screen.getByRole('table');
+    expect(within(latestTable).getByText('user@example.com')).toBeInTheDocument();
+    expect(within(latestTable).getByText('Latest Essay')).toBeInTheDocument();
     expect(screen.queryByText('Older Essay')).not.toBeInTheDocument();
-    expect(screen.getByText('No submission yet')).toBeInTheDocument();
+    expect(within(latestTable).queryByText('quiet@example.com')).not.toBeInTheDocument();
+    expect(screen.queryByText('No submission yet')).not.toBeInTheDocument();
+    expect(screen.queryByText('One latest submission per enrolled user.')).not.toBeInTheDocument();
+    expect(screen.queryByText('Select a user to inspect submission history.')).not.toBeInTheDocument();
+    expect(screen.queryByText('user-1')).not.toBeInTheDocument();
+    expect(screen.queryByText('user-2')).not.toBeInTheDocument();
+    expect(screen.queryByRole('columnheader', { name: 'Status' })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /user@example.com/i }));
 
     expect(await screen.findByText('Older Essay')).toBeInTheDocument();
+    expect(screen.queryByRole('columnheader', { name: 'Status' })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: /issued/i })).toHaveAttribute(
       'href',
       'http://localhost:3002/verify/cert-token-123'
     );
+
+    fireEvent.click(screen.getByRole('button', { name: /quiet@example.com/i }));
+    expect(await screen.findByText('No submissions yet')).toBeInTheDocument();
+  });
+
+  it('refreshes users and submissions together from the submission tab', async () => {
+    mockSearchParams = new URLSearchParams('tab=submission');
+
+    render(<TaskDetailPage />);
+
+    await screen.findByRole('heading', { name: 'Clipboard Task' });
+    const refreshButton = screen.getByRole('button', { name: /refresh submissions/i });
+
+    expect(screen.queryByRole('button', { name: /^submissions$/i })).not.toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: /refresh submissions/i })).toHaveLength(1);
+
+    mockApiGet.mockClear();
+    fireEvent.click(refreshButton);
+
+    await waitFor(() => {
+      expect(mockApiGet).toHaveBeenCalledWith('/api/v1/tasks/task-123/enrollments');
+      expect(mockApiGet).toHaveBeenCalledWith('/api/v1/tasks/task-123/submissions');
+    });
   });
 
   it('shows the users tab as a read-only enrollment overview', async () => {
