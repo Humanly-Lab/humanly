@@ -2,12 +2,12 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Award, FileText, Loader2, RefreshCcw, Users } from 'lucide-react';
+import { Award, ChevronRight, FileText, Loader2, RefreshCcw, Users } from 'lucide-react';
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Table,
   TableBody,
@@ -28,8 +28,7 @@ interface SubmissionPanelProps {
   isLoadingEnrollments: boolean;
   isLoadingSubmissions: boolean;
   enrollmentsError: string | null;
-  onRefreshEnrollments: () => void;
-  onRefreshSubmissions: () => void;
+  onRefresh: () => void;
 }
 
 const sortSubmissions = (submissions: AdminSubmission[]) => (
@@ -43,8 +42,7 @@ export function SubmissionPanel({
   isLoadingEnrollments,
   isLoadingSubmissions,
   enrollmentsError,
-  onRefreshEnrollments,
-  onRefreshSubmissions,
+  onRefresh,
 }: SubmissionPanelProps) {
   const router = useRouter();
   const [selectedUserId, setSelectedUserId] = useState<'all' | string>('all');
@@ -61,6 +59,12 @@ export function SubmissionPanel({
   const selectedSubmissions = selectedUserId === 'all'
     ? []
     : submissionsByUser[selectedUserId] || [];
+  const latestSubmissions = enrollments
+    .map((enrollment) => ({
+      enrollment,
+      submission: submissionsByUser[enrollment.userId]?.[0] || null,
+    }))
+    .filter((item): item is { enrollment: TaskEnrollment; submission: AdminSubmission } => Boolean(item.submission));
 
   useEffect(() => {
     if (selectedUserId !== 'all' && !enrollments.some((enrollment) => enrollment.userId === selectedUserId)) {
@@ -74,13 +78,9 @@ export function SubmissionPanel({
     router.push(`/tasks/${taskId}/submissions/${submissionId}`);
   };
 
-  const renderCertificateCell = (submission: AdminSubmission | null) => {
-    if (!submission) {
-      return <Badge variant="secondary">No submission</Badge>;
-    }
-
+  const renderCertificateCell = (submission: AdminSubmission) => {
     if (!submission.certificateVerificationToken) {
-      return <Badge variant="secondary">Missing</Badge>;
+      return <span className="text-sm text-muted-foreground">No certificate</span>;
     }
 
     return (
@@ -101,7 +101,6 @@ export function SubmissionPanel({
       <Card className="h-fit">
         <CardHeader>
           <CardTitle className="text-base">Users</CardTitle>
-          <CardDescription>Select a user to inspect submission history.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-2">
           <button
@@ -116,7 +115,7 @@ export function SubmissionPanel({
               <Users className="h-4 w-4" />
               All users
             </span>
-            <span className="text-xs text-muted-foreground">{enrollments.length}</span>
+            <Badge variant="secondary">{enrollments.length}</Badge>
           </button>
 
           <div className="max-h-[520px] space-y-2 overflow-y-auto pr-1">
@@ -141,9 +140,12 @@ export function SubmissionPanel({
                     )}
                     onClick={() => setSelectedUserId(enrollment.userId)}
                   >
-                    <div className="truncate text-sm font-medium">{enrollment.email}</div>
-                    <div className="mt-1 flex items-center justify-between gap-2">
-                      <span className="truncate font-mono text-xs text-muted-foreground">{enrollment.userId}</span>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="truncate text-sm font-medium">{enrollment.email}</span>
+                      <ChevronRight className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                    </div>
+                    <div className="mt-2 flex items-center justify-between gap-2">
+                      <span className="text-xs text-muted-foreground">Submissions</span>
                       <Badge variant="secondary">{userSubmissionCount}</Badge>
                     </div>
                   </button>
@@ -163,22 +165,17 @@ export function SubmissionPanel({
                   ? 'Latest submissions'
                   : selectedEnrollment?.email || 'User submissions'}
               </CardTitle>
-              <CardDescription>
-                {selectedUserId === 'all'
-                  ? 'One latest submission per enrolled user.'
-                  : 'All submissions for the selected user, latest first.'}
-              </CardDescription>
             </div>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={onRefreshEnrollments} disabled={isLoading}>
-                <RefreshCcw className="mr-2 h-4 w-4" />
-                Users
-              </Button>
-              <Button variant="outline" size="sm" onClick={onRefreshSubmissions} disabled={isLoading}>
-                <RefreshCcw className="mr-2 h-4 w-4" />
-                Submissions
-              </Button>
-            </div>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={onRefresh}
+              disabled={isLoading}
+              aria-label="Refresh submissions"
+              title="Refresh submissions"
+            >
+              <RefreshCcw className="h-4 w-4" />
+            </Button>
           </div>
         </CardHeader>
         <CardContent>
@@ -203,6 +200,13 @@ export function SubmissionPanel({
                   <p className="text-sm text-muted-foreground">Users will appear here after joining with the task code.</p>
                 </div>
               </div>
+            ) : latestSubmissions.length === 0 ? (
+              <div className="flex h-[240px] items-center justify-center rounded-md border border-dashed">
+                <div className="space-y-2 text-center">
+                  <FileText className="mx-auto h-8 w-8 text-muted-foreground" />
+                  <p className="font-medium">No submissions yet</p>
+                </div>
+              </div>
             ) : (
               <div className="rounded-md border">
                 <Table>
@@ -211,48 +215,28 @@ export function SubmissionPanel({
                       <TableHead>User</TableHead>
                       <TableHead>Latest Submission</TableHead>
                       <TableHead>Submitted</TableHead>
-                      <TableHead>Status</TableHead>
                       <TableHead className="text-right">Certificate</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {enrollments.map((enrollment) => {
-                      const latestSubmission = submissionsByUser[enrollment.userId]?.[0] || null;
+                    {latestSubmissions.map(({ enrollment, submission }) => {
                       return (
                         <TableRow
                           key={enrollment.id}
-                          className={latestSubmission ? 'cursor-pointer hover:bg-muted/50' : undefined}
-                          onClick={() => latestSubmission && openSubmission(latestSubmission.id)}
+                          className="cursor-pointer hover:bg-muted/50"
+                          onClick={() => openSubmission(submission.id)}
                         >
                           <TableCell>
-                            <div className="space-y-1">
-                              <div className="font-medium">{enrollment.email}</div>
-                              <div className="font-mono text-xs text-muted-foreground">{enrollment.userId}</div>
+                            <div className="font-medium">{enrollment.email}</div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <FileText className="h-4 w-4 text-muted-foreground" />
+                              <span>{submission.documentTitle || 'Submission Document'}</span>
                             </div>
                           </TableCell>
-                          <TableCell>
-                            {latestSubmission ? (
-                              <div className="flex items-center gap-2">
-                                <FileText className="h-4 w-4 text-muted-foreground" />
-                                <span>{latestSubmission.documentTitle || 'Submission Document'}</span>
-                              </div>
-                            ) : (
-                              <span className="text-sm text-muted-foreground">No submission yet</span>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            {latestSubmission ? formatDateTime(latestSubmission.submittedAt) : '—'}
-                          </TableCell>
-                          <TableCell>
-                            {latestSubmission ? (
-                              <Badge variant={latestSubmission.status === 'active' ? 'default' : 'secondary'}>
-                                {latestSubmission.status === 'active' ? 'Latest' : 'Historical'}
-                              </Badge>
-                            ) : (
-                              <Badge variant="secondary">Pending</Badge>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-right">{renderCertificateCell(latestSubmission)}</TableCell>
+                          <TableCell>{formatDateTime(submission.submittedAt)}</TableCell>
+                          <TableCell className="text-right">{renderCertificateCell(submission)}</TableCell>
                         </TableRow>
                       );
                     })}
@@ -277,13 +261,11 @@ export function SubmissionPanel({
                   <TableRow>
                     <TableHead>Document</TableHead>
                     <TableHead>Submitted</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Submission ID</TableHead>
                     <TableHead className="text-right">Certificate</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {selectedSubmissions.map((submission, index) => (
+                  {selectedSubmissions.map((submission) => (
                     <TableRow
                       key={submission.id}
                       className="cursor-pointer hover:bg-muted/50"
@@ -296,12 +278,6 @@ export function SubmissionPanel({
                         </div>
                       </TableCell>
                       <TableCell>{formatDateTime(submission.submittedAt)}</TableCell>
-                      <TableCell>
-                        <Badge variant={index === 0 || submission.status === 'active' ? 'default' : 'secondary'}>
-                          {index === 0 || submission.status === 'active' ? 'Latest' : 'Historical'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="font-mono text-xs">{submission.id}</TableCell>
                       <TableCell className="text-right">{renderCertificateCell(submission)}</TableCell>
                     </TableRow>
                   ))}
