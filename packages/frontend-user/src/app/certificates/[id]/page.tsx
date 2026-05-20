@@ -445,150 +445,152 @@ export default function CertificateDetailPage() {
             </CollapsibleTrigger>
             <CollapsibleContent>
               <Separator />
-              <CardContent className="grid gap-5 p-5 lg:grid-cols-3">
-                <div className="space-y-3">
-                  <div>
-                    <h3 className="text-sm font-medium">Verification</h3>
-                    <p className="text-xs text-muted-foreground">Share or scan this link to verify the certificate.</p>
-                  </div>
-                  <div className="flex flex-col items-center rounded-lg border p-3">
-                    {qrCodeDataURL ? (
-                      <img
-                        src={qrCodeDataURL}
-                        alt="Verification QR Code"
-                        className="h-36 w-36 rounded border"
-                      />
-                    ) : (
-                      <div className="h-36 w-36 animate-pulse rounded bg-muted" />
-                    )}
-                    <Button
-                      onClick={handleShareVerificationLink}
-                      variant="outline"
-                      size="sm"
-                      className="mt-3 w-full"
-                    >
-                      <Share2 className="mr-2 h-4 w-4" />
-                      Copy Link
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="space-y-5">
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <Lock className={`h-4 w-4 ${certificate.isProtected ? 'text-yellow-600' : 'text-muted-foreground'}`} />
-                      <h3 className="text-sm font-medium">Access Protection</h3>
-                    </div>
-
-                    {!isEditingAccessCode ? (
-                      <>
-                        {certificate.isProtected && certificate.accessCode ? (
-                          <div className="flex items-center gap-1">
-                            <div className="min-w-0 flex-1 truncate rounded bg-muted p-2 font-mono text-xs">
-                              {certificate.accessCode}
-                            </div>
-                            <Button
-                              onClick={async () => {
-                                const didCopy = await copyTextToClipboard(certificate.accessCode!);
-                                if (didCopy) {
-                                  toast({ title: 'Copied', description: 'Access code copied' });
-                                } else {
-                                  showCopyUnavailableToast('Access code');
-                                }
-                              }}
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 w-8 p-0"
-                            >
-                              <Copy className="h-3 w-3" />
-                            </Button>
-                            <Button onClick={handleStartEdit} variant="ghost" size="sm" className="h-8 w-8 p-0">
-                              <Edit2 className="h-3 w-3" />
-                            </Button>
-                            <Button
-                              onClick={handleRemoveAccessCode}
-                              variant="ghost"
-                              size="sm"
-                              disabled={isUpdatingAccessCode}
-                              className="h-8 w-8 p-0"
-                            >
-                              <Trash2 className="h-3 w-3 text-destructive" />
-                            </Button>
-                          </div>
-                        ) : (
-                          <Button onClick={handleStartAddCode} variant="outline" size="sm" className="w-full">
-                            <Lock className="mr-2 h-3 w-3" />
-                            Add Access Code
-                          </Button>
-                        )}
-                      </>
-                    ) : (
-                      <div className="flex items-center gap-1">
-                        <Input
-                          type="text"
-                          placeholder="Code (min 4 chars)"
-                          value={editedAccessCode}
-                          onChange={(e) => setEditedAccessCode(e.target.value)}
-                          disabled={isUpdatingAccessCode}
-                          className="h-8 flex-1 font-mono text-xs"
-                          autoFocus
-                        />
-                        <Button
-                          onClick={handleSaveAccessCode}
-                          size="sm"
-                          disabled={isUpdatingAccessCode || editedAccessCode.trim().length < 4}
-                          className="h-8 w-8 p-0"
-                        >
-                          <Check className="h-3 w-3" />
-                        </Button>
-                        <Button
-                          onClick={handleCancelEdit}
-                          size="sm"
-                          variant="outline"
-                          disabled={isUpdatingAccessCode}
-                          className="h-8 w-8 p-0"
-                        >
-                          <X className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-
-                  <Separator />
-
+              <CardContent className="grid gap-5 p-5 lg:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
+                <div className="grid gap-5 rounded-lg border p-4 lg:grid-cols-[minmax(220px,0.9fr)_minmax(280px,1.1fr)]">
                   <div className="space-y-3">
-                    <div className="flex items-center gap-2">
-                      <Settings className="h-4 w-4 text-muted-foreground" />
-                      <h3 className="text-sm font-medium">Public Display</h3>
+                    <div>
+                      <h3 className="text-sm font-medium">Verification</h3>
+                      <p className="text-xs text-muted-foreground">Share or scan this link to verify the certificate.</p>
                     </div>
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between gap-3">
-                        <Label htmlFor="includeFullText" className="cursor-pointer text-xs">
-                          Show full text
-                        </Label>
-                        <Switch
-                          id="includeFullText"
-                          checked={certificate.includeFullText}
-                          onCheckedChange={(checked) => handleToggleDisplayOption('fullText', checked)}
-                          disabled={isUpdatingDisplay}
+                    <div className="flex flex-col items-center rounded-lg bg-muted/30 p-3">
+                      {qrCodeDataURL ? (
+                        <img
+                          src={qrCodeDataURL}
+                          alt="Verification QR Code"
+                          className="h-36 w-36 rounded border bg-background"
                         />
+                      ) : (
+                        <div className="h-36 w-36 animate-pulse rounded bg-muted" />
+                      )}
+                      <Button
+                        onClick={handleShareVerificationLink}
+                        variant="outline"
+                        size="sm"
+                        className="mt-3 w-full bg-background"
+                      >
+                        <Share2 className="mr-2 h-4 w-4" />
+                        Copy Link
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-5">
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Lock className={`h-4 w-4 ${certificate.isProtected ? 'text-yellow-600' : 'text-muted-foreground'}`} />
+                        <h3 className="text-sm font-medium">Access Protection</h3>
                       </div>
-                      <div className="flex items-center justify-between gap-3">
-                        <Label htmlFor="includeEditHistory" className="cursor-pointer text-xs">
-                          Show edit history
-                        </Label>
-                        <Switch
-                          id="includeEditHistory"
-                          checked={certificate.includeEditHistory}
-                          onCheckedChange={(checked) => handleToggleDisplayOption('editHistory', checked)}
-                          disabled={isUpdatingDisplay}
-                        />
+
+                      {!isEditingAccessCode ? (
+                        <>
+                          {certificate.isProtected && certificate.accessCode ? (
+                            <div className="flex items-center gap-1">
+                              <div className="min-w-0 flex-1 truncate rounded bg-muted p-2 font-mono text-xs">
+                                {certificate.accessCode}
+                              </div>
+                              <Button
+                                onClick={async () => {
+                                  const didCopy = await copyTextToClipboard(certificate.accessCode!);
+                                  if (didCopy) {
+                                    toast({ title: 'Copied', description: 'Access code copied' });
+                                  } else {
+                                    showCopyUnavailableToast('Access code');
+                                  }
+                                }}
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0"
+                              >
+                                <Copy className="h-3 w-3" />
+                              </Button>
+                              <Button onClick={handleStartEdit} variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                <Edit2 className="h-3 w-3" />
+                              </Button>
+                              <Button
+                                onClick={handleRemoveAccessCode}
+                                variant="ghost"
+                                size="sm"
+                                disabled={isUpdatingAccessCode}
+                                className="h-8 w-8 p-0"
+                              >
+                                <Trash2 className="h-3 w-3 text-destructive" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <Button onClick={handleStartAddCode} variant="outline" size="sm" className="w-full">
+                              <Lock className="mr-2 h-3 w-3" />
+                              Add Access Code
+                            </Button>
+                          )}
+                        </>
+                      ) : (
+                        <div className="flex items-center gap-1">
+                          <Input
+                            type="text"
+                            placeholder="Code (min 4 chars)"
+                            value={editedAccessCode}
+                            onChange={(e) => setEditedAccessCode(e.target.value)}
+                            disabled={isUpdatingAccessCode}
+                            className="h-8 flex-1 font-mono text-xs"
+                            autoFocus
+                          />
+                          <Button
+                            onClick={handleSaveAccessCode}
+                            size="sm"
+                            disabled={isUpdatingAccessCode || editedAccessCode.trim().length < 4}
+                            className="h-8 w-8 p-0"
+                          >
+                            <Check className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            onClick={handleCancelEdit}
+                            size="sm"
+                            variant="outline"
+                            disabled={isUpdatingAccessCode}
+                            className="h-8 w-8 p-0"
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+
+                    <Separator />
+
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <Settings className="h-4 w-4 text-muted-foreground" />
+                        <h3 className="text-sm font-medium">Public Display</h3>
+                      </div>
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between gap-3">
+                          <Label htmlFor="includeFullText" className="cursor-pointer text-xs">
+                            Show full text
+                          </Label>
+                          <Switch
+                            id="includeFullText"
+                            checked={certificate.includeFullText}
+                            onCheckedChange={(checked) => handleToggleDisplayOption('fullText', checked)}
+                            disabled={isUpdatingDisplay}
+                          />
+                        </div>
+                        <div className="flex items-center justify-between gap-3">
+                          <Label htmlFor="includeEditHistory" className="cursor-pointer text-xs">
+                            Show edit history
+                          </Label>
+                          <Switch
+                            id="includeEditHistory"
+                            checked={certificate.includeEditHistory}
+                            onCheckedChange={(checked) => handleToggleDisplayOption('editHistory', checked)}
+                            disabled={isUpdatingDisplay}
+                          />
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
 
-                <div className="space-y-3 text-xs">
+                <div className="space-y-3 rounded-lg border p-4 text-xs">
                   <div>
                     <h3 className="text-sm font-medium">Identifiers</h3>
                     <p className="text-xs text-muted-foreground">Technical identifiers for audit and support.</p>
