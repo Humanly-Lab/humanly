@@ -32,6 +32,7 @@ import {
   MessageSquare,
   Wand2,
   ChevronDown,
+  RefreshCw,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import QRCode from 'qrcode';
@@ -52,6 +53,18 @@ export default function CertificateDetailPage() {
   const [isUpdatingAccessCode, setIsUpdatingAccessCode] = useState(false);
   const [isUpdatingDisplay, setIsUpdatingDisplay] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
+
+  const generateAccessCode = () => {
+    const fallbackCode = () => Math.floor(Math.random() * 10000);
+
+    if (typeof window !== 'undefined' && window.crypto?.getRandomValues) {
+      const values = new Uint32Array(1);
+      window.crypto.getRandomValues(values);
+      return String(values[0] % 10000).padStart(4, '0');
+    }
+
+    return String(fallbackCode()).padStart(4, '0');
+  };
 
   useEffect(() => {
     if (certificate) {
@@ -145,16 +158,56 @@ export default function CertificateDetailPage() {
     setIsEditingAccessCode(true);
   };
 
-  const handleStartAddCode = () => {
-    setEditedAccessCode('');
-    setIsEditingAccessCode(true);
+  const handleCopyAccessCode = async (accessCode: string) => {
+    const didCopy = await copyTextToClipboard(accessCode);
+    if (didCopy) {
+      toast({ title: 'Copied', description: 'Access code copied' });
+    } else {
+      showCopyUnavailableToast('Access code');
+    }
+    return didCopy;
+  };
+
+  const handleGenerateAccessCode = async () => {
+    const generatedCode = generateAccessCode();
+
+    try {
+      setIsUpdatingAccessCode(true);
+      await updateAccessCode(generatedCode);
+      setEditedAccessCode(generatedCode);
+      setIsEditingAccessCode(false);
+
+      const didCopy = await copyTextToClipboard(generatedCode);
+      toast({
+        title: 'Access code generated',
+        description: didCopy
+          ? '4-digit code generated and copied.'
+          : '4-digit code generated. Use the copy button to copy it.',
+      });
+    } catch (err: any) {
+      toast({
+        title: 'Error',
+        description: err.message || 'Failed to generate access code',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsUpdatingAccessCode(false);
+    }
+  };
+
+  const handleRegenerateEditedAccessCode = () => {
+    setEditedAccessCode(generateAccessCode());
+  };
+
+  const handleEditedAccessCodeChange = (value: string) => {
+    setEditedAccessCode(value.replace(/\D/g, '').slice(0, 4));
   };
 
   const handleSaveAccessCode = async () => {
-    if (editedAccessCode.length < 4) {
+    if (!/^\d{4}$/.test(editedAccessCode)) {
       toast({
         title: 'Error',
-        description: 'Access code must be at least 4 characters',
+        description: 'Access code must be exactly 4 digits',
         variant: 'destructive',
       });
       return;
@@ -489,21 +542,21 @@ export default function CertificateDetailPage() {
                                 {certificate.accessCode}
                               </div>
                               <Button
-                                onClick={async () => {
-                                  const didCopy = await copyTextToClipboard(certificate.accessCode!);
-                                  if (didCopy) {
-                                    toast({ title: 'Copied', description: 'Access code copied' });
-                                  } else {
-                                    showCopyUnavailableToast('Access code');
-                                  }
-                                }}
+                                onClick={() => handleCopyAccessCode(certificate.accessCode!)}
                                 variant="ghost"
                                 size="sm"
                                 className="h-8 w-8 p-0"
+                                aria-label="Copy access code"
                               >
                                 <Copy className="h-3 w-3" />
                               </Button>
-                              <Button onClick={handleStartEdit} variant="ghost" size="sm" className="h-8 w-8 p-0">
+                              <Button
+                                onClick={handleStartEdit}
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0"
+                                aria-label="Edit access code"
+                              >
                                 <Edit2 className="h-3 w-3" />
                               </Button>
                               <Button
@@ -512,14 +565,21 @@ export default function CertificateDetailPage() {
                                 size="sm"
                                 disabled={isUpdatingAccessCode}
                                 className="h-8 w-8 p-0"
+                                aria-label="Remove access code"
                               >
                                 <Trash2 className="h-3 w-3 text-destructive" />
                               </Button>
                             </div>
                           ) : (
-                            <Button onClick={handleStartAddCode} variant="outline" size="sm" className="w-full">
-                              <Lock className="mr-2 h-3 w-3" />
-                              Add Access Code
+                            <Button
+                              onClick={handleGenerateAccessCode}
+                              variant="outline"
+                              size="sm"
+                              className="w-full"
+                              disabled={isUpdatingAccessCode}
+                            >
+                              <RefreshCw className="mr-2 h-3 w-3" />
+                              Generate 4-digit Code
                             </Button>
                           )}
                         </>
@@ -527,18 +587,41 @@ export default function CertificateDetailPage() {
                         <div className="flex items-center gap-1">
                           <Input
                             type="text"
-                            placeholder="Code (min 4 chars)"
+                            inputMode="numeric"
+                            maxLength={4}
+                            placeholder="4-digit code"
                             value={editedAccessCode}
-                            onChange={(e) => setEditedAccessCode(e.target.value)}
+                            onChange={(e) => handleEditedAccessCodeChange(e.target.value)}
                             disabled={isUpdatingAccessCode}
                             className="h-8 flex-1 font-mono text-xs"
                             autoFocus
                           />
                           <Button
+                            onClick={handleRegenerateEditedAccessCode}
+                            size="sm"
+                            variant="outline"
+                            disabled={isUpdatingAccessCode}
+                            className="h-8 w-8 p-0"
+                            aria-label="Generate new access code"
+                          >
+                            <RefreshCw className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            onClick={() => handleCopyAccessCode(editedAccessCode)}
+                            size="sm"
+                            variant="outline"
+                            disabled={isUpdatingAccessCode || editedAccessCode.trim().length !== 4}
+                            className="h-8 w-8 p-0"
+                            aria-label="Copy access code"
+                          >
+                            <Copy className="h-3 w-3" />
+                          </Button>
+                          <Button
                             onClick={handleSaveAccessCode}
                             size="sm"
-                            disabled={isUpdatingAccessCode || editedAccessCode.trim().length < 4}
+                            disabled={isUpdatingAccessCode || !/^\d{4}$/.test(editedAccessCode)}
                             className="h-8 w-8 p-0"
+                            aria-label="Save access code"
                           >
                             <Check className="h-3 w-3" />
                           </Button>
@@ -548,6 +631,7 @@ export default function CertificateDetailPage() {
                             variant="outline"
                             disabled={isUpdatingAccessCode}
                             className="h-8 w-8 p-0"
+                            aria-label="Cancel access code edit"
                           >
                             <X className="h-3 w-3" />
                           </Button>
