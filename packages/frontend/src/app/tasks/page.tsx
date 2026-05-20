@@ -375,7 +375,7 @@ export default function TasksPage() {
         {paginatedTasks.map((task) => (
           <Card key={task.id} className="flex flex-col hover:shadow-lg transition-shadow">
             <CardHeader>
-              <CardTitle className="truncate" title={task.name}>
+              <CardTitle className="line-clamp-2 break-words leading-tight" title={task.name}>
                 {task.name}
               </CardTitle>
               <CardDescription className="line-clamp-3 min-h-[3.75rem]" title={task.description || undefined}>

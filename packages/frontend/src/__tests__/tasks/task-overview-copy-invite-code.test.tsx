@@ -254,7 +254,10 @@ describe('admin task overview invite code copy button', () => {
 
     render(<TaskDetailPage />);
 
-    await screen.findByRole('heading', { name: 'Clipboard Task' });
+    const taskHeading = await screen.findByRole('heading', { name: 'Clipboard Task' });
+    expect(taskHeading).toHaveAttribute('title', 'Clipboard Task');
+    expect(taskHeading).toHaveClass('line-clamp-2');
+    expect(taskHeading).toHaveClass('break-words');
     const overviewRegion = screen.getByText('Task Overview').closest('.rounded-lg');
     expect(overviewRegion).not.toBeNull();
     expect(within(overviewRegion as HTMLElement).getByText(

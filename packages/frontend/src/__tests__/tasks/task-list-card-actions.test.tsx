@@ -80,7 +80,11 @@ describe('admin task list card actions', () => {
   it('shows a simplified card and routes through view and options actions', async () => {
     render(<TasksPage />);
 
-    expect(await screen.findByRole('heading', { name: 'Humanly Draft' })).toBeInTheDocument();
+    const taskHeading = await screen.findByRole('heading', { name: 'Humanly Draft' });
+    expect(taskHeading).toBeInTheDocument();
+    expect(taskHeading).toHaveAttribute('title', 'Humanly Draft');
+    expect(taskHeading).toHaveClass('line-clamp-2');
+    expect(taskHeading).toHaveClass('break-words');
     expect(screen.getByText('A concise writing assignment.')).toBeInTheDocument();
     expect(screen.getByText('2 completions')).toBeInTheDocument();
     const createdText = `Created ${adminLocalDateTimeFormatter.format(new Date(taskFixture.createdAt))}`;

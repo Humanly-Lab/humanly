@@ -216,7 +216,9 @@ export default function TaskDetailPage() {
     <div className="space-y-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <h1 className="text-3xl font-bold tracking-tight">{task.name}</h1>
+          <h1 className="line-clamp-2 break-words text-3xl font-bold tracking-tight" title={task.name}>
+            {task.name}
+          </h1>
           {task.description && (
             <p className="mt-2 whitespace-pre-line text-muted-foreground">{task.description}</p>
           )}
