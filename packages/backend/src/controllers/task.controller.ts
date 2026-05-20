@@ -1,12 +1,26 @@
 import { Request, Response } from 'express';
+import { z } from 'zod';
 import { TaskService } from '../services/task.service';
 import { AppError } from '../middleware/error-handler';
 import { logger } from '../utils/logger';
+import { env } from '../config/env';
 import {
   createTaskSchema,
   updateTaskSchema,
   validate,
 } from '@humanly/shared';
+
+const publicTaskStartSchema = z.object({
+  sessionId: z.string().max(128).optional().or(z.literal('')),
+});
+
+const publicTaskSubmissionSchema = z.object({
+  title: z.string().max(255).optional().or(z.literal('')),
+  authorName: z.string().max(120).optional().or(z.literal('')),
+  authorEmail: z.string().email().max(255).optional().or(z.literal('')),
+  plainText: z.string().min(1, 'Document text is required').max(200_000),
+  sessionId: z.string().max(128).optional().or(z.literal('')),
+});
 
 /**
  * Create a new task
@@ -42,6 +56,94 @@ export async function getTask(req: Request, res: Response): Promise<void> {
   res.json({
     success: true,
     data: task,
+  });
+}
+
+/**
+ * Get a task by public share token without requiring registration.
+ */
+export async function getPublicTask(req: Request, res: Response): Promise<void> {
+  const taskToken = req.params.token;
+
+  if (!taskToken) {
+    throw new AppError(400, 'Task token is required');
+  }
+
+  const task = await TaskService.getPublicTask(taskToken);
+
+  res.json({
+    success: true,
+    data: {
+      task: {
+        id: task.id,
+        name: task.name,
+        description: task.description,
+        startDate: task.startDate,
+        endDate: task.endDate,
+        environmentConfig: task.environmentConfig,
+        isActive: task.isActive,
+      },
+    },
+  });
+}
+
+/**
+ * Start a public task document in the normal authenticated editor flow.
+ */
+export async function startPublicTaskDocument(req: Request, res: Response): Promise<void> {
+  const taskToken = req.params.token;
+
+  if (!taskToken) {
+    throw new AppError(400, 'Task token is required');
+  }
+
+  const data = validate(publicTaskStartSchema, req.body || {});
+  const result = await TaskService.startPublicTaskDocument(taskToken, data);
+
+  res.cookie('refreshToken', result.refreshToken, {
+    httpOnly: true,
+    secure: env.nodeEnv === 'production',
+    sameSite: 'strict',
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+  });
+
+  res.cookie('accessToken', result.accessToken, {
+    httpOnly: true,
+    secure: env.nodeEnv === 'production',
+    sameSite: 'strict',
+    maxAge: 24 * 60 * 60 * 1000,
+  });
+
+  res.status(201).json({
+    success: true,
+    data: {
+      user: result.user,
+      accessToken: result.accessToken,
+      task: result.task,
+      document: result.document,
+      publicSessionId: result.publicSessionId,
+    },
+    message: 'Task document started successfully',
+  });
+}
+
+/**
+ * Submit a task document from a public share link.
+ */
+export async function submitPublicTaskDocument(req: Request, res: Response): Promise<void> {
+  const taskToken = req.params.token;
+
+  if (!taskToken) {
+    throw new AppError(400, 'Task token is required');
+  }
+
+  const data = validate(publicTaskSubmissionSchema, req.body);
+  const result = await TaskService.submitPublicTaskDocument(taskToken, data);
+
+  res.status(201).json({
+    success: true,
+    data: result,
+    message: 'Task document submitted successfully',
   });
 }
 

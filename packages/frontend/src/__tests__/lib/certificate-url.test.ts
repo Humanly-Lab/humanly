@@ -1,4 +1,4 @@
-import { buildCertificateVerifyUrl, getFrontendUserUrl } from '../../lib/certificate-url';
+import { buildCertificateVerifyUrl, buildTaskShareUrl, getFrontendUserUrl } from '../../lib/certificate-url';
 
 const locationFor = (url: string) => {
   const parsed = new URL(url);
@@ -44,6 +44,14 @@ describe('admin certificate verification URLs', () => {
 
     expect(buildCertificateVerifyUrl('token/with/slash', locationFor('https://admin.writehumanly.net/tasks'))).toBe(
       'https://app.writehumanly.net/verify/token%2Fwith%2Fslash'
+    );
+  });
+
+  it('builds public task share links for the user portal', () => {
+    delete process.env.NEXT_PUBLIC_FRONTEND_USER_URL;
+
+    expect(buildTaskShareUrl('task/token', locationFor('https://admin.writehumanly.net/tasks'))).toBe(
+      'https://app.writehumanly.net/tasks/public/task%2Ftoken'
     );
   });
 });

@@ -81,7 +81,9 @@ jest.mock('@/stores/ai-store', () => ({
 }));
 
 jest.mock('@/components/ai', () => ({
-  AIAssistantButton: () => null,
+  AIAssistantButton: ({ onClick }: any) => (
+    <button type="button" onClick={onClick}>AI Assistant</button>
+  ),
   AIAssistantPanel: () => null,
   AISelectionMenu: () => null,
 }));
@@ -258,6 +260,118 @@ describe('editor and logs workflows', () => {
     expect(await screen.findByText('Workflow Document')).toBeInTheDocument();
     expect(screen.getByText('Task deadline in')).toBeInTheDocument();
     expect(screen.getByTitle(/Task deadline:/)).toBeInTheDocument();
+  });
+
+  it('uses enrolled task AI settings over stale document AI settings', async () => {
+    mockDocumentEnvironmentConfig = {
+      aiAccess: 'off',
+      copyPastePolicy: 'allowed',
+    };
+    mockTaskEnrollments = [{
+      id: 'enroll-1',
+      documentId: 'doc-1',
+      name: 'AI Enabled Task',
+      inviteCode: 'ABC123',
+      joinedAt: '2026-05-19T12:00:00.000Z',
+      environmentConfig: {
+        aiAccess: 'full',
+        allowedModels: ['GPT-4o mini'],
+        copyPastePolicy: 'allowed',
+      },
+    }];
+
+    render(<DocumentEditorPage />);
+
+    expect(await screen.findByText('Workflow Document')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'AI Assistant' })).toBeInTheDocument();
+  });
+
+  it('hides AI assistant when the enrolled task disables AI despite stale document AI settings', async () => {
+    mockDocumentEnvironmentConfig = {
+      aiAccess: 'full',
+      allowedModels: ['GPT-4o mini'],
+      copyPastePolicy: 'allowed',
+    };
+    mockTaskEnrollments = [{
+      id: 'enroll-1',
+      documentId: 'doc-1',
+      name: 'No AI Task',
+      inviteCode: 'ABC123',
+      joinedAt: '2026-05-19T12:00:00.000Z',
+      environmentConfig: {
+        aiAccess: 'off',
+        copyPastePolicy: 'allowed',
+      },
+    }];
+
+    render(<DocumentEditorPage />);
+
+    expect(await screen.findByText('Workflow Document')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'AI Assistant' })).not.toBeInTheDocument();
+  });
+
+  it('does not inherit a stale document minimum character count when the enrolled task has no minimum', async () => {
+    mockDocumentEnvironmentConfig = {
+      aiAccess: 'off',
+      copyPastePolicy: 'allowed',
+      submission: {
+        mode: 'multiple',
+        minCharacters: 20,
+      },
+    };
+    mockTaskEnrollments = [{
+      id: 'enroll-1',
+      documentId: 'doc-1',
+      name: 'No Minimum Task',
+      inviteCode: 'ABC123',
+      joinedAt: '2026-05-19T12:00:00.000Z',
+      environmentConfig: {
+        aiAccess: 'off',
+        copyPastePolicy: 'allowed',
+        submission: {
+          mode: 'multiple',
+        },
+      },
+    }];
+
+    render(<DocumentEditorPage />);
+
+    expect(await screen.findByText('Workflow Document')).toBeInTheDocument();
+    expect(screen.queryByText('0/20 chars')).not.toBeInTheDocument();
+  });
+
+  it('uses enrolled task copy-paste and time settings over stale document settings', async () => {
+    mockDocumentEnvironmentConfig = {
+      aiAccess: 'off',
+      copyPastePolicy: 'allowed',
+      aiUsageLimit: { mode: 'unlimited' },
+      time: {
+        lateSubmission: 'allowed',
+      },
+    };
+    mockTaskEnrollments = [{
+      id: 'enroll-1',
+      documentId: 'doc-1',
+      name: 'Locked Config Task',
+      inviteCode: 'ABC123',
+      joinedAt: '2026-05-19T12:00:00.000Z',
+      environmentConfig: {
+        aiAccess: 'off',
+        copyPastePolicy: 'blocked',
+        aiUsageLimit: { mode: 'time_restricted' },
+        time: {
+          lateSubmission: 'not_allowed',
+          timeLimitSeconds: 90,
+        },
+      },
+    }];
+
+    render(<DocumentEditorPage />);
+
+    expect(await screen.findByText('Workflow Document')).toBeInTheDocument();
+    expect(mockLatestEditorProps.copyPastePolicy).toBe('blocked');
+    expect(screen.getByText('Writing time left')).toBeInTheDocument();
+    expect(screen.getByTitle('Writing time limit: 1:30')).toBeInTheDocument();
   });
 
   it('blocks enrolled task submission below the configured minimum character count', async () => {

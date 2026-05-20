@@ -143,6 +143,36 @@ export class AIChatSessionMissingError extends Error {
  * layer doesn't sprinkle magic strings across the catch blocks.
  */
 const PG_FOREIGN_KEY_VIOLATION = '23503';
+const PG_UNDEFINED_COLUMN = '42703';
+let supportsSessionModelSnapshotColumns: boolean | null = null;
+
+function isUndefinedColumnError(error: unknown): boolean {
+  return !!error && typeof error === 'object' && (error as { code?: unknown }).code === PG_UNDEFINED_COLUMN;
+}
+
+async function aiChatSessionsSupportsModelSnapshotColumns(): Promise<boolean> {
+  if (supportsSessionModelSnapshotColumns !== null && process.env.NODE_ENV !== 'test') {
+    return supportsSessionModelSnapshotColumns;
+  }
+
+  const rows = await query<{ column_name: string }>(
+    `
+      SELECT column_name
+      FROM information_schema.columns
+      WHERE table_schema = current_schema()
+        AND table_name = 'ai_chat_sessions'
+        AND column_name IN ('model_version', 'model_capabilities')
+    `
+  );
+  const columns = new Set(rows.map(row => row.column_name));
+  const supportsColumns = columns.has('model_version') && columns.has('model_capabilities');
+
+  if (process.env.NODE_ENV !== 'test') {
+    supportsSessionModelSnapshotColumns = supportsColumns;
+  }
+
+  return supportsColumns;
+}
 
 function isAIChatMessagesSessionFkViolation(error: unknown): boolean {
   if (!error || typeof error !== 'object') return false;
@@ -169,18 +199,39 @@ export class AIModel {
     userId: string,
     modelSnapshot?: { modelVersion: string; capabilities: ModelCapabilities },
   ): Promise<AIChatSession> {
-    const sql = `
+    const sqlWithModelSnapshot = `
       INSERT INTO ai_chat_sessions (document_id, user_id, status, model_version, model_capabilities)
       VALUES ($1, $2, 'active', $3, $4)
       RETURNING *
     `;
 
-    const row = await queryOne<AIChatSessionRow>(sql, [
-      documentId,
-      userId,
-      modelSnapshot?.modelVersion ?? null,
-      JSON.stringify(modelSnapshot?.capabilities ?? {}),
-    ]);
+    const legacySql = `
+      INSERT INTO ai_chat_sessions (document_id, user_id, status)
+      VALUES ($1, $2, 'active')
+      RETURNING *
+    `;
+
+    let row: AIChatSessionRow | null;
+    if (await aiChatSessionsSupportsModelSnapshotColumns()) {
+      try {
+        row = await queryOne<AIChatSessionRow>(sqlWithModelSnapshot, [
+          documentId,
+          userId,
+          modelSnapshot?.modelVersion ?? null,
+          JSON.stringify(modelSnapshot?.capabilities ?? {}),
+        ]);
+      } catch (error) {
+        if (!isUndefinedColumnError(error)) {
+          throw error;
+        }
+
+        supportsSessionModelSnapshotColumns = false;
+        row = await queryOne<AIChatSessionRow>(legacySql, [documentId, userId]);
+      }
+    } else {
+      row = await queryOne<AIChatSessionRow>(legacySql, [documentId, userId]);
+    }
+
     if (!row) {
       throw new Error('Failed to create AI chat session');
     }

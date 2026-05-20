@@ -1,11 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { Activity, BrainCircuit, Calendar, Copy, FileText, Loader2, Users } from 'lucide-react';
+import { Activity, BrainCircuit, Calendar, Copy, FileText, Link, Loader2, Users } from 'lucide-react';
 import type { Task } from '@humanly/shared';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { buildTaskShareUrl } from '@/lib/certificate-url';
 import { formatDateTime } from '@/lib/utils';
 
 import type { AdminSubmission, TaskStats } from './types';
@@ -65,6 +66,33 @@ export function OverviewPanel({
     }
   };
 
+  const copyShareLink = async () => {
+    setCopyFeedback(null);
+    const shareLink = buildTaskShareUrl(task.taskToken);
+
+    if (!navigator.clipboard?.writeText) {
+      setCopyFeedback({
+        type: 'error',
+        message: 'Clipboard copy is not available in this browser. Select the share link and copy it manually.',
+      });
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(shareLink);
+      setCopyFeedback({
+        type: 'success',
+        message: 'Share link copied to clipboard.',
+      });
+    } catch (err) {
+      console.warn('Failed to copy share link:', err);
+      setCopyFeedback({
+        type: 'error',
+        message: 'Could not copy the share link. Select the link and copy it manually.',
+      });
+    }
+  };
+
   return (
     <div className="space-y-6">
       <Card>
@@ -115,16 +143,29 @@ export function OverviewPanel({
                   <Copy className="h-4 w-4" />
                 </Button>
               </dd>
-              {copyFeedback && (
-                <p
-                  role={copyFeedback.type === 'error' ? 'alert' : 'status'}
-                  className={`mt-2 text-sm ${
-                    copyFeedback.type === 'error' ? 'text-destructive' : 'text-green-700 dark:text-green-400'
-                  }`}
+            </div>
+            <div>
+              <dt className="text-sm font-medium text-muted-foreground">Public Share Link</dt>
+              <dd className="mt-1 flex items-center gap-2">
+                <span
+                  className="min-w-0 truncate rounded-md border bg-muted/40 px-2 py-1 font-mono text-sm"
+                  title={buildTaskShareUrl(task.taskToken)}
                 >
-                  {copyFeedback.message}
-                </p>
-              )}
+                  {buildTaskShareUrl(task.taskToken)}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={copyShareLink}
+                  title="Copy public share link"
+                  aria-label="Copy public share link"
+                >
+                  <Link className="h-4 w-4" />
+                </Button>
+              </dd>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Anyone with this link can write and submit without registering.
+              </p>
             </div>
             <div>
               <dt className="text-sm font-medium text-muted-foreground">Status</dt>
@@ -159,6 +200,16 @@ export function OverviewPanel({
               </dd>
             </div>
           </div>
+          {copyFeedback && (
+            <p
+              role={copyFeedback.type === 'error' ? 'alert' : 'status'}
+              className={`text-sm ${
+                copyFeedback.type === 'error' ? 'text-destructive' : 'text-green-700 dark:text-green-400'
+              }`}
+            >
+              {copyFeedback.message}
+            </p>
+          )}
         </CardContent>
       </Card>
 

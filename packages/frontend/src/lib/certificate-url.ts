@@ -50,3 +50,10 @@ export function buildCertificateVerifyUrl(
 ): string {
   return `${getFrontendUserUrl(location)}/verify/${encodeURIComponent(verificationToken)}`;
 }
+
+export function buildTaskShareUrl(
+  taskToken: string,
+  location?: LocationLike,
+): string {
+  return `${getFrontendUserUrl(location)}/tasks/public/${encodeURIComponent(taskToken)}`;
+}
