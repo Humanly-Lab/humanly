@@ -3,7 +3,6 @@ import { downloadBlobWithSavePicker } from '@/lib/download';
 describe('downloadBlobWithSavePicker', () => {
   const originalCreateObjectURL = window.URL.createObjectURL;
   const originalRevokeObjectURL = window.URL.revokeObjectURL;
-  const originalShowSaveFilePicker = Object.getOwnPropertyDescriptor(window, 'showSaveFilePicker');
 
   beforeEach(() => {
     window.URL.createObjectURL = jest.fn(() => 'blob:certificate');
@@ -15,12 +14,6 @@ describe('downloadBlobWithSavePicker', () => {
     window.URL.createObjectURL = originalCreateObjectURL;
     window.URL.revokeObjectURL = originalRevokeObjectURL;
     document.body.innerHTML = '';
-
-    if (originalShowSaveFilePicker) {
-      Object.defineProperty(window, 'showSaveFilePicker', originalShowSaveFilePicker);
-    } else {
-      delete (window as any).showSaveFilePicker;
-    }
   });
 
   const options = {
@@ -32,9 +25,11 @@ describe('downloadBlobWithSavePicker', () => {
 
   it('uses the native save-file picker when available', async () => {
     const write = jest.fn().mockResolvedValue(undefined);
+    const truncate = jest.fn().mockResolvedValue(undefined);
     const close = jest.fn().mockResolvedValue(undefined);
-    const createWritable = jest.fn().mockResolvedValue({ write, close });
-    const showSaveFilePicker = jest.fn().mockResolvedValue({ createWritable });
+    const createWritable = jest.fn().mockResolvedValue({ write, truncate, close });
+    const getFile = jest.fn().mockResolvedValue(new File(['pdf'], 'certificate-test.pdf', { type: 'application/pdf' }));
+    const showSaveFilePicker = jest.fn().mockResolvedValue({ createWritable, getFile });
     Object.defineProperty(window, 'showSaveFilePicker', {
       configurable: true,
       value: showSaveFilePicker,
@@ -51,7 +46,8 @@ describe('downloadBlobWithSavePicker', () => {
         accept: { 'application/pdf': ['.pdf'] },
       }],
     });
-    expect(write).toHaveBeenCalledWith(blob);
+    expect(write).toHaveBeenCalledWith(new Uint8Array([112, 100, 102]));
+    expect(truncate).toHaveBeenCalledWith(3);
     expect(close).toHaveBeenCalled();
     expect(click).not.toHaveBeenCalled();
   });
@@ -65,15 +61,16 @@ describe('downloadBlobWithSavePicker', () => {
 
     await expect(downloadBlobWithSavePicker(loadBlob, options)).resolves.toBe('canceled');
 
-    expect(loadBlob).toHaveBeenCalled();
+    expect(loadBlob).not.toHaveBeenCalled();
     expect(window.URL.createObjectURL).not.toHaveBeenCalled();
   });
 
-  it('rejects empty downloads before saving a file', async () => {
+  it('rejects empty downloads before opening a writable file', async () => {
+    const createWritable = jest.fn();
     const showSaveFilePicker = jest.fn();
     Object.defineProperty(window, 'showSaveFilePicker', {
       configurable: true,
-      value: showSaveFilePicker,
+      value: showSaveFilePicker.mockResolvedValue({ createWritable }),
     });
 
     await expect(downloadBlobWithSavePicker(
@@ -81,8 +78,25 @@ describe('downloadBlobWithSavePicker', () => {
       options
     )).rejects.toThrow('Downloaded file is empty');
 
-    expect(showSaveFilePicker).not.toHaveBeenCalled();
+    expect(showSaveFilePicker).toHaveBeenCalled();
+    expect(createWritable).not.toHaveBeenCalled();
     expect(window.URL.createObjectURL).not.toHaveBeenCalled();
+  });
+
+  it('rejects when the saved file size does not match the downloaded bytes', async () => {
+    const write = jest.fn().mockResolvedValue(undefined);
+    const close = jest.fn().mockResolvedValue(undefined);
+    const createWritable = jest.fn().mockResolvedValue({ write, close });
+    const getFile = jest.fn().mockResolvedValue(new File([], 'certificate-test.pdf', { type: 'application/pdf' }));
+    Object.defineProperty(window, 'showSaveFilePicker', {
+      configurable: true,
+      value: jest.fn().mockResolvedValue({ createWritable, getFile }),
+    });
+
+    await expect(downloadBlobWithSavePicker(
+      () => Promise.resolve(new Blob(['pdf'], { type: 'application/pdf' })),
+      options
+    )).rejects.toThrow('Downloaded file size mismatch');
   });
 
   it('falls back to browser download when the save picker is unavailable', async () => {
@@ -98,21 +112,4 @@ describe('downloadBlobWithSavePicker', () => {
     expect(click).toHaveBeenCalled();
   });
 
-  it('falls back to browser download when native save writing is denied', async () => {
-    const createWritable = jest.fn().mockRejectedValue(new DOMException('denied', 'NotAllowedError'));
-    Object.defineProperty(window, 'showSaveFilePicker', {
-      configurable: true,
-      value: jest.fn().mockResolvedValue({ createWritable }),
-    });
-    jest.spyOn(console, 'warn').mockImplementation(() => undefined);
-    const click = jest.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
-
-    await expect(downloadBlobWithSavePicker(
-      () => Promise.resolve(new Blob(['pdf'], { type: 'application/pdf' })),
-      options
-    )).resolves.toBe('downloaded');
-
-    expect(window.URL.createObjectURL).toHaveBeenCalled();
-    expect(click).toHaveBeenCalled();
-  });
 });

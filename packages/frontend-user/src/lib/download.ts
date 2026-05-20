@@ -8,11 +8,15 @@ interface SaveFilePickerOptions {
   }>;
 }
 
+interface FileWritableStream {
+  write: (data: Uint8Array | { type: 'write'; position: number; data: Uint8Array }) => Promise<void>;
+  truncate?: (size: number) => Promise<void>;
+  close: () => Promise<void>;
+}
+
 interface FileSaveHandle {
-  createWritable: () => Promise<{
-    write: (data: Blob) => Promise<void>;
-    close: () => Promise<void>;
-  }>;
+  createWritable: () => Promise<FileWritableStream>;
+  getFile?: () => Promise<File>;
 }
 
 type WindowWithSavePicker = Window & {
@@ -27,6 +31,26 @@ function assertNonEmptyBlob(blob: Blob, filename: string) {
 
 function isAbortError(error: unknown) {
   return error instanceof DOMException && error.name === 'AbortError';
+}
+
+async function blobToBytes(blob: Blob): Promise<Uint8Array> {
+  if (typeof blob.arrayBuffer === 'function') {
+    return new Uint8Array(await blob.arrayBuffer());
+  }
+
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      if (reader.result instanceof ArrayBuffer) {
+        resolve(new Uint8Array(reader.result));
+        return;
+      }
+      reject(new Error('Unable to read downloaded file data'));
+    };
+    reader.onerror = () => reject(reader.error || new Error('Unable to read downloaded file data'));
+    reader.readAsArrayBuffer(blob);
+  });
 }
 
 async function requestSaveFileHandle(options: {
@@ -92,26 +116,32 @@ export async function downloadBlobWithSavePicker(
     extensions: string[];
   }
 ): Promise<DownloadOutcome> {
-  const blob = await loadBlob();
-  assertNonEmptyBlob(blob, options.filename);
-
   const saveHandle = await requestSaveFileHandle(options);
   if (saveHandle === 'canceled') {
     return 'canceled';
   }
 
+  const blob = await loadBlob();
+  assertNonEmptyBlob(blob, options.filename);
+
   if (saveHandle) {
-    try {
-      const writable = await saveHandle.createWritable();
-      await writable.write(blob);
-      await writable.close();
-      return 'saved';
-    } catch (error) {
-      if (isAbortError(error)) {
-        return 'canceled';
-      }
-      console.warn('Native file save failed; falling back to browser download.', error);
+    const bytes = await blobToBytes(blob);
+    const writable = await saveHandle.createWritable();
+
+    await writable.write(bytes);
+    if (writable.truncate) {
+      await writable.truncate(bytes.byteLength);
     }
+    await writable.close();
+
+    if (saveHandle.getFile) {
+      const savedFile = await saveHandle.getFile();
+      if (savedFile.size !== bytes.byteLength) {
+        throw new Error(`Downloaded file size mismatch: expected ${bytes.byteLength} bytes, saved ${savedFile.size} bytes`);
+      }
+    }
+
+    return 'saved';
   }
 
   return downloadBlob(blob, options.filename);

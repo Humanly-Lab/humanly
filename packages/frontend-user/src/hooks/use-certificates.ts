@@ -175,14 +175,21 @@ export function useCertificate(certificateId: string) {
 
   const downloadPDF = useCallback(async (): Promise<DownloadOutcome> => {
     try {
+      const safeTitle = certificate?.title
+        ?.trim()
+        .replace(/[^a-z0-9]+/gi, '-')
+        .replace(/^-+|-+$/g, '')
+        .toLowerCase() || certificateId;
+      const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+
       return await downloadBlobWithSavePicker(async () => {
-        const response = await apiClient.get(`/certificates/${certificateId}/pdf`, {
-          responseType: 'blob',
+        const response = await apiClient.get<ArrayBuffer>(`/certificates/${certificateId}/pdf`, {
+          responseType: 'arraybuffer',
         });
 
         return new Blob([response.data], { type: 'application/pdf' });
       }, {
-        filename: `certificate-${certificateId}.pdf`,
+        filename: `certificate-${safeTitle}-${stamp}.pdf`,
         description: 'PDF certificate',
         mimeType: 'application/pdf',
         extensions: ['.pdf'],
@@ -190,7 +197,7 @@ export function useCertificate(certificateId: string) {
     } catch (err: any) {
       throw new Error(err.response?.data?.message || 'Failed to download PDF');
     }
-  }, [certificateId]);
+  }, [certificate?.title, certificateId]);
 
   const updateAccessCode = useCallback(async (accessCode: string | null) => {
     try {
