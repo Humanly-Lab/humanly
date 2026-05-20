@@ -1,9 +1,11 @@
 import { Router } from 'express';
 import { authenticate } from '../middleware/auth.middleware';
 import { asyncHandler } from '../middleware/error-handler';
+import { createRateLimiter } from '../middleware/rate-limit';
 import {
   createTask,
   getTask,
+  getPublicTask,
   listTasks,
   listTaskEnrollments,
   listMyTaskEnrollments,
@@ -19,11 +21,26 @@ import {
   deleteTask,
   regenerateToken,
   getSnippets,
+  startPublicTaskDocument,
+  submitPublicTaskDocument,
 } from '../controllers/task.controller';
 
 const router: Router = Router();
+const publicTaskRateLimiter = createRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 120,
+  message: 'Too many public task requests, please try again later',
+});
 
-// All routes require authentication
+/**
+ * Public task share-link endpoints. These mirror deliberation-platform's
+ * unauthenticated participation link pattern and must stay before authenticate.
+ */
+router.get('/public/:token', publicTaskRateLimiter, asyncHandler(getPublicTask));
+router.post('/public/:token/start', publicTaskRateLimiter, asyncHandler(startPublicTaskDocument));
+router.post('/public/:token/submissions', publicTaskRateLimiter, asyncHandler(submitPublicTaskDocument));
+
+// Remaining routes require authentication
 router.use(authenticate);
 
 /**

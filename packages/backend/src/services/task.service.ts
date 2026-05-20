@@ -11,17 +11,21 @@ import { SubmissionModel } from '../models/submission.model';
 import { CertificateModel } from '../models/certificate.model';
 import { DocumentEventModel } from '../models/document-event.model';
 import { FileModel } from '../models/file.model';
+import { UserModel } from '../models/user.model';
+import { RefreshTokenModel } from '../models/refresh-token.model';
 import { CertificateService } from './certificate.service';
-import type { AppFile, Document, Task, TaskWithSnippets } from '@humanly/shared';
+import type { AppFile, Document, Task, TaskWithSnippets, User } from '@humanly/shared';
 import { BRAND, getTrackerComment, getIframeComment } from '@humanly/shared';
 import { AppError } from '../middleware/error-handler';
 import { logger } from '../utils/logger';
 import { env } from '../config/env';
 import { cacheDelPattern } from '../config/redis';
 import { FileStorageService } from './file-storage.service';
+import { generateToken, hashPassword, hashToken } from '../utils/crypto';
+import { generateAccessToken, generateRefreshToken, TokenPayload } from '../utils/jwt';
 
 const getMinimumSubmissionCharacters = (task: Task): number | null => {
-  const configuredMinimum = task.environmentConfig?.submission?.minCharacters;
+  const configuredMinimum = (task.environmentConfig?.submission as { minCharacters?: number } | undefined)?.minCharacters;
   if (!Number.isFinite(configuredMinimum) || !configuredMinimum) return null;
 
   return Math.max(1, Math.floor(configuredMinimum));
@@ -35,9 +39,137 @@ const getDocumentCharacterCount = (document: Document): number => {
   return (document.plainText || '').length;
 };
 
+const normalizePublicSessionId = (value?: string): string => {
+  const normalized = (value || '').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
+  return normalized.slice(0, 64) || generateToken(16);
+};
+
+const sanitizeDocumentTitlePart = (value?: string): string => {
+  return (value || '').trim().replace(/\s+/g, ' ').slice(0, 80);
+};
+
+const calculateWordCount = (text: string): number => (
+  text
+    .trim()
+    .replace(/\s+/g, ' ')
+    .split(' ')
+    .filter(Boolean).length
+);
+
+const createLexicalContentFromPlainText = (plainText: string) => {
+  const paragraphs = plainText
+    .replace(/\r\n/g, '\n')
+    .split(/\n{2,}/)
+    .map((paragraph) => paragraph.trim())
+    .filter(Boolean);
+
+  const paragraphNodes = (paragraphs.length ? paragraphs : ['']).map((paragraph) => ({
+    children: [
+      {
+        detail: 0,
+        format: 0,
+        mode: 'normal',
+        style: '',
+        text: paragraph,
+        type: 'text',
+        version: 1,
+      },
+    ],
+    direction: 'ltr',
+    format: '',
+    indent: 0,
+    type: 'paragraph',
+    version: 1,
+  }));
+
+  return {
+    root: {
+      children: paragraphNodes,
+      direction: 'ltr',
+      format: '',
+      indent: 0,
+      type: 'root',
+      version: 1,
+    },
+  };
+};
+
+export interface PublicTaskSubmissionData {
+  title?: string;
+  authorName?: string;
+  authorEmail?: string;
+  plainText: string;
+  sessionId?: string;
+}
+
+export interface PublicTaskStartData {
+  sessionId?: string;
+}
+
 export class TaskService {
   private static async invalidateAnalytics(taskId: string): Promise<void> {
     await cacheDelPattern(`analytics:${taskId}:*`);
+  }
+
+  private static assertTaskAcceptsPublicWriters(task: Task): void {
+    const now = new Date();
+    const startDate = new Date(task.startDate);
+    const endDate = new Date(task.endDate);
+
+    if (now < startDate) {
+      throw new AppError(400, 'This task is not open for submissions yet');
+    }
+    if (now > endDate) {
+      throw new AppError(400, 'The submission deadline has passed');
+    }
+  }
+
+  private static toPublicUser(user: User | (User & { passwordHash?: string })): User {
+    return {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      emailVerified: user.emailVerified,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+    };
+  }
+
+  private static async getOrCreatePublicGuestUser(task: Task, publicSessionId: string): Promise<User> {
+    const guestEmail = `public-${task.id.slice(0, 8)}-${publicSessionId}@guest.humanly.local`;
+    const existingGuest = await UserModel.findByEmail(guestEmail);
+
+    if (existingGuest) {
+      return this.toPublicUser(existingGuest);
+    }
+
+    return UserModel.create({
+      email: guestEmail,
+      passwordHash: await hashPassword(generateToken(32)),
+      role: 'user',
+      emailVerificationToken: generateToken(16),
+      emailVerificationExpires: new Date(Date.now() + 24 * 60 * 60 * 1000),
+    });
+  }
+
+  private static async issuePublicGuestTokens(user: User): Promise<{
+    accessToken: string;
+    refreshToken: string;
+  }> {
+    const payload: TokenPayload = {
+      userId: user.id,
+      email: user.email,
+      role: user.role,
+    };
+
+    const accessToken = generateAccessToken(payload);
+    const refreshToken = generateRefreshToken(payload);
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+    await RefreshTokenModel.create(user.id, hashToken(refreshToken), expiresAt);
+    await RefreshTokenModel.deleteExpired();
+
+    return { accessToken, refreshToken };
   }
 
   /**
@@ -110,6 +242,20 @@ export class TaskService {
       trackingSnippet,
       iframeSnippet,
     };
+  }
+
+  /**
+   * Get a public task by full share token without requiring an account.
+   */
+  static async getPublicTask(taskToken: string): Promise<Task> {
+    const token = taskToken.trim();
+    const task = await TaskModel.findByToken(token);
+
+    if (!task) {
+      throw new AppError(404, 'Task link not found or inactive');
+    }
+
+    return task;
   }
 
   /**
@@ -386,6 +532,170 @@ export class TaskService {
     return {
       submission: submissionWithCertificate || submission,
       certificate,
+    };
+  }
+
+  /**
+   * Start a public share-link writing session in the normal Humanly editor.
+   *
+   * This maps one browser session to a synthetic user, enrolls that user in the
+   * task, creates or reuses the task draft document, and returns standard auth
+   * tokens so the existing document editor, tracking, autosave, AI, and submit
+   * flows can run unchanged.
+   */
+  static async startPublicTaskDocument(
+    taskToken: string,
+    data: PublicTaskStartData = {}
+  ) {
+    const task = await this.getPublicTask(taskToken);
+    this.assertTaskAcceptsPublicWriters(task);
+
+    const publicSessionId = normalizePublicSessionId(data.sessionId);
+    const guestUser = await this.getOrCreatePublicGuestUser(task, publicSessionId);
+
+    await TaskModel.enrollUser(task.id, guestUser.id);
+
+    const enrollment = await TaskModel.findEnrollmentForUserTask(task.id, guestUser.id);
+    if (!enrollment) {
+      throw new AppError(500, 'Failed to create task enrollment');
+    }
+
+    let document = enrollment.documentId
+      ? await DocumentModel.findByIdAndUserId(enrollment.documentId, guestUser.id)
+      : null;
+
+    if (!document) {
+      const titleSuffix = `Guest ${publicSessionId.slice(0, 8)}`;
+      const content = createLexicalContentFromPlainText('');
+
+      document = await DocumentModel.create({
+        userId: guestUser.id,
+        title: `${task.name} Submission - ${titleSuffix}`,
+        description: 'Public task share-link document.',
+        content,
+        plainText: '',
+        status: 'draft',
+        wordCount: 0,
+        characterCount: 0,
+        environmentConfig: task.environmentConfig || null,
+      });
+
+      await TaskModel.linkSubmissionDocument(task.id, guestUser.id, document.id);
+    }
+
+    const tokens = await this.issuePublicGuestTokens(guestUser);
+    await this.invalidateAnalytics(task.id);
+
+    return {
+      user: guestUser,
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      task: {
+        id: task.id,
+        name: task.name,
+        description: task.description,
+        startDate: task.startDate,
+        endDate: task.endDate,
+        environmentConfig: task.environmentConfig,
+      },
+      document: {
+        id: document.id,
+        title: document.title,
+      },
+      publicSessionId,
+    };
+  }
+
+  /**
+   * Create a task submission from a public share link.
+   *
+   * Public links intentionally do not authenticate a Humanly account. To keep the
+   * existing document/submission schema intact, each browser session is mapped to
+   * a synthetic guest user and then uses the normal task enrollment/submission
+   * records that the admin dashboard already reads.
+   */
+  static async submitPublicTaskDocument(
+    taskToken: string,
+    data: PublicTaskSubmissionData
+  ) {
+    const task = await this.getPublicTask(taskToken);
+    this.assertTaskAcceptsPublicWriters(task);
+
+    const plainText = data.plainText.trim();
+    if (!plainText) {
+      throw new AppError(400, 'Document text is required');
+    }
+
+    const minimumCharacters = getMinimumSubmissionCharacters(task);
+    if (minimumCharacters && plainText.length < minimumCharacters) {
+      throw new AppError(
+        400,
+        `Submission must be at least ${minimumCharacters.toLocaleString()} characters. Current length is ${plainText.length.toLocaleString()} characters.`
+      );
+    }
+
+    const publicSessionId = normalizePublicSessionId(data.sessionId);
+    const guestUser = await this.getOrCreatePublicGuestUser(task, publicSessionId);
+
+    await TaskModel.enrollUser(task.id, guestUser.id);
+
+    const authorName = sanitizeDocumentTitlePart(data.authorName);
+    const authorEmail = sanitizeDocumentTitlePart(data.authorEmail);
+    const requestedTitle = sanitizeDocumentTitlePart(data.title);
+    const titleSuffix = authorName || authorEmail || `Guest ${publicSessionId.slice(0, 8)}`;
+    const documentTitle = requestedTitle || `${task.name} Submission - ${titleSuffix}`;
+    const content = createLexicalContentFromPlainText(plainText);
+
+    const document = await DocumentModel.create({
+      userId: guestUser.id,
+      title: documentTitle,
+      description: [
+        authorName ? `Author name: ${authorName}` : null,
+        authorEmail ? `Author email: ${authorEmail}` : null,
+        `Public task share token submission.`,
+      ].filter(Boolean).join('\n'),
+      content,
+      plainText,
+      status: 'published',
+      wordCount: calculateWordCount(plainText),
+      characterCount: plainText.length,
+      environmentConfig: task.environmentConfig || null,
+    });
+
+    await TaskModel.linkSubmissionDocument(task.id, guestUser.id, document.id);
+    const latestSubmission = await SubmissionModel.findLatestForUserTask(task.id, guestUser.id);
+    await SubmissionModel.markHistoricalForUserTask(task.id, guestUser.id);
+
+    const submission = await SubmissionModel.create({
+      taskId: task.id,
+      userId: guestUser.id,
+      documentId: document.id,
+      payloadSnapshot: {
+        ...content,
+        publicSubmission: {
+          sessionId: publicSessionId,
+          authorName: authorName || null,
+          authorEmail: authorEmail || null,
+        },
+      },
+      plainTextSnapshot: plainText,
+      supersedesSubmissionId: latestSubmission?.id || null,
+      status: 'active',
+    });
+
+    await this.invalidateAnalytics(task.id);
+
+    return {
+      task: {
+        id: task.id,
+        name: task.name,
+      },
+      document: {
+        id: document.id,
+        title: document.title,
+      },
+      submission,
+      publicSessionId,
     };
   }
 

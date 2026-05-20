@@ -56,6 +56,14 @@ export interface TaskEnrollmentSummary {
   lastActivity: Date | null;
 }
 
+export interface TaskEnrollmentRecord {
+  id: string;
+  taskId: string;
+  userId: string;
+  documentId: string | null;
+  joinedAt: Date;
+}
+
 export interface CurrentUserTaskEnrollment {
   id: string;
   taskId: string;
@@ -316,6 +324,28 @@ export class TaskModel {
     const sql = 'SELECT 1 FROM task_enrollments WHERE task_id = $1 AND user_id = $2';
     const result = await queryOne(sql, [taskId, userId]);
     return !!result;
+  }
+
+  /**
+   * Find one task enrollment for a specific user.
+   */
+  static async findEnrollmentForUserTask(
+    taskId: string,
+    userId: string
+  ): Promise<TaskEnrollmentRecord | null> {
+    const sql = `
+      SELECT
+        id,
+        task_id as "taskId",
+        user_id as "userId",
+        submission_document_id as "documentId",
+        joined_at as "joinedAt"
+      FROM task_enrollments
+      WHERE task_id = $1 AND user_id = $2
+      LIMIT 1
+    `;
+
+    return queryOne<TaskEnrollmentRecord>(sql, [taskId, userId]);
   }
 
   /**

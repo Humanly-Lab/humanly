@@ -4,9 +4,15 @@ jest.mock('../../models/session.model');
 jest.mock('../../models/submission.model');
 jest.mock('../../models/certificate.model');
 jest.mock('../../models/file.model');
+jest.mock('../../models/user.model');
+jest.mock('../../models/refresh-token.model');
 jest.mock('../../services/certificate.service');
 jest.mock('../../services/file-storage.service', () => ({
   FileStorageService: { delete: jest.fn() },
+}));
+jest.mock('../../utils/jwt', () => ({
+  generateAccessToken: jest.fn(() => 'access-token-1'),
+  generateRefreshToken: jest.fn(() => 'refresh-token-1'),
 }));
 jest.mock('../../config/redis', () => ({
   cacheDelPattern: jest.fn(),
@@ -22,6 +28,8 @@ import { SessionModel } from '../../models/session.model';
 import { SubmissionModel } from '../../models/submission.model';
 import { CertificateModel } from '../../models/certificate.model';
 import { FileModel } from '../../models/file.model';
+import { UserModel } from '../../models/user.model';
+import { RefreshTokenModel } from '../../models/refresh-token.model';
 import { CertificateService } from '../../services/certificate.service';
 import { FileStorageService } from '../../services/file-storage.service';
 import { cacheDelPattern } from '../../config/redis';
@@ -33,6 +41,8 @@ const MockSessionModel = SessionModel as jest.Mocked<typeof SessionModel>;
 const MockSubmissionModel = SubmissionModel as jest.Mocked<typeof SubmissionModel>;
 const MockCertificateModel = CertificateModel as jest.Mocked<typeof CertificateModel>;
 const MockFileModel = FileModel as jest.Mocked<typeof FileModel>;
+const MockUserModel = UserModel as jest.Mocked<typeof UserModel>;
+const MockRefreshTokenModel = RefreshTokenModel as jest.Mocked<typeof RefreshTokenModel>;
 const MockCertificateService = CertificateService as jest.Mocked<typeof CertificateService>;
 const MockFileStorageService = FileStorageService as jest.Mocked<typeof FileStorageService>;
 const mockCacheDelPattern = cacheDelPattern as jest.MockedFunction<typeof cacheDelPattern>;
@@ -197,6 +207,218 @@ describe('TaskService.submitTaskDocument', () => {
       'student@example.com'
     );
     expect(mockCacheDelPattern).toHaveBeenCalledWith('analytics:task-1:*');
+  });
+});
+
+describe('TaskService.startPublicTaskDocument', () => {
+  it('creates a guest draft document and returns auth for the normal editor', async () => {
+    const task = makeTask({
+      taskToken: 'share-token-1',
+      startDate: new Date(Date.now() - 60_000),
+      endDate: new Date(Date.now() + 60_000),
+      environmentConfig: {
+        aiAccess: 'full',
+        allowedModels: ['GPT-4o mini'],
+      },
+    });
+    const document = makeDocument({
+      id: 'public-doc-1',
+      userId: 'guest-user-1',
+      title: 'Task Submission - Guest browser-',
+      plainText: '',
+      wordCount: 0,
+      characterCount: 0,
+    });
+
+    MockTaskModel.findByToken.mockResolvedValue(task);
+    MockUserModel.findByEmail.mockResolvedValue({
+      id: 'guest-user-1',
+      email: 'public-task-1-browser-session-1@guest.humanly.local',
+      role: 'user',
+      passwordHash: 'hash',
+      emailVerified: false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    MockTaskModel.enrollUser.mockResolvedValue(undefined);
+    MockTaskModel.findEnrollmentForUserTask.mockResolvedValue({
+      id: 'enrollment-1',
+      taskId: 'task-1',
+      userId: 'guest-user-1',
+      documentId: null,
+      joinedAt: new Date(),
+    });
+    MockDocumentModel.create.mockResolvedValue(document);
+    MockTaskModel.linkSubmissionDocument.mockResolvedValue(true);
+    MockRefreshTokenModel.create.mockResolvedValue({} as any);
+    MockRefreshTokenModel.deleteExpired.mockResolvedValue(undefined);
+
+    const result = await TaskService.startPublicTaskDocument('share-token-1', {
+      sessionId: 'browser-session-1',
+    });
+
+    expect(result.accessToken).toBe('access-token-1');
+    expect(result.refreshToken).toBe('refresh-token-1');
+    expect(result.user.id).toBe('guest-user-1');
+    expect(result.document.id).toBe('public-doc-1');
+    expect(MockTaskModel.findByToken).toHaveBeenCalledWith('share-token-1');
+    expect(MockTaskModel.enrollUser).toHaveBeenCalledWith('task-1', 'guest-user-1');
+    expect(MockDocumentModel.create).toHaveBeenCalledWith(expect.objectContaining({
+      userId: 'guest-user-1',
+      status: 'draft',
+      plainText: '',
+      wordCount: 0,
+      characterCount: 0,
+      environmentConfig: task.environmentConfig,
+    }));
+    expect(MockTaskModel.linkSubmissionDocument).toHaveBeenCalledWith(
+      'task-1',
+      'guest-user-1',
+      'public-doc-1'
+    );
+    expect(MockRefreshTokenModel.create).toHaveBeenCalledWith(
+      'guest-user-1',
+      expect.any(String),
+      expect.any(Date)
+    );
+    expect(mockCacheDelPattern).toHaveBeenCalledWith('analytics:task-1:*');
+  });
+
+  it('reuses an existing guest task document for the same public session', async () => {
+    const task = makeTask({
+      taskToken: 'share-token-1',
+      startDate: new Date(Date.now() - 60_000),
+      endDate: new Date(Date.now() + 60_000),
+    });
+    const document = makeDocument({
+      id: 'existing-public-doc-1',
+      userId: 'guest-user-1',
+    });
+
+    MockTaskModel.findByToken.mockResolvedValue(task);
+    MockUserModel.findByEmail.mockResolvedValue({
+      id: 'guest-user-1',
+      email: 'public-task-1-browser-session-1@guest.humanly.local',
+      role: 'user',
+      passwordHash: 'hash',
+      emailVerified: false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    MockTaskModel.enrollUser.mockResolvedValue(undefined);
+    MockTaskModel.findEnrollmentForUserTask.mockResolvedValue({
+      id: 'enrollment-1',
+      taskId: 'task-1',
+      userId: 'guest-user-1',
+      documentId: 'existing-public-doc-1',
+      joinedAt: new Date(),
+    });
+    MockDocumentModel.findByIdAndUserId.mockResolvedValue(document);
+    MockRefreshTokenModel.create.mockResolvedValue({} as any);
+    MockRefreshTokenModel.deleteExpired.mockResolvedValue(undefined);
+
+    const result = await TaskService.startPublicTaskDocument('share-token-1', {
+      sessionId: 'browser-session-1',
+    });
+
+    expect(result.document.id).toBe('existing-public-doc-1');
+    expect(MockDocumentModel.create).not.toHaveBeenCalled();
+    expect(MockTaskModel.linkSubmissionDocument).not.toHaveBeenCalled();
+  });
+});
+
+describe('TaskService.submitPublicTaskDocument', () => {
+  it('creates a guest document and task submission for a public share link', async () => {
+    const task = makeTask({
+      taskToken: 'share-token-1',
+      startDate: new Date(Date.now() - 60_000),
+      endDate: new Date(Date.now() + 60_000),
+    });
+    const document = makeDocument({
+      id: 'public-doc-1',
+      userId: 'guest-user-1',
+      title: 'Public Essay',
+      plainText: 'A public submission body.',
+      characterCount: 25,
+    });
+    const submission = makeSubmission({
+      id: 'public-submission-1',
+      userId: 'guest-user-1',
+      documentId: 'public-doc-1',
+      plainTextSnapshot: 'A public submission body.',
+    });
+
+    MockTaskModel.findByToken.mockResolvedValue(task);
+    MockUserModel.findByEmail.mockResolvedValue({
+      id: 'guest-user-1',
+      email: 'public-task-1-browser-session-1@guest.humanly.local',
+      role: 'user',
+      passwordHash: 'hash',
+      emailVerified: false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    MockTaskModel.enrollUser.mockResolvedValue(undefined);
+    MockDocumentModel.create.mockResolvedValue(document);
+    MockTaskModel.linkSubmissionDocument.mockResolvedValue(true);
+    MockSubmissionModel.findLatestForUserTask.mockResolvedValue(null);
+    MockSubmissionModel.markHistoricalForUserTask.mockResolvedValue(undefined);
+    MockSubmissionModel.create.mockResolvedValue(submission);
+
+    const result = await TaskService.submitPublicTaskDocument('share-token-1', {
+      title: 'Public Essay',
+      authorName: 'Guest Writer',
+      authorEmail: 'guest@example.com',
+      plainText: 'A public submission body.',
+      sessionId: 'browser-session-1',
+    });
+
+    expect(result.submission.id).toBe('public-submission-1');
+    expect(MockTaskModel.findByToken).toHaveBeenCalledWith('share-token-1');
+    expect(MockTaskModel.enrollUser).toHaveBeenCalledWith('task-1', 'guest-user-1');
+    expect(MockDocumentModel.create).toHaveBeenCalledWith(expect.objectContaining({
+      userId: 'guest-user-1',
+      title: 'Public Essay',
+      plainText: 'A public submission body.',
+      status: 'published',
+      wordCount: 4,
+      characterCount: 25,
+    }));
+    expect(MockSubmissionModel.create).toHaveBeenCalledWith(expect.objectContaining({
+      taskId: 'task-1',
+      userId: 'guest-user-1',
+      documentId: 'public-doc-1',
+      plainTextSnapshot: 'A public submission body.',
+      status: 'active',
+    }));
+    expect(mockCacheDelPattern).toHaveBeenCalledWith('analytics:task-1:*');
+  });
+
+  it('rejects a public submission below the configured minimum character count', async () => {
+    MockTaskModel.findByToken.mockResolvedValue(makeTask({
+      startDate: new Date(Date.now() - 60_000),
+      endDate: new Date(Date.now() + 60_000),
+      environmentConfig: {
+        submission: {
+          mode: 'multiple',
+          minCharacters: 50,
+        },
+      },
+    }));
+
+    await expect(
+      TaskService.submitPublicTaskDocument('share-token-1', {
+        plainText: 'Too short',
+        sessionId: 'browser-session-1',
+      })
+    ).rejects.toMatchObject({
+      statusCode: 400,
+      message: 'Submission must be at least 50 characters. Current length is 9 characters.',
+    });
+
+    expect(MockUserModel.findByEmail).not.toHaveBeenCalled();
+    expect(MockDocumentModel.create).not.toHaveBeenCalled();
+    expect(MockSubmissionModel.create).not.toHaveBeenCalled();
   });
 });
 

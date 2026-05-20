@@ -172,46 +172,44 @@ export default function DocumentEditorPage() {
   const [characterCount, setCharacterCount] = useState<number>(0);
   const [timerStartedAtMs, setTimerStartedAtMs] = useState(() => Date.now());
   const [timerNowMs, setTimerNowMs] = useState(() => Date.now());
+  const isTaskDocument = Boolean(taskEnrollment);
+  const taskEnvironmentConfig = taskEnrollment?.environmentConfig || null;
 
   const currentEnvironmentConfig = useMemo(() => {
-    const taskConfig = taskEnrollment?.environmentConfig || {};
-    const documentConfig = document?.environmentConfig || {};
+    const sourceConfig: Partial<WritingEnvironmentConfig> = isTaskDocument
+      ? taskEnvironmentConfig || {}
+      : document?.environmentConfig || {};
+    const baseConfig = { ...DEFAULT_WRITING_ENVIRONMENT_CONFIG, ...sourceConfig };
 
     return {
-      ...DEFAULT_WRITING_ENVIRONMENT_CONFIG,
-      ...taskConfig,
-      ...documentConfig,
+      ...baseConfig,
       instructions: {
         ...DEFAULT_WRITING_ENVIRONMENT_CONFIG.instructions,
-        ...(taskEnrollment?.environmentConfig?.instructions || {}),
-        ...(document?.environmentConfig?.instructions || {}),
+        ...(sourceConfig.instructions || {}),
+      },
+      aiTokenBudget: {
+        ...DEFAULT_WRITING_ENVIRONMENT_CONFIG.aiTokenBudget,
+        ...(sourceConfig.aiTokenBudget || {}),
       },
       aiUsageLimit: {
         ...DEFAULT_WRITING_ENVIRONMENT_CONFIG.aiUsageLimit,
-        ...(taskEnrollment?.environmentConfig?.aiUsageLimit || {}),
-        ...(document?.environmentConfig?.aiUsageLimit || {}),
+        ...(sourceConfig.aiUsageLimit || {}),
       },
       time: {
         ...DEFAULT_WRITING_ENVIRONMENT_CONFIG.time,
-        ...(taskEnrollment?.environmentConfig?.time || {}),
-        ...(document?.environmentConfig?.time || {}),
+        ...(sourceConfig.time || {}),
       },
       submission: {
         ...DEFAULT_WRITING_ENVIRONMENT_CONFIG.submission,
-        ...(!taskEnrollment ? document?.environmentConfig?.submission || {} : {}),
-        ...(taskEnrollment?.environmentConfig?.submission || {}),
+        ...(sourceConfig.submission || {}),
       },
       traceability: {
         ...DEFAULT_WRITING_ENVIRONMENT_CONFIG.traceability,
-        ...(taskEnrollment?.environmentConfig?.traceability || {}),
-        ...(document?.environmentConfig?.traceability || {}),
+        ...(sourceConfig.traceability || {}),
       },
-      copyPastePolicy: normalizeCopyPastePolicy(
-        document?.environmentConfig?.copyPastePolicy ||
-        taskEnrollment?.environmentConfig?.copyPastePolicy
-      ),
+      copyPastePolicy: normalizeCopyPastePolicy(sourceConfig.copyPastePolicy),
     };
-  }, [document?.environmentConfig, taskEnrollment?.environmentConfig]);
+  }, [document?.environmentConfig, isTaskDocument, taskEnvironmentConfig]);
 
   const activeTimeLimitSeconds =
     currentEnvironmentConfig.aiUsageLimit.mode === 'time_restricted' &&

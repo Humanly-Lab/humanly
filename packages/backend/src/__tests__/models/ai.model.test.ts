@@ -13,12 +13,75 @@ jest.mock('../../config/database', () => ({
 }));
 
 import { AIModel, AIChatSessionMissingError } from '../../models/ai.model';
-import { queryOne } from '../../config/database';
+import { query, queryOne } from '../../config/database';
 
+const mockQuery = query as jest.MockedFunction<typeof query>;
 const mockQueryOne = queryOne as jest.MockedFunction<typeof queryOne>;
+
+function makeSessionRow(overrides: Partial<any> = {}) {
+  return {
+    id: 'session-1',
+    document_id: 'doc-1',
+    user_id: 'user-1',
+    status: 'active',
+    model_version: null,
+    model_capabilities: null,
+    created_at: new Date(),
+    updated_at: new Date(),
+    ...overrides,
+  };
+}
+
+describe('AIModel.createSession legacy schema handling', () => {
+  beforeEach(() => {
+    mockQuery.mockReset();
+    mockQueryOne.mockReset();
+  });
+
+  it('falls back when ai_chat_sessions model snapshot columns are missing', async () => {
+    mockQuery.mockResolvedValueOnce([]);
+    mockQueryOne.mockResolvedValueOnce(makeSessionRow({
+      model_version: undefined,
+      model_capabilities: undefined,
+    }));
+
+    const session = await AIModel.createSession('doc-1', 'user-1', {
+      modelVersion: 'GPT-4o mini',
+      capabilities: { inputs: ['text'], tools: [] } as any,
+    });
+
+    expect(session.id).toBe('session-1');
+    expect(session.modelVersion).toBeUndefined();
+    expect(mockQuery).toHaveBeenCalledTimes(1);
+    expect(mockQueryOne).toHaveBeenCalledTimes(1);
+    expect(mockQueryOne.mock.calls[0][0]).toContain('INSERT INTO ai_chat_sessions (document_id, user_id, status)');
+  });
+
+  it('persists a model snapshot when the session capability columns exist', async () => {
+    mockQuery.mockResolvedValueOnce([
+      { column_name: 'model_version' },
+      { column_name: 'model_capabilities' },
+    ]);
+    mockQueryOne.mockResolvedValueOnce(makeSessionRow({
+      model_version: 'GPT-4o mini',
+      model_capabilities: { inputs: ['text'], tools: [] },
+    }));
+
+    const session = await AIModel.createSession('doc-1', 'user-1', {
+      modelVersion: 'GPT-4o mini',
+      capabilities: { inputs: ['text'], tools: [] } as any,
+    });
+
+    expect(session.modelVersion).toBe('GPT-4o mini');
+    expect(mockQuery).toHaveBeenCalledTimes(1);
+    expect(mockQueryOne).toHaveBeenCalledTimes(1);
+    expect(mockQueryOne.mock.calls[0][0]).toContain('model_capabilities');
+  });
+});
 
 describe('AIModel.addMessage FK violation handling', () => {
   beforeEach(() => {
+    mockQuery.mockReset();
     mockQueryOne.mockReset();
   });
 

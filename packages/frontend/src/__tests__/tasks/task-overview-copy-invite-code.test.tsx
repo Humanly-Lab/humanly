@@ -278,6 +278,25 @@ describe('admin task overview invite code copy button', () => {
     expect(await screen.findByRole('status')).toHaveTextContent('Invite code copied to clipboard.');
   });
 
+  it('copies the public task share link and explains anonymous access', async () => {
+    mockClipboardWriteText.mockResolvedValueOnce(undefined);
+
+    render(<TaskDetailPage />);
+
+    await screen.findByRole('heading', { name: 'Clipboard Task' });
+    expect(screen.getByText('Public Share Link')).toBeInTheDocument();
+    expect(screen.getByText('Anyone with this link can write and submit without registering.')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /copy public share link/i }));
+
+    await waitFor(() => {
+      expect(mockClipboardWriteText).toHaveBeenCalledWith(
+        'http://localhost:3002/tasks/public/9b0f63d3-0000-4000-9000-000000000000'
+      );
+    });
+    expect(await screen.findByRole('status')).toHaveTextContent('Share link copied to clipboard.');
+  });
+
   it('shows a recoverable error when clipboard permission is denied', async () => {
     const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
     mockClipboardWriteText.mockRejectedValueOnce(
