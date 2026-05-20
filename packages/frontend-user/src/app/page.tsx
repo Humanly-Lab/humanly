@@ -49,11 +49,6 @@ export default function HomePage() {
             Sign in
           </Link>
         </div>
-        <div className="mt-10 grid gap-3 text-sm text-muted-foreground sm:grid-cols-3">
-          <span>Human-AI collaboration</span>
-          <span>Tracked writing process</span>
-          <span>Verifiable certificates</span>
-        </div>
       </section>
     </main>
   );
