@@ -324,7 +324,7 @@ export default function CertificateDetailPage() {
                   </div>
                 </div>
               </div>
-              <p className="max-w-sm text-sm text-muted-foreground lg:text-right">
+              <p className="max-w-full text-sm text-muted-foreground lg:ml-6 lg:shrink-0 lg:whitespace-nowrap lg:text-right">
                 A verifiable snapshot of typing activity, pasted text, and AI assistance.
               </p>
             </div>
