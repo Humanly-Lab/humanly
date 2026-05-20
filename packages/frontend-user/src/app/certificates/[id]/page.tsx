@@ -10,13 +10,16 @@ import { useToast } from '@/components/ui/use-toast';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
+import {
   ArrowLeft,
   FileJson,
   FileText,
   Calendar,
   Award,
-  Clock,
-  Type,
   Copy,
   Check,
   Share2,
@@ -26,10 +29,9 @@ import {
   X,
   Trash2,
   Bot,
-  CheckCircle,
-  XCircle,
   MessageSquare,
   Wand2,
+  ChevronDown,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import QRCode from 'qrcode';
@@ -48,6 +50,7 @@ export default function CertificateDetailPage() {
   const [editedAccessCode, setEditedAccessCode] = useState('');
   const [isUpdatingAccessCode, setIsUpdatingAccessCode] = useState(false);
   const [isUpdatingDisplay, setIsUpdatingDisplay] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
 
   useEffect(() => {
     if (certificate) {
@@ -276,425 +279,390 @@ export default function CertificateDetailPage() {
   const pastedPercentage = totalAuthored > 0
     ? (certificate.pastedCharacters / totalAuthored) * 100
     : 0;
+  const editingMinutes = Math.round(certificate.editingTimeSeconds / 60);
+  const textImprovementTotal = aiStats?.selectionActions.total || 0;
+  const aiChatTotal = aiStats?.aiQuestions.total || 0;
 
   return (
-    <div className="container mx-auto max-w-5xl px-4 py-8">
-      <div className="mb-8">
+    <div className="container mx-auto max-w-4xl px-4 py-8">
+      <div className="mb-5">
         <Button
           onClick={() => router.push('/certificates')}
           variant="outline"
           size="sm"
-          className="mb-6"
+          className="mb-5"
         >
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back to Certificates
         </Button>
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div className="flex-1">
-            <div className="flex items-center gap-3">
-              <Award className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
-              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight break-words">{certificate.title}</h1>
+
+        <Card>
+          <CardContent className="p-5 sm:p-6">
+            <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+              <div className="min-w-0 flex-1 space-y-3">
+                <div className="flex items-start gap-3">
+                  <Award className="mt-1 h-6 w-6 shrink-0 text-primary" />
+                  <div className="min-w-0">
+                    <h1 className="text-2xl font-bold tracking-tight break-words">{certificate.title}</h1>
+                    <p className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
+                      <Calendar className="h-4 w-4" />
+                      Generated {format(new Date(certificate.generatedAt), 'MMMM dd, yyyy')}
+                    </p>
+                  </div>
+                </div>
+                <p className="max-w-2xl text-sm text-muted-foreground">
+                  A verifiable snapshot of how this document was written, including typing activity, pasted text, and AI assistance.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:w-72">
+                <Button onClick={handleShareVerificationLink} variant="outline" size="sm" className="w-full">
+                  <Share2 className="mr-2 h-4 w-4" />
+                  Share Link
+                </Button>
+                <Button onClick={handleDownloadPDF} size="sm" className="w-full">
+                  <FileText className="mr-2 h-4 w-4" />
+                  Download PDF
+                </Button>
+              </div>
             </div>
-            <p className="text-xs sm:text-sm text-muted-foreground mt-2 flex items-center gap-2">
-              <Calendar className="h-3 w-3 sm:h-4 sm:w-4" />
-              Generated on {format(new Date(certificate.generatedAt), 'MMMM dd, yyyy')}
-            </p>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Main Content - Two Column Layout */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Left Column (2/3 width) */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Authorship Statistics Card */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg">Authorship Statistics</CardTitle>
-              <CardDescription>Detailed breakdown of document authorship</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Key Metrics Row */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div className="p-3 bg-muted/50 rounded-lg text-center">
-                  <p className="text-xs text-muted-foreground">Document Length</p>
-                  <p className="text-xl font-bold">{certificate.totalCharacters.toLocaleString()}</p>
-                </div>
-                <div className="p-3 bg-muted/50 rounded-lg text-center">
-                  <p className="text-xs text-muted-foreground">Total Events</p>
-                  <p className="text-xl font-bold">{certificate.totalEvents.toLocaleString()}</p>
-                </div>
-                <div className="p-3 bg-muted/50 rounded-lg text-center">
-                  <p className="text-xs text-muted-foreground">Typing Events</p>
-                  <p className="text-xl font-bold">{certificate.typingEvents.toLocaleString()}</p>
-                </div>
-                <div className="p-3 bg-muted/50 rounded-lg text-center">
-                  <p className="text-xs text-muted-foreground flex items-center justify-center gap-1">
-                    <Clock className="h-3 w-3" />
-                    Editing Time
-                  </p>
-                  <p className="text-xl font-bold">{Math.round(certificate.editingTimeSeconds / 60)} min</p>
-                </div>
+      <div className="space-y-5">
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg">Writing Process</CardTitle>
+            <CardDescription>Core authorship signals for this certificate.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-5">
+            <div className="grid gap-3 sm:grid-cols-4">
+              <div className="rounded-lg bg-muted/50 p-3">
+                <p className="text-xs text-muted-foreground">Typed</p>
+                <p className="mt-1 text-2xl font-semibold">{typedPercentage.toFixed(0)}%</p>
               </div>
-
-              <Separator />
-
-              {/* Authorship Composition */}
-              <div className="space-y-3">
-                <p className="text-sm font-medium">Authorship Composition</p>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm text-muted-foreground flex items-center gap-1">
-                        <Type className="h-3 w-3" />
-                        Typed
-                      </p>
-                      <p className="text-sm font-semibold">{typedPercentage.toFixed(1)}%</p>
-                    </div>
-                    <div className="h-2 bg-secondary rounded-full overflow-hidden">
-                      <div className="h-full bg-primary" style={{ width: `${typedPercentage}%` }} />
-                    </div>
-                    <p className="text-xs text-muted-foreground">{certificate.typedCharacters.toLocaleString()} chars</p>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm text-muted-foreground flex items-center gap-1">
-                        <FileText className="h-3 w-3" />
-                        Pasted
-                      </p>
-                      <p className="text-sm font-semibold">{pastedPercentage.toFixed(1)}%</p>
-                    </div>
-                    <div className="h-2 bg-secondary rounded-full overflow-hidden">
-                      <div className="h-full bg-orange-500" style={{ width: `${pastedPercentage}%` }} />
-                    </div>
-                    <p className="text-xs text-muted-foreground">{certificate.pastedCharacters.toLocaleString()} chars</p>
-                  </div>
-                </div>
+              <div className="rounded-lg bg-muted/50 p-3">
+                <p className="text-xs text-muted-foreground">Pasted</p>
+                <p className="mt-1 text-2xl font-semibold">{pastedPercentage.toFixed(0)}%</p>
               </div>
-            </CardContent>
-          </Card>
-
-          {/* AI Authorship Statistics Card */}
-          {(aiStats || isLoadingAiStats) && (
-            <Card>
-              <CardHeader className="pb-3">
-                <div className="flex items-center gap-2">
-                  <Bot className="h-5 w-5 text-violet-600" />
-                  <CardTitle className="text-lg">AI Assistance</CardTitle>
-                </div>
-                <CardDescription>AI usage during document creation</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {isLoadingAiStats ? (
-                  <div className="flex items-center justify-center py-6">
-                    <div className="inline-block h-5 w-5 animate-spin rounded-full border-2 border-solid border-current border-r-transparent" />
-                    <span className="ml-2 text-sm text-muted-foreground">Loading...</span>
-                  </div>
-                ) : aiStats ? (
-                  <div className="space-y-4">
-                    {/* Text Improvement Actions */}
-                    <div className="space-y-3">
-                      <p className="text-sm font-medium flex items-center gap-2">
-                        <Wand2 className="h-4 w-4 text-violet-500" />
-                        Text Improvements
-                      </p>
-                      <div className="grid grid-cols-4 gap-2">
-                        <div className="p-2 bg-muted/50 rounded-lg text-center">
-                          <p className="text-[10px] text-muted-foreground">Grammar</p>
-                          <p className="text-lg font-semibold">{aiStats.selectionActions.grammarFixes}</p>
-                        </div>
-                        <div className="p-2 bg-muted/50 rounded-lg text-center">
-                          <p className="text-[10px] text-muted-foreground">Improve</p>
-                          <p className="text-lg font-semibold">{aiStats.selectionActions.improveWriting}</p>
-                        </div>
-                        <div className="p-2 bg-muted/50 rounded-lg text-center">
-                          <p className="text-[10px] text-muted-foreground">Simplify</p>
-                          <p className="text-lg font-semibold">{aiStats.selectionActions.simplify}</p>
-                        </div>
-                        <div className="p-2 bg-muted/50 rounded-lg text-center">
-                          <p className="text-[10px] text-muted-foreground">Formal</p>
-                          <p className="text-lg font-semibold">{aiStats.selectionActions.makeFormal}</p>
-                        </div>
-                      </div>
-                      {/* Acceptance Stats */}
-                      <div className="flex flex-wrap items-center gap-3 text-xs pt-1">
-                        <span className="text-muted-foreground">Total: <span className="font-medium text-foreground">{aiStats.selectionActions.total}</span></span>
-                        <span className="flex items-center gap-1">
-                          <CheckCircle className="h-3 w-3 text-green-600" />
-                          <span className="text-green-600 font-medium">{aiStats.selectionActions.accepted}</span>
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <XCircle className="h-3 w-3 text-red-500" />
-                          <span className="text-red-500 font-medium">{aiStats.selectionActions.rejected}</span>
-                        </span>
-                        {aiStats.selectionActions.total > 0 && (
-                          <span className="text-muted-foreground">
-                            Rate: <span className="font-medium text-foreground">{aiStats.selectionActions.acceptanceRate.toFixed(0)}%</span>
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    <Separator />
-
-                    {/* AI Questions */}
-                    <div className="space-y-3">
-                      <p className="text-sm font-medium flex items-center gap-2">
-                        <MessageSquare className="h-4 w-4 text-blue-500" />
-                        AI Questions
-                      </p>
-                      <div className="grid grid-cols-4 gap-2">
-                        <div className="p-2 bg-muted/50 rounded-lg text-center">
-                          <p className="text-[10px] text-muted-foreground">Total</p>
-                          <p className="text-lg font-semibold">{aiStats.aiQuestions.total}</p>
-                        </div>
-                        <div className="p-2 bg-blue-50 rounded-lg text-center border border-blue-100">
-                          <p className="text-[10px] text-blue-700">Understanding</p>
-                          <p className="text-lg font-semibold text-blue-700">{aiStats.aiQuestions.understanding}</p>
-                        </div>
-                        <div className="p-2 bg-violet-50 rounded-lg text-center border border-violet-100">
-                          <p className="text-[10px] text-violet-700">Generation</p>
-                          <p className="text-lg font-semibold text-violet-700">{aiStats.aiQuestions.generation}</p>
-                        </div>
-                        <div className="p-2 bg-muted/50 rounded-lg text-center">
-                          <p className="text-[10px] text-muted-foreground">Other</p>
-                          <p className="text-lg font-semibold">{aiStats.aiQuestions.other}</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground text-center py-4">
-                    No AI statistics available.
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Download & Details Row */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">Download</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <Button onClick={handleDownloadPDF} className="w-full" size="sm">
-                  <FileText className="mr-2 h-4 w-4" />
-                  PDF Certificate
-                </Button>
-                <Button onClick={handleDownloadJSON} variant="outline" className="w-full" size="sm">
-                  <FileJson className="mr-2 h-4 w-4" />
-                  JSON Data
-                </Button>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">Details</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2 text-xs">
-                <div>
-                  <p className="text-muted-foreground">Certificate ID</p>
-                  <p className="font-mono truncate">{certificate.id}</p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">Document ID</p>
-                  <p className="font-mono truncate">{certificate.documentId}</p>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-
-        {/* Right Column (1/3 width) */}
-        <div className="space-y-6">
-          {/* Verification QR Code */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Verification</CardTitle>
-              <CardDescription>Scan QR code to verify</CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col items-center">
-              {qrCodeDataURL ? (
-                <img
-                  src={qrCodeDataURL}
-                  alt="Verification QR Code"
-                  className="w-40 h-40 border rounded-lg"
-                />
-              ) : (
-                <div className="w-40 h-40 bg-muted animate-pulse rounded-lg" />
-              )}
-              <Button
-                onClick={handleShareVerificationLink}
-                variant="outline"
-                size="sm"
-                className="mt-3 w-full"
-              >
-                <Share2 className="mr-2 h-4 w-4" />
-                Share Link
-              </Button>
-            </CardContent>
-          </Card>
-
-          {/* Verification Token */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Token</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <div className="p-2 bg-muted rounded-md font-mono text-[10px] break-all max-h-20 overflow-y-auto">
-                {certificate.verificationToken}
+              <div className="rounded-lg bg-muted/50 p-3">
+                <p className="text-xs text-muted-foreground">Final Text</p>
+                <p className="mt-1 text-2xl font-semibold">{certificate.totalCharacters.toLocaleString()}</p>
               </div>
-              <Button
-                onClick={handleCopyVerificationToken}
-                variant="outline"
-                size="sm"
-                className="w-full"
-              >
-                {copied ? (
-                  <>
-                    <Check className="mr-2 h-4 w-4" />
-                    Copied!
-                  </>
-                ) : (
-                  <>
-                    <Copy className="mr-2 h-4 w-4" />
-                    Copy
-                  </>
-                )}
-              </Button>
-            </CardContent>
-          </Card>
+              <div className="rounded-lg bg-muted/50 p-3">
+                <p className="text-xs text-muted-foreground">Writing Time</p>
+                <p className="mt-1 text-2xl font-semibold">{editingMinutes} min</p>
+              </div>
+            </div>
 
-          {/* Certificate Settings */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Typed vs pasted composition</span>
+                <span className="font-medium">
+                  {certificate.typedCharacters.toLocaleString()} typed · {certificate.pastedCharacters.toLocaleString()} pasted
+                </span>
+              </div>
+              <div className="flex h-3 overflow-hidden rounded-full bg-secondary">
+                <div className="bg-primary" style={{ width: `${typedPercentage}%` }} />
+                <div className="bg-orange-500" style={{ width: `${pastedPercentage}%` }} />
+              </div>
+            </div>
+
+            <div className="grid gap-3 text-sm sm:grid-cols-3">
+              <div className="flex items-center justify-between rounded-md border px-3 py-2">
+                <span className="text-muted-foreground">Recorded Actions</span>
+                <span className="font-medium">{certificate.totalEvents.toLocaleString()}</span>
+              </div>
+              <div className="flex items-center justify-between rounded-md border px-3 py-2">
+                <span className="text-muted-foreground">Keystrokes</span>
+                <span className="font-medium">{certificate.typingEvents.toLocaleString()}</span>
+              </div>
+              <div className="flex items-center justify-between rounded-md border px-3 py-2">
+                <span className="text-muted-foreground">Paste Events</span>
+                <span className="font-medium">{certificate.pasteEvents.toLocaleString()}</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {(aiStats || isLoadingAiStats) && (
           <Card>
             <CardHeader className="pb-3">
               <div className="flex items-center gap-2">
-                <Settings className="h-4 w-4 text-muted-foreground" />
-                <CardTitle className="text-base">Settings</CardTitle>
+                <Bot className="h-5 w-5 text-violet-600" />
+                <CardTitle className="text-lg">AI Assistance</CardTitle>
               </div>
+              <CardDescription>How AI was used while writing this document.</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Access Protection */}
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <Lock className={`h-3 w-3 ${certificate.isProtected ? 'text-yellow-600' : 'text-muted-foreground'}`} />
-                  <h3 className="font-medium text-sm">Protection</h3>
+            <CardContent>
+              {isLoadingAiStats ? (
+                <div className="flex items-center justify-center py-6">
+                  <div className="inline-block h-5 w-5 animate-spin rounded-full border-2 border-solid border-current border-r-transparent" />
+                  <span className="ml-2 text-sm text-muted-foreground">Loading...</span>
+                </div>
+              ) : aiStats ? (
+                <div className="grid gap-4 lg:grid-cols-[1fr_220px]">
+                  <div className="space-y-3">
+                    <p className="flex items-center gap-2 text-sm font-medium">
+                      <Wand2 className="h-4 w-4 text-violet-500" />
+                      Text Improvements
+                    </p>
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                      <div className="rounded-lg bg-muted/50 p-3 text-center">
+                        <p className="text-xs text-muted-foreground">Grammar</p>
+                        <p className="text-xl font-semibold">{aiStats.selectionActions.grammarFixes}</p>
+                      </div>
+                      <div className="rounded-lg bg-muted/50 p-3 text-center">
+                        <p className="text-xs text-muted-foreground">Improve</p>
+                        <p className="text-xl font-semibold">{aiStats.selectionActions.improveWriting}</p>
+                      </div>
+                      <div className="rounded-lg bg-muted/50 p-3 text-center">
+                        <p className="text-xs text-muted-foreground">Simplify</p>
+                        <p className="text-xl font-semibold">{aiStats.selectionActions.simplify}</p>
+                      </div>
+                      <div className="rounded-lg bg-muted/50 p-3 text-center">
+                        <p className="text-xs text-muted-foreground">Formal</p>
+                        <p className="text-xl font-semibold">{aiStats.selectionActions.makeFormal}</p>
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {textImprovementTotal} total · {aiStats.selectionActions.accepted} accepted · {aiStats.selectionActions.rejected} discarded
+                      {textImprovementTotal > 0 ? ` · ${aiStats.selectionActions.acceptanceRate.toFixed(0)}% acceptance` : ''}
+                    </p>
+                  </div>
+
+                  <div className="rounded-lg border p-4">
+                    <p className="flex items-center gap-2 text-sm font-medium">
+                      <MessageSquare className="h-4 w-4 text-blue-500" />
+                      AI Chat
+                    </p>
+                    <p className="mt-3 text-3xl font-semibold">{aiChatTotal}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Chat questions asked in this document.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <p className="py-4 text-center text-sm text-muted-foreground">
+                  No AI statistics available.
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        <Collapsible open={detailsOpen} onOpenChange={setDetailsOpen}>
+          <Card>
+            <CollapsibleTrigger asChild>
+              <button className="flex w-full items-center justify-between px-5 py-4 text-left">
+                <div>
+                  <p className="font-medium">More details</p>
+                  <p className="text-sm text-muted-foreground">Downloads, verification data, and sharing settings.</p>
+                </div>
+                <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform ${detailsOpen ? 'rotate-180' : ''}`} />
+              </button>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <Separator />
+              <CardContent className="grid gap-5 p-5 lg:grid-cols-3">
+                <div className="space-y-3">
+                  <div>
+                    <h3 className="text-sm font-medium">Verification</h3>
+                    <p className="text-xs text-muted-foreground">Share or scan this link to verify the certificate.</p>
+                  </div>
+                  <div className="flex flex-col items-center rounded-lg border p-3">
+                    {qrCodeDataURL ? (
+                      <img
+                        src={qrCodeDataURL}
+                        alt="Verification QR Code"
+                        className="h-36 w-36 rounded border"
+                      />
+                    ) : (
+                      <div className="h-36 w-36 animate-pulse rounded bg-muted" />
+                    )}
+                    <Button
+                      onClick={handleShareVerificationLink}
+                      variant="outline"
+                      size="sm"
+                      className="mt-3 w-full"
+                    >
+                      <Share2 className="mr-2 h-4 w-4" />
+                      Copy Link
+                    </Button>
+                  </div>
                 </div>
 
-                {!isEditingAccessCode ? (
-                  <>
-                    {certificate.isProtected && certificate.accessCode ? (
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-1">
-                          <div className="flex-1 p-2 bg-muted rounded font-mono text-xs truncate">
-                            {certificate.accessCode}
-                          </div>
-                          <Button
-                            onClick={async () => {
-                              const didCopy = await copyTextToClipboard(certificate.accessCode!);
-                              if (didCopy) {
-                                toast({ title: 'Copied', description: 'Access code copied' });
-                              } else {
-                                showCopyUnavailableToast('Access code');
-                              }
-                            }}
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 w-8 p-0"
-                          >
-                            <Copy className="h-3 w-3" />
-                          </Button>
-                          <Button onClick={handleStartEdit} variant="ghost" size="sm" className="h-8 w-8 p-0">
-                            <Edit2 className="h-3 w-3" />
-                          </Button>
-                          <Button
-                            onClick={handleRemoveAccessCode}
-                            variant="ghost"
-                            size="sm"
-                            disabled={isUpdatingAccessCode}
-                            className="h-8 w-8 p-0"
-                          >
-                            <Trash2 className="h-3 w-3 text-destructive" />
-                          </Button>
-                        </div>
-                      </div>
-                    ) : (
-                      <Button onClick={handleStartAddCode} variant="outline" size="sm" className="w-full">
-                        <Lock className="h-3 w-3 mr-2" />
-                        Add Access Code
-                      </Button>
-                    )}
-                  </>
-                ) : (
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="text-sm font-medium">Downloads</h3>
+                    <p className="text-xs text-muted-foreground">PDF for sharing, JSON for audit or export.</p>
+                  </div>
                   <div className="space-y-2">
-                    <div className="flex items-center gap-1">
-                      <Input
-                        type="text"
-                        placeholder="Code (min 4 chars)"
-                        value={editedAccessCode}
-                        onChange={(e) => setEditedAccessCode(e.target.value)}
-                        disabled={isUpdatingAccessCode}
-                        className="flex-1 h-8 text-xs font-mono"
-                        autoFocus
-                      />
+                    <Button onClick={handleDownloadPDF} className="w-full" size="sm">
+                      <FileText className="mr-2 h-4 w-4" />
+                      PDF Certificate
+                    </Button>
+                    <Button onClick={handleDownloadJSON} variant="outline" className="w-full" size="sm">
+                      <FileJson className="mr-2 h-4 w-4" />
+                      JSON Data
+                    </Button>
+                  </div>
+
+                  <div className="space-y-2 text-xs">
+                    <div>
+                      <p className="text-muted-foreground">Certificate ID</p>
+                      <p className="truncate font-mono">{certificate.id}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Document ID</p>
+                      <p className="truncate font-mono">{certificate.documentId}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Verification Token</p>
+                      <div className="mt-1 max-h-20 overflow-y-auto rounded-md bg-muted p-2 font-mono text-[10px] break-all">
+                        {certificate.verificationToken}
+                      </div>
                       <Button
-                        onClick={handleSaveAccessCode}
-                        size="sm"
-                        disabled={isUpdatingAccessCode || editedAccessCode.trim().length < 4}
-                        className="h-8 w-8 p-0"
-                      >
-                        <Check className="h-3 w-3" />
-                      </Button>
-                      <Button
-                        onClick={handleCancelEdit}
-                        size="sm"
+                        onClick={handleCopyVerificationToken}
                         variant="outline"
-                        disabled={isUpdatingAccessCode}
-                        className="h-8 w-8 p-0"
+                        size="sm"
+                        className="mt-2 w-full"
                       >
-                        <X className="h-3 w-3" />
+                        {copied ? (
+                          <>
+                            <Check className="mr-2 h-4 w-4" />
+                            Copied
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="mr-2 h-4 w-4" />
+                            Copy Token
+                          </>
+                        )}
                       </Button>
                     </div>
                   </div>
-                )}
-              </div>
+                </div>
 
-              <Separator />
+                <div className="space-y-5">
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Lock className={`h-4 w-4 ${certificate.isProtected ? 'text-yellow-600' : 'text-muted-foreground'}`} />
+                      <h3 className="text-sm font-medium">Access Protection</h3>
+                    </div>
 
-              {/* Display Options */}
-              <div className="space-y-3">
-                <h3 className="font-medium text-sm">Display</h3>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="includeFullText" className="text-xs cursor-pointer">
-                      Show Full Text
-                    </Label>
-                    <Switch
-                      id="includeFullText"
-                      checked={certificate.includeFullText}
-                      onCheckedChange={(checked) => handleToggleDisplayOption('fullText', checked)}
-                      disabled={isUpdatingDisplay}
-                    />
+                    {!isEditingAccessCode ? (
+                      <>
+                        {certificate.isProtected && certificate.accessCode ? (
+                          <div className="flex items-center gap-1">
+                            <div className="min-w-0 flex-1 truncate rounded bg-muted p-2 font-mono text-xs">
+                              {certificate.accessCode}
+                            </div>
+                            <Button
+                              onClick={async () => {
+                                const didCopy = await copyTextToClipboard(certificate.accessCode!);
+                                if (didCopy) {
+                                  toast({ title: 'Copied', description: 'Access code copied' });
+                                } else {
+                                  showCopyUnavailableToast('Access code');
+                                }
+                              }}
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0"
+                            >
+                              <Copy className="h-3 w-3" />
+                            </Button>
+                            <Button onClick={handleStartEdit} variant="ghost" size="sm" className="h-8 w-8 p-0">
+                              <Edit2 className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              onClick={handleRemoveAccessCode}
+                              variant="ghost"
+                              size="sm"
+                              disabled={isUpdatingAccessCode}
+                              className="h-8 w-8 p-0"
+                            >
+                              <Trash2 className="h-3 w-3 text-destructive" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <Button onClick={handleStartAddCode} variant="outline" size="sm" className="w-full">
+                            <Lock className="mr-2 h-3 w-3" />
+                            Add Access Code
+                          </Button>
+                        )}
+                      </>
+                    ) : (
+                      <div className="flex items-center gap-1">
+                        <Input
+                          type="text"
+                          placeholder="Code (min 4 chars)"
+                          value={editedAccessCode}
+                          onChange={(e) => setEditedAccessCode(e.target.value)}
+                          disabled={isUpdatingAccessCode}
+                          className="h-8 flex-1 font-mono text-xs"
+                          autoFocus
+                        />
+                        <Button
+                          onClick={handleSaveAccessCode}
+                          size="sm"
+                          disabled={isUpdatingAccessCode || editedAccessCode.trim().length < 4}
+                          className="h-8 w-8 p-0"
+                        >
+                          <Check className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          onClick={handleCancelEdit}
+                          size="sm"
+                          variant="outline"
+                          disabled={isUpdatingAccessCode}
+                          className="h-8 w-8 p-0"
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    )}
                   </div>
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="includeEditHistory" className="text-xs cursor-pointer">
-                      Show Edit History
-                    </Label>
-                    <Switch
-                      id="includeEditHistory"
-                      checked={certificate.includeEditHistory}
-                      onCheckedChange={(checked) => handleToggleDisplayOption('editHistory', checked)}
-                      disabled={isUpdatingDisplay}
-                    />
+
+                  <Separator />
+
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Settings className="h-4 w-4 text-muted-foreground" />
+                      <h3 className="text-sm font-medium">Public Display</h3>
+                    </div>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <Label htmlFor="includeFullText" className="cursor-pointer text-xs">
+                          Show full text
+                        </Label>
+                        <Switch
+                          id="includeFullText"
+                          checked={certificate.includeFullText}
+                          onCheckedChange={(checked) => handleToggleDisplayOption('fullText', checked)}
+                          disabled={isUpdatingDisplay}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between gap-3">
+                        <Label htmlFor="includeEditHistory" className="cursor-pointer text-xs">
+                          Show edit history
+                        </Label>
+                        <Switch
+                          id="includeEditHistory"
+                          checked={certificate.includeEditHistory}
+                          onCheckedChange={(checked) => handleToggleDisplayOption('editHistory', checked)}
+                          disabled={isUpdatingDisplay}
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </CardContent>
+              </CardContent>
+            </CollapsibleContent>
           </Card>
-        </div>
+        </Collapsible>
       </div>
     </div>
   );
