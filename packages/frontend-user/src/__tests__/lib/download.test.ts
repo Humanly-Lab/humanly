@@ -65,7 +65,23 @@ describe('downloadBlobWithSavePicker', () => {
 
     await expect(downloadBlobWithSavePicker(loadBlob, options)).resolves.toBe('canceled');
 
-    expect(loadBlob).not.toHaveBeenCalled();
+    expect(loadBlob).toHaveBeenCalled();
+    expect(window.URL.createObjectURL).not.toHaveBeenCalled();
+  });
+
+  it('rejects empty downloads before saving a file', async () => {
+    const showSaveFilePicker = jest.fn();
+    Object.defineProperty(window, 'showSaveFilePicker', {
+      configurable: true,
+      value: showSaveFilePicker,
+    });
+
+    await expect(downloadBlobWithSavePicker(
+      () => Promise.resolve(new Blob([], { type: 'application/pdf' })),
+      options
+    )).rejects.toThrow('Downloaded file is empty');
+
+    expect(showSaveFilePicker).not.toHaveBeenCalled();
     expect(window.URL.createObjectURL).not.toHaveBeenCalled();
   });
 

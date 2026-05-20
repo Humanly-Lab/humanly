@@ -19,6 +19,12 @@ type WindowWithSavePicker = Window & {
   showSaveFilePicker?: (options?: SaveFilePickerOptions) => Promise<FileSaveHandle>;
 };
 
+function assertNonEmptyBlob(blob: Blob, filename: string) {
+  if (blob.size <= 0) {
+    throw new Error(`Downloaded file is empty: ${filename}`);
+  }
+}
+
 function isAbortError(error: unknown) {
   return error instanceof DOMException && error.name === 'AbortError';
 }
@@ -58,6 +64,8 @@ async function requestSaveFileHandle(options: {
 }
 
 export function downloadBlob(blob: Blob, filename: string): DownloadOutcome {
+  assertNonEmptyBlob(blob, filename);
+
   const url = window.URL.createObjectURL(blob);
   const link = document.createElement('a');
 
@@ -70,7 +78,7 @@ export function downloadBlob(blob: Blob, filename: string): DownloadOutcome {
 
   window.setTimeout(() => {
     window.URL.revokeObjectURL(url);
-  }, 0);
+  }, 60_000);
 
   return 'downloaded';
 }
@@ -84,12 +92,13 @@ export async function downloadBlobWithSavePicker(
     extensions: string[];
   }
 ): Promise<DownloadOutcome> {
+  const blob = await loadBlob();
+  assertNonEmptyBlob(blob, options.filename);
+
   const saveHandle = await requestSaveFileHandle(options);
   if (saveHandle === 'canceled') {
     return 'canceled';
   }
-
-  const blob = await loadBlob();
 
   if (saveHandle) {
     try {
