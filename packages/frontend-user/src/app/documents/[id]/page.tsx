@@ -212,7 +212,6 @@ export default function DocumentEditorPage() {
   }, [document?.environmentConfig, isTaskDocument, taskEnvironmentConfig]);
 
   const activeTimeLimitSeconds =
-    currentEnvironmentConfig.aiUsageLimit.mode === 'time_restricted' &&
     currentEnvironmentConfig.time.timeLimitSeconds
       ? Math.max(1, Math.floor(currentEnvironmentConfig.time.timeLimitSeconds))
       : null;

@@ -227,7 +227,7 @@ describe('editor and logs workflows', () => {
     mockDocumentEnvironmentConfig = {
       aiAccess: 'off',
       copyPastePolicy: 'allowed',
-      aiUsageLimit: { mode: 'time_restricted' },
+      aiUsageLimit: { mode: 'unlimited' },
       time: {
         lateSubmission: 'allowed',
         timeLimitSeconds: 60,
@@ -358,7 +358,7 @@ describe('editor and logs workflows', () => {
       environmentConfig: {
         aiAccess: 'off',
         copyPastePolicy: 'blocked',
-        aiUsageLimit: { mode: 'time_restricted' },
+        aiUsageLimit: { mode: 'max_requests', maxRequests: 100 },
         time: {
           lateSubmission: 'not_allowed',
           timeLimitSeconds: 90,
