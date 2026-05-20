@@ -163,12 +163,15 @@ export async function downloadCertificatePDF(req: Request, res: Response): Promi
   const filename = requestedFilename
     ? requestedFilename.replace(/[^a-z0-9._-]/gi, '-').replace(/^-+|-+$/g, '')
     : fallbackFilename;
+  const disposition = req.query.disposition === 'inline' || req.query.inline === 'true'
+    ? 'inline'
+    : 'attachment';
 
   // Set headers for file download
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader(
     'Content-Disposition',
-    `attachment; filename="${filename.endsWith('.pdf') ? filename : `${filename}.pdf`}"`
+    `${disposition}; filename="${filename.endsWith('.pdf') ? filename : `${filename}.pdf`}"`
   );
   res.setHeader('Content-Length', pdfBuffer.length);
 

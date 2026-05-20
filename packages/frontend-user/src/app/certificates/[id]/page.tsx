@@ -43,7 +43,7 @@ export default function CertificateDetailPage() {
   const router = useRouter();
   const { toast } = useToast();
   const certificateId = params.id as string;
-  const { certificate, aiStats, isLoading, isLoadingAiStats, error, downloadJSON, downloadPDF, updateAccessCode, updateDisplayOptions } = useCertificate(certificateId);
+  const { certificate, aiStats, isLoading, isLoadingAiStats, error, downloadJSON, downloadPDF, openPDF, updateAccessCode, updateDisplayOptions } = useCertificate(certificateId);
   const [qrCodeDataURL, setQrCodeDataURL] = useState<string>('');
   const [copied, setCopied] = useState(false);
   const [isEditingAccessCode, setIsEditingAccessCode] = useState(false);
@@ -83,7 +83,7 @@ export default function CertificateDetailPage() {
 
     toast({
       title: 'Download started',
-      description: `${label} was sent to your browser downloads. If no picker appeared, check the browser download list.`,
+      description: `${label} was sent to your browser's default downloads folder.`,
     });
   };
 
@@ -108,6 +108,18 @@ export default function CertificateDetailPage() {
       toast({
         title: 'Error',
         description: err.message || 'Failed to download PDF',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleOpenPDF = async () => {
+    try {
+      await openPDF();
+    } catch (err: any) {
+      toast({
+        title: 'Error',
+        description: err.message || 'Failed to open PDF',
         variant: 'destructive',
       });
     }
@@ -320,9 +332,9 @@ export default function CertificateDetailPage() {
                   <Share2 className="mr-2 h-4 w-4" />
                   Share Link
                 </Button>
-                <Button onClick={handleDownloadPDF} size="sm" className="w-full">
+                <Button onClick={handleOpenPDF} size="sm" className="w-full">
                   <FileText className="mr-2 h-4 w-4" />
-                  Download PDF
+                  Open PDF
                 </Button>
               </div>
             </div>
@@ -482,12 +494,16 @@ export default function CertificateDetailPage() {
                 <div className="space-y-4">
                   <div>
                     <h3 className="text-sm font-medium">Downloads</h3>
-                    <p className="text-xs text-muted-foreground">PDF for sharing, JSON for audit or export.</p>
+                    <p className="text-xs text-muted-foreground">Open PDF to preview and save manually; download uses the browser's default folder.</p>
                   </div>
                   <div className="space-y-2">
+                    <Button onClick={handleOpenPDF} className="w-full" size="sm">
+                      <FileText className="mr-2 h-4 w-4" />
+                      Open PDF
+                    </Button>
                     <Button onClick={handleDownloadPDF} className="w-full" size="sm">
                       <FileText className="mr-2 h-4 w-4" />
-                      PDF Certificate
+                      Download PDF
                     </Button>
                     <Button onClick={handleDownloadJSON} variant="outline" className="w-full" size="sm">
                       <FileJson className="mr-2 h-4 w-4" />

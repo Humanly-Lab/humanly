@@ -188,6 +188,20 @@ export function useCertificate(certificateId: string) {
     }
   }, [certificate?.title, certificateId]);
 
+  const openPDF = useCallback(async (): Promise<DownloadOutcome> => {
+    try {
+      const safeTitle = certificate?.title
+        ?.trim()
+        .replace(/[^a-z0-9]+/gi, '-')
+        .replace(/^-+|-+$/g, '')
+        .toLowerCase() || certificateId;
+
+      return openDownloadUrl(getApiUrl(`/certificates/${certificateId}/pdf?disposition=inline&filename=certificate-${safeTitle}.pdf`));
+    } catch (err: any) {
+      throw new Error(err.response?.data?.message || err.message || 'Failed to open PDF');
+    }
+  }, [certificate?.title, certificateId]);
+
   const updateAccessCode = useCallback(async (accessCode: string | null) => {
     try {
       const response = await apiClient.patch<any>(
@@ -237,6 +251,7 @@ export function useCertificate(certificateId: string) {
     refetchAiStats: fetchAIStats,
     downloadJSON,
     downloadPDF,
+    openPDF,
     updateAccessCode,
     updateDisplayOptions,
   };
