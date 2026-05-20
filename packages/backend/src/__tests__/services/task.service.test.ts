@@ -177,6 +177,36 @@ describe('TaskService.submitTaskDocument', () => {
     expect(MockSubmissionModel.create).not.toHaveBeenCalled();
   });
 
+  it('rejects task submissions above the configured maximum character count', async () => {
+    const task = makeTask({
+      startDate: new Date(Date.now() - 60_000),
+      endDate: new Date(Date.now() + 60_000),
+      environmentConfig: {
+        submission: {
+          mode: 'multiple',
+          maxCharacters: 12,
+        },
+      },
+    });
+
+    MockTaskModel.findById.mockResolvedValue(task);
+    MockTaskModel.hasEnrollment.mockResolvedValue(true);
+    MockDocumentModel.findByIdAndUserId.mockResolvedValue(makeDocument({
+      plainText: 'This is too long',
+      characterCount: 16,
+    }));
+
+    await expect(
+      TaskService.submitTaskDocument('task-1', 'user-1', 'doc-1', 'student@example.com')
+    ).rejects.toMatchObject({
+      statusCode: 400,
+      message: 'Submission must be at most 12 characters. Current length is 16 characters.',
+    });
+
+    expect(MockTaskModel.linkSubmissionDocument).not.toHaveBeenCalled();
+    expect(MockSubmissionModel.create).not.toHaveBeenCalled();
+  });
+
   it('marks the latest user submission session as submitted', async () => {
     const task = makeTask({
       startDate: new Date(Date.now() - 60_000),
@@ -207,6 +237,101 @@ describe('TaskService.submitTaskDocument', () => {
       'student@example.com'
     );
     expect(mockCacheDelPattern).toHaveBeenCalledWith('analytics:task-1:*');
+  });
+});
+
+describe('TaskService.autoSubmitExpiredTimedTaskEnrollments', () => {
+  it('claims expired timed enrollments and submits them from the backend', async () => {
+    const task = makeTask({
+      startDate: new Date(Date.now() - 60_000),
+      endDate: new Date(Date.now() - 1_000),
+      environmentConfig: {
+        submission: {
+          mode: 'multiple',
+          minCharacters: 1000,
+        },
+      },
+    });
+    const shortDocument = makeDocument({
+      plainText: 'short',
+      characterCount: 5,
+    });
+    const submission = makeSubmission();
+    const certificate = makeCertificate();
+
+    MockTaskModel.claimExpiredTimedEnrollments.mockResolvedValue([{
+      enrollmentId: 'enrollment-1',
+      taskId: 'task-1',
+      userId: 'user-1',
+      userEmail: 'student@example.com',
+      documentId: 'doc-1',
+      writingStartedAt: new Date(Date.now() - 120_000),
+      timeLimitSeconds: 60,
+    }]);
+    MockTaskModel.findById.mockResolvedValue(task);
+    MockTaskModel.hasEnrollment.mockResolvedValue(true);
+    MockDocumentModel.findByIdAndUserId.mockResolvedValue(shortDocument);
+    MockSubmissionModel.findActiveForUserTask.mockResolvedValue(null);
+    MockTaskModel.linkSubmissionDocument.mockResolvedValue(true);
+    MockSubmissionModel.findLatestForUserTask.mockResolvedValue(null);
+    MockSubmissionModel.markHistoricalForUserTask.mockResolvedValue(undefined);
+    MockSubmissionModel.create.mockResolvedValue(submission);
+    MockSubmissionModel.attachCertificate.mockResolvedValue({
+      ...submission,
+      certificateId: certificate.id,
+    });
+    MockCertificateModel.markSupersededForDocument.mockResolvedValue(undefined);
+    MockCertificateService.generateCertificate.mockResolvedValue(certificate);
+    MockSessionModel.markLatestSubmittedForTaskUser.mockResolvedValue(undefined);
+    MockTaskModel.markTimedEnrollmentAutoSubmitComplete.mockResolvedValue(undefined);
+
+    const result = await TaskService.autoSubmitExpiredTimedTaskEnrollments(10);
+
+    expect(MockTaskModel.claimExpiredTimedEnrollments).toHaveBeenCalledWith(10);
+    expect(MockSubmissionModel.create).toHaveBeenCalledWith(expect.objectContaining({
+      taskId: 'task-1',
+      userId: 'user-1',
+      documentId: 'doc-1',
+    }));
+    expect(MockTaskModel.markTimedEnrollmentAutoSubmitComplete).toHaveBeenCalledWith('enrollment-1');
+    expect(MockTaskModel.markTimedEnrollmentAutoSubmitFailed).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      claimed: 1,
+      submitted: 1,
+      skipped: 0,
+      failed: 0,
+    });
+  });
+
+  it('marks claimed enrollments complete when an active submission already exists', async () => {
+    MockTaskModel.claimExpiredTimedEnrollments.mockResolvedValue([{
+      enrollmentId: 'enrollment-1',
+      taskId: 'task-1',
+      userId: 'user-1',
+      userEmail: 'student@example.com',
+      documentId: 'doc-1',
+      writingStartedAt: new Date(Date.now() - 120_000),
+      timeLimitSeconds: 60,
+    }]);
+    MockTaskModel.findById.mockResolvedValue(makeTask({
+      startDate: new Date(Date.now() - 60_000),
+      endDate: new Date(Date.now() - 1_000),
+    }));
+    MockTaskModel.hasEnrollment.mockResolvedValue(true);
+    MockSubmissionModel.findActiveForUserTask.mockResolvedValue(makeSubmission());
+    MockTaskModel.markTimedEnrollmentAutoSubmitComplete.mockResolvedValue(undefined);
+
+    const result = await TaskService.autoSubmitExpiredTimedTaskEnrollments(10);
+
+    expect(MockDocumentModel.findByIdAndUserId).not.toHaveBeenCalled();
+    expect(MockSubmissionModel.create).not.toHaveBeenCalled();
+    expect(MockTaskModel.markTimedEnrollmentAutoSubmitComplete).toHaveBeenCalledWith('enrollment-1');
+    expect(result).toEqual({
+      claimed: 1,
+      submitted: 0,
+      skipped: 1,
+      failed: 0,
+    });
   });
 });
 
@@ -414,6 +539,33 @@ describe('TaskService.submitPublicTaskDocument', () => {
     ).rejects.toMatchObject({
       statusCode: 400,
       message: 'Submission must be at least 50 characters. Current length is 9 characters.',
+    });
+
+    expect(MockUserModel.findByEmail).not.toHaveBeenCalled();
+    expect(MockDocumentModel.create).not.toHaveBeenCalled();
+    expect(MockSubmissionModel.create).not.toHaveBeenCalled();
+  });
+
+  it('rejects a public submission above the configured maximum character count', async () => {
+    MockTaskModel.findByToken.mockResolvedValue(makeTask({
+      startDate: new Date(Date.now() - 60_000),
+      endDate: new Date(Date.now() + 60_000),
+      environmentConfig: {
+        submission: {
+          mode: 'multiple',
+          maxCharacters: 10,
+        },
+      },
+    }));
+
+    await expect(
+      TaskService.submitPublicTaskDocument('share-token-1', {
+        plainText: 'This is too long',
+        sessionId: 'browser-session-1',
+      })
+    ).rejects.toMatchObject({
+      statusCode: 400,
+      message: 'Submission must be at most 10 characters. Current length is 16 characters.',
     });
 
     expect(MockUserModel.findByEmail).not.toHaveBeenCalled();

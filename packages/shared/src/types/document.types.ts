@@ -19,6 +19,7 @@ export interface Document {
   wordCount: number;
   characterCount: number;
   environmentConfig?: WritingEnvironmentConfig | null;
+  writingStartedAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
   lastEditedAt: Date;

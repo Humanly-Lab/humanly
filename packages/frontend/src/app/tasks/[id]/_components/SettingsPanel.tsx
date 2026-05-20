@@ -24,6 +24,7 @@ import {
   AI_MAX_TOKENS_MIN,
   AI_SHORTCUT_MAX_TOKENS_DEFAULT,
   DEFAULT_WRITING_ENVIRONMENT_CONFIG,
+  SUBMISSION_MAX_CHARACTERS_MAX,
   SUBMISSION_MIN_CHARACTERS_MAX,
   WRITING_AI_MODELS,
   normalizeCopyPastePolicy,
@@ -127,6 +128,16 @@ const parseOptionalMinCharacters = (value: string): number | undefined => {
   if (!Number.isFinite(parsed) || parsed < 1) return undefined;
 
   return Math.min(Math.floor(parsed), SUBMISSION_MIN_CHARACTERS_MAX);
+};
+
+const parseOptionalMaxCharacters = (value: string): number | undefined => {
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+
+  const parsed = Number(trimmed);
+  if (!Number.isFinite(parsed) || parsed < 1) return undefined;
+
+  return Math.min(Math.floor(parsed), SUBMISSION_MAX_CHARACTERS_MAX);
 };
 
 const buildConfigFilename = (name?: string | null) => {
@@ -500,6 +511,17 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
       submission: {
         ...current.submission,
         minCharacters,
+      },
+    }));
+  };
+
+  const setSubmissionMaximumCharacters = (value: string) => {
+    const maxCharacters = parseOptionalMaxCharacters(value);
+    setEnvironmentConfig((current) => ({
+      ...current,
+      submission: {
+        ...current.submission,
+        maxCharacters,
       },
     }));
   };
@@ -1385,20 +1407,37 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
                 />
               </SettingRow>
 
-              <div className="grid gap-2 sm:max-w-[360px]">
-                <FormLabel htmlFor="minimum-characters">Minimum Characters</FormLabel>
-                <Input
-                  id="minimum-characters"
-                  type="number"
-                  min={1}
-                  max={SUBMISSION_MIN_CHARACTERS_MAX}
-                  value={environmentConfig.submission.minCharacters ?? ''}
-                  onChange={(event) => setSubmissionMinimumCharacters(event.target.value)}
-                  placeholder="No minimum"
-                  disabled={isSaving}
-                />
-                <FormDescription>
-                  Leave blank when submissions do not need a minimum length.
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="grid gap-2">
+                  <FormLabel htmlFor="minimum-characters">Minimum Characters</FormLabel>
+                  <Input
+                    id="minimum-characters"
+                    type="number"
+                    min={1}
+                    max={SUBMISSION_MIN_CHARACTERS_MAX}
+                    value={environmentConfig.submission.minCharacters ?? ''}
+                    onChange={(event) => setSubmissionMinimumCharacters(event.target.value)}
+                    placeholder="No minimum"
+                    disabled={isSaving}
+                  />
+                </div>
+
+                <div className="grid gap-2">
+                  <FormLabel htmlFor="maximum-characters">Maximum Characters</FormLabel>
+                  <Input
+                    id="maximum-characters"
+                    type="number"
+                    min={1}
+                    max={SUBMISSION_MAX_CHARACTERS_MAX}
+                    value={environmentConfig.submission.maxCharacters ?? ''}
+                    onChange={(event) => setSubmissionMaximumCharacters(event.target.value)}
+                    placeholder="No maximum"
+                    disabled={isSaving}
+                  />
+                </div>
+
+                <FormDescription className="sm:col-span-2">
+                  Leave either field blank when submissions do not need that length bound.
                 </FormDescription>
               </div>
             </CardContent>

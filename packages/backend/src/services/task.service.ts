@@ -31,12 +31,37 @@ const getMinimumSubmissionCharacters = (task: Task): number | null => {
   return Math.max(1, Math.floor(configuredMinimum));
 };
 
+const getMaximumSubmissionCharacters = (task: Task): number | null => {
+  const configuredMaximum = (task.environmentConfig?.submission as { maxCharacters?: number } | undefined)?.maxCharacters;
+  if (!Number.isFinite(configuredMaximum) || !configuredMaximum) return null;
+
+  return Math.max(1, Math.floor(configuredMaximum));
+};
+
 const getDocumentCharacterCount = (document: Document): number => {
   if (Number.isFinite(document.characterCount) && document.characterCount >= 0) {
     return document.characterCount;
   }
 
   return (document.plainText || '').length;
+};
+
+const assertSubmissionCharacterBounds = (task: Task, actualCharacters: number): void => {
+  const minimumCharacters = getMinimumSubmissionCharacters(task);
+  if (minimumCharacters && actualCharacters < minimumCharacters) {
+    throw new AppError(
+      400,
+      `Submission must be at least ${minimumCharacters.toLocaleString()} characters. Current length is ${actualCharacters.toLocaleString()} characters.`
+    );
+  }
+
+  const maximumCharacters = getMaximumSubmissionCharacters(task);
+  if (maximumCharacters && actualCharacters > maximumCharacters) {
+    throw new AppError(
+      400,
+      `Submission must be at most ${maximumCharacters.toLocaleString()} characters. Current length is ${actualCharacters.toLocaleString()} characters.`
+    );
+  }
 };
 
 const normalizePublicSessionId = (value?: string): string => {
@@ -104,6 +129,13 @@ export interface PublicTaskSubmissionData {
 
 export interface PublicTaskStartData {
   sessionId?: string;
+}
+
+export interface SubmitTaskDocumentOptions {
+  allowAfterDeadline?: boolean;
+  bypassCharacterBounds?: boolean;
+  skipIfAlreadySubmitted?: boolean;
+  source?: 'manual' | 'time_limit_auto';
 }
 
 export class TaskService {
@@ -456,7 +488,8 @@ export class TaskService {
     taskIdOrInviteCode: string,
     userId: string,
     documentId: string,
-    userEmail?: string
+    userEmail?: string,
+    options: SubmitTaskDocumentOptions = {}
   ) {
     const normalizedIdentifier = taskIdOrInviteCode.trim();
     const task = /^[A-Z0-9]{6}$/i.test(normalizedIdentifier)
@@ -473,7 +506,7 @@ export class TaskService {
     if (now < startDate) {
       throw new AppError(400, 'This task is not open for submissions yet');
     }
-    if (now > endDate) {
+    if (now > endDate && !options.allowAfterDeadline) {
       throw new AppError(400, 'The submission deadline has passed');
     }
 
@@ -482,20 +515,25 @@ export class TaskService {
       throw new AppError(403, 'Access denied to this task');
     }
 
+    if (options.skipIfAlreadySubmitted) {
+      const activeSubmission = await SubmissionModel.findActiveForUserTask(task.id, userId);
+      if (activeSubmission) {
+        return {
+          submission: activeSubmission,
+          certificate: null,
+          skipped: true as const,
+          reason: 'already_submitted',
+        };
+      }
+    }
+
     const document = await DocumentModel.findByIdAndUserId(documentId, userId);
     if (!document) {
       throw new AppError(404, 'Document not found or unauthorized');
     }
 
-    const minimumCharacters = getMinimumSubmissionCharacters(task);
-    if (minimumCharacters) {
-      const actualCharacters = getDocumentCharacterCount(document);
-      if (actualCharacters < minimumCharacters) {
-        throw new AppError(
-          400,
-          `Submission must be at least ${minimumCharacters.toLocaleString()} characters. Current length is ${actualCharacters.toLocaleString()} characters.`
-        );
-      }
+    if (!options.bypassCharacterBounds) {
+      assertSubmissionCharacterBounds(task, getDocumentCharacterCount(document));
     }
 
     await TaskModel.linkSubmissionDocument(task.id, userId, documentId);
@@ -532,6 +570,64 @@ export class TaskService {
     return {
       submission: submissionWithCertificate || submission,
       certificate,
+      skipped: false as const,
+    };
+  }
+
+  /**
+   * Server-side timed task auto-submission.
+   *
+   * This is the durable GCP path: timers are derived from persisted
+   * documents.writing_started_at and task environment_config, so browser exit
+   * or refresh cannot reset or cancel the countdown.
+   */
+  static async autoSubmitExpiredTimedTaskEnrollments(limit = 25) {
+    const claimedEnrollments = await TaskModel.claimExpiredTimedEnrollments(limit);
+    let submitted = 0;
+    let skipped = 0;
+    let failed = 0;
+
+    for (const enrollment of claimedEnrollments) {
+      try {
+        const result = await this.submitTaskDocument(
+          enrollment.taskId,
+          enrollment.userId,
+          enrollment.documentId,
+          enrollment.userEmail,
+          {
+            allowAfterDeadline: true,
+            bypassCharacterBounds: true,
+            skipIfAlreadySubmitted: true,
+            source: 'time_limit_auto',
+          }
+        );
+
+        await TaskModel.markTimedEnrollmentAutoSubmitComplete(enrollment.enrollmentId);
+
+        if (result.skipped) {
+          skipped += 1;
+        } else {
+          submitted += 1;
+        }
+      } catch (error: any) {
+        failed += 1;
+        const message = error?.message || 'Failed to auto-submit timed task';
+        await TaskModel.markTimedEnrollmentAutoSubmitFailed(enrollment.enrollmentId, message);
+        logger.warn('Timed task auto-submit failed', {
+          enrollmentId: enrollment.enrollmentId,
+          taskId: enrollment.taskId,
+          userId: enrollment.userId,
+          documentId: enrollment.documentId,
+          error: message,
+        });
+      }
+    }
+
+    return {
+      claimed: claimedEnrollments.length,
+      submitted,
+      skipped,
+      failed,
     };
   }
 
@@ -626,13 +722,7 @@ export class TaskService {
       throw new AppError(400, 'Document text is required');
     }
 
-    const minimumCharacters = getMinimumSubmissionCharacters(task);
-    if (minimumCharacters && plainText.length < minimumCharacters) {
-      throw new AppError(
-        400,
-        `Submission must be at least ${minimumCharacters.toLocaleString()} characters. Current length is ${plainText.length.toLocaleString()} characters.`
-      );
-    }
+    assertSubmissionCharacterBounds(task, plainText.length);
 
     const publicSessionId = normalizePublicSessionId(data.sessionId);
     const guestUser = await this.getOrCreatePublicGuestUser(task, publicSessionId);

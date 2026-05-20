@@ -108,6 +108,26 @@ export async function updateDocument(req: Request, res: Response): Promise<void>
 }
 
 /**
+ * Persist the first entry into a timed writing session.
+ */
+export async function startWritingSession(req: Request, res: Response): Promise<void> {
+  const userId = req.user!.userId;
+  const documentId = req.params.id;
+
+  if (!documentId) {
+    throw new AppError(400, 'Document ID is required');
+  }
+
+  const document = await DocumentService.startWritingSession(documentId, userId);
+
+  res.json({
+    success: true,
+    data: { document },
+    message: 'Writing session started successfully',
+  });
+}
+
+/**
  * Delete document
  */
 export async function deleteDocument(req: Request, res: Response): Promise<void> {

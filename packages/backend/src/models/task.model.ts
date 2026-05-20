@@ -72,11 +72,22 @@ export interface CurrentUserTaskEnrollment {
   description?: string | null;
   inviteCode: string;
   documentId: string | null;
+  writingStartedAt?: Date | null;
   joinedAt: Date;
   startDate: Date;
   endDate: Date;
   environmentConfig?: WritingEnvironmentConfig | null;
   isActive: boolean;
+}
+
+export interface ExpiredTimedTaskEnrollment {
+  enrollmentId: string;
+  taskId: string;
+  userId: string;
+  userEmail: string;
+  documentId: string;
+  writingStartedAt: Date;
+  timeLimitSeconds: number;
 }
 
 export class TaskModel {
@@ -375,6 +386,7 @@ export class TaskModel {
         t.description,
         UPPER(SUBSTRING(t.task_token FROM 1 FOR 6)) as "inviteCode",
         te.submission_document_id as "documentId",
+        d.writing_started_at as "writingStartedAt",
         te.joined_at as "joinedAt",
         t.start_date as "startDate",
         t.end_date as "endDate",
@@ -382,11 +394,101 @@ export class TaskModel {
         t.is_active as "isActive"
       FROM task_enrollments te
       JOIN tasks t ON t.id = te.task_id
+      LEFT JOIN documents d
+        ON d.id = te.submission_document_id
+       AND d.user_id = te.user_id
       WHERE te.user_id = $1
       ORDER BY te.joined_at DESC
     `;
 
     return query<CurrentUserTaskEnrollment>(sql, [userId]);
+  }
+
+  /**
+   * Claim expired timed task enrollments for server-side auto-submission.
+   *
+   * The claim columns make the job safe when multiple backend instances are
+   * running: one worker claims a row, others skip it until the claim ages out.
+   */
+  static async claimExpiredTimedEnrollments(limit = 25): Promise<ExpiredTimedTaskEnrollment[]> {
+    const sql = `
+      WITH due AS (
+        SELECT te.id
+        FROM task_enrollments te
+        JOIN tasks t ON t.id = te.task_id
+        JOIN documents d
+          ON d.id = te.submission_document_id
+         AND d.user_id = te.user_id
+        WHERE te.submission_document_id IS NOT NULL
+          AND d.writing_started_at IS NOT NULL
+          AND te.auto_submit_completed_at IS NULL
+          AND (
+            te.auto_submit_claimed_at IS NULL
+            OR te.auto_submit_claimed_at < NOW() - INTERVAL '5 minutes'
+          )
+          AND t.is_active = true
+          AND t.environment_config #>> '{time,timeLimitSeconds}' ~ '^[0-9]+$'
+          AND (
+            d.writing_started_at
+            + make_interval(secs => (t.environment_config #>> '{time,timeLimitSeconds}')::int)
+          ) <= NOW()
+          AND NOT EXISTS (
+            SELECT 1
+            FROM submissions s
+            WHERE s.task_id = te.task_id
+              AND s.user_id = te.user_id
+              AND s.status = 'active'
+          )
+        ORDER BY d.writing_started_at ASC
+        FOR UPDATE OF te SKIP LOCKED
+        LIMIT $1
+      )
+      UPDATE task_enrollments te
+      SET auto_submit_claimed_at = NOW(),
+          auto_submit_error = NULL
+      FROM due
+      JOIN tasks t ON t.id = (
+        SELECT task_id FROM task_enrollments WHERE id = due.id
+      )
+      JOIN users u ON u.id = (
+        SELECT user_id FROM task_enrollments WHERE id = due.id
+      )
+      JOIN documents d ON d.id = (
+        SELECT submission_document_id FROM task_enrollments WHERE id = due.id
+      )
+      WHERE te.id = due.id
+      RETURNING
+        te.id as "enrollmentId",
+        te.task_id as "taskId",
+        te.user_id as "userId",
+        u.email as "userEmail",
+        te.submission_document_id as "documentId",
+        d.writing_started_at as "writingStartedAt",
+        (t.environment_config #>> '{time,timeLimitSeconds}')::int as "timeLimitSeconds"
+    `;
+
+    return query<ExpiredTimedTaskEnrollment>(sql, [limit]);
+  }
+
+  static async markTimedEnrollmentAutoSubmitComplete(enrollmentId: string): Promise<void> {
+    const sql = `
+      UPDATE task_enrollments
+      SET auto_submit_completed_at = NOW(),
+          auto_submit_error = NULL
+      WHERE id = $1
+    `;
+
+    await query(sql, [enrollmentId]);
+  }
+
+  static async markTimedEnrollmentAutoSubmitFailed(enrollmentId: string, errorMessage: string): Promise<void> {
+    const sql = `
+      UPDATE task_enrollments
+      SET auto_submit_error = $2
+      WHERE id = $1
+    `;
+
+    await query(sql, [enrollmentId, errorMessage.slice(0, 1000)]);
   }
 
   /**

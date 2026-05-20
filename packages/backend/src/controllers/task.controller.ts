@@ -355,7 +355,7 @@ export async function endSubmissionSession(req: Request, res: Response): Promise
 export async function submitTaskDocument(req: Request, res: Response): Promise<void> {
   const { userId, email } = req.user!;
   const taskId = req.params.taskId;
-  const { documentId } = req.body;
+  const { documentId, automatic } = req.body;
 
   if (!taskId) {
     throw new AppError(400, 'Task ID is required');
@@ -365,7 +365,12 @@ export async function submitTaskDocument(req: Request, res: Response): Promise<v
     throw new AppError(400, 'Document ID is required');
   }
 
-  const result = await TaskService.submitTaskDocument(taskId, userId, documentId, email);
+  const result = await TaskService.submitTaskDocument(taskId, userId, documentId, email, {
+    allowAfterDeadline: automatic === true,
+    bypassCharacterBounds: automatic === true,
+    skipIfAlreadySubmitted: automatic === true,
+    source: automatic === true ? 'time_limit_auto' : 'manual',
+  });
 
   res.status(201).json({
     success: true,

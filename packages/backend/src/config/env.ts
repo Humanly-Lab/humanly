@@ -41,6 +41,11 @@ interface EnvConfig {
   // Rate Limiting
   rateLimitEnabled: boolean;
 
+  // Background jobs
+  taskAutoSubmitEnabled: boolean;
+  taskAutoSubmitIntervalMs: number;
+  taskAutoSubmitBatchSize: number;
+
   // AWS
   awsRegion?: string;
   awsAccessKeyId?: string;
@@ -132,6 +137,11 @@ export const env: EnvConfig = {
 
   // Rate Limiting
   rateLimitEnabled: getEnvBoolean('RATE_LIMIT_ENABLED', true),
+
+  // Background jobs
+  taskAutoSubmitEnabled: getEnvBoolean('TASK_AUTO_SUBMIT_ENABLED', true),
+  taskAutoSubmitIntervalMs: getEnvNumber('TASK_AUTO_SUBMIT_INTERVAL_MS', 30000),
+  taskAutoSubmitBatchSize: getEnvNumber('TASK_AUTO_SUBMIT_BATCH_SIZE', 25),
 
   // AWS
   awsRegion: process.env.AWS_REGION,

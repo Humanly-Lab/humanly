@@ -91,6 +91,18 @@ export class SubmissionModel {
     return queryOne<Submission>(sql, [taskId, userId]);
   }
 
+  static async findActiveForUserTask(taskId: string, userId: string): Promise<Submission | null> {
+    const sql = `
+      SELECT ${SUBMISSION_SELECT_FIELDS}
+      FROM submissions
+      WHERE task_id = $1 AND user_id = $2 AND status = 'active'
+      ORDER BY submitted_at DESC, created_at DESC
+      LIMIT 1
+    `;
+
+    return queryOne<Submission>(sql, [taskId, userId]);
+  }
+
   static async listForUserTask(taskId: string, userId: string): Promise<Submission[]> {
     const sql = `
       SELECT ${SUBMISSION_WITH_CERTIFICATE_SELECT_FIELDS}

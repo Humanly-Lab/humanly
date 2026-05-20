@@ -127,6 +127,12 @@ migration_presence() {
     029_rename_ai_token_budget_columns.sql)
       psql_scalar -c "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'user_ai_settings' AND column_name = 'shortcut_max_tokens') AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'user_ai_settings' AND column_name = 'chat_max_tokens');"
       ;;
+    030_document_writing_timer.sql)
+      psql_scalar -c "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'documents' AND column_name = 'writing_started_at');"
+      ;;
+    031_task_auto_submit_tracking.sql)
+      psql_scalar -c "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'task_enrollments' AND column_name = 'auto_submit_claimed_at') AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'task_enrollments' AND column_name = 'auto_submit_completed_at') AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'task_enrollments' AND column_name = 'auto_submit_error');"
+      ;;
     *)
       echo "unknown"
       ;;

@@ -126,6 +126,28 @@ export class DocumentService {
   }
 
   /**
+   * Mark the first entry into a timed writing session.
+   *
+   * This is intentionally idempotent: refreshing or reopening a document must
+   * not reset the countdown.
+   */
+  static async startWritingSession(documentId: string, userId: string): Promise<Document> {
+    try {
+      const document = await DocumentModel.startWritingSession(documentId, userId);
+
+      if (!document) {
+        throw new AppError(404, 'Document not found or unauthorized');
+      }
+
+      return document;
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      logger.error('Error starting document writing session', { error, documentId, userId });
+      throw error;
+    }
+  }
+
+  /**
    * Delete document
    */
   static async deleteDocument(documentId: string, userId: string): Promise<void> {

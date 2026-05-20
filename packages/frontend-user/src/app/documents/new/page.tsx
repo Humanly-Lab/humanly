@@ -16,6 +16,7 @@ import {
   AI_MAX_TOKENS_MAX,
   AI_MAX_TOKENS_MIN,
   AI_SHORTCUT_MAX_TOKENS_DEFAULT,
+  SUBMISSION_MAX_CHARACTERS_MAX,
   SUBMISSION_MIN_CHARACTERS_MAX,
   WRITING_AI_MODELS,
   WRITING_ENVIRONMENT_PRESETS,
@@ -121,6 +122,16 @@ const parseOptionalMinCharacters = (value: string): number | undefined => {
   return Math.min(Math.floor(parsed), SUBMISSION_MIN_CHARACTERS_MAX);
 };
 
+const parseOptionalMaxCharacters = (value: string): number | undefined => {
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+
+  const parsed = Number(trimmed);
+  if (!Number.isFinite(parsed) || parsed < 1) return undefined;
+
+  return Math.min(Math.floor(parsed), SUBMISSION_MAX_CHARACTERS_MAX);
+};
+
 const normalizeStringArray = (value: unknown, fallback: string[] = []) => (
   Array.isArray(value)
     ? value.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
@@ -192,6 +203,9 @@ const normalizeImportedEnvironmentConfig = (value: unknown): WritingEnvironmentC
         : base.submission.mode,
       minCharacters: isPositiveNumber(submission.minCharacters)
         ? Math.min(Math.floor(submission.minCharacters), SUBMISSION_MIN_CHARACTERS_MAX)
+        : undefined,
+      maxCharacters: isPositiveNumber(submission.maxCharacters)
+        ? Math.min(Math.floor(submission.maxCharacters), SUBMISSION_MAX_CHARACTERS_MAX)
         : undefined,
     },
     traceability: {
@@ -416,6 +430,17 @@ export default function NewDocumentPage() {
       submission: {
         ...current.submission,
         minCharacters,
+      },
+    }));
+  };
+
+  const setSubmissionMaximumCharacters = (value: string) => {
+    const maxCharacters = parseOptionalMaxCharacters(value);
+    markCustom((current) => ({
+      ...current,
+      submission: {
+        ...current.submission,
+        maxCharacters,
       },
     }));
   };
@@ -1024,20 +1049,37 @@ export default function NewDocumentPage() {
                     </Select>
                   </div>
 
-                  <div className="grid gap-2">
-                    <Label htmlFor="minimum-characters">Minimum Characters</Label>
-                    <Input
-                      id="minimum-characters"
-                      type="number"
-                      min={1}
-                      max={SUBMISSION_MIN_CHARACTERS_MAX}
-                      value={environmentConfig.submission.minCharacters ?? ''}
-                      onChange={(event) => setSubmissionMinimumCharacters(event.target.value)}
-                      placeholder="No minimum"
-                      disabled={isCreating}
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Leave blank when submissions do not need a minimum length.
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="grid gap-2">
+                      <Label htmlFor="minimum-characters">Minimum Characters</Label>
+                      <Input
+                        id="minimum-characters"
+                        type="number"
+                        min={1}
+                        max={SUBMISSION_MIN_CHARACTERS_MAX}
+                        value={environmentConfig.submission.minCharacters ?? ''}
+                        onChange={(event) => setSubmissionMinimumCharacters(event.target.value)}
+                        placeholder="No minimum"
+                        disabled={isCreating}
+                      />
+                    </div>
+
+                    <div className="grid gap-2">
+                      <Label htmlFor="maximum-characters">Maximum Characters</Label>
+                      <Input
+                        id="maximum-characters"
+                        type="number"
+                        min={1}
+                        max={SUBMISSION_MAX_CHARACTERS_MAX}
+                        value={environmentConfig.submission.maxCharacters ?? ''}
+                        onChange={(event) => setSubmissionMaximumCharacters(event.target.value)}
+                        placeholder="No maximum"
+                        disabled={isCreating}
+                      />
+                    </div>
+
+                    <p className="text-xs text-muted-foreground sm:col-span-2">
+                      Leave either field blank when submissions do not need that length bound.
                     </p>
                   </div>
                 </div>
