@@ -54,7 +54,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { apiClient } from '@/lib/api-client';
 import { formatDateTime } from '@/lib/utils';
-import type { WritingEnvironmentConfig } from '@humanly/shared';
+import type { Document, WritingEnvironmentConfig } from '@humanly/shared';
 
 type SortOption = 'lastEdited' | 'title' | 'wordCount';
 type WorkspaceTab = 'documents' | 'tasks';
@@ -72,6 +72,18 @@ interface TaskEnrollment {
   startDate?: string;
   endDate?: string;
   environmentConfig?: WritingEnvironmentConfig | null;
+}
+
+interface TimedWritingSource {
+  environmentConfig?: WritingEnvironmentConfig | null;
+  writingStartedAt?: string | Date | null;
+}
+
+interface WritingTimerCardState {
+  expired: boolean;
+  label: string;
+  value: string;
+  detail: string;
 }
 
 const getDisplayTaskName = (task: TaskEnrollment) => {
@@ -99,18 +111,22 @@ const formatTaskCountdown = (totalSeconds: number): string => {
   return `${minutes}:${String(seconds).padStart(2, '0')}`;
 };
 
-const getTaskTimeLimitSeconds = (task: TaskEnrollment): number | null => {
-  const configuredSeconds = task.environmentConfig?.time?.timeLimitSeconds;
+const getWritingTimeLimitSeconds = (source: TimedWritingSource): number | null => {
+  const configuredSeconds = source.environmentConfig?.time?.timeLimitSeconds;
   if (!configuredSeconds) return null;
 
   return Math.max(1, Math.floor(configuredSeconds));
 };
 
-const getTaskWritingTimerState = (task: TaskEnrollment, nowMs: number) => {
-  const timeLimitSeconds = getTaskTimeLimitSeconds(task);
+const getWritingTimerState = (
+  source: TimedWritingSource,
+  nowMs: number,
+  options: { expiredDetail?: string } = {}
+): WritingTimerCardState | null => {
+  const timeLimitSeconds = getWritingTimeLimitSeconds(source);
   if (timeLimitSeconds === null) return null;
 
-  const startedAtMs = getTimestampMs(task.writingStartedAt);
+  const startedAtMs = getTimestampMs(source.writingStartedAt);
   if (startedAtMs === null) {
     return {
       expired: false,
@@ -129,7 +145,7 @@ const getTaskWritingTimerState = (task: TaskEnrollment, nowMs: number) => {
     label: expired ? 'Writing time limit reached' : 'Writing time left',
     value: expired ? 'Read-only' : formatTaskCountdown(remainingSeconds),
     detail: expired
-      ? 'Submission opens in read-only mode.'
+      ? options.expiredDetail || 'Opens in read-only mode.'
       : 'Continues while you are away.',
   };
 };
@@ -288,9 +304,6 @@ export default function DocumentsPage() {
     task.documentId && documentIds.has(task.documentId)
   ));
   const taskDocumentIds = new Set(validTaskEnrollments.map((task) => task.documentId));
-  const hasStartedTaskTimer = validTaskEnrollments.some((task) => (
-    getTaskTimeLimitSeconds(task) !== null && getTimestampMs(task.writingStartedAt) !== null
-  ));
   const personalDocuments = (documents || [])
     .filter((document) => !taskDocumentIds.has(document.id))
     .sort((a, b) => {
@@ -302,16 +315,22 @@ export default function DocumentsPage() {
       }
       return new Date(b.updatedAt || b.createdAt).getTime() - new Date(a.updatedAt || a.createdAt).getTime();
     });
+  const hasStartedWritingTimer = [
+    ...validTaskEnrollments,
+    ...personalDocuments,
+  ].some((source) => (
+    getWritingTimeLimitSeconds(source) !== null && getTimestampMs(source.writingStartedAt) !== null
+  ));
 
   // Container classes for centered content with max-width
   const containerClass = "mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8";
 
   useEffect(() => {
-    if (!hasStartedTaskTimer) return;
+    if (!hasStartedWritingTimer) return;
 
     const intervalId = window.setInterval(() => setDashboardNowMs(Date.now()), 1000);
     return () => window.clearInterval(intervalId);
-  }, [hasStartedTaskTimer]);
+  }, [hasStartedWritingTimer]);
 
   if (isLoading || isLoadingTaskEnrollments) {
     return (
@@ -421,10 +440,11 @@ export default function DocumentsPage() {
               </div>
 
               <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                {personalDocuments.map((document) => (
+                {personalDocuments.map((document: Document) => (
                   <DocumentCard
                     key={document.id}
                     document={document}
+                    timerState={getWritingTimerState(document, dashboardNowMs)}
                     onDelete={handleDeleteDocument}
                   />
                 ))}
@@ -495,7 +515,9 @@ export default function DocumentsPage() {
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {validTaskEnrollments.map((task) => {
                 const taskName = getDisplayTaskName(task);
-                const timerState = getTaskWritingTimerState(task, dashboardNowMs);
+                const timerState = getWritingTimerState(task, dashboardNowMs, {
+                  expiredDetail: 'Submission opens in read-only mode.',
+                });
                 return (
                   <Card key={`${task.id}-${task.documentId}`} className="transition-shadow hover:shadow-md">
                     <CardContent className="flex h-full flex-col gap-3 p-5">

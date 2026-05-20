@@ -3,8 +3,9 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Trash2 } from 'lucide-react';
+import { CalendarClock, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import {
   Card,
   CardContent,
@@ -21,12 +22,20 @@ import {
 } from '@/components/ui/alert-dialog';
 import type { Document } from '@humanly/shared';
 
+interface WritingTimerCardState {
+  expired: boolean;
+  label: string;
+  value: string;
+  detail: string;
+}
+
 interface DocumentCardProps {
   document: Document & { displayTitle?: string };
+  timerState?: WritingTimerCardState | null;
   onDelete: (id: string) => Promise<void>;
 }
 
-export function DocumentCard({ document, onDelete }: DocumentCardProps) {
+export function DocumentCard({ document, timerState, onDelete }: DocumentCardProps) {
   const router = useRouter();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -69,14 +78,34 @@ export function DocumentCard({ document, onDelete }: DocumentCardProps) {
         <Card className="transition-shadow hover:shadow-md cursor-pointer h-full flex flex-col border-border/40">
           <CardContent className="p-5 flex flex-col gap-3 flex-1">
             {/* Title */}
-            <h3 className="text-lg font-semibold line-clamp-2 text-foreground">
-              {displayTitle}
-            </h3>
+            <div className="flex items-start justify-between gap-2">
+              <h3 className="min-w-0 text-lg font-semibold line-clamp-2 text-foreground">
+                {displayTitle}
+              </h3>
+              {timerState?.expired && (
+                <Badge variant="secondary" className="shrink-0">
+                  Read-only
+                </Badge>
+              )}
+            </div>
 
             {/* Metadata row */}
             <div className="text-xs text-muted-foreground">
               Last edited {formatDate(document.updatedAt || document.createdAt)} · {wordCount} words
             </div>
+
+            {timerState && (
+              <div className="flex items-start gap-2 rounded-md border bg-muted/20 p-3 text-sm">
+                <CalendarClock className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                <div className="min-w-0">
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    {timerState.label}
+                  </p>
+                  <p className="font-semibold">{timerState.value}</p>
+                  <p className="text-xs text-muted-foreground">{timerState.detail}</p>
+                </div>
+              </div>
+            )}
 
             {/* Preview text (only if > 20 words) */}
             {showPreview && document.plainText && (
@@ -99,7 +128,7 @@ export function DocumentCard({ document, onDelete }: DocumentCardProps) {
                   router.push(`/documents/${document.id}`);
                 }}
               >
-                Open
+                {timerState?.expired ? 'Open Read-only' : 'Open'}
               </Button>
               <Button
                 variant="ghost"
