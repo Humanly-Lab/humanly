@@ -430,7 +430,7 @@ describe('editor and logs workflows', () => {
     expect(screen.queryByText('0 characters · min 20')).not.toBeInTheDocument();
   });
 
-  it('shows personal writing character bounds and blocks certificate generation below minimum', async () => {
+  it('ignores personal writing minimum character limits while preserving maximum bounds', async () => {
     mockDocumentEnvironmentConfig = {
       aiAccess: 'off',
       copyPastePolicy: 'allowed',
@@ -447,16 +447,21 @@ describe('editor and logs workflows', () => {
 
     expect(await screen.findByText('Workflow Document')).toBeInTheDocument();
     expect(screen.queryByText('4 characters')).not.toBeInTheDocument();
-    expect(screen.getByText('4/50 characters · min 10')).toBeInTheDocument();
+    expect(screen.getByText('4/50 characters')).toBeInTheDocument();
+    expect(screen.queryByText(/min 10/i)).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /generate certificate/i }));
     fireEvent.click(screen.getByRole('button', { name: /confirm generate certificate/i }));
 
-    expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({
+    await waitFor(() => {
+      expect(mockGenerateCertificate).toHaveBeenCalledWith(
+        'doc-1',
+        expect.objectContaining({ certificateType: 'full_authorship' })
+      );
+    });
+    expect(mockToast).not.toHaveBeenCalledWith(expect.objectContaining({
       title: 'Minimum length required',
-      variant: 'destructive',
     }));
-    expect(mockGenerateCertificate).not.toHaveBeenCalled();
   });
 
   it('uses enrolled task copy-paste and time settings over stale document settings', async () => {

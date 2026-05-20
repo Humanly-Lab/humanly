@@ -249,7 +249,7 @@ export default function DocumentEditorPage() {
         }
       : null;
   const minimumSubmissionCharacters =
-    currentEnvironmentConfig.submission.minCharacters
+    isTaskDocument && currentEnvironmentConfig.submission.minCharacters
       ? Math.max(1, Math.floor(currentEnvironmentConfig.submission.minCharacters))
       : null;
   const maximumSubmissionCharacters =

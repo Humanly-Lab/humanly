@@ -121,7 +121,41 @@ describe('document creation workflow', () => {
     expect(screen.getByText('Writing Control')).toBeInTheDocument();
     expect(screen.getByText('Time Limitation')).toBeInTheDocument();
     expect(screen.getByText('AI Off')).toBeInTheDocument();
+    expect(screen.queryByLabelText(/minimum characters/i)).not.toBeInTheDocument();
+    expect(screen.getByLabelText(/maximum characters/i)).toBeInTheDocument();
     expect(screen.queryByText('Choose Custom to configure AI access, copy-paste rules, or a time limit.')).not.toBeInTheDocument();
+  });
+
+  it('does not expose or persist minimum character limits for personal writing', async () => {
+    const user = userEvent.setup();
+    mockCreateDocument.mockResolvedValueOnce({ id: 'doc-123', title: 'Personal Character Policy' });
+
+    render(<NewDocumentPage />);
+
+    await screen.findByRole('heading', { name: /new document/i });
+    await user.type(screen.getByLabelText(/document name/i), 'Personal Character Policy');
+    await user.click(screen.getByRole('combobox'));
+    await user.click(await screen.findByRole('option', { name: 'Custom' }));
+
+    expect(screen.queryByLabelText(/minimum characters/i)).not.toBeInTheDocument();
+    await user.type(screen.getByLabelText(/maximum characters/i), '200');
+    await user.click(screen.getByRole('button', { name: /^create writing$/i }));
+
+    await waitFor(() => {
+      expect(mockCreateDocument).toHaveBeenCalledWith(
+        'Personal Character Policy',
+        undefined,
+        expect.objectContaining({
+          taskType: 'personal',
+          submission: expect.objectContaining({
+            maxCharacters: 200,
+          }),
+        }),
+        ''
+      );
+    });
+
+    expect(mockCreateDocument.mock.calls[0][2].submission.minCharacters).toBeUndefined();
   });
 
   it('keeps known-provider model choices on the curated whitelist after testing connection', async () => {
