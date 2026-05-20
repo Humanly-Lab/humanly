@@ -13,7 +13,10 @@ import {
   $getRoot,
   $getSelection,
   $isRangeSelection,
+  COMMAND_PRIORITY_HIGH,
   EditorState,
+  KEY_DOWN_COMMAND,
+  PASTE_COMMAND,
 } from 'lexical';
 import { HeadingNode, QuoteNode } from '@lexical/rich-text';
 import { ListNode, ListItemNode } from '@lexical/list';
@@ -63,9 +66,275 @@ const defaultTheme: EditorTheme = {
 
 interface AIBridgePluginProps {
   renderAIBridge: NonNullable<LexicalEditorProps['renderAIBridge']>;
+  maxCharacters?: number | null;
+  onCharacterLimitReached?: (limit: number) => void;
 }
 
-function AIBridgePlugin({ renderAIBridge }: AIBridgePluginProps): JSX.Element {
+function normalizeCharacterLimit(maxCharacters?: number | null): number | null {
+  if (typeof maxCharacters !== 'number' || !Number.isFinite(maxCharacters)) {
+    return null;
+  }
+
+  const normalized = Math.floor(maxCharacters);
+  return normalized > 0 ? normalized : null;
+}
+
+function getProjectedTextLength(incomingText: string): { currentLength: number; projectedLength: number } {
+  const root = $getRoot();
+  const currentLength = root.getTextContent().length;
+  const selection = $getSelection();
+  const selectedLength = $isRangeSelection(selection) ? selection.getTextContent().length : 0;
+
+  return {
+    currentLength,
+    projectedLength: currentLength - selectedLength + incomingText.length,
+  };
+}
+
+function getRemainingCharactersForInsertion(maxCharacters?: number | null): number | null {
+  const limit = normalizeCharacterLimit(maxCharacters);
+  if (!limit) {
+    return null;
+  }
+
+  const root = $getRoot();
+  const currentLength = root.getTextContent().length;
+  const selection = $getSelection();
+  const selectedLength = $isRangeSelection(selection) ? selection.getTextContent().length : 0;
+
+  return limit - (currentLength - selectedLength);
+}
+
+function shouldBlockTextInsertion(incomingText: string, maxCharacters?: number | null): boolean {
+  const limit = normalizeCharacterLimit(maxCharacters);
+  if (!limit || incomingText.length === 0) {
+    return false;
+  }
+
+  const { currentLength, projectedLength } = getProjectedTextLength(incomingText);
+
+  // If a legacy/loaded document is already over the limit, still allow edits that reduce it.
+  return projectedLength > limit && projectedLength >= currentLength;
+}
+
+function clampTextContentToLimit(limit: number): boolean {
+  const root = $getRoot();
+  if (root.getTextContent().length <= limit) {
+    return false;
+  }
+
+  let remainingCharacters = limit;
+  let changed = false;
+
+  for (const textNode of root.getAllTextNodes()) {
+    const text = textNode.getTextContent();
+
+    if (remainingCharacters <= 0) {
+      textNode.remove();
+      changed = true;
+      continue;
+    }
+
+    if (text.length > remainingCharacters) {
+      textNode.setTextContent(text.slice(0, remainingCharacters));
+      textNode.select(remainingCharacters, remainingCharacters);
+      remainingCharacters = 0;
+      changed = true;
+      continue;
+    }
+
+    remainingCharacters -= text.length;
+  }
+
+  return changed;
+}
+
+function getBeforeInputText(event: InputEvent): string {
+  if (
+    event.inputType.startsWith('delete') ||
+    event.inputType.startsWith('insertFromPaste') ||
+    event.inputType.startsWith('history') ||
+    event.inputType.startsWith('format')
+  ) {
+    return '';
+  }
+
+  if (event.inputType === 'insertParagraph' || event.inputType === 'insertLineBreak') {
+    return '\n';
+  }
+
+  return event.data || '';
+}
+
+interface CharacterLimitPluginProps {
+  maxCharacters?: number | null;
+  copyPastePolicy?: LexicalEditorProps['copyPastePolicy'];
+  onCharacterLimitReached?: (limit: number) => void;
+}
+
+function CharacterLimitPlugin({
+  maxCharacters,
+  copyPastePolicy = 'allowed',
+  onCharacterLimitReached,
+}: CharacterLimitPluginProps): null {
+  const [editor] = useLexicalComposerContext();
+  const limit = normalizeCharacterLimit(maxCharacters);
+  const isClampingTextRef = React.useRef(false);
+
+  const notifyLimitReached = React.useCallback(() => {
+    if (limit) {
+      onCharacterLimitReached?.(limit);
+    }
+  }, [limit, onCharacterLimitReached]);
+
+  React.useEffect(() => {
+    if (!limit) {
+      return;
+    }
+
+    return editor.registerUpdateListener(({ editorState }) => {
+      if (isClampingTextRef.current) {
+        isClampingTextRef.current = false;
+        return;
+      }
+
+      let exceedsLimit = false;
+      editorState.read(() => {
+        exceedsLimit = $getRoot().getTextContent().length > limit;
+      });
+
+      if (!exceedsLimit) {
+        return;
+      }
+
+      isClampingTextRef.current = true;
+      editor.update(() => {
+        if (clampTextContentToLimit(limit)) {
+          notifyLimitReached();
+        }
+      }, { discrete: true });
+    });
+  }, [editor, limit, notifyLimitReached]);
+
+  React.useEffect(() => {
+    if (!limit) {
+      return;
+    }
+
+    const rootElement = editor.getRootElement();
+    if (!rootElement) {
+      return;
+    }
+
+    const handleBeforeInput = (event: InputEvent) => {
+      const incomingText = getBeforeInputText(event);
+      if (!incomingText) {
+        return;
+      }
+
+      editor.getEditorState().read(() => {
+        if (shouldBlockTextInsertion(incomingText, limit)) {
+          event.preventDefault();
+          notifyLimitReached();
+        }
+      });
+    };
+
+    rootElement.addEventListener('beforeinput', handleBeforeInput);
+    return () => {
+      rootElement.removeEventListener('beforeinput', handleBeforeInput);
+    };
+  }, [editor, limit, notifyLimitReached]);
+
+  React.useEffect(() => {
+    if (!limit) {
+      return;
+    }
+
+    const removeKeyDownListener = editor.registerCommand(
+      KEY_DOWN_COMMAND,
+      (event: KeyboardEvent) => {
+        if (event.metaKey || event.ctrlKey || event.altKey) {
+          return false;
+        }
+
+        const incomingText =
+          event.key === 'Enter'
+            ? '\n'
+            : event.key.length === 1
+              ? event.key
+              : '';
+
+        if (!incomingText) {
+          return false;
+        }
+
+        if (shouldBlockTextInsertion(incomingText, limit)) {
+          event.preventDefault();
+          notifyLimitReached();
+          return true;
+        }
+
+        return false;
+      },
+      COMMAND_PRIORITY_HIGH
+    );
+
+    const removePasteListener = editor.registerCommand(
+      PASTE_COMMAND,
+      (event: ClipboardEvent | null) => {
+        if (copyPastePolicy === 'blocked') {
+          return false;
+        }
+
+        const incomingText = event?.clipboardData?.getData('text/plain') || '';
+        if (!incomingText) {
+          return false;
+        }
+
+        const remainingCharacters = getRemainingCharactersForInsertion(limit);
+        if (remainingCharacters === null || incomingText.length <= remainingCharacters) {
+          return false;
+        }
+
+        event?.preventDefault();
+        notifyLimitReached();
+
+        if (remainingCharacters <= 0) {
+          return true;
+        }
+
+        const textToInsert = incomingText.slice(0, remainingCharacters);
+        const root = $getRoot();
+        const selection = $getSelection();
+
+        if ($isRangeSelection(selection)) {
+          selection.insertText(textToInsert);
+        } else {
+          const paragraph = $createParagraphNode();
+          paragraph.append($createTextNode(textToInsert));
+          root.append(paragraph);
+        }
+
+        return true;
+      },
+      COMMAND_PRIORITY_HIGH
+    );
+
+    return () => {
+      removeKeyDownListener();
+      removePasteListener();
+    };
+  }, [copyPastePolicy, editor, limit, notifyLimitReached]);
+
+  return null;
+}
+
+function AIBridgePlugin({
+  renderAIBridge,
+  maxCharacters,
+  onCharacterLimitReached,
+}: AIBridgePluginProps): JSX.Element {
   const [editor] = useLexicalComposerContext();
 
   const insertAtCursor = React.useCallback((text: string): EditorInsertResult => {
@@ -74,11 +343,25 @@ function AIBridgePlugin({ renderAIBridge }: AIBridgePluginProps): JSX.Element {
     let selectionStart = 0;
     let selectionEnd = 0;
     let cursorPosition = 0;
+    let inserted = true;
 
     editor.update(() => {
       const root = $getRoot();
       const textBefore = root.getTextContent();
       const selection = $getSelection();
+
+      if (shouldBlockTextInsertion(text, maxCharacters)) {
+        const limit = normalizeCharacterLimit(maxCharacters);
+        if (limit) {
+          onCharacterLimitReached?.(limit);
+        }
+
+        selectionStart = textBefore.length;
+        selectionEnd = textBefore.length;
+        cursorPosition = textBefore.length;
+        inserted = false;
+        return;
+      }
 
       if ($isRangeSelection(selection)) {
         selectionStart = Math.min(selection.anchor.offset, selection.focus.offset);
@@ -104,10 +387,11 @@ function AIBridgePlugin({ renderAIBridge }: AIBridgePluginProps): JSX.Element {
       selectionStart,
       selectionEnd,
       cursorPosition,
+      inserted,
       editorStateBefore,
       editorStateAfter,
     };
-  }, [editor]);
+  }, [editor, maxCharacters, onCharacterLimitReached]);
 
   return <>{renderAIBridge({ insertAtCursor })}</>;
 }
@@ -124,6 +408,8 @@ export function LexicalEditor(props: LexicalEditorProps): JSX.Element {
     editable = true,
     trackingEnabled = true,
     copyPastePolicy = 'allowed',
+    maxCharacters,
+    onCharacterLimitReached,
     autoSaveEnabled = false,
     autoSaveInterval = 2000,
     onContentChange,
@@ -298,6 +584,11 @@ export function LexicalEditor(props: LexicalEditorProps): JSX.Element {
         </div>
 
         <HistoryPlugin />
+        <CharacterLimitPlugin
+          maxCharacters={maxCharacters}
+          copyPastePolicy={copyPastePolicy}
+          onCharacterLimitReached={onCharacterLimitReached}
+        />
         <OnChangePlugin onChange={handleChange} />
         <TabIndentationPlugin />
         <HeadingPlugin />
@@ -325,11 +616,19 @@ export function LexicalEditor(props: LexicalEditorProps): JSX.Element {
         )}
 
         {renderSelectionPopup && (
-          <SelectionPopupPlugin renderPopup={renderSelectionPopup} />
+          <SelectionPopupPlugin
+            renderPopup={renderSelectionPopup}
+            maxCharacters={maxCharacters}
+            onCharacterLimitReached={onCharacterLimitReached}
+          />
         )}
 
         {renderAIBridge && (
-          <AIBridgePlugin renderAIBridge={renderAIBridge} />
+          <AIBridgePlugin
+            renderAIBridge={renderAIBridge}
+            maxCharacters={maxCharacters}
+            onCharacterLimitReached={onCharacterLimitReached}
+          />
         )}
       </div>
     </LexicalComposer>

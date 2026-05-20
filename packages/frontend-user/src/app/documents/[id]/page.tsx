@@ -161,6 +161,7 @@ export default function DocumentEditorPage() {
   const autoSubmittedTimeLimitRef = useRef<string | null>(null);
   const quickActionTriggerRef = useRef<((type: ActionType) => void) | null>(null);
   const latestEditorSnapshotRef = useRef<{ content: Record<string, any>; plainText: string } | null>(null);
+  const lastCharacterLimitToastRef = useRef(0);
 
   // AI Assistant
   const {
@@ -615,6 +616,7 @@ export default function DocumentEditorPage() {
       }
 
       const insertion = editorInsertAtCursor(text);
+      if (insertion.inserted === false) return;
       const currentSessionId =
         submissionSessionRef.current?.sessionId ||
         lastSubmissionSessionRef.current?.sessionId ||
@@ -641,6 +643,17 @@ export default function DocumentEditorPage() {
     },
     [editorInsertAtCursor, submissionSessionId, toast, trackEvents]
   );
+
+  const handleCharacterLimitReached = useCallback((limit: number) => {
+    const now = Date.now();
+    if (now - lastCharacterLimitToastRef.current < 1200) return;
+    lastCharacterLimitToastRef.current = now;
+
+    toast({
+      title: 'Maximum length reached',
+      description: `This document is limited to ${limit.toLocaleString()} characters.`,
+    });
+  }, [toast]);
 
   const handleAISelectionAction = useCallback(
     async (
@@ -1104,6 +1117,8 @@ export default function DocumentEditorPage() {
                     editable={!isEditorReadOnly}
                     trackingEnabled={!isEditorReadOnly}
                     copyPastePolicy={currentEnvironmentConfig.copyPastePolicy}
+                    maxCharacters={maximumSubmissionCharacters}
+                    onCharacterLimitReached={handleCharacterLimitReached}
                     autoSaveEnabled={!isEditorReadOnly}
                     autoSaveInterval={EDITOR_AUTO_SAVE_INTERVAL_MS}
                     onContentChange={handleContentChange}

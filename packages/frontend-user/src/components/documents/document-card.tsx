@@ -63,8 +63,8 @@ export function DocumentCard({ document, timerState, onDelete }: DocumentCardPro
     });
   };
 
-  const wordCount = document.wordCount || 0;
-  const showPreview = wordCount > 20;
+  const characterCount = document.characterCount ?? (document.plainText || '').length;
+  const showPreview = characterCount > 100;
   const displayTitle = document.displayTitle || document.title || 'Untitled Document';
 
   return (
@@ -91,7 +91,7 @@ export function DocumentCard({ document, timerState, onDelete }: DocumentCardPro
 
             {/* Metadata row */}
             <div className="text-xs text-muted-foreground">
-              Last edited {formatDate(document.updatedAt || document.createdAt)} · {wordCount} words
+              Last edited {formatDate(document.updatedAt || document.createdAt)} · {characterCount.toLocaleString()} characters
             </div>
 
             {timerState && (
@@ -107,7 +107,7 @@ export function DocumentCard({ document, timerState, onDelete }: DocumentCardPro
               </div>
             )}
 
-            {/* Preview text (only if > 20 words) */}
+            {/* Preview text */}
             {showPreview && document.plainText && (
               <p className="text-sm text-muted-foreground/80 line-clamp-2">
                 {document.plainText}

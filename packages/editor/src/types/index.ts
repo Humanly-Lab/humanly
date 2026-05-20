@@ -85,6 +85,7 @@ export interface EditorInsertResult {
   selectionStart: number;
   selectionEnd: number;
   cursorPosition: number;
+  inserted?: boolean;
   editorStateBefore?: Record<string, any>;
   editorStateAfter?: Record<string, any>;
 }
@@ -104,6 +105,8 @@ export interface LexicalEditorProps {
   editable?: boolean;
   trackingEnabled?: boolean;
   copyPastePolicy?: CopyPastePolicy;
+  maxCharacters?: number | null;
+  onCharacterLimitReached?: (limit: number) => void;
   autoSaveEnabled?: boolean;
   autoSaveInterval?: number;
   onContentChange?: (content: Record<string, any>, plainText: string) => void;

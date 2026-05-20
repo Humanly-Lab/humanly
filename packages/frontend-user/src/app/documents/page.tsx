@@ -56,7 +56,7 @@ import { apiClient } from '@/lib/api-client';
 import { formatDateTime } from '@/lib/utils';
 import type { Document, WritingEnvironmentConfig } from '@humanly/shared';
 
-type SortOption = 'lastEdited' | 'title' | 'wordCount';
+type SortOption = 'lastEdited' | 'title' | 'characterCount';
 type WorkspaceTab = 'documents' | 'tasks';
 
 interface TaskEnrollment {
@@ -310,8 +310,8 @@ export default function DocumentsPage() {
       if (sortBy === 'title') {
         return (a.title || '').localeCompare(b.title || '');
       }
-      if (sortBy === 'wordCount') {
-        return (b.wordCount || 0) - (a.wordCount || 0);
+      if (sortBy === 'characterCount') {
+        return (b.characterCount ?? (b.plainText || '').length) - (a.characterCount ?? (a.plainText || '').length);
       }
       return new Date(b.updatedAt || b.createdAt).getTime() - new Date(a.updatedAt || a.createdAt).getTime();
     });
@@ -434,7 +434,7 @@ export default function DocumentsPage() {
                   <SelectContent>
                     <SelectItem value="lastEdited">Last edited</SelectItem>
                     <SelectItem value="title">Title</SelectItem>
-                    <SelectItem value="wordCount">Word count</SelectItem>
+                    <SelectItem value="characterCount">Character count</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

@@ -29,6 +29,8 @@ export interface SelectionReplacementResult {
 
 export interface SelectionPopupPluginProps {
   onSelectionChange?: (selection: SelectionInfo | null) => void;
+  maxCharacters?: number | null;
+  onCharacterLimitReached?: (limit: number) => void;
   renderPopup?: (props: {
     selection: SelectionInfo;
     onClose: () => void;
@@ -43,6 +45,8 @@ export interface SelectionPopupPluginProps {
  */
 export function SelectionPopupPlugin({
   onSelectionChange,
+  maxCharacters,
+  onCharacterLimitReached,
   renderPopup,
 }: SelectionPopupPluginProps): JSX.Element | null {
   const [editor] = useLexicalComposerContext();
@@ -124,6 +128,11 @@ export function SelectionPopupPlugin({
     isProcessingAIAction.current = false;
   }, []);
 
+  const normalizedMaxCharacters =
+    typeof maxCharacters === 'number' && Number.isFinite(maxCharacters) && maxCharacters > 0
+      ? Math.floor(maxCharacters)
+      : null;
+
   // Replace the current selection with new text
   // keepOpen: if true, don't close the popup (for inline review mode)
   const replaceSelection = useCallback((newText: string, keepOpen?: boolean): SelectionReplacementResult | undefined => {
@@ -138,6 +147,21 @@ export function SelectionPopupPlugin({
     const editorStateBefore = editor.getEditorState().toJSON();
     let editorStateAfter: Record<string, any> | undefined;
     const cursorPosition = storedSelectionInfo.start + newText.length;
+
+    if (normalizedMaxCharacters) {
+      let exceedsLimit = false;
+      editor.getEditorState().read(() => {
+        const currentLength = $getRoot().getTextContent().length;
+        const selectedLength = storedSelectionInfo.text.length;
+        const projectedLength = currentLength - selectedLength + newText.length;
+        exceedsLimit = projectedLength > normalizedMaxCharacters && projectedLength >= currentLength;
+      });
+
+      if (exceedsLimit) {
+        onCharacterLimitReached?.(normalizedMaxCharacters);
+        return undefined;
+      }
+    }
 
     // Set flag to prevent popup from closing during AI dialog interaction
     isProcessingAIAction.current = true;
@@ -208,7 +232,7 @@ export function SelectionPopupPlugin({
       editorStateBefore,
       editorStateAfter,
     };
-  }, [editor, handleClose, selectionInfo]);
+  }, [editor, handleClose, normalizedMaxCharacters, onCharacterLimitReached, selectionInfo]);
 
   // Undo the last editor action (used for reverting AI text replacements)
   const undoLastAction = useCallback(() => {

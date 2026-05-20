@@ -449,6 +449,7 @@ describe('editor and logs workflows', () => {
     expect(screen.queryByText('4 characters')).not.toBeInTheDocument();
     expect(screen.getByText('4/50 characters')).toBeInTheDocument();
     expect(screen.queryByText(/min 10/i)).not.toBeInTheDocument();
+    expect(mockLatestEditorProps.maxCharacters).toBe(50);
 
     fireEvent.click(screen.getByRole('button', { name: /generate certificate/i }));
     fireEvent.click(screen.getByRole('button', { name: /confirm generate certificate/i }));
@@ -555,6 +556,7 @@ describe('editor and logs workflows', () => {
 
     expect(await screen.findByText('Workflow Document')).toBeInTheDocument();
     expect(screen.getByText('8/5 characters')).toBeInTheDocument();
+    expect(mockLatestEditorProps.maxCharacters).toBe(5);
 
     fireEvent.click(screen.getByRole('button', { name: /submit/i }));
 
