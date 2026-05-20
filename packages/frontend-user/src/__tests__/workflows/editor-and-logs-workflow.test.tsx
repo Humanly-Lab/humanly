@@ -11,6 +11,8 @@ const mockApiGet = jest.fn();
 const mockApiPost = jest.fn();
 const mockUpdateDocument = jest.fn();
 let mockDocumentEnvironmentConfig: any = { aiAccess: 'off', copyPastePolicy: 'allowed' };
+let mockDocumentPlainText = '';
+let mockDocumentCharacterCount = 0;
 let mockTaskEnrollments: any[] = [];
 let mockLatestEditorProps: any;
 
@@ -37,10 +39,10 @@ jest.mock('@/hooks/use-document', () => ({
       id: 'doc-1',
       title: 'Workflow Document',
       content: {},
-      plainText: '',
+      plainText: mockDocumentPlainText,
       status: 'draft',
       wordCount: 0,
-      characterCount: 0,
+      characterCount: mockDocumentCharacterCount,
       environmentConfig: mockDocumentEnvironmentConfig,
     },
     linkedFile: null,
@@ -141,8 +143,11 @@ describe('editor and logs workflows', () => {
     mockUpdateDocument.mockReset();
     mockUpdateDocument.mockResolvedValue(undefined);
     mockDocumentEnvironmentConfig = { aiAccess: 'off', copyPastePolicy: 'allowed' };
+    mockDocumentPlainText = '';
+    mockDocumentCharacterCount = 0;
     mockTaskEnrollments = [];
     mockLatestEditorProps = undefined;
+    global.fetch = jest.fn().mockResolvedValue({ ok: true }) as jest.Mock;
     mockApiGet.mockReset();
     mockApiPost.mockReset();
     mockUseParams.mockReturnValue({ id: 'doc-1' });
@@ -394,12 +399,48 @@ describe('editor and logs workflows', () => {
     render(<DocumentEditorPage />);
 
     expect(await screen.findByText('Workflow Document')).toBeInTheDocument();
-    expect(screen.getByText('0/1,000 chars')).toBeInTheDocument();
+    expect(screen.getByText('0/1,000 chars min')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /submit/i }));
 
     expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({
       title: 'Minimum length required',
+      variant: 'destructive',
+    }));
+    expect(mockApiPost).not.toHaveBeenCalledWith(
+      '/tasks/enrollments/enroll-1/submissions',
+      expect.anything()
+    );
+  });
+
+  it('blocks enrolled task submission above the configured maximum character count', async () => {
+    mockTaskEnrollments = [{
+      id: 'enroll-1',
+      documentId: 'doc-1',
+      name: 'Maximum Character Task',
+      inviteCode: 'ABC123',
+      joinedAt: '2026-05-19T12:00:00.000Z',
+      environmentConfig: {
+        aiAccess: 'off',
+        copyPastePolicy: 'allowed',
+        submission: {
+          mode: 'multiple',
+          maxCharacters: 5,
+        },
+      },
+    }];
+    mockDocumentPlainText = 'Too long';
+    mockDocumentCharacterCount = 8;
+
+    render(<DocumentEditorPage />);
+
+    expect(await screen.findByText('Workflow Document')).toBeInTheDocument();
+    expect(screen.getByText('8/5 chars max')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /submit/i }));
+
+    expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({
+      title: 'Maximum length exceeded',
       variant: 'destructive',
     }));
     expect(mockApiPost).not.toHaveBeenCalledWith(
