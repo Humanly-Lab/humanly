@@ -12,6 +12,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -65,6 +66,7 @@ interface TaskEnrollment {
   name: string;
   inviteCode: string;
   documentId: string | null;
+  writingStartedAt?: string | Date | null;
   joinedAt: string;
   description?: string;
   startDate?: string;
@@ -76,6 +78,60 @@ const getDisplayTaskName = (task: TaskEnrollment) => {
   const name = task.name?.trim();
   if (!name || name === 'Task Name') return `Task ${task.inviteCode}`;
   return name;
+};
+
+const getTimestampMs = (value?: string | Date | null): number | null => {
+  if (!value) return null;
+  const timestamp = new Date(value).getTime();
+  return Number.isFinite(timestamp) ? timestamp : null;
+};
+
+const formatTaskCountdown = (totalSeconds: number): string => {
+  const safeSeconds = Math.max(0, Math.floor(totalSeconds));
+  const hours = Math.floor(safeSeconds / 3600);
+  const minutes = Math.floor((safeSeconds % 3600) / 60);
+  const seconds = safeSeconds % 60;
+
+  if (hours > 0) {
+    return `${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  }
+
+  return `${minutes}:${String(seconds).padStart(2, '0')}`;
+};
+
+const getTaskTimeLimitSeconds = (task: TaskEnrollment): number | null => {
+  const configuredSeconds = task.environmentConfig?.time?.timeLimitSeconds;
+  if (!configuredSeconds) return null;
+
+  return Math.max(1, Math.floor(configuredSeconds));
+};
+
+const getTaskWritingTimerState = (task: TaskEnrollment, nowMs: number) => {
+  const timeLimitSeconds = getTaskTimeLimitSeconds(task);
+  if (timeLimitSeconds === null) return null;
+
+  const startedAtMs = getTimestampMs(task.writingStartedAt);
+  if (startedAtMs === null) {
+    return {
+      expired: false,
+      label: 'Writing time limit',
+      value: formatTaskCountdown(timeLimitSeconds),
+      detail: 'Timer starts when opened.',
+    };
+  }
+
+  const elapsedSeconds = Math.max(0, Math.floor((nowMs - startedAtMs) / 1000));
+  const remainingSeconds = Math.max(0, timeLimitSeconds - elapsedSeconds);
+  const expired = remainingSeconds === 0;
+
+  return {
+    expired,
+    label: expired ? 'Writing time limit reached' : 'Writing time left',
+    value: expired ? 'Read-only' : formatTaskCountdown(remainingSeconds),
+    detail: expired
+      ? 'Submission opens in read-only mode.'
+      : 'Continues while you are away.',
+  };
 };
 
 export default function DocumentsPage() {
@@ -91,6 +147,7 @@ export default function DocumentsPage() {
   const [taskEnrollments, setTaskEnrollments] = useState<TaskEnrollment[]>([]);
   const [isLoadingTaskEnrollments, setIsLoadingTaskEnrollments] = useState(true);
   const [taskEnrollmentsError, setTaskEnrollmentsError] = useState<string | null>(null);
+  const [dashboardNowMs, setDashboardNowMs] = useState(() => Date.now());
 
   const fetchTaskEnrollments = useCallback(async () => {
     try {
@@ -231,6 +288,9 @@ export default function DocumentsPage() {
     task.documentId && documentIds.has(task.documentId)
   ));
   const taskDocumentIds = new Set(validTaskEnrollments.map((task) => task.documentId));
+  const hasStartedTaskTimer = validTaskEnrollments.some((task) => (
+    getTaskTimeLimitSeconds(task) !== null && getTimestampMs(task.writingStartedAt) !== null
+  ));
   const personalDocuments = (documents || [])
     .filter((document) => !taskDocumentIds.has(document.id))
     .sort((a, b) => {
@@ -245,6 +305,13 @@ export default function DocumentsPage() {
 
   // Container classes for centered content with max-width
   const containerClass = "mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8";
+
+  useEffect(() => {
+    if (!hasStartedTaskTimer) return;
+
+    const intervalId = window.setInterval(() => setDashboardNowMs(Date.now()), 1000);
+    return () => window.clearInterval(intervalId);
+  }, [hasStartedTaskTimer]);
 
   if (isLoading || isLoadingTaskEnrollments) {
     return (
@@ -428,6 +495,7 @@ export default function DocumentsPage() {
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {validTaskEnrollments.map((task) => {
                 const taskName = getDisplayTaskName(task);
+                const timerState = getTaskWritingTimerState(task, dashboardNowMs);
                 return (
                   <Card key={`${task.id}-${task.documentId}`} className="transition-shadow hover:shadow-md">
                     <CardContent className="flex h-full flex-col gap-3 p-5">
@@ -440,7 +508,11 @@ export default function DocumentsPage() {
                             {taskName}
                           </h3>
                         </div>
-                        <BookOpen className="h-5 w-5 shrink-0 text-muted-foreground" />
+                        {timerState?.expired ? (
+                          <Badge variant="secondary" className="shrink-0">Read-only</Badge>
+                        ) : (
+                          <BookOpen className="h-5 w-5 shrink-0 text-muted-foreground" />
+                        )}
                       </div>
                       <div>
                         <p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -450,8 +522,20 @@ export default function DocumentsPage() {
                           {task.inviteCode}
                         </div>
                       </div>
-                      {(task.startDate || task.endDate) && (
+                      {(timerState || task.startDate || task.endDate) && (
                         <div className="grid gap-2 rounded-md border bg-muted/20 p-3 text-sm">
+                          {timerState && (
+                            <div className="flex items-start gap-2">
+                              <CalendarClock className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                              <div className="min-w-0">
+                                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                  {timerState.label}
+                                </p>
+                                <p className="font-semibold">{timerState.value}</p>
+                                <p className="text-xs text-muted-foreground">{timerState.detail}</p>
+                              </div>
+                            </div>
+                          )}
                           {task.startDate && (
                             <div className="flex items-start gap-2">
                               <CalendarClock className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
@@ -479,7 +563,7 @@ export default function DocumentsPage() {
                       <div className="flex-1" />
                       <div className="flex gap-2">
                         <Button className="flex-1" onClick={() => router.push(`/documents/${task.documentId}`)}>
-                          Open Submission
+                          {timerState?.expired ? 'Open Read-only' : 'Open Submission'}
                         </Button>
                         <Button
                           variant="outline"

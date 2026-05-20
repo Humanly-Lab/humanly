@@ -72,6 +72,7 @@ export interface CurrentUserTaskEnrollment {
   description?: string | null;
   inviteCode: string;
   documentId: string | null;
+  writingStartedAt?: Date | null;
   joinedAt: Date;
   startDate: Date;
   endDate: Date;
@@ -375,6 +376,7 @@ export class TaskModel {
         t.description,
         UPPER(SUBSTRING(t.task_token FROM 1 FOR 6)) as "inviteCode",
         te.submission_document_id as "documentId",
+        d.writing_started_at as "writingStartedAt",
         te.joined_at as "joinedAt",
         t.start_date as "startDate",
         t.end_date as "endDate",
@@ -382,6 +384,9 @@ export class TaskModel {
         t.is_active as "isActive"
       FROM task_enrollments te
       JOIN tasks t ON t.id = te.task_id
+      LEFT JOIN documents d
+        ON d.id = te.submission_document_id
+       AND d.user_id = te.user_id
       WHERE te.user_id = $1
       ORDER BY te.joined_at DESC
     `;
