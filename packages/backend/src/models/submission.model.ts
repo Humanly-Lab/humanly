@@ -68,9 +68,12 @@ export class SubmissionModel {
 
   static async findById(id: string): Promise<Submission | null> {
     const sql = `
-      SELECT ${SUBMISSION_SELECT_FIELDS}
-      FROM submissions
-      WHERE id = $1
+      SELECT ${SUBMISSION_WITH_CERTIFICATE_SELECT_FIELDS}
+      FROM submissions s
+      LEFT JOIN certificates c ON c.id = s.certificate_id
+      LEFT JOIN users u ON u.id = s.user_id
+      LEFT JOIN documents d ON d.id = s.document_id
+      WHERE s.id = $1
     `;
 
     return queryOne<Submission>(sql, [id]);

@@ -195,7 +195,17 @@ export default function TaskDetailPage() {
           />
         );
       case 'analytics':
-        return <AnalyticsPanel taskId={taskId} />;
+        return (
+          <AnalyticsPanel
+            taskId={taskId}
+            taskStartDate={task.startDate}
+            taskEndDate={task.endDate}
+            enrollments={enrollments}
+            submissions={submissions}
+            isLoadingEnrollments={isLoadingEnrollments}
+            isLoadingSubmissions={isLoadingSubmissions}
+          />
+        );
       case 'setting':
         return <SettingsPanel taskId={taskId} onTaskUpdated={setTask} />;
       case 'overview':

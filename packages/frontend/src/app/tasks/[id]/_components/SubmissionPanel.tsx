@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Award, ChevronRight, FileText, Loader2, RefreshCcw, Users } from 'lucide-react';
+import { Award, BarChart3, ChevronRight, FileText, Loader2, RefreshCcw, Users } from 'lucide-react';
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -80,7 +80,7 @@ export function SubmissionPanel({
   const isLoading = isLoadingEnrollments || isLoadingSubmissions;
 
   const openSubmission = (submissionId: string) => {
-    router.push(`/tasks/${taskId}/submissions/${submissionId}`);
+    router.push(`/tasks/${taskId}/submissions/${submissionId}?from=submission`);
   };
 
   const renderCertificateCell = (submission: AdminSubmission) => {
@@ -227,16 +227,13 @@ export function SubmissionPanel({
                       <TableHead>Latest Submission</TableHead>
                       <TableHead>Submitted</TableHead>
                       <TableHead className="text-right">Certificate</TableHead>
+                      <TableHead className="text-right">Analytics</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {latestSubmissions.map(({ enrollment, submission }) => {
                       return (
-                        <TableRow
-                          key={enrollment.id}
-                          className="cursor-pointer hover:bg-muted/50"
-                          onClick={() => openSubmission(submission.id)}
-                        >
+                        <TableRow key={enrollment.id}>
                           <TableCell>
                             <div className="font-medium">{enrollment.email}</div>
                           </TableCell>
@@ -248,6 +245,17 @@ export function SubmissionPanel({
                           </TableCell>
                           <TableCell>{formatDateTime(submission.submittedAt)}</TableCell>
                           <TableCell className="text-right">{renderCertificateCell(submission)}</TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => openSubmission(submission.id)}
+                            >
+                              <BarChart3 className="mr-2 h-4 w-4" />
+                              View Analytics
+                            </Button>
+                          </TableCell>
                         </TableRow>
                       );
                     })}
@@ -273,15 +281,12 @@ export function SubmissionPanel({
                     <TableHead>Document</TableHead>
                     <TableHead>Submitted</TableHead>
                     <TableHead className="text-right">Certificate</TableHead>
+                    <TableHead className="text-right">Analytics</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {selectedSubmissions.map((submission) => (
-                    <TableRow
-                      key={submission.id}
-                      className="cursor-pointer hover:bg-muted/50"
-                      onClick={() => openSubmission(submission.id)}
-                    >
+                    <TableRow key={submission.id}>
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <FileText className="h-4 w-4 text-muted-foreground" />
@@ -290,6 +295,17 @@ export function SubmissionPanel({
                       </TableCell>
                       <TableCell>{formatDateTime(submission.submittedAt)}</TableCell>
                       <TableCell className="text-right">{renderCertificateCell(submission)}</TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openSubmission(submission.id)}
+                        >
+                          <BarChart3 className="mr-2 h-4 w-4" />
+                          View Analytics
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
