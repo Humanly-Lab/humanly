@@ -371,7 +371,7 @@ describe('editor and logs workflows', () => {
     render(<DocumentEditorPage />);
 
     expect(await screen.findByText('Workflow Document')).toBeInTheDocument();
-    expect(screen.getByText('4 characters')).toBeInTheDocument();
+    expect(screen.queryByText('4 characters')).not.toBeInTheDocument();
     expect(screen.getByText('4/50, min 10 characters')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /generate certificate/i }));

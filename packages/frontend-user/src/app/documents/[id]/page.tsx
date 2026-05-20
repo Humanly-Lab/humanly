@@ -245,10 +245,8 @@ export default function DocumentEditorPage() {
     currentEnvironmentConfig.submission.maxCharacters
       ? Math.max(1, Math.floor(currentEnvironmentConfig.submission.maxCharacters))
       : null;
-  const isBelowMinimumCharacters =
-    minimumSubmissionCharacters !== null && characterCount < minimumSubmissionCharacters;
-  const isAboveMaximumCharacters =
-    maximumSubmissionCharacters !== null && characterCount > maximumSubmissionCharacters;
+  const hasCharacterBounds =
+    minimumSubmissionCharacters !== null || maximumSubmissionCharacters !== null;
   const characterBoundsTitle =
     minimumSubmissionCharacters !== null && maximumSubmissionCharacters !== null
       ? `Character count includes letters, spaces, punctuation, and symbols. Required range: ${minimumSubmissionCharacters.toLocaleString()}-${maximumSubmissionCharacters.toLocaleString()} characters.`
@@ -887,16 +885,18 @@ export default function DocumentEditorPage() {
                 </Badge>
               )}
 
-              <div
-                className="hidden sm:block text-sm text-muted-foreground"
-                title="Character count includes letters, spaces, punctuation, and symbols."
-              >
-                {characterCount.toLocaleString()} characters
-              </div>
+              {!hasCharacterBounds && (
+                <div
+                  className="hidden sm:block text-sm text-muted-foreground"
+                  title="Character count includes letters, spaces, punctuation, and symbols."
+                >
+                  {characterCount.toLocaleString()} characters
+                </div>
+              )}
 
-              {(minimumSubmissionCharacters !== null || maximumSubmissionCharacters !== null) && (
+              {hasCharacterBounds && (
                 <Badge
-                  variant={isBelowMinimumCharacters || isAboveMaximumCharacters ? 'destructive' : 'outline'}
+                  variant="secondary"
                   title={characterBoundsTitle}
                 >
                   {characterBoundsLabel}
