@@ -370,7 +370,7 @@ export default function CertificateDetailPage() {
           <Card>
             <CardHeader className="pb-3">
               <div className="flex items-center gap-2">
-                <Bot className="h-5 w-5 text-violet-600" />
+                <Bot className="h-5 w-5 text-orange-600" />
                 <CardTitle className="text-lg">AI Assistance</CardTitle>
               </div>
               <CardDescription>How AI was used while writing this document.</CardDescription>
@@ -385,7 +385,7 @@ export default function CertificateDetailPage() {
                 <div className="grid gap-4 lg:grid-cols-[1fr_220px]">
                   <div className="space-y-3">
                     <p className="flex items-center gap-2 text-sm font-medium">
-                      <Wand2 className="h-4 w-4 text-violet-500" />
+                      <Wand2 className="h-4 w-4 text-orange-500" />
                       Text Improvements
                     </p>
                     <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
