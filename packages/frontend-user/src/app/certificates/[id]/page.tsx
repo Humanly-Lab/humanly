@@ -452,12 +452,12 @@ export default function CertificateDetailPage() {
                       <h3 className="text-sm font-medium">Verification</h3>
                       <p className="text-xs text-muted-foreground">Share or scan this link to verify the certificate.</p>
                     </div>
-                    <div className="flex flex-col items-center rounded-lg bg-muted/30 p-3">
+                    <div className="flex flex-col items-center rounded-lg border bg-white p-3">
                       {qrCodeDataURL ? (
                         <img
                           src={qrCodeDataURL}
                           alt="Verification QR Code"
-                          className="h-36 w-36 rounded border bg-background"
+                          className="h-36 w-36 rounded bg-white"
                         />
                       ) : (
                         <div className="h-36 w-36 animate-pulse rounded bg-muted" />
