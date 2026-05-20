@@ -112,6 +112,25 @@ export function openDownloadUrl(url: string): DownloadOutcome {
   return 'downloaded';
 }
 
+export function openUrlInNewTab(url: string): DownloadOutcome {
+  const openedWindow = window.open(url, '_blank');
+  if (openedWindow) {
+    openedWindow.opener = null;
+    return 'downloaded';
+  }
+
+  const link = document.createElement('a');
+  link.href = url;
+  link.target = '_blank';
+  link.rel = 'noopener noreferrer';
+  link.style.display = 'none';
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+
+  return 'downloaded';
+}
+
 export async function downloadBlobWithSavePicker(
   loadBlob: () => Promise<Blob>,
   options: {

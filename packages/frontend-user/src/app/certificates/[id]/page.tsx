@@ -37,13 +37,14 @@ import { format } from 'date-fns';
 import QRCode from 'qrcode';
 import { Input } from '@/components/ui/input';
 import { copyTextToClipboard } from '@/lib/clipboard';
+import { getApiUrl } from '@/lib/api-client';
 
 export default function CertificateDetailPage() {
   const params = useParams();
   const router = useRouter();
   const { toast } = useToast();
   const certificateId = params.id as string;
-  const { certificate, aiStats, isLoading, isLoadingAiStats, error, downloadJSON, openPDF, updateAccessCode, updateDisplayOptions } = useCertificate(certificateId);
+  const { certificate, aiStats, isLoading, isLoadingAiStats, error, downloadJSON, updateAccessCode, updateDisplayOptions } = useCertificate(certificateId);
   const [qrCodeDataURL, setQrCodeDataURL] = useState<string>('');
   const [copied, setCopied] = useState(false);
   const [isEditingAccessCode, setIsEditingAccessCode] = useState(false);
@@ -95,18 +96,6 @@ export default function CertificateDetailPage() {
       toast({
         title: 'Error',
         description: err.message || 'Failed to download JSON',
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const handleOpenPDF = async () => {
-    try {
-      await openPDF();
-    } catch (err: any) {
-      toast({
-        title: 'Error',
-        description: err.message || 'Failed to open PDF',
         variant: 'destructive',
       });
     }
@@ -281,6 +270,12 @@ export default function CertificateDetailPage() {
   const editingMinutes = Math.round(certificate.editingTimeSeconds / 60);
   const textImprovementTotal = aiStats?.selectionActions.total || 0;
   const aiChatTotal = aiStats?.aiQuestions.total || 0;
+  const safeTitle = certificate.title
+    ?.trim()
+    .replace(/[^a-z0-9]+/gi, '-')
+    .replace(/^-+|-+$/g, '')
+    .toLowerCase() || certificateId;
+  const pdfPreviewUrl = getApiUrl(`/certificates/${certificateId}/pdf?disposition=inline&filename=certificate-${safeTitle}.pdf`);
 
   return (
     <div className="mx-auto max-w-5xl pb-6">
@@ -300,9 +295,11 @@ export default function CertificateDetailPage() {
             <Share2 className="mr-2 h-4 w-4" />
             Share Link
           </Button>
-          <Button onClick={handleOpenPDF} size="sm" className="w-full sm:w-36">
-            <FileText className="mr-2 h-4 w-4" />
-            Open PDF
+          <Button asChild size="sm" className="w-full sm:w-36">
+            <a href={pdfPreviewUrl} target="_blank" rel="noopener noreferrer">
+              <FileText className="mr-2 h-4 w-4" />
+              Open PDF
+            </a>
           </Button>
           <Button onClick={handleDownloadJSON} variant="outline" size="sm" className="w-full sm:w-36">
             <FileJson className="mr-2 h-4 w-4" />

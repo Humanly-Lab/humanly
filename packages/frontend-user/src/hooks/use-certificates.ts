@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { apiClient, getApiUrl } from '@/lib/api-client';
-import { downloadBlobWithSavePicker, openDownloadUrl, type DownloadOutcome } from '@/lib/download';
+import { downloadBlobWithSavePicker, openDownloadUrl, openUrlInNewTab, type DownloadOutcome } from '@/lib/download';
 import type { Certificate, AIAuthorshipStats } from '@humanly/shared';
 
 export interface CertificatesFilters {
@@ -196,7 +196,7 @@ export function useCertificate(certificateId: string) {
         .replace(/^-+|-+$/g, '')
         .toLowerCase() || certificateId;
 
-      return openDownloadUrl(getApiUrl(`/certificates/${certificateId}/pdf?disposition=inline&filename=certificate-${safeTitle}.pdf`));
+      return openUrlInNewTab(getApiUrl(`/certificates/${certificateId}/pdf?disposition=inline&filename=certificate-${safeTitle}.pdf`));
     } catch (err: any) {
       throw new Error(err.response?.data?.message || err.message || 'Failed to open PDF');
     }

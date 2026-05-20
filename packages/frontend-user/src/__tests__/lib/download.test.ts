@@ -1,4 +1,4 @@
-import { downloadBlobWithSavePicker, openDownloadUrl } from '@/lib/download';
+import { downloadBlobWithSavePicker, openDownloadUrl, openUrlInNewTab } from '@/lib/download';
 
 describe('downloadBlobWithSavePicker', () => {
   const originalCreateObjectURL = window.URL.createObjectURL;
@@ -135,6 +135,30 @@ describe('downloadBlobWithSavePicker', () => {
       configurable: true,
       value: originalLocation,
     });
+  });
+
+  it('opens preview URLs in a new tab', () => {
+    const openedWindow = { opener: window } as unknown as Window;
+    const open = jest.spyOn(window, 'open').mockReturnValue(openedWindow);
+
+    expect(openUrlInNewTab('http://localhost:3001/api/v1/certificates/cert-1/pdf?disposition=inline')).toBe('downloaded');
+
+    expect(open).toHaveBeenCalledWith(
+      'http://localhost:3001/api/v1/certificates/cert-1/pdf?disposition=inline',
+      '_blank'
+    );
+    expect(openedWindow.opener).toBeNull();
+  });
+
+  it('falls back to a target-blank link when window.open is blocked', () => {
+    jest.spyOn(window, 'open').mockReturnValue(null);
+    const click = jest.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+
+    expect(openUrlInNewTab('http://localhost:3001/api/v1/certificates/cert-1/pdf?disposition=inline')).toBe('downloaded');
+
+    const link = document.querySelector('a');
+    expect(click).toHaveBeenCalled();
+    expect(link).toBeNull();
   });
 
 });
