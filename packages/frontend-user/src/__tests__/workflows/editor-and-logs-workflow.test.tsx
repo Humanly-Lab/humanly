@@ -11,9 +11,11 @@ const mockApiGet = jest.fn();
 const mockApiPost = jest.fn();
 const mockUpdateDocument = jest.fn();
 const mockGenerateCertificate = jest.fn();
+const mockStartWritingSession = jest.fn();
 let mockDocumentEnvironmentConfig: any = { aiAccess: 'off', copyPastePolicy: 'allowed' };
 let mockDocumentPlainText = '';
 let mockDocumentCharacterCount = 0;
+let mockDocumentWritingStartedAt: string | null = null;
 let mockTaskEnrollments: any[] = [];
 let mockLatestEditorProps: any;
 
@@ -45,12 +47,14 @@ jest.mock('@/hooks/use-document', () => ({
       wordCount: 0,
       characterCount: mockDocumentCharacterCount,
       environmentConfig: mockDocumentEnvironmentConfig,
+      writingStartedAt: mockDocumentWritingStartedAt,
     },
     linkedFile: null,
     isLoading: false,
     error: null,
     isSaving: false,
     updateDocument: mockUpdateDocument,
+    startWritingSession: mockStartWritingSession,
     trackEvents: mockTrackEvents,
     uploadPdf: jest.fn(),
   }),
@@ -138,6 +142,7 @@ jest.mock('@humanly/editor', () => ({
             },
           ]);
         }}
+        disabled={props.editable === false}
       />
     );
   },
@@ -150,14 +155,27 @@ describe('editor and logs workflows', () => {
     mockTrackEvents.mockClear();
     mockGenerateCertificate.mockReset();
     mockGenerateCertificate.mockResolvedValue({ id: 'certificate-1' });
+    mockStartWritingSession.mockReset();
     mockUpdateDocument.mockReset();
     mockUpdateDocument.mockResolvedValue(undefined);
     mockDocumentEnvironmentConfig = { aiAccess: 'off', copyPastePolicy: 'allowed' };
     mockDocumentPlainText = '';
     mockDocumentCharacterCount = 0;
+    mockDocumentWritingStartedAt = null;
     mockTaskEnrollments = [];
     mockLatestEditorProps = undefined;
     global.fetch = jest.fn().mockResolvedValue({ ok: true }) as jest.Mock;
+    mockStartWritingSession.mockImplementation(async () => ({
+      id: 'doc-1',
+      title: 'Workflow Document',
+      content: {},
+      plainText: mockDocumentPlainText,
+      status: 'draft',
+      wordCount: 0,
+      characterCount: mockDocumentCharacterCount,
+      environmentConfig: mockDocumentEnvironmentConfig,
+      writingStartedAt: new Date().toISOString(),
+    }));
     mockApiGet.mockReset();
     mockApiPost.mockReset();
     mockUseParams.mockReturnValue({ id: 'doc-1' });
@@ -254,6 +272,28 @@ describe('editor and logs workflows', () => {
     expect(await screen.findByText('Workflow Document')).toBeInTheDocument();
     expect(screen.getByText('Writing time left')).toBeInTheDocument();
     expect(screen.getByTitle('Writing time limit: 1:00')).toBeInTheDocument();
+    await waitFor(() => expect(mockStartWritingSession).toHaveBeenCalled());
+  });
+
+  it('keeps an expired timed document read-only after reopening', async () => {
+    mockDocumentEnvironmentConfig = {
+      aiAccess: 'off',
+      copyPastePolicy: 'allowed',
+      aiUsageLimit: { mode: 'unlimited' },
+      time: {
+        lateSubmission: 'allowed',
+        timeLimitSeconds: 60,
+      },
+    };
+    mockDocumentWritingStartedAt = new Date(Date.now() - 90_000).toISOString();
+
+    render(<DocumentEditorPage />);
+
+    expect(await screen.findByText('Workflow Document')).toBeInTheDocument();
+    expect(screen.getByText('Writing time limit reached')).toBeInTheDocument();
+    expect(screen.getByText(/This document is now read-only/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/document editor/i)).toBeDisabled();
+    expect(mockStartWritingSession).not.toHaveBeenCalled();
   });
 
   it('shows an enrolled task deadline countdown in the editor header', async () => {
@@ -275,6 +315,40 @@ describe('editor and logs workflows', () => {
     expect(await screen.findByText('Workflow Document')).toBeInTheDocument();
     expect(screen.getByText('Task deadline in')).toBeInTheDocument();
     expect(screen.getByTitle(/Task deadline:/)).toBeInTheDocument();
+  });
+
+  it('auto-submits an enrolled timed task when the persisted timer has expired', async () => {
+    mockTaskEnrollments = [{
+      id: 'enroll-1',
+      documentId: 'doc-1',
+      name: 'Timed Auto Submit Task',
+      inviteCode: 'ABC123',
+      joinedAt: '2026-05-19T12:00:00.000Z',
+      environmentConfig: {
+        aiAccess: 'off',
+        copyPastePolicy: 'allowed',
+        time: {
+          lateSubmission: 'not_allowed',
+          timeLimitSeconds: 60,
+        },
+      },
+    }];
+    mockDocumentWritingStartedAt = new Date(Date.now() - 90_000).toISOString();
+    mockDocumentPlainText = 'Final answer';
+    mockDocumentCharacterCount = 12;
+
+    render(<DocumentEditorPage />);
+
+    expect(await screen.findByText('Workflow Document')).toBeInTheDocument();
+    expect(screen.getByText('Writing time limit reached')).toBeInTheDocument();
+    expect(screen.getByLabelText(/document editor/i)).toBeDisabled();
+
+    await waitFor(() => {
+      expect(mockApiPost).toHaveBeenCalledWith(
+        '/tasks/enrollments/enroll-1/submissions',
+        { documentId: 'doc-1' }
+      );
+    });
   });
 
   it('uses enrolled task AI settings over stale document AI settings', async () => {

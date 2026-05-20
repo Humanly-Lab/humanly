@@ -61,6 +61,18 @@ export function useDocument(documentId: string) {
     }
   }, [documentId]);
 
+  const startWritingSession = useCallback(async () => {
+    try {
+      const response = await apiClient.post(`/documents/${documentId}/writing-session/start`);
+      const doc = response.data.data?.document || null;
+      setDocument(doc);
+      return doc;
+    } catch (err: any) {
+      console.error('Error starting writing session:', err);
+      throw new Error(err.response?.data?.message || 'Failed to start writing session');
+    }
+  }, [documentId]);
+
   const trackEvents = useCallback(async (events: Partial<DocumentEvent>[], sessionId?: string | null) => {
     try {
       const backgroundRequestConfig: HumanlyAxiosRequestConfig = { skipAuthRedirect: true };
@@ -88,6 +100,7 @@ export function useDocument(documentId: string) {
     error,
     isSaving,
     updateDocument,
+    startWritingSession,
     trackEvents,
     uploadPdf,
     refetch: fetchDocument,

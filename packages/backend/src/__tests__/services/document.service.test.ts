@@ -56,6 +56,7 @@ function makeDocument(overrides: Partial<any> = {}): any {
     status: 'draft',
     wordCount: 2,
     characterCount: 11,
+    writingStartedAt: null,
     createdAt: new Date(),
     updatedAt: new Date(),
     ...overrides,
@@ -260,6 +261,28 @@ describe('DocumentService.updateDocument', () => {
     await expect(
       DocumentService.updateDocument('doc-1', 'user-1', { title: 'X' })
     ).rejects.toMatchObject({ statusCode: 404 });
+  });
+});
+
+describe('DocumentService.startWritingSession', () => {
+  it('persists and returns the first writing start timestamp', async () => {
+    const startedAt = new Date('2026-05-20T12:00:00.000Z');
+    const doc = makeDocument({ writingStartedAt: startedAt });
+    MockDocumentModel.startWritingSession.mockResolvedValue(doc);
+
+    const result = await DocumentService.startWritingSession('doc-1', 'user-1');
+
+    expect(result.writingStartedAt).toBe(startedAt);
+    expect(MockDocumentModel.startWritingSession).toHaveBeenCalledWith('doc-1', 'user-1');
+  });
+
+  it('throws 404 when the document is missing or unauthorized', async () => {
+    MockDocumentModel.startWritingSession.mockResolvedValue(null);
+
+    await expect(DocumentService.startWritingSession('doc-missing', 'user-1')).rejects.toMatchObject({
+      statusCode: 404,
+      message: 'Document not found or unauthorized',
+    });
   });
 });
 

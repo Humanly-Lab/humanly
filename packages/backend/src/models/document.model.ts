@@ -30,6 +30,7 @@ export class DocumentModel {
         word_count as "wordCount",
         character_count as "characterCount",
         environment_config as "environmentConfig",
+        writing_started_at as "writingStartedAt",
         created_at as "createdAt",
         updated_at as "updatedAt",
         last_edited_at as "lastEditedAt"
@@ -71,6 +72,7 @@ export class DocumentModel {
         word_count as "wordCount",
         character_count as "characterCount",
         environment_config as "environmentConfig",
+        writing_started_at as "writingStartedAt",
         created_at as "createdAt",
         updated_at as "updatedAt",
         last_edited_at as "lastEditedAt"
@@ -98,6 +100,7 @@ export class DocumentModel {
         word_count as "wordCount",
         character_count as "characterCount",
         environment_config as "environmentConfig",
+        writing_started_at as "writingStartedAt",
         created_at as "createdAt",
         updated_at as "updatedAt",
         last_edited_at as "lastEditedAt"
@@ -179,6 +182,7 @@ export class DocumentModel {
         word_count as "wordCount",
         character_count as "characterCount",
         environment_config as "environmentConfig",
+        writing_started_at as "writingStartedAt",
         created_at as "createdAt",
         updated_at as "updatedAt",
         last_edited_at as "lastEditedAt"
@@ -275,12 +279,42 @@ export class DocumentModel {
         word_count as "wordCount",
         character_count as "characterCount",
         environment_config as "environmentConfig",
+        writing_started_at as "writingStartedAt",
         created_at as "createdAt",
         updated_at as "updatedAt",
         last_edited_at as "lastEditedAt"
     `;
 
     return queryOne<Document>(sql, params);
+  }
+
+  /**
+   * Persist the first time a writer enters a timed document.
+   */
+  static async startWritingSession(id: string, userId: string): Promise<Document | null> {
+    const sql = `
+      UPDATE documents
+      SET writing_started_at = COALESCE(writing_started_at, NOW())
+      WHERE id = $1 AND user_id = $2
+      RETURNING
+        id,
+        user_id as "userId",
+        title,
+        description,
+        content,
+        plain_text as "plainText",
+        status,
+        version,
+        word_count as "wordCount",
+        character_count as "characterCount",
+        environment_config as "environmentConfig",
+        writing_started_at as "writingStartedAt",
+        created_at as "createdAt",
+        updated_at as "updatedAt",
+        last_edited_at as "lastEditedAt"
+    `;
+
+    return queryOne<Document>(sql, [id, userId]);
   }
 
   /**

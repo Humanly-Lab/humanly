@@ -10,6 +10,7 @@ import {
   trackDocumentEvents,
   getDocumentEvents,
   getDocumentStatistics,
+  startWritingSession,
 } from '../controllers/document.controller';
 
 const router: Router = Router();
@@ -49,6 +50,12 @@ router.get('/:id', asyncHandler(getDocument));
  * Body: { title?: string, content?: object, status?: 'draft' | 'published' | 'archived' }
  */
 router.put('/:id', asyncHandler(updateDocument));
+
+/**
+ * POST /api/v1/documents/:id/writing-session/start
+ * Persist the first entry into a timed writing session.
+ */
+router.post('/:id/writing-session/start', asyncHandler(startWritingSession));
 
 /**
  * DELETE /api/v1/documents/:id
