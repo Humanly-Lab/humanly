@@ -44,6 +44,7 @@ QA reports should name the bucket before filing the issue.
 | #141 | Export route/docs mismatch and export omitted user-portal `document_events`. | `type:old-gap` | #145 | Export route integration test and export service document-event tests. |
 | #170 | Together Kimi quick actions could return empty rewrites because the provider spent the response budget in reasoning unless thinking was disabled. | `type:provider` | #171 | Backend quick-action tests assert Together Kimi sends `chat_template_kwargs.enable_thinking=false`; post-deploy four-action quick-action canary. |
 | #192 | Enrolled-task AI chat with no linked PDF could expose provider gibberish instead of a clear no-reference-files answer. | `type:provider` | current QA batch | No-reference chat preflight tests for REST and streaming paths. |
+| #259 | Text-only AI follow-up after image history could fail with a provider corrupt-image error. | `type:regression` | current QA batch | Backend AI service tests downgrade corrupt historical image attachments and reject corrupt current image attachments before provider dispatch. |
 
 ## How To Use
 

@@ -3,6 +3,10 @@
  * All DB models and fetch are mocked — no real database or network required.
  */
 
+const mockValidPngBase64 =
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=';
+const mockValidPngBuffer = () => Buffer.from(mockValidPngBase64, 'base64');
+
 // ── Mocks ─────────────────────────────────────────────────────────────────────
 
 jest.mock('../../models/ai.model');
@@ -23,14 +27,14 @@ jest.mock('../../models/ai-chat-attachment.model', () => ({
       mime_type: 'image/png',
       filename: 'upload.png',
       size_bytes: 16,
-      image_bytes: Buffer.from('fallback-image-bytes'),
+      image_bytes: mockValidPngBuffer(),
       created_at: new Date(),
     })),
   },
 }));
 jest.mock('../../services/file-storage.service', () => ({
   FileStorageService: {
-    getBuffer: jest.fn(async () => Buffer.from('fake-image-bytes')),
+    getBuffer: jest.fn(async () => mockValidPngBuffer()),
     store: jest.fn(async (_buf: Buffer, fileId: string) => ({
       storageKey: `mock/${fileId}`,
       storageProvider: 'local',
@@ -1353,7 +1357,7 @@ describe('AIService.chat', () => {
         mime_type: 'image/png',
         filename: 'upload.png',
         size_bytes: 16,
-        image_bytes: Buffer.from('fallback-image-bytes'),
+        image_bytes: mockValidPngBuffer(),
         created_at: new Date(),
       });
       MockUserAISettings.getByUserId.mockResolvedValue(
@@ -1388,7 +1392,7 @@ describe('AIService.chat', () => {
         mime_type: 'image/png',
         filename: 'upload.png',
         size_bytes: 20,
-        image_bytes: Buffer.from('db-fallback-image'),
+        image_bytes: mockValidPngBuffer(),
         created_at: new Date(),
       });
       FileStorageService.getBuffer.mockRejectedValueOnce({ statusCode: 404, message: 'File not found' });
@@ -1408,7 +1412,7 @@ describe('AIService.chat', () => {
       ).resolves.toMatchObject({ sessionId: 'session-1' });
       const lastFetchCall = mockFetch.mock.calls[mockFetch.mock.calls.length - 1];
       expect(lastFetchCall[1].body).toContain(
-        `data:image/png;base64,${Buffer.from('db-fallback-image').toString('base64')}`,
+        `data:image/png;base64,${mockValidPngBase64}`,
       );
     });
 
@@ -1435,12 +1439,12 @@ describe('AIService.chat', () => {
           mime_type: 'image/png',
           filename: 'current.png',
           size_bytes: 20,
-          image_bytes: Buffer.from('current-image'),
+          image_bytes: mockValidPngBuffer(),
           created_at: new Date(),
         });
       FileStorageService.getBuffer
         .mockRejectedValueOnce({ statusCode: 404, message: 'File not found' })
-        .mockResolvedValueOnce(Buffer.from('current-image'));
+        .mockResolvedValueOnce(mockValidPngBuffer());
       MockUserAISettings.getByUserId.mockResolvedValue(
         makeSettings({ model: 'gpt-4o', baseUrl: 'https://api.openai.com/v1' }),
       );
@@ -1470,8 +1474,84 @@ describe('AIService.chat', () => {
       const lastFetchCall = mockFetch.mock.calls[mockFetch.mock.calls.length - 1];
       expect(lastFetchCall[1].body).toContain('[Prior image attachment unavailable: old.png]');
       expect(lastFetchCall[1].body).toContain(
-        `data:image/png;base64,${Buffer.from('current-image').toString('base64')}`,
+        `data:image/png;base64,${mockValidPngBase64}`,
       );
+    });
+
+    it('downgrades corrupt historical image attachments without blocking a text follow-up', async () => {
+      const { AIChatAttachmentModel } = jest.requireMock('../../models/ai-chat-attachment.model');
+      const { FileStorageService } = jest.requireMock('../../services/file-storage.service');
+      AIChatAttachmentModel.findOwnedByStorageKey.mockResolvedValueOnce({
+        storage_key: 'old/corrupt.png',
+        storage_provider: 'local',
+        storage_bucket: null,
+        user_id: 'user-1',
+        mime_type: 'image/png',
+        filename: 'corrupt.png',
+        size_bytes: 17,
+        image_bytes: Buffer.from('not-a-real-png'),
+        created_at: new Date(),
+      });
+      FileStorageService.getBuffer.mockResolvedValueOnce(Buffer.from('not-a-real-png'));
+      MockUserAISettings.getByUserId.mockResolvedValue(
+        makeSettings({ model: 'gpt-4o', baseUrl: 'https://api.openai.com/v1' }),
+      );
+      MockAIModel.getOrCreateSession.mockResolvedValue(makeSession({
+        messages: [
+          makeMessage({
+            role: 'user',
+            content: 'Earlier corrupt image',
+            metadata: {
+              attachments: [
+                { type: 'image', storageKey: 'old/corrupt.png', mimeType: 'image/png', filename: 'corrupt.png' },
+              ],
+            },
+          }),
+        ],
+      } as any));
+
+      await expect(
+        AIService.chat('user-1', request as any),
+      ).resolves.toMatchObject({ sessionId: 'session-1' });
+      const lastFetchCall = mockFetch.mock.calls[mockFetch.mock.calls.length - 1];
+      expect(lastFetchCall[1].body).toContain('[Prior image attachment unavailable: corrupt.png]');
+      expect(lastFetchCall[1].body).not.toContain('data:image/png;base64');
+    });
+
+    it('rejects corrupt current image attachments before provider dispatch', async () => {
+      const { AIChatAttachmentModel } = jest.requireMock('../../models/ai-chat-attachment.model');
+      const { FileStorageService } = jest.requireMock('../../services/file-storage.service');
+      AIChatAttachmentModel.findOwnedByStorageKey.mockResolvedValueOnce({
+        storage_key: 'new/corrupt.png',
+        storage_provider: 'local',
+        storage_bucket: null,
+        user_id: 'user-1',
+        mime_type: 'image/png',
+        filename: 'corrupt.png',
+        size_bytes: 17,
+        image_bytes: Buffer.from('not-a-real-png'),
+        created_at: new Date(),
+      });
+      FileStorageService.getBuffer.mockResolvedValueOnce(Buffer.from('not-a-real-png'));
+      MockUserAISettings.getByUserId.mockResolvedValue(
+        makeSettings({ model: 'gpt-4o', baseUrl: 'https://api.openai.com/v1' }),
+      );
+      MockAIModel.getOrCreateSession.mockResolvedValue(makeSession());
+      const requestWithCorruptImage = {
+        ...request,
+        attachments: [
+          { type: 'image', storageKey: 'new/corrupt.png', mimeType: 'image/png', filename: 'corrupt.png' },
+        ],
+      };
+      const fetchCallsBefore = mockFetch.mock.calls.length;
+
+      await expect(
+        AIService.chat('user-1', requestWithCorruptImage as any),
+      ).rejects.toMatchObject({
+        statusCode: 400,
+        message: expect.stringContaining('not a valid image file'),
+      });
+      expect(mockFetch.mock.calls.length).toBe(fetchCallsBefore);
     });
   });
 });
