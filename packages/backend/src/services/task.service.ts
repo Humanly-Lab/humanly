@@ -31,12 +31,37 @@ const getMinimumSubmissionCharacters = (task: Task): number | null => {
   return Math.max(1, Math.floor(configuredMinimum));
 };
 
+const getMaximumSubmissionCharacters = (task: Task): number | null => {
+  const configuredMaximum = (task.environmentConfig?.submission as { maxCharacters?: number } | undefined)?.maxCharacters;
+  if (!Number.isFinite(configuredMaximum) || !configuredMaximum) return null;
+
+  return Math.max(1, Math.floor(configuredMaximum));
+};
+
 const getDocumentCharacterCount = (document: Document): number => {
   if (Number.isFinite(document.characterCount) && document.characterCount >= 0) {
     return document.characterCount;
   }
 
   return (document.plainText || '').length;
+};
+
+const assertSubmissionCharacterBounds = (task: Task, actualCharacters: number): void => {
+  const minimumCharacters = getMinimumSubmissionCharacters(task);
+  if (minimumCharacters && actualCharacters < minimumCharacters) {
+    throw new AppError(
+      400,
+      `Submission must be at least ${minimumCharacters.toLocaleString()} characters. Current length is ${actualCharacters.toLocaleString()} characters.`
+    );
+  }
+
+  const maximumCharacters = getMaximumSubmissionCharacters(task);
+  if (maximumCharacters && actualCharacters > maximumCharacters) {
+    throw new AppError(
+      400,
+      `Submission must be at most ${maximumCharacters.toLocaleString()} characters. Current length is ${actualCharacters.toLocaleString()} characters.`
+    );
+  }
 };
 
 const normalizePublicSessionId = (value?: string): string => {
@@ -487,16 +512,7 @@ export class TaskService {
       throw new AppError(404, 'Document not found or unauthorized');
     }
 
-    const minimumCharacters = getMinimumSubmissionCharacters(task);
-    if (minimumCharacters) {
-      const actualCharacters = getDocumentCharacterCount(document);
-      if (actualCharacters < minimumCharacters) {
-        throw new AppError(
-          400,
-          `Submission must be at least ${minimumCharacters.toLocaleString()} characters. Current length is ${actualCharacters.toLocaleString()} characters.`
-        );
-      }
-    }
+    assertSubmissionCharacterBounds(task, getDocumentCharacterCount(document));
 
     await TaskModel.linkSubmissionDocument(task.id, userId, documentId);
 
@@ -626,13 +642,7 @@ export class TaskService {
       throw new AppError(400, 'Document text is required');
     }
 
-    const minimumCharacters = getMinimumSubmissionCharacters(task);
-    if (minimumCharacters && plainText.length < minimumCharacters) {
-      throw new AppError(
-        400,
-        `Submission must be at least ${minimumCharacters.toLocaleString()} characters. Current length is ${plainText.length.toLocaleString()} characters.`
-      );
-    }
+    assertSubmissionCharacterBounds(task, plainText.length);
 
     const publicSessionId = normalizePublicSessionId(data.sessionId);
     const guestUser = await this.getOrCreatePublicGuestUser(task, publicSessionId);

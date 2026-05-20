@@ -5,8 +5,21 @@ import {
   EXTERNAL_SERVICE_TYPES,
   EVENT_TYPES,
   PAGINATION,
+  SUBMISSION_MAX_CHARACTERS_MAX,
   SUBMISSION_MIN_CHARACTERS_MAX,
 } from './constants';
+
+const writingSubmissionConfigSchema = z.object({
+  mode: z.enum(['single', 'multiple']),
+  minCharacters: z.number().int().min(1).max(SUBMISSION_MIN_CHARACTERS_MAX).optional(),
+  maxCharacters: z.number().int().min(1).max(SUBMISSION_MAX_CHARACTERS_MAX).optional(),
+}).refine((submission) => {
+  if (!submission.minCharacters || !submission.maxCharacters) return true;
+  return submission.minCharacters <= submission.maxCharacters;
+}, {
+  message: 'Maximum characters must be greater than or equal to minimum characters',
+  path: ['maxCharacters'],
+});
 
 export const writingEnvironmentConfigSchema = z.object({
   preset: z.enum(['default_writing', 'no_ai', 'ai_assisted', 'timed_writing', 'custom']).optional(),
@@ -34,10 +47,7 @@ export const writingEnvironmentConfigSchema = z.object({
     timeLimitSeconds: z.number().int().positive().max(31536000).optional(),
     lateSubmission: z.enum(['allowed', 'not_allowed']),
   }),
-  submission: z.object({
-    mode: z.enum(['single', 'multiple']),
-    minCharacters: z.number().int().min(1).max(SUBMISSION_MIN_CHARACTERS_MAX).optional(),
-  }),
+  submission: writingSubmissionConfigSchema,
   traceability: z.object({
     trackAiUsage: z.boolean(),
     trackTyping: z.boolean(),

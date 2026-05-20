@@ -37,6 +37,7 @@ export interface WritingEnvironmentConfig {
   submission: {
     mode: WritingSubmissionMode;
     minCharacters?: number;
+    maxCharacters?: number;
   };
   traceability: {
     trackAiUsage: boolean;
