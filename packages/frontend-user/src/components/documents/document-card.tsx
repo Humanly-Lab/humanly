@@ -169,22 +169,20 @@ export function DocumentCard({ document, timerState, onDelete, variant = 'card' 
         <Link href={documentHref} className="group block h-full rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
           <Card className="flex h-[20rem] cursor-pointer overflow-hidden transition-colors group-hover:border-foreground/30">
             <CardContent className="flex h-full flex-1 flex-col p-0">
-              <div className="h-[14rem] overflow-hidden border-b border-border/70 bg-muted/20">
-                <div className="h-full w-full bg-background px-7 py-6">
-                  {previewText ? (
-                    <p className="line-clamp-[11] whitespace-pre-wrap text-[11px] leading-[1.45] text-muted-foreground/80">
-                      {previewText}
-                    </p>
-                  ) : (
-                    <div className="space-y-2.5" aria-hidden="true">
-                      <div className="h-2.5 w-2/3 rounded-full bg-muted" />
-                      <div className="h-2.5 w-5/6 rounded-full bg-muted" />
-                      <div className="h-2.5 w-3/4 rounded-full bg-muted" />
-                      <div className="h-2.5 w-4/5 rounded-full bg-muted" />
-                      <div className="h-2.5 w-1/2 rounded-full bg-muted" />
-                    </div>
-                  )}
-                </div>
+              <div className="relative h-[14rem] overflow-hidden border-b border-border/70 bg-background">
+                {previewText ? (
+                  <p className="absolute inset-0 line-clamp-[11] whitespace-pre-wrap px-5 py-5 text-[12px] leading-[1.5] text-muted-foreground/80">
+                    {previewText}
+                  </p>
+                ) : (
+                  <div className="absolute inset-0 space-y-2.5 px-5 py-5" aria-hidden="true">
+                    <div className="h-2.5 w-2/3 rounded-full bg-muted" />
+                    <div className="h-2.5 w-5/6 rounded-full bg-muted" />
+                    <div className="h-2.5 w-3/4 rounded-full bg-muted" />
+                    <div className="h-2.5 w-4/5 rounded-full bg-muted" />
+                    <div className="h-2.5 w-1/2 rounded-full bg-muted" />
+                  </div>
+                )}
               </div>
 
               <div className="flex flex-1 items-center gap-3 p-4 pr-14">
