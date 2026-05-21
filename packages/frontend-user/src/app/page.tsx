@@ -53,8 +53,8 @@ const steps = [
   ],
   [
     '04',
-    'Sign',
-    'Publish a verifiable PDF and JSON record of how the draft came together.',
+    'Certify',
+    'Create a verifiable PDF and JSON record that shows how the draft came together.',
   ],
 ] as const;
 
