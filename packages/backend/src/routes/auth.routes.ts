@@ -9,6 +9,9 @@ import {
   forgotPassword,
   resetPassword,
   getCurrentUser,
+  getOAuthProviders,
+  startOAuth,
+  handleOAuthCallback,
 } from '../controllers/auth.controller';
 import { authenticate } from '../middleware/auth.middleware';
 import {
@@ -76,6 +79,24 @@ router.post('/forgot-password', passwordResetRateLimiter, forgotPassword);
  * Rate limited: 3 attempts per hour
  */
 router.post('/reset-password', passwordResetRateLimiter, resetPassword);
+
+/**
+ * GET /api/v1/auth/oauth/providers
+ * Public list of configured OAuth login providers
+ */
+router.get('/oauth/providers', getOAuthProviders);
+
+/**
+ * GET /api/v1/auth/oauth/:provider/start
+ * Start OAuth login flow
+ */
+router.get('/oauth/:provider/start', loginRateLimiter, startOAuth);
+
+/**
+ * GET /api/v1/auth/oauth/:provider/callback
+ * Complete OAuth login flow
+ */
+router.get('/oauth/:provider/callback', loginRateLimiter, handleOAuthCallback);
 
 /**
  * GET /api/v1/auth/me

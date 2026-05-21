@@ -18,6 +18,7 @@ import {
 import { AppError } from '../middleware/error-handler';
 import { logger } from '../utils/logger';
 import { UserAISettingsModel } from '../models/user-ai-settings.model';
+import { OAuthProfile } from './oauth.service';
 
 export class AuthService {
   private static async initializeDefaultAISettings(userId: string): Promise<void> {
@@ -94,6 +95,44 @@ export class AuthService {
     return user;
   }
 
+  private static toPublicUser(userWithPassword: {
+    id: string;
+    email: string;
+    role?: UserRole;
+    emailVerified: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+  }): User {
+    return {
+      id: userWithPassword.id,
+      email: userWithPassword.email,
+      role: userWithPassword.role || 'user',
+      emailVerified: userWithPassword.emailVerified,
+      createdAt: userWithPassword.createdAt,
+      updatedAt: userWithPassword.updatedAt,
+    };
+  }
+
+  private static async issueTokens(
+    user: User
+  ): Promise<{ user: User; accessToken: string; refreshToken: string }> {
+    const payload: TokenPayload = {
+      userId: user.id,
+      email: user.email,
+      role: user.role,
+    };
+
+    const accessToken = generateAccessToken(payload);
+    const refreshToken = generateRefreshToken(payload);
+
+    const tokenHash = hashToken(refreshToken);
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    await RefreshTokenModel.create(user.id, tokenHash, expiresAt);
+    await RefreshTokenModel.deleteExpired();
+
+    return { user, accessToken, refreshToken };
+  }
+
   /**
    * Verify user email
    */
@@ -165,36 +204,94 @@ export class AuthService {
     //   throw new AppError(403, 'Please verify your email before logging in');
     // }
 
-    // Generate tokens
-    const payload: TokenPayload = {
-      userId: userWithPassword.id,
-      email: userWithPassword.email,
-      role: userWithPassword.role,
-    };
-
-    const accessToken = generateAccessToken(payload);
-    const refreshToken = generateRefreshToken(payload);
-
-    // Store refresh token hash
-    const tokenHash = hashToken(refreshToken);
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
-    await RefreshTokenModel.create(userWithPassword.id, tokenHash, expiresAt);
-
-    // Clean up expired tokens for this user
-    await RefreshTokenModel.deleteExpired();
-
-    // Get user without password
-    const user: User = {
-      id: userWithPassword.id,
-      email: userWithPassword.email,
-      role: userWithPassword.role,
-      emailVerified: userWithPassword.emailVerified,
-      createdAt: userWithPassword.createdAt,
-      updatedAt: userWithPassword.updatedAt,
-    };
-
+    const user = this.toPublicUser(userWithPassword);
+    const result = await this.issueTokens(user);
     logger.info('Login successful', { userId: user.id, email: user.email });
-    return { user, accessToken, refreshToken };
+    return result;
+  }
+
+  /**
+   * Login or create a user through a trusted OAuth provider.
+   */
+  static async loginWithOAuth(
+    profile: OAuthProfile,
+    requestedRole: UserRole = 'user'
+  ): Promise<{ user: User; accessToken: string; refreshToken: string }> {
+    logger.info('Attempting OAuth login', {
+      provider: profile.provider,
+      email: profile.email,
+      requestedRole,
+    });
+
+    let userWithPassword = await UserModel.findByOAuthAccount(
+      profile.provider,
+      profile.providerUserId
+    );
+
+    if (!userWithPassword) {
+      userWithPassword = await UserModel.findByEmail(profile.email);
+
+      if (userWithPassword) {
+        if (userWithPassword.role !== requestedRole) {
+          throw new AppError(
+            403,
+            requestedRole === 'admin'
+              ? 'This OAuth email is not registered as an admin account'
+              : 'This OAuth email is not registered as a user account'
+          );
+        }
+
+        if (!userWithPassword.emailVerified) {
+          await UserModel.verifyEmail(userWithPassword.id);
+          userWithPassword = {
+            ...userWithPassword,
+            emailVerified: true,
+            emailVerificationToken: undefined,
+            emailVerificationExpires: undefined,
+          };
+        }
+      } else {
+        const passwordHash = await hashPassword(generatePasswordResetToken());
+        const user = await UserModel.createOAuthUser({
+          email: profile.email,
+          passwordHash,
+          role: requestedRole,
+        });
+        await this.initializeDefaultAISettings(user.id);
+        userWithPassword = {
+          ...user,
+          passwordHash,
+          emailVerificationToken: undefined,
+          emailVerificationExpires: undefined,
+          passwordResetToken: undefined,
+          passwordResetExpires: undefined,
+        };
+      }
+
+      await UserModel.createOAuthAccount(userWithPassword.id, {
+        provider: profile.provider,
+        providerUserId: profile.providerUserId,
+        email: profile.email,
+      });
+    }
+
+    if (userWithPassword.role !== requestedRole) {
+      throw new AppError(
+        403,
+        requestedRole === 'admin'
+          ? 'This OAuth account is not linked to an admin account'
+          : 'This OAuth account is not linked to a user account'
+      );
+    }
+
+    const user = this.toPublicUser(userWithPassword);
+    const result = await this.issueTokens(user);
+    logger.info('OAuth login successful', {
+      userId: user.id,
+      email: user.email,
+      provider: profile.provider,
+    });
+    return result;
   }
 
   /**

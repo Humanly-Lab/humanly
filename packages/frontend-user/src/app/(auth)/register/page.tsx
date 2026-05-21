@@ -30,6 +30,7 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
+import { OAuthButtons } from '@/components/auth/oauth-buttons';
 
 // Form validation schema
 const registerSchema = z
@@ -385,6 +386,9 @@ export default function RegisterPage() {
             </Button>
           </form>
         </Form>
+        <div className="mt-5">
+          <OAuthButtons />
+        </div>
       </CardContent>
       <CardFooter className="flex flex-col space-y-4">
         <div className="text-sm text-center text-muted-foreground">

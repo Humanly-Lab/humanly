@@ -8,6 +8,7 @@ const mockPush = jest.fn();
 const mockLogin = jest.fn();
 const mockRegister = jest.fn();
 const mockResendVerificationEmail = jest.fn();
+const mockApiGet = jest.fn();
 
 jest.mock('next/navigation', () => ({
   useRouter: () => ({
@@ -28,6 +29,14 @@ jest.mock('@/stores/auth-store', () => ({
   },
 }));
 
+jest.mock('@/lib/api-client', () => ({
+  __esModule: true,
+  default: {
+    get: (...args: any[]) => mockApiGet(...args),
+  },
+  getApiUrl: (path: string) => `http://localhost:3001/api/v1${path}`,
+}));
+
 describe('user auth workflows', () => {
   beforeEach(() => {
     jest.useRealTimers();
@@ -35,6 +44,14 @@ describe('user auth workflows', () => {
     mockLogin.mockReset();
     mockRegister.mockReset();
     mockResendVerificationEmail.mockReset();
+    mockApiGet.mockResolvedValue({
+      data: {
+        providers: {
+          google: false,
+          github: false,
+        },
+      },
+    });
   });
 
   it('shows an error for invalid login and routes valid login to documents', async () => {
@@ -44,7 +61,10 @@ describe('user auth workflows', () => {
     const { rerender } = render(<LoginPage />);
 
     expect(screen.queryByLabelText(/remember me/i)).not.toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: /forgot password/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /forgot password/i })).toHaveAttribute(
+      'href',
+      '/forgot-password'
+    );
 
     await user.type(screen.getByLabelText(/email address/i), 'missing@example.com');
     await user.type(screen.getByLabelText(/^password$/i), 'Password123!');

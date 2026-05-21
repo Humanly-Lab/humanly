@@ -41,6 +41,7 @@ async function makeUserWithPassword(overrides: Partial<any> = {}) {
     id: 'user-1',
     email: 'alice@example.com',
     passwordHash,
+    role: 'user',
     emailVerified: true,
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -52,6 +53,7 @@ function makeUser(overrides: Partial<any> = {}) {
   return {
     id: 'user-1',
     email: 'alice@example.com',
+    role: 'user',
     emailVerified: true,
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -156,6 +158,83 @@ describe('AuthService.login', () => {
     await expect(AuthService.login('alice@example.com', 'wrongpass')).rejects.toMatchObject({
       statusCode: 401,
     });
+  });
+});
+
+// ── loginWithOAuth ───────────────────────────────────────────────────────────
+
+describe('AuthService.loginWithOAuth', () => {
+  it('creates a verified user, links the provider account, and returns tokens', async () => {
+    delete process.env.DEFAULT_AI_API_KEY;
+    delete process.env.AI_API_KEY;
+    MockUserModel.findByOAuthAccount.mockResolvedValue(null);
+    MockUserModel.findByEmail.mockResolvedValue(null);
+    MockUserModel.createOAuthUser.mockResolvedValue(makeUser({ id: 'oauth-user' }) as any);
+    MockUserModel.createOAuthAccount.mockResolvedValue(undefined);
+    MockRefreshTokenModel.create.mockResolvedValue({} as any);
+    MockRefreshTokenModel.deleteExpired.mockResolvedValue(undefined);
+
+    const result = await AuthService.loginWithOAuth({
+      provider: 'google',
+      providerUserId: 'google-123',
+      email: 'alice@example.com',
+    });
+
+    expect(result.user.email).toBe('alice@example.com');
+    expect(result.accessToken).toBeTruthy();
+    expect(result.refreshToken).toBeTruthy();
+    expect(MockUserModel.createOAuthUser).toHaveBeenCalledWith(
+      expect.objectContaining({ email: 'alice@example.com', role: 'user' })
+    );
+    expect(MockUserModel.createOAuthAccount).toHaveBeenCalledWith(
+      'oauth-user',
+      expect.objectContaining({
+        provider: 'google',
+        providerUserId: 'google-123',
+        email: 'alice@example.com',
+      })
+    );
+  });
+
+  it('links an existing verified email account on first OAuth login', async () => {
+    const existingUser = await makeUserWithPassword();
+    MockUserModel.findByOAuthAccount.mockResolvedValue(null);
+    MockUserModel.findByEmail.mockResolvedValue(existingUser as any);
+    MockUserModel.createOAuthAccount.mockResolvedValue(undefined);
+    MockRefreshTokenModel.create.mockResolvedValue({} as any);
+    MockRefreshTokenModel.deleteExpired.mockResolvedValue(undefined);
+
+    const result = await AuthService.loginWithOAuth({
+      provider: 'github',
+      providerUserId: '42',
+      email: 'alice@example.com',
+    });
+
+    expect(result.user.id).toBe('user-1');
+    expect(MockUserModel.createOAuthUser).not.toHaveBeenCalled();
+    expect(MockUserModel.createOAuthAccount).toHaveBeenCalledWith(
+      'user-1',
+      expect.objectContaining({ provider: 'github', providerUserId: '42' })
+    );
+  });
+
+  it('throws 403 when the OAuth email is registered for the wrong role', async () => {
+    MockUserModel.findByOAuthAccount.mockResolvedValue(null);
+    MockUserModel.findByEmail.mockResolvedValue(
+      (await makeUserWithPassword({ role: 'admin' })) as any
+    );
+
+    await expect(
+      AuthService.loginWithOAuth(
+        {
+          provider: 'google',
+          providerUserId: 'google-123',
+          email: 'alice@example.com',
+        },
+        'user'
+      )
+    ).rejects.toMatchObject({ statusCode: 403 });
+    expect(MockUserModel.createOAuthAccount).not.toHaveBeenCalled();
   });
 });
 

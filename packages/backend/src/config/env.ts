@@ -28,6 +28,7 @@ interface EnvConfig {
 
   // Frontend URLs
   frontendUserUrl: string;
+  publicApiUrl: string;
 
   // Email
   emailService: 'console' | 'sendgrid' | 'ses' | 'smtp';
@@ -37,6 +38,13 @@ interface EnvConfig {
   emailPort?: number;
   emailUser?: string;
   emailPassword?: string;
+  emailStrictDelivery: boolean;
+
+  // OAuth
+  googleOAuthClientId?: string;
+  googleOAuthClientSecret?: string;
+  githubOAuthClientId?: string;
+  githubOAuthClientSecret?: string;
 
   // Rate Limiting
   rateLimitEnabled: boolean;
@@ -125,6 +133,7 @@ export const env: EnvConfig = {
 
   // Frontend URLs
   frontendUserUrl: getEnv('FRONTEND_USER_URL', 'http://localhost:3002'),
+  publicApiUrl: getEnv('PUBLIC_API_URL', 'http://localhost:3001/api/v1').replace(/\/$/, ''),
 
   // Email
   emailService: getEnv('EMAIL_SERVICE', 'console') as any,
@@ -134,6 +143,13 @@ export const env: EnvConfig = {
   emailPort: process.env.EMAIL_PORT ? getEnvNumber('EMAIL_PORT') : undefined,
   emailUser: process.env.EMAIL_USER,
   emailPassword: process.env.EMAIL_PASSWORD,
+  emailStrictDelivery: getEnvBoolean('EMAIL_STRICT_DELIVERY', false),
+
+  // OAuth
+  googleOAuthClientId: process.env.GOOGLE_OAUTH_CLIENT_ID,
+  googleOAuthClientSecret: process.env.GOOGLE_OAUTH_CLIENT_SECRET,
+  githubOAuthClientId: process.env.GITHUB_OAUTH_CLIENT_ID,
+  githubOAuthClientSecret: process.env.GITHUB_OAUTH_CLIENT_SECRET,
 
   // Rate Limiting
   rateLimitEnabled: getEnvBoolean('RATE_LIMIT_ENABLED', true),
