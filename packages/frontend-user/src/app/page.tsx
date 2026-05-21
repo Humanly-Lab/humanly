@@ -751,15 +751,15 @@ function StepIllo0() {
 function StepIllo1() {
   return (
     <svg width="200" height="160" viewBox="0 0 200 160" aria-hidden="true">
-      <rect x="14" y="18" width="172" height="124" rx="8" fill="#fff" stroke={ink} strokeWidth="1.2" />
-      <line x1="14" y1="42" x2="186" y2="42" stroke={hairline} strokeWidth="1" />
-      <circle cx="26" cy="30" r="2.5" fill={muted} /><circle cx="34" cy="30" r="2.5" fill={muted} /><circle cx="42" cy="30" r="2.5" fill={muted} />
-      <rect x="26" y="56" width="100" height="6" rx="1" fill={ink} />
+      <rect x="14" y="14" width="172" height="132" rx="8" fill="#fff" stroke={ink} strokeWidth="1.2" />
+      <line x1="14" y1="38" x2="186" y2="38" stroke={hairline} strokeWidth="1" />
+      <circle cx="26" cy="26" r="2.5" fill={muted} /><circle cx="34" cy="26" r="2.5" fill={muted} /><circle cx="42" cy="26" r="2.5" fill={muted} />
+      <rect x="26" y="54" width="100" height="6" rx="1" fill={ink} />
       <rect x="26" y="72" width="148" height="3" rx="1" fill={muted} opacity="0.5" />
       <rect x="26" y="82" width="118" height="3" rx="1" fill={muted} opacity="0.5" />
       <rect x="26" y="92" width="136" height="3" rx="1" fill={muted} opacity="0.5" />
       <rect x="26" y="102" width="76" height="3" rx="1" fill={muted} opacity="0.5" />
-      <circle cx="166" cy="123" r="4" fill={good} />
+      <circle cx="166" cy="127" r="4" fill={good} />
     </svg>
   );
 }
@@ -797,19 +797,18 @@ function StepIllo3() {
   return (
     <svg width="200" height="160" viewBox="0 0 200 160" aria-hidden="true">
       <rect x="14" y="14" width="172" height="132" rx="8" fill="#fff" stroke={ink} strokeWidth="1.2" />
-      <path d="M22 14H178C182.4 14 186 17.6 186 22V38H14V22C14 17.6 17.6 14 22 14Z" fill={ink} />
-      <text x="100" y="31" textAnchor="middle" fontFamily="var(--font-space-mono)" fontSize="8" fill="#fff" letterSpacing="2">CERTIFICATE</text>
-      <rect x="34" y="52" width="132" height="5" fill={ink} />
-      <rect x="34" y="64" width="96" height="3" fill={muted} />
-      <line x1="34" y1="80" x2="166" y2="80" stroke={hairline} />
-      <g transform="translate(50 102)">
+      <text x="100" y="38" textAnchor="middle" fontFamily="var(--font-space-mono)" fontSize="7" fill={ink} letterSpacing="2">CERTIFICATE</text>
+      <line x1="42" y1="54" x2="158" y2="54" stroke={ink} strokeWidth="1.6" strokeLinecap="round" />
+      <line x1="50" y1="70" x2="150" y2="70" stroke={muted} strokeWidth="1.2" strokeLinecap="round" opacity="0.65" />
+      <line x1="42" y1="88" x2="158" y2="88" stroke={hairline} strokeWidth="1" />
+      <g transform="translate(54 112)">
         <text fontFamily="var(--font-space-mono)" fontSize="6" fill={muted}>SIGNED</text>
-        <text y="12" fontFamily="var(--font-space-mono)" fontSize="12" fontWeight="600">✓</text>
+        <path d="M2 13 L6 17 L15 6" fill="none" stroke={ink} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
       </g>
-      <g transform="translate(146 104)" stroke={ink} fill="none" strokeWidth="1">
-        <circle r="18" />
-        <circle r="13" strokeDasharray="1 2" />
-        <text textAnchor="middle" y="3" fontFamily="var(--font-space-mono)" fontSize="8" fontWeight="700" fill={ink} stroke="none">H</text>
+      <g transform="translate(142 120)" stroke={ink} fill="none" strokeWidth="1">
+        <circle r="13" />
+        <circle r="9.5" strokeDasharray="1 2" />
+        <path d="M-4.5 -4 V4 M4.5 -4 V4 M-4.5 0 H4.5" strokeWidth="1.2" strokeLinecap="round" />
       </g>
     </svg>
   );
