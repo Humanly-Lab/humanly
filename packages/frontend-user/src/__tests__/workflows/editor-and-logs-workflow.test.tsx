@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { format } from 'date-fns';
 
 import DocumentEditorPage from '@/app/documents/[id]/page';
@@ -34,6 +34,45 @@ jest.mock('next/navigation', () => ({
 jest.mock('next/dynamic', () => () => function DynamicMock() {
   return <div>PDF viewer unavailable in unit tests</div>;
 });
+
+jest.mock('remark-gfm', () => ({
+  __esModule: true,
+  default: jest.fn(() => 'remark-gfm'),
+}));
+
+jest.mock('react-markdown', () => ({
+  __esModule: true,
+  default: ({ children, remarkPlugins }: any) => {
+    const source = String(children ?? '');
+
+    if (remarkPlugins?.length && source.includes('| Metric | Value |')) {
+      return (
+        <div>
+          <h2>Markdown heading</h2>
+          <p>
+            Rendered <strong>bold text</strong>.
+          </p>
+          <table>
+            <thead>
+              <tr>
+                <th>Metric</th>
+                <th>Value</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Revenue</td>
+                <td>42</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      );
+    }
+
+    return <div>{source}</div>;
+  },
+}));
 
 jest.mock('@/components/ui/use-toast', () => ({
   useToast: () => ({
@@ -309,6 +348,35 @@ describe('editor and logs workflows', () => {
         'Short autosave QA text'
       );
     });
+  });
+
+  it('shows an inline save status beside the document title', async () => {
+    let resolveSave: (value?: unknown) => void = () => {};
+    mockUpdateDocument.mockImplementationOnce(
+      () => new Promise((resolve) => {
+        resolveSave = resolve;
+      })
+    );
+
+    render(<DocumentEditorPage />);
+
+    expect(await screen.findByText('Workflow Document')).toBeInTheDocument();
+    expect(screen.getByText('Saved')).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText(/document editor/i), {
+      target: { value: 'Pending save status text' },
+    });
+
+    expect(await screen.findByText('Saving...')).toBeInTheDocument();
+
+    await act(async () => {
+      resolveSave();
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByText('Saving...')).not.toBeInTheDocument();
+    });
+    expect(screen.getByText('Saved')).toBeInTheDocument();
   });
 
   it('opens a document with an empty Lexical root without passing invalid editor state', async () => {
@@ -1003,6 +1071,73 @@ describe('editor and logs workflows', () => {
     expect(screen.getByText('"AI inserted answer."')).toBeInTheDocument();
     expect(screen.getByText('3 words · 19 chars')).toBeInTheDocument();
     expect(screen.queryByText('ai_insert_from_chat')).not.toBeInTheDocument();
+  });
+
+  it('renders only expanded AI inserted text as Markdown', async () => {
+    const markdownText = [
+      '## Markdown heading',
+      '',
+      'Rendered **bold text**.',
+      '',
+      '| Metric | Value |',
+      '| --- | --- |',
+      '| Revenue | 42 |',
+      '',
+      'Additional context keeps this AI inserted content long enough to require the full text viewer.',
+    ].join('\n');
+
+    mockTimelineItems = [
+      {
+        id: 'ai-insert-markdown',
+        kind: 'ai_insert',
+        label: 'AI inserted text',
+        timestamp: '2026-05-14T12:00:04.000Z',
+        startTimestamp: '2026-05-14T12:00:04.000Z',
+        endTimestamp: '2026-05-14T12:00:04.000Z',
+        text: markdownText,
+        charCount: markdownText.length,
+        wordCount: 7,
+        rawEventCount: 1,
+        rawEvents: [],
+      },
+      {
+        id: 'paste-markdown',
+        kind: 'paste',
+        label: 'Pasted text',
+        timestamp: '2026-05-14T12:00:03.000Z',
+        startTimestamp: '2026-05-14T12:00:03.000Z',
+        endTimestamp: '2026-05-14T12:00:03.000Z',
+        text: markdownText,
+        charCount: markdownText.length,
+        rawEventCount: 1,
+        rawEvents: [],
+      },
+    ];
+
+    render(<DocumentLogsPage />);
+
+    expect(await screen.findByText('AI inserted')).toBeInTheDocument();
+    expect(screen.getByText('Pasted')).toBeInTheDocument();
+
+    const viewButtons = screen.getAllByRole('button', { name: /view full text/i });
+    expect(viewButtons).toHaveLength(2);
+    fireEvent.click(viewButtons[0]);
+    fireEvent.click(viewButtons[1]);
+
+    const aiInsertedPanel = screen.getByText('AI inserted text').closest('div.rounded-md');
+    expect(aiInsertedPanel).not.toBeNull();
+    expect(within(aiInsertedPanel as HTMLElement).getByRole('heading', { name: 'Markdown heading' })).toBeInTheDocument();
+    expect(within(aiInsertedPanel as HTMLElement).getByText('bold text')).toBeInTheDocument();
+    const markdownTable = within(aiInsertedPanel as HTMLElement)
+      .getAllByRole('table')
+      .find((table) => table.textContent?.includes('Revenue'));
+    expect(markdownTable).toBeTruthy();
+    expect(markdownTable).toHaveTextContent('42');
+
+    const pastedPanel = screen.getByText('Pasted text').closest('div.rounded-md');
+    expect(pastedPanel).not.toBeNull();
+    expect(within(pastedPanel as HTMLElement).getByText(/## Markdown heading/)).toBeInTheDocument();
+    expect(within(pastedPanel as HTMLElement).getByText(/\| Metric \| Value \|/)).toBeInTheDocument();
   });
 
   it('keeps AI logs in the grouped logs timeline', async () => {

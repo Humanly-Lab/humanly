@@ -26,8 +26,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
+import { MarkdownContent } from '@/components/markdown-content';
 import { AISettingsDialog } from './ai-settings-dialog';
 import { ReasoningBlock, ToolCallTimeline } from './tool-call-card';
 import api from '@/lib/api-client';
@@ -795,16 +794,13 @@ function MessageBubble({ message, isStreaming, toolCalls, thinking, insertAtCurs
           <div className="min-w-0">
             <ReasoningBlock thinking={thinking} />
             <ToolCallTimeline entries={toolCalls} />
-            <div className="prose prose-sm dark:prose-invert max-w-none break-words overflow-x-auto overflow-wrap-anywhere leading-relaxed min-w-0 [&>p]:my-1 [&>ul]:my-1 [&>ol]:my-1 [&>hr]:my-2 [&>p:first-child]:mt-0 [&>p:last-child]:mb-0 [&>*]:max-w-full [&>*]:min-w-0 [&>pre]:overflow-x-auto [&>pre]:max-w-full [&>pre]:whitespace-pre [&>code]:break-words [&>code]:whitespace-pre-wrap [&_a]:break-all [&_a]:overflow-wrap-anywhere [&_table]:w-full [&_table]:border-collapse [&_table]:text-xs [&_th]:border [&_th]:px-2 [&_th]:py-1 [&_td]:border [&_td]:px-2 [&_td]:py-1">
-              {message.content && (
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                  {message.content}
-                </ReactMarkdown>
-              )}
-              {isStreaming && (
+            <MarkdownContent
+              trailingContent={isStreaming ? (
                 <span className="inline-block w-1.5 h-4 ml-0.5 bg-current animate-pulse rounded-sm" />
-              )}
-            </div>
+              ) : null}
+            >
+              {message.content}
+            </MarkdownContent>
             {canInsert && (
               <InsertAtCursorButton
                 disabled={!insertAtCursor}

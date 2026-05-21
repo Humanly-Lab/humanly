@@ -1,7 +1,20 @@
 'use client';
 
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Download, FileText, Clock, Award, PanelLeftClose, PanelLeft, Upload, Loader2 } from 'lucide-react';
+import {
+  AlertCircle,
+  ArrowLeft,
+  Award,
+  CheckCircle2,
+  Clock,
+  Download,
+  FileText,
+  Loader2,
+  PanelLeft,
+  PanelLeftClose,
+  RefreshCw,
+  Upload,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -71,6 +84,7 @@ const API_URL =
   (process.env.NODE_ENV === 'production' ? '/api/v1' : 'http://localhost:3001/api/v1');
 const SUBMISSION_SESSION_START_DELAY_MS = 250;
 const EDITOR_AUTO_SAVE_INTERVAL_MS = 750;
+type SaveStatus = 'saved' | 'saving' | 'error';
 
 function formatTimerDuration(totalSeconds: number): string {
   const safeSeconds = Math.max(0, Math.floor(totalSeconds));
@@ -147,6 +161,36 @@ function EditorAIBridgeCapture({
   return null;
 }
 
+function SaveStatusIndicator({ status }: { status: SaveStatus }) {
+  const config = {
+    saving: {
+      icon: <RefreshCw className="h-3.5 w-3.5 animate-spin" />,
+      label: 'Saving...',
+      className: 'text-muted-foreground',
+    },
+    saved: {
+      icon: <CheckCircle2 className="h-3.5 w-3.5" />,
+      label: 'Saved',
+      className: 'text-emerald-700',
+    },
+    error: {
+      icon: <AlertCircle className="h-3.5 w-3.5" />,
+      label: 'Save failed',
+      className: 'text-destructive',
+    },
+  }[status];
+
+  return (
+    <span
+      className={`inline-flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium ${config.className}`}
+      aria-live="polite"
+    >
+      {config.icon}
+      <span>{config.label}</span>
+    </span>
+  );
+}
+
 export default function DocumentEditorPage() {
   const params = useParams();
   const router = useRouter();
@@ -169,6 +213,7 @@ export default function DocumentEditorPage() {
 
   const [title, setTitle] = useState('');
   const [isTitleEditing, setIsTitleEditing] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>('saved');
   const [isGeneratingCertificate, setIsGeneratingCertificate] = useState(false);
   const [isSubmittingTask, setIsSubmittingTask] = useState(false);
   const [showCertificateDialog, setShowCertificateDialog] = useState(false);
@@ -186,6 +231,7 @@ export default function DocumentEditorPage() {
   const autoSubmittedTimeLimitRef = useRef<string | null>(null);
   const quickActionTriggerRef = useRef<((type: ActionType) => void) | null>(null);
   const latestEditorSnapshotRef = useRef<{ content: Record<string, any>; plainText: string } | null>(null);
+  const loadedDocumentIdRef = useRef<string | null>(null);
   const lastCharacterLimitToastRef = useRef(0);
 
   // AI Assistant
@@ -309,6 +355,10 @@ export default function DocumentEditorPage() {
   useEffect(() => {
     if (document) {
       setTitle(document.title || '');
+      if (loadedDocumentIdRef.current !== document.id) {
+        loadedDocumentIdRef.current = document.id;
+        setSaveStatus('saved');
+      }
       setCharacterCount(document.characterCount ?? (document.plainText || '').length);
       setTimerStartedAtMs(getTimestampMs(document.writingStartedAt));
       latestEditorSnapshotRef.current = {
@@ -576,24 +626,31 @@ export default function DocumentEditorPage() {
   const handleTitleSave = async () => {
     if (!document) return;
     try {
+      setSaveStatus('saving');
       await updateDocument(document.content, document.plainText || '', title);
+      setSaveStatus('saved');
       setIsTitleEditing(false);
       toast({ title: 'Success', description: 'Document title updated' });
     } catch {
+      setSaveStatus('error');
       toast({ title: 'Error', description: 'Failed to update title', variant: 'destructive' });
     }
   };
 
   const handleContentChange = async (content: Record<string, any>, plainText: string) => {
     latestEditorSnapshotRef.current = { content, plainText };
+    setSaveStatus('saving');
     setCharacterCount(plainText.length);
   };
 
   const handleAutoSave = async (content: Record<string, any>, plainText: string) => {
     try {
+      setSaveStatus('saving');
       latestEditorSnapshotRef.current = { content, plainText };
       await updateDocument(content, plainText);
+      setSaveStatus('saved');
     } catch (err) {
+      setSaveStatus('error');
       console.error('Auto-save failed:', err);
     }
   };
@@ -874,6 +931,8 @@ export default function DocumentEditorPage() {
     );
   };
 
+  const effectiveSaveStatus: SaveStatus = isSaving ? 'saving' : saveStatus;
+
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-background">
       {/* Header */}
@@ -887,7 +946,7 @@ export default function DocumentEditorPage() {
 
               <div className="min-w-0 flex-1">
                 {isTitleEditing ? (
-                  <div className="flex items-center gap-2">
+                  <div className="flex min-w-0 items-center gap-2">
                     <Input
                       value={title}
                       onChange={(e) => setTitle(e.target.value)}
@@ -904,15 +963,19 @@ export default function DocumentEditorPage() {
                     <Button size="sm" onClick={handleTitleSave}>
                       Save
                     </Button>
+                    <SaveStatusIndicator status={effectiveSaveStatus} />
                   </div>
                 ) : (
-                  <h1
-                    className="cursor-pointer truncate text-lg font-semibold tracking-normal hover:text-muted-foreground"
-                    onClick={() => setIsTitleEditing(true)}
-                    title={title || 'Untitled Document'}
-                  >
-                    {title || 'Untitled Document'}
-                  </h1>
+                  <div className="flex min-w-0 items-center gap-2">
+                    <h1
+                      className="min-w-0 cursor-pointer truncate text-lg font-semibold tracking-normal hover:text-muted-foreground"
+                      onClick={() => setIsTitleEditing(true)}
+                      title={title || 'Untitled Document'}
+                    >
+                      {title || 'Untitled Document'}
+                    </h1>
+                    <SaveStatusIndicator status={effectiveSaveStatus} />
+                  </div>
                 )}
                 {taskEnrollment && (taskEnrollment.startDate || taskEnrollment.endDate) && (
                   <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
@@ -975,13 +1038,6 @@ export default function DocumentEditorPage() {
                   {showPdfPanel ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeft className="h-4 w-4" />}
                   <span className="hidden sm:inline ml-1">PDF</span>
                 </Button>
-              )}
-
-              {isSaving && (
-                <Badge variant="secondary" className="flex items-center gap-1 rounded-md">
-                  <Clock className="h-3 w-3 animate-spin" />
-                  <span className="hidden sm:inline">Saving...</span>
-                </Badge>
               )}
 
               {!hasCharacterBounds && (

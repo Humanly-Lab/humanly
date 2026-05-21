@@ -17,6 +17,7 @@ import {
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { MarkdownContent } from '@/components/markdown-content';
 import { apiClient } from '@/lib/api-client';
 import { useAuthStore } from '@/stores/auth-store';
 import type {
@@ -987,6 +988,12 @@ export default function DocumentLogsPage() {
                                         {item.text || '—'}
                                       </div>
                                     </div>
+                                  </div>
+                                ) : item.kind === 'ai_insert' ? (
+                                  <div className="max-h-80 overflow-auto text-sm">
+                                    <MarkdownContent>
+                                      {item.text || ''}
+                                    </MarkdownContent>
                                   </div>
                                 ) : (
                                   <div className="max-h-80 overflow-auto whitespace-pre-wrap break-words text-sm">
