@@ -32,6 +32,30 @@ function makeSessionRow(overrides: Partial<any> = {}) {
   };
 }
 
+function makeInteractionLogRow(overrides: Partial<any> = {}) {
+  return {
+    id: 'log-1',
+    document_id: 'doc-1',
+    user_id: 'user-1',
+    session_id: null,
+    query: 'What is Nvidia?',
+    query_type: 'other',
+    question_category: null,
+    context_snapshot: {},
+    response: null,
+    suggestions: [],
+    response_time_ms: null,
+    tokens_used: {},
+    modifications_applied: false,
+    modifications: [],
+    model_version: null,
+    status: 'pending',
+    error_message: null,
+    created_at: new Date(),
+    ...overrides,
+  };
+}
+
 describe('AIModel.createSession legacy schema handling', () => {
   beforeEach(() => {
     mockQuery.mockReset();
@@ -76,6 +100,30 @@ describe('AIModel.createSession legacy schema handling', () => {
     expect(mockQuery).toHaveBeenCalledTimes(1);
     expect(mockQueryOne).toHaveBeenCalledTimes(1);
     expect(mockQueryOne.mock.calls[0][0]).toContain('model_capabilities');
+  });
+});
+
+describe('AIModel timestamp serialization', () => {
+  beforeEach(() => {
+    mockQuery.mockReset();
+    mockQueryOne.mockReset();
+  });
+
+  it('treats AI interaction TIMESTAMP rows as UTC wall-clock time', async () => {
+    const pgParsedTimestamp = new Date(2026, 4, 21, 14, 39, 57, 123);
+    mockQueryOne.mockResolvedValueOnce(makeInteractionLogRow({
+      created_at: pgParsedTimestamp,
+    }));
+
+    const log = await AIModel.createLog({
+      documentId: 'doc-1',
+      userId: 'user-1',
+      query: 'What is Nvidia?',
+    });
+
+    const expectedTimestamp = new Date(Date.UTC(2026, 4, 21, 14, 39, 57, 123));
+    expect(log.timestamp).toEqual(expectedTimestamp);
+    expect(log.createdAt).toEqual(expectedTimestamp);
   });
 });
 

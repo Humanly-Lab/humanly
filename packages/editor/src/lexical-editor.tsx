@@ -343,11 +343,13 @@ function AIBridgePlugin({
     let selectionStart = 0;
     let selectionEnd = 0;
     let cursorPosition = 0;
+    let textBefore = '';
+    let textAfter = '';
     let inserted = true;
 
     editor.update(() => {
       const root = $getRoot();
-      const textBefore = root.getTextContent();
+      textBefore = root.getTextContent();
       const selection = $getSelection();
 
       if (shouldBlockTextInsertion(text, maxCharacters)) {
@@ -378,6 +380,7 @@ function AIBridgePlugin({
         root.append(paragraph);
       }
 
+      textAfter = root.getTextContent();
     }, { discrete: true });
 
     editorStateAfter = editor.getEditorState().toJSON();
@@ -387,6 +390,8 @@ function AIBridgePlugin({
       selectionStart,
       selectionEnd,
       cursorPosition,
+      textBefore,
+      textAfter,
       inserted,
       editorStateBefore,
       editorStateAfter,
@@ -394,6 +399,32 @@ function AIBridgePlugin({
   }, [editor, maxCharacters, onCharacterLimitReached]);
 
   return <>{renderAIBridge({ insertAtCursor })}</>;
+}
+
+function hasNonEmptyLexicalRoot(content: unknown): boolean {
+  if (!content || typeof content !== 'object') {
+    return false;
+  }
+
+  const root = (content as { root?: { children?: unknown } }).root;
+  return !!root && Array.isArray(root.children) && root.children.length > 0;
+}
+
+function getInitialEditorStateJSON(initialContent: LexicalEditorProps['initialContent']): string | undefined {
+  if (!initialContent) {
+    return undefined;
+  }
+
+  if (typeof initialContent === 'string') {
+    try {
+      const parsed = JSON.parse(initialContent);
+      return hasNonEmptyLexicalRoot(parsed) ? initialContent : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
+  return hasNonEmptyLexicalRoot(initialContent) ? JSON.stringify(initialContent) : undefined;
 }
 
 /**
@@ -421,30 +452,7 @@ export function LexicalEditor(props: LexicalEditorProps): JSX.Element {
     renderAIBridge,
   } = props;
 
-  // Parse initial content
-  let editorStateJSON: string | undefined;
-  if (initialContent) {
-    if (typeof initialContent === 'string') {
-      try {
-        const parsed = JSON.parse(initialContent);
-        // Check if it's a valid Lexical state with root node
-        if (parsed && parsed.root) {
-          editorStateJSON = initialContent;
-        }
-      } catch {
-        // If not JSON, treat as plain text
-        editorStateJSON = undefined;
-      }
-    } else {
-      // Check if it's a valid Lexical state with root node
-      if (initialContent && typeof initialContent === 'object' && 'root' in initialContent) {
-        editorStateJSON = JSON.stringify(initialContent);
-      } else {
-        // Empty or invalid content, let Lexical create default state
-        editorStateJSON = undefined;
-      }
-    }
-  }
+  const editorStateJSON = getInitialEditorStateJSON(initialContent);
 
   const initialConfig = {
     namespace: 'humanlyEditor',

@@ -85,6 +85,8 @@ export interface EditorInsertResult {
   selectionStart: number;
   selectionEnd: number;
   cursorPosition: number;
+  textBefore?: string;
+  textAfter?: string;
   inserted?: boolean;
   editorStateBefore?: Record<string, any>;
   editorStateAfter?: Record<string, any>;

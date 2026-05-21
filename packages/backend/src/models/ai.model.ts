@@ -60,6 +60,9 @@ interface AIInteractionLogRow {
  * Transform database row to AIChatSession
  */
 function toAIChatSession(row: AIChatSessionRow): AIChatSession {
+  const createdAt = normalizeAITimestamp(row.created_at);
+  const updatedAt = normalizeAITimestamp(row.updated_at);
+
   return {
     id: row.id,
     documentId: row.document_id,
@@ -70,8 +73,8 @@ function toAIChatSession(row: AIChatSessionRow): AIChatSession {
     modelCapabilities: isModelCapabilities(row.model_capabilities)
       ? (row.model_capabilities as ModelCapabilities)
       : undefined,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
+    createdAt,
+    updatedAt,
   };
 }
 
@@ -81,15 +84,41 @@ function isModelCapabilities(value: unknown): boolean {
   return Array.isArray(inputs);
 }
 
+function hasExplicitTimezone(value: string) {
+  return /(?:z|[+-]\d{2}:?\d{2})$/i.test(value.trim());
+}
+
+function normalizeAITimestamp(value: Date | string): Date {
+  if (value instanceof Date) {
+    return new Date(Date.UTC(
+      value.getFullYear(),
+      value.getMonth(),
+      value.getDate(),
+      value.getHours(),
+      value.getMinutes(),
+      value.getSeconds(),
+      value.getMilliseconds()
+    ));
+  }
+
+  const trimmed = String(value).trim();
+  if (!trimmed) return new Date(value);
+
+  const normalized = trimmed.includes('T') ? trimmed : trimmed.replace(' ', 'T');
+  return new Date(hasExplicitTimezone(normalized) ? normalized : `${normalized}Z`);
+}
+
 /**
  * Transform database row to AIChatMessage
  */
 function toAIChatMessage(row: AIChatMessageRow): AIChatMessage {
+  const timestamp = normalizeAITimestamp(row.created_at);
+
   return {
     id: row.id,
     role: row.role,
     content: row.content,
-    timestamp: row.created_at,
+    timestamp,
     metadata: row.metadata,
   };
 }
@@ -98,12 +127,14 @@ function toAIChatMessage(row: AIChatMessageRow): AIChatMessage {
  * Transform database row to AIInteractionLog
  */
 function toAIInteractionLog(row: AIInteractionLogRow): AIInteractionLog {
+  const timestamp = normalizeAITimestamp(row.created_at);
+
   return {
     id: row.id,
     documentId: row.document_id,
     userId: row.user_id,
     sessionId: row.session_id || undefined,
-    timestamp: row.created_at,
+    timestamp,
     query: row.query,
     queryType: row.query_type,
     questionCategory: row.question_category || undefined,
@@ -117,7 +148,7 @@ function toAIInteractionLog(row: AIInteractionLogRow): AIInteractionLog {
     modelVersion: row.model_version || undefined,
     status: row.status,
     errorMessage: row.error_message || undefined,
-    createdAt: row.created_at,
+    createdAt: timestamp,
   };
 }
 

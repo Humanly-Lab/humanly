@@ -225,6 +225,34 @@ export async function getDocumentEvents(req: Request, res: Response): Promise<vo
 }
 
 /**
+ * Get derived document event timeline
+ */
+export async function getDocumentEventTimeline(req: Request, res: Response): Promise<void> {
+  const userId = req.user!.userId;
+  const documentId = req.params.id;
+
+  if (!documentId) {
+    throw new AppError(400, 'Document ID is required');
+  }
+
+  const startDate = req.query.startDate ? new Date(req.query.startDate as string) : undefined;
+  const endDate = req.query.endDate ? new Date(req.query.endDate as string) : undefined;
+  const limit = Math.min(parseInt(req.query.limit as string) || 10000, 10000);
+
+  const timeline = await DocumentService.getDocumentEventTimeline(documentId, userId, {
+    startDate,
+    endDate,
+    limit,
+    offset: 0,
+  });
+
+  res.json({
+    success: true,
+    data: timeline,
+  });
+}
+
+/**
  * Get document statistics
  */
 export async function getDocumentStatistics(req: Request, res: Response): Promise<void> {

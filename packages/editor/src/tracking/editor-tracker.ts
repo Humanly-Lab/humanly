@@ -28,6 +28,7 @@ export class EditorTracker {
   private lastKeyChar: string | null = null;
   private lastSelectionStart: number = 0;
   private lastSelectionEnd: number = 0;
+  private lastSelectedText: string = '';
 
   private get copyPastePolicy() {
     return this.config.copyPastePolicy === 'blocked' ? 'blocked' : 'allowed';
@@ -374,13 +375,17 @@ export class EditorTracker {
       const focus = selection.focus;
       const selectionStart = Math.min(anchor.offset, focus.offset);
       const selectionEnd = Math.max(anchor.offset, focus.offset);
+      const selectedText = selection.getTextContent();
 
       // Only track if selection actually changed
-      if (selectionStart !== this.lastSelectionStart || selectionEnd !== this.lastSelectionEnd) {
+      if (
+        selectionStart !== this.lastSelectionStart ||
+        selectionEnd !== this.lastSelectionEnd ||
+        selectedText !== this.lastSelectedText
+      ) {
         // Only track as 'select' event if there's an actual selection (not just cursor movement)
-        if (selectionStart !== selectionEnd) {
+        if (selectedText) {
           const currentText = this.extractPlainText(this.editor.getEditorState());
-          const selectedText = currentText.substring(selectionStart, selectionEnd);
 
           const event: TrackedEvent = {
             eventType: 'select',
@@ -401,6 +406,7 @@ export class EditorTracker {
 
         this.lastSelectionStart = selectionStart;
         this.lastSelectionEnd = selectionEnd;
+        this.lastSelectedText = selectedText;
       }
     });
   }
@@ -456,11 +462,7 @@ export class EditorTracker {
     const currentText = this.extractPlainText(this.editor.getEditorState());
     const { cursorPosition, selectionStart, selectionEnd } = this.getSelectionInfo(this.editor.getEditorState());
 
-    // Get the selected text if there's a selection
-    let selectedText = '';
-    if (selectionStart !== selectionEnd && currentText) {
-      selectedText = currentText.substring(selectionStart, selectionEnd);
-    }
+    const selectedText = this.getSelectedText(this.editor.getEditorState());
 
     const event: TrackedEvent = {
       eventType: format as EventType,
@@ -540,6 +542,7 @@ export class EditorTracker {
     }
 
     const { cursorPosition, selectionStart, selectionEnd } = this.getSelectionInfo(currentState);
+    const selectedTextBeforeChange = this.getSelectedText(prevState);
 
     // Determine the event type based on the last recorded event
     let eventType: EventType = this.lastEventType || 'input';
@@ -565,6 +568,11 @@ export class EditorTracker {
       selectionEnd,
       editorStateBefore: prevState.toJSON(),
       editorStateAfter: currentState.toJSON(),
+      metadata: selectedTextBeforeChange
+        ? {
+            selectedText: selectedTextBeforeChange,
+          }
+        : undefined,
     };
 
     this.addEvent(event);
@@ -574,7 +582,6 @@ export class EditorTracker {
    * Add event to buffer and flush if needed
    */
   private addEvent(event: TrackedEvent): void {
-    console.log('[EditorTracker] Adding event:', event.eventType, event.metadata);
     this.eventBuffer.push(event);
 
     // Notify individual event callback
@@ -582,10 +589,7 @@ export class EditorTracker {
       this.config.onEvent(event);
     }
 
-    // Flush if buffer is full
-    console.log(`[EditorTracker] Buffer size: ${this.eventBuffer.length}/${this.config.batchSize || 20}`);
     if (this.eventBuffer.length >= (this.config.batchSize || 20)) {
-      console.log('[EditorTracker] Buffer full, flushing...');
       this.flush();
     }
   }
@@ -599,15 +603,11 @@ export class EditorTracker {
     }
 
     const events = [...this.eventBuffer];
-    console.log(`[EditorTracker] Flushing ${events.length} events:`, events.map(e => e.eventType));
     this.eventBuffer = [];
 
     // Notify batch callback
     if (this.config.onEventsBuffer) {
-      console.log('[EditorTracker] Calling onEventsBuffer callback');
       this.config.onEventsBuffer(events);
-    } else {
-      console.log('[EditorTracker] No onEventsBuffer callback configured');
     }
 
     // Reset flush timer
@@ -674,6 +674,18 @@ export class EditorTracker {
         selectionStart,
         selectionEnd,
       };
+    });
+  }
+
+  private getSelectedText(editorState: EditorState): string {
+    return editorState.read(() => {
+      const selection = $getSelection();
+
+      if (!selection || !$isRangeSelection(selection)) {
+        return '';
+      }
+
+      return selection.getTextContent();
     });
   }
 

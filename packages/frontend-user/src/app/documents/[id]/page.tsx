@@ -105,6 +105,31 @@ const getTimestampMs = (value?: string | Date | null): number | null => {
   return Number.isFinite(timestamp) ? timestamp : null;
 };
 
+function normalizeEditorInitialContent(content: unknown): string | Record<string, any> | undefined {
+  if (!content) {
+    return undefined;
+  }
+
+  const parsedContent = typeof content === 'string'
+    ? (() => {
+        try {
+          return JSON.parse(content);
+        } catch {
+          return null;
+        }
+      })()
+    : content;
+
+  if (parsedContent && typeof parsedContent === 'object' && 'root' in parsedContent) {
+    const root = (parsedContent as { root?: { children?: unknown } }).root;
+    if (!root || !Array.isArray(root.children) || root.children.length === 0) {
+      return undefined;
+    }
+  }
+
+  return typeof content === 'string' ? content : content as Record<string, any>;
+}
+
 interface EditorAIBridgeCaptureProps {
   insertAtCursor: EditorAIBridgeAPI['insertAtCursor'] | null;
   onInsertAtCursorChange: (insertAtCursor: EditorAIBridgeAPI['insertAtCursor'] | null) => void;
@@ -212,6 +237,11 @@ export default function DocumentEditorPage() {
       copyPastePolicy: normalizeCopyPastePolicy(sourceConfig.copyPastePolicy),
     };
   }, [document?.environmentConfig, isTaskDocument, taskEnvironmentConfig]);
+
+  const editorInitialContent = useMemo(
+    () => normalizeEditorInitialContent(document?.content),
+    [document?.content]
+  );
 
   const activeTimeLimitSeconds =
     currentEnvironmentConfig.time.timeLimitSeconds
@@ -625,7 +655,8 @@ export default function DocumentEditorPage() {
         sessionId: currentSessionId || undefined,
         eventType: 'ai_insert_from_chat',
         timestamp: new Date(),
-        textAfter: text,
+        textBefore: insertion.textBefore,
+        textAfter: insertion.textAfter,
         cursorPosition: insertion.cursorPosition,
         selectionStart: insertion.selectionStart,
         selectionEnd: insertion.selectionEnd,
@@ -1111,7 +1142,7 @@ export default function DocumentEditorPage() {
                   <LexicalEditor
                     documentId={documentId}
                     userId={user?.id}
-                    initialContent={document.content}
+                    initialContent={editorInitialContent}
                     placeholder={displayFile ? 'Start writing with your PDF open...' : 'Start typing your document...'}
                     editable={!isEditorReadOnly}
                     trackingEnabled={!isEditorReadOnly}

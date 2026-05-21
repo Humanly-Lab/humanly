@@ -5,6 +5,7 @@ import { FileModel } from '../models/file.model';
 import { query, queryOne, transaction } from '../config/database';
 import { cacheDelPattern } from '../config/redis';
 import { FileStorageService } from './file-storage.service';
+import { buildDocumentEventTimeline } from './document-event-timeline.service';
 import type {
   AppFile,
   Document,
@@ -15,6 +16,7 @@ import type {
   DocumentEvent,
   DocumentEventInsertData,
   DocumentEventQueryFilters,
+  DocumentEventTimelineResponse,
   PaginatedResult,
   WritingEnvironmentConfig,
 } from '@humanly/shared';
@@ -394,6 +396,43 @@ export class DocumentService {
     } catch (error) {
       if (error instanceof AppError) throw error;
       logger.error('Error fetching document events', {
+        error,
+        documentId,
+        userId,
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Get a readable derived event timeline without changing raw audit storage.
+   */
+  static async getDocumentEventTimeline(
+    documentId: string,
+    userId: string,
+    filters: DocumentEventQueryFilters = {}
+  ): Promise<DocumentEventTimelineResponse> {
+    try {
+      const isOwner = await DocumentModel.isOwner(documentId, userId);
+      if (!isOwner) {
+        throw new AppError(404, 'Document not found or unauthorized');
+      }
+
+      const timelineFilters = {
+        ...filters,
+        limit: Math.min(filters.limit || 10000, 10000),
+        offset: filters.offset || 0,
+      };
+
+      const [events, total] = await Promise.all([
+        DocumentEventModel.findByDocumentId(documentId, timelineFilters),
+        DocumentEventModel.countByDocumentIdWithFilters(documentId, timelineFilters),
+      ]);
+
+      return buildDocumentEventTimeline(events, total);
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      logger.error('Error fetching document event timeline', {
         error,
         documentId,
         userId,

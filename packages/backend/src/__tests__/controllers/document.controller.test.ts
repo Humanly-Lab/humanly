@@ -21,6 +21,7 @@ import {
   deleteDocument,
   trackDocumentEvents,
   getDocumentEvents,
+  getDocumentEventTimeline,
   getDocumentStatistics,
 } from '../../controllers/document.controller';
 import { DocumentService } from '../../services/document.service';
@@ -312,6 +313,39 @@ describe('getDocumentEvents', () => {
 
     const filters = MockDocumentService.getDocumentEvents.mock.calls[0][2];
     expect(filters.eventType).toEqual(['keydown', 'keyup']);
+  });
+});
+
+// ── getDocumentEventTimeline ─────────────────────────────────────────────────
+
+describe('getDocumentEventTimeline', () => {
+  it('returns derived timeline data', async () => {
+    const timeline = {
+      items: [{ id: 'typing-1', kind: 'typing_burst' }],
+      summary: { rawEventTotal: 3, timelineItemTotal: 1 },
+    } as any;
+    MockDocumentService.getDocumentEventTimeline.mockResolvedValue(timeline);
+
+    const req = makeReq({ params: { id: 'doc-1' }, query: {} });
+    const res = makeRes();
+
+    await getDocumentEventTimeline(req, res);
+
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ success: true, data: timeline })
+    );
+    expect(MockDocumentService.getDocumentEventTimeline).toHaveBeenCalledWith(
+      'doc-1',
+      'user-1',
+      expect.objectContaining({ limit: 10000, offset: 0 })
+    );
+  });
+
+  it('throws 400 when id is missing', async () => {
+    const req = makeReq({ params: {}, query: {} });
+    const res = makeRes();
+
+    await expect(getDocumentEventTimeline(req, res)).rejects.toMatchObject({ statusCode: 400 });
   });
 });
 

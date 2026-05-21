@@ -9,6 +9,7 @@ import {
   deleteDocument,
   trackDocumentEvents,
   getDocumentEvents,
+  getDocumentEventTimeline,
   getDocumentStatistics,
   startWritingSession,
 } from '../controllers/document.controller';
@@ -69,6 +70,16 @@ router.delete('/:id', asyncHandler(deleteDocument));
  * Body: { events: DocumentEventInsertData[] }
  */
 router.post('/:id/events', asyncHandler(trackDocumentEvents));
+
+/**
+ * GET /api/v1/documents/:id/events/timeline
+ * Get grouped, readable document event timeline
+ * Query params:
+ * - startDate: ISO date string (optional)
+ * - endDate: ISO date string (optional)
+ * - limit: number (default: 10000, max: 10000)
+ */
+router.get('/:id/events/timeline', asyncHandler(getDocumentEventTimeline));
 
 /**
  * GET /api/v1/documents/:id/events

@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { format } from 'date-fns';
 
 import DocumentEditorPage from '@/app/documents/[id]/page';
 import DocumentLogsPage from '@/app/logs/[id]/page';
@@ -13,10 +14,14 @@ const mockUpdateDocument = jest.fn();
 const mockGenerateCertificate = jest.fn();
 const mockStartWritingSession = jest.fn();
 let mockDocumentEnvironmentConfig: any = { aiAccess: 'off', copyPastePolicy: 'allowed' };
+let mockDocumentContent: any = {};
 let mockDocumentPlainText = '';
 let mockDocumentCharacterCount = 0;
 let mockDocumentWritingStartedAt: string | null = null;
 let mockTaskEnrollments: any[] = [];
+let mockAiLogs: any[] = [];
+let mockTimelineSummary: any;
+let mockTimelineItems: any[] = [];
 let mockLatestEditorProps: any;
 
 jest.mock('next/navigation', () => ({
@@ -41,7 +46,7 @@ jest.mock('@/hooks/use-document', () => ({
     document: {
       id: 'doc-1',
       title: 'Workflow Document',
-      content: {},
+      content: mockDocumentContent,
       plainText: mockDocumentPlainText,
       status: 'draft',
       wordCount: 0,
@@ -159,10 +164,65 @@ describe('editor and logs workflows', () => {
     mockUpdateDocument.mockReset();
     mockUpdateDocument.mockResolvedValue(undefined);
     mockDocumentEnvironmentConfig = { aiAccess: 'off', copyPastePolicy: 'allowed' };
+    mockDocumentContent = {};
     mockDocumentPlainText = '';
     mockDocumentCharacterCount = 0;
     mockDocumentWritingStartedAt = null;
     mockTaskEnrollments = [];
+    mockAiLogs = [];
+    mockTimelineSummary = {
+      rawEventTotal: 40,
+      timelineItemTotal: 2,
+      typingBursts: 1,
+      typedCharacters: 11,
+      typedWords: 2,
+      pasteCharacters: 0,
+      deletedCharacters: 0,
+    };
+    mockTimelineItems = [
+      {
+        id: 'typing-event-1',
+        kind: 'typing_burst',
+        label: 'Typed text',
+        timestamp: '2026-05-14T12:00:01.000Z',
+        startTimestamp: '2026-05-14T12:00:00.000Z',
+        endTimestamp: '2026-05-14T12:00:01.000Z',
+        text: 'hello world',
+        charCount: 11,
+        wordCount: 2,
+        cursorStart: 0,
+        cursorEnd: 11,
+        rawEventCount: 11,
+        rawEvents: [
+          {
+            id: 'event-raw-1',
+            eventType: 'input',
+            timestamp: '2026-05-14T12:00:00.000Z',
+            keyChar: 'h',
+            insertedText: 'h',
+            cursorPosition: 1,
+          },
+        ],
+      },
+      {
+        id: 'event-hidden-1',
+        kind: 'event',
+        label: 'Editor blurred',
+        timestamp: '2026-05-14T12:00:03.000Z',
+        startTimestamp: '2026-05-14T12:00:03.000Z',
+        endTimestamp: '2026-05-14T12:00:03.000Z',
+        text: '',
+        rawEventCount: 1,
+        rawEvents: [
+          {
+            id: 'event-raw-2',
+            eventType: 'blur',
+            timestamp: '2026-05-14T12:00:03.000Z',
+            cursorPosition: 11,
+          },
+        ],
+      },
+    ];
     mockLatestEditorProps = undefined;
     global.fetch = jest.fn().mockResolvedValue({ ok: true }) as jest.Mock;
     mockStartWritingSession.mockImplementation(async () => ({
@@ -190,23 +250,18 @@ describe('editor and logs workflows', () => {
       if (path === '/documents/doc-1') {
         return { data: { data: { document: { title: 'Workflow Document' } } } };
       }
-      if (path === '/documents/doc-1/events?limit=100&offset=0') {
+      if (path === '/documents/doc-1/events/timeline?limit=10000') {
         return {
           data: {
-            count: 40,
             data: {
-              events: [{
-                id: 'event-1',
-                eventType: 'input',
-                timestamp: '2026-05-14T12:00:00.000Z',
-                keyChar: 'Q',
-              }],
+              summary: mockTimelineSummary,
+              items: mockTimelineItems,
             },
           },
         };
       }
       if (path === '/ai/logs?documentId=doc-1&limit=50&offset=0') {
-        return { data: { data: [] } };
+        return { data: { data: mockAiLogs } };
       }
       throw new Error(`Unexpected GET ${path}`);
     });
@@ -254,6 +309,16 @@ describe('editor and logs workflows', () => {
         'Short autosave QA text'
       );
     });
+  });
+
+  it('opens a document with an empty Lexical root without passing invalid editor state', async () => {
+    mockDocumentContent = { root: { children: [] } };
+
+    render(<DocumentEditorPage />);
+
+    expect(await screen.findByText('Workflow Document')).toBeInTheDocument();
+    expect(mockLatestEditorProps.initialContent).toBeUndefined();
+    expect(screen.queryByText(/application error|setEditorState/i)).not.toBeInTheDocument();
   });
 
   it('shows a configured writing time limit in the editor header', async () => {
@@ -570,12 +635,452 @@ describe('editor and logs workflows', () => {
     );
   });
 
-  it('shows persisted document event count in the logs view', async () => {
+  it('shows writing events with in-place fold points for less important logs', async () => {
     render(<DocumentLogsPage />);
 
     expect(await screen.findByText('Event Summary')).toBeInTheDocument();
-    expect(await screen.findByText('40')).toBeInTheDocument();
-    expect(await screen.findByText('input')).toBeInTheDocument();
+    expect(screen.getByText(/Total recorded events:/)).toBeInTheDocument();
+    expect(screen.getByText(/AI actions logged:/)).toBeInTheDocument();
+    expect(await screen.findByText('"hello world"')).toBeInTheDocument();
+    expect(screen.getByText('Typed')).toBeInTheDocument();
+    expect(screen.getByText('2 words · 11 chars')).toBeInTheDocument();
+    expect(screen.getByText('40')).toBeInTheDocument();
+    expect(screen.queryByText('Typing bursts')).not.toBeInTheDocument();
+    expect(screen.queryByText('Editor blurred')).not.toBeInTheDocument();
+    expect(screen.queryByText('input')).not.toBeInTheDocument();
+    expect(screen.getByText('raw event')).toBeInTheDocument();
+    expect(await screen.findByText('blur')).toBeInTheDocument();
+    expect(screen.getByText('Cursor 11')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /show 1 other event/i })).not.toBeInTheDocument();
+    expect(screen.queryByText('Raw events')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /raw audit events/i })).not.toBeInTheDocument();
     expect(screen.queryByText(/failed to load logs/i)).not.toBeInTheDocument();
+  });
+
+  it('expands long paste and delete text inline from a lightweight button', async () => {
+    const longPastedText = [
+      'This is a long pasted paragraph that should stay compact in the timeline row.',
+      'It has enough content to need a full text viewer below the row.',
+      'The expanded content preserves line breaks for audit review.',
+    ].join('\n');
+    const longDeletedText = [
+      'This is a long deleted paragraph that should stay compact in the timeline row.',
+      'The reviewer can still open the full deleted text when needed.',
+    ].join('\n');
+
+    mockTimelineSummary = {
+      rawEventTotal: 2,
+      timelineItemTotal: 2,
+      typingBursts: 0,
+      typedCharacters: 0,
+      typedWords: 0,
+      pasteCharacters: longPastedText.length,
+      deletedCharacters: longDeletedText.length,
+    };
+    mockTimelineItems = [
+      {
+        id: 'delete-event-1',
+        kind: 'delete',
+        label: 'Deleted text',
+        timestamp: '2026-05-14T12:00:02.000Z',
+        startTimestamp: '2026-05-14T12:00:02.000Z',
+        endTimestamp: '2026-05-14T12:00:02.000Z',
+        text: longDeletedText,
+        charCount: longDeletedText.length,
+        rawEventCount: 1,
+        rawEvents: [],
+      },
+      {
+        id: 'paste-event-1',
+        kind: 'paste',
+        label: 'Pasted text',
+        timestamp: '2026-05-14T12:00:01.000Z',
+        startTimestamp: '2026-05-14T12:00:01.000Z',
+        endTimestamp: '2026-05-14T12:00:01.000Z',
+        text: longPastedText,
+        charCount: longPastedText.length,
+        rawEventCount: 1,
+        rawEvents: [],
+      },
+    ];
+
+    render(<DocumentLogsPage />);
+
+    expect(await screen.findByText('Pasted')).toBeInTheDocument();
+    expect(screen.getByText('Deleted')).toBeInTheDocument();
+    expect(screen.queryByText('Pasted text')).not.toBeInTheDocument();
+    expect(screen.queryByText('Deleted text')).not.toBeInTheDocument();
+
+    const viewButtons = screen.getAllByRole('button', { name: /view full text/i });
+    expect(viewButtons).toHaveLength(2);
+    fireEvent.click(viewButtons[0]);
+    fireEvent.click(viewButtons[1]);
+
+    expect(await screen.findByText('Pasted text')).toBeInTheDocument();
+    expect(await screen.findByText('Deleted text')).toBeInTheDocument();
+    expect(screen.getByText(/The expanded content preserves line breaks/)).toBeInTheDocument();
+    expect(screen.getByText(/The reviewer can still open the full deleted text/)).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: /hide full text/i })).toHaveLength(2);
+  });
+
+  it('renders line breaks as standalone tokens in edit previews', async () => {
+    mockTimelineSummary = {
+      rawEventTotal: 2,
+      timelineItemTotal: 2,
+      typingBursts: 0,
+      typedCharacters: 0,
+      typedWords: 0,
+      pasteCharacters: 0,
+      deletedCharacters: 9,
+    };
+    mockTimelineItems = [
+      {
+        id: 'delete-mixed-line-break',
+        kind: 'delete',
+        label: 'Deleted text',
+        timestamp: '2026-05-14T12:00:02.000Z',
+        startTimestamp: '2026-05-14T12:00:02.000Z',
+        endTimestamp: '2026-05-14T12:00:02.000Z',
+        text: '\nNI',
+        charCount: 3,
+        rawEventCount: 1,
+        rawEvents: [],
+      },
+      {
+        id: 'delete-many-line-breaks',
+        kind: 'delete',
+        label: 'Deleted text',
+        timestamp: '2026-05-14T12:00:01.000Z',
+        startTimestamp: '2026-05-14T12:00:01.000Z',
+        endTimestamp: '2026-05-14T12:00:01.000Z',
+        text: '\n\n\n\n\n\n',
+        charCount: 6,
+        rawEventCount: 1,
+        rawEvents: [],
+      },
+    ];
+
+    render(<DocumentLogsPage />);
+
+    expect(await screen.findByText('Line break')).toBeInTheDocument();
+    expect(screen.getByText('"NI"')).toBeInTheDocument();
+    expect(screen.getByText('Line break × 6')).toBeInTheDocument();
+    expect(screen.queryByText(/↵/)).not.toBeInTheDocument();
+  });
+
+  it('shows grouped Enter events as readable line break timeline rows', async () => {
+    mockTimelineItems = [
+      {
+        id: 'line-break-group',
+        kind: 'line_break',
+        label: 'Inserted blank line',
+        timestamp: '2026-05-14T12:00:02.000Z',
+        startTimestamp: '2026-05-14T12:00:01.000Z',
+        endTimestamp: '2026-05-14T12:00:02.000Z',
+        text: '\n\n',
+        charCount: 2,
+        rawEventCount: 2,
+        rawEvents: [
+          {
+            id: 'line-break-raw-1',
+            eventType: 'keydown',
+            timestamp: '2026-05-14T12:00:01.000Z',
+            keyCode: 'Enter',
+            insertedText: '\n\n',
+          },
+          {
+            id: 'line-break-raw-2',
+            eventType: 'keydown',
+            timestamp: '2026-05-14T12:00:02.000Z',
+            keyCode: 'Enter',
+            insertedText: '\n\n',
+          },
+        ],
+        metadata: {
+          lineBreakCount: 2,
+        },
+      },
+    ];
+
+    render(<DocumentLogsPage />);
+
+    expect(await screen.findByText('Blank line')).toBeInTheDocument();
+    expect(screen.getByText('Inserted blank line')).toBeInTheDocument();
+    expect(screen.getByText('2 line breaks')).toBeInTheDocument();
+    expect(screen.queryByText(/raw event/)).not.toBeInTheDocument();
+  });
+
+  it('shows select-all delete as deleted all text with expandable full text', async () => {
+    const deletedText =
+      'This entire document was selected and deleted. It has enough content to stay compact in the timeline row while still being available for review.';
+
+    mockTimelineItems = [
+      {
+        id: 'delete-all-text',
+        kind: 'delete',
+        label: 'Deleted all text',
+        timestamp: '2026-05-14T12:00:02.000Z',
+        startTimestamp: '2026-05-14T12:00:02.000Z',
+        endTimestamp: '2026-05-14T12:00:02.000Z',
+        text: deletedText,
+        charCount: deletedText.length,
+        rawEventCount: 1,
+        rawEvents: [],
+        metadata: {
+          deleteScope: 'all_text',
+        },
+      },
+    ];
+
+    render(<DocumentLogsPage />);
+
+    expect(await screen.findByText('Deleted all')).toBeInTheDocument();
+    expect(screen.getByText('Deleted all text')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /view full text/i }));
+
+    expect(await screen.findByText(deletedText)).toBeInTheDocument();
+  });
+
+  it('shows replacement edits as previous text to new text', async () => {
+    const replacedText =
+      'Original selected paragraph with enough detail to require the lightweight full text viewer. It includes a second sentence so the preview remains compact.';
+    const newText =
+      'Replacement paragraph with updated wording and enough detail to compare both sides. It also includes another sentence for the expanded comparison.';
+
+    mockTimelineItems = [
+      {
+        id: 'replace-selection',
+        kind: 'replace',
+        label: 'Replaced text',
+        timestamp: '2026-05-14T12:00:02.000Z',
+        startTimestamp: '2026-05-14T12:00:02.000Z',
+        endTimestamp: '2026-05-14T12:00:02.000Z',
+        text: newText,
+        charCount: newText.length,
+        wordCount: 9,
+        rawEventCount: 1,
+        rawEvents: [],
+        metadata: {
+          replacedText,
+        },
+      },
+    ];
+
+    render(<DocumentLogsPage />);
+
+    expect(await screen.findByText('Replaced')).toBeInTheDocument();
+    expect(screen.getByText(`${replacedText.length} → ${newText.length} chars`)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /view full text/i }));
+
+    expect(await screen.findByText('Previous text')).toBeInTheDocument();
+    expect(screen.getByText('New text')).toBeInTheDocument();
+    expect(screen.getByText(replacedText)).toBeInTheDocument();
+    expect(screen.getByText(newText)).toBeInTheDocument();
+  });
+
+  it('summarizes multiline replacements instead of showing line break tokens inline', async () => {
+    const replacedText = '\n\nI am good and I like this sentence\n\n';
+    const newText = '\nI am good and I like this sentence.\n';
+
+    mockTimelineItems = [
+      {
+        id: 'replace-multiline',
+        kind: 'replace',
+        label: 'Replaced text',
+        timestamp: '2026-05-14T12:00:02.000Z',
+        startTimestamp: '2026-05-14T12:00:02.000Z',
+        endTimestamp: '2026-05-14T12:00:02.000Z',
+        text: newText,
+        charCount: newText.length,
+        wordCount: 8,
+        rawEventCount: 1,
+        rawEvents: [],
+        metadata: {
+          replacedText,
+        },
+      },
+    ];
+
+    render(<DocumentLogsPage />);
+
+    expect(await screen.findByText('Replaced')).toBeInTheDocument();
+    expect(screen.getByText('5 lines → 3 lines')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /view full text/i })).toBeInTheDocument();
+    expect(screen.queryByText(/Line break/)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /view full text/i }));
+
+    expect(await screen.findByText('Previous text')).toBeInTheDocument();
+    expect(screen.getByText('New text')).toBeInTheDocument();
+    expect(screen.getAllByText(/I am good and I like this sentence/)).toHaveLength(2);
+  });
+
+  it('hides editor replacement rows that mirror applied AI quick actions', async () => {
+    mockTimelineItems = [
+      {
+        id: 'ai-mirror-replace',
+        kind: 'replace',
+        label: 'Replaced text',
+        timestamp: '2026-05-14T12:00:02.000Z',
+        startTimestamp: '2026-05-14T12:00:02.000Z',
+        endTimestamp: '2026-05-14T12:00:02.000Z',
+        text: 'Am I okay?',
+        charCount: 10,
+        wordCount: 3,
+        rawEventCount: 1,
+        rawEvents: [],
+        metadata: {
+          replacedText: 'AM ok !?',
+        },
+      },
+    ];
+    mockAiLogs = [
+      {
+        id: 'ai-applied-grammar',
+        queryType: 'grammar_check',
+        query: 'Fix grammar',
+        response: 'Am I okay?',
+        timestamp: '2026-05-14T12:00:02.000Z',
+        status: 'success',
+        modificationsApplied: true,
+        modifications: [
+          {
+            id: 'mod-1',
+            type: 'replace',
+            before: 'AM ok !?',
+            after: 'Am I okay?',
+            location: { startOffset: 0, endOffset: 8 },
+            timestamp: '2026-05-14T12:00:02.000Z',
+          },
+        ],
+      },
+    ];
+
+    render(<DocumentLogsPage />);
+
+    expect(await screen.findByText('Fix grammar')).toBeInTheDocument();
+    expect(screen.queryByText('Replaced')).not.toBeInTheDocument();
+    expect(screen.queryByText('8 → 10 chars')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('row', { name: /fix grammar/i }));
+
+    expect(await screen.findByText('Previous text')).toBeInTheDocument();
+    expect(screen.getByText('AI modified text')).toBeInTheDocument();
+    expect(screen.getAllByText('AM ok !?').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('Am I okay?')).toBeInTheDocument();
+  });
+
+  it('shows AI chat insertions as primary timeline rows', async () => {
+    mockTimelineItems = [
+      {
+        id: 'ai-insert-1',
+        kind: 'ai_insert',
+        label: 'AI inserted text',
+        timestamp: '2026-05-14T12:00:03.000Z',
+        startTimestamp: '2026-05-14T12:00:03.000Z',
+        endTimestamp: '2026-05-14T12:00:03.000Z',
+        text: 'AI inserted answer.',
+        charCount: 19,
+        wordCount: 3,
+        rawEventCount: 1,
+        rawEvents: [
+          {
+            id: 'ai-raw-1',
+            eventType: 'ai_insert_from_chat',
+            timestamp: '2026-05-14T12:00:03.000Z',
+            insertedText: 'AI inserted answer.',
+            cursorPosition: 42,
+          },
+        ],
+      },
+    ];
+
+    render(<DocumentLogsPage />);
+
+    expect(await screen.findByText('AI inserted')).toBeInTheDocument();
+    expect(screen.getByText('"AI inserted answer."')).toBeInTheDocument();
+    expect(screen.getByText('3 words · 19 chars')).toBeInTheDocument();
+    expect(screen.queryByText('ai_insert_from_chat')).not.toBeInTheDocument();
+  });
+
+  it('keeps AI logs in the grouped logs timeline', async () => {
+    mockAiLogs = [
+      {
+        id: 'ai-log-1',
+        queryType: 'other',
+        query: 'What does this paragraph mean?',
+        response: 'It explains the core argument.',
+        timestamp: '2026-05-14T12:00:02.000Z',
+        status: 'success',
+        modificationsApplied: false,
+      },
+    ];
+
+    render(<DocumentLogsPage />);
+
+    expect(await screen.findByText('Chat')).toBeInTheDocument();
+    expect(screen.getByText(/AI actions logged:/)).toBeInTheDocument();
+    expect(screen.getByText('What does this paragraph mean?')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('row', { name: /chat what does this paragraph mean/i }));
+
+    expect(await screen.findByText('It explains the core argument.')).toBeInTheDocument();
+  });
+
+  it('treats timezone-less AI log timestamps as UTC before displaying local time', async () => {
+    mockAiLogs = [
+      {
+        id: 'ai-log-naive-time',
+        queryType: 'other',
+        query: 'When was this sent?',
+        response: 'The timestamp is normalized.',
+        timestamp: '2026-05-14T16:00:02.000',
+        status: 'success',
+        modificationsApplied: false,
+      },
+    ];
+
+    render(<DocumentLogsPage />);
+
+    const expectedLocalTime = format(new Date('2026-05-14T16:00:02.000Z'), 'HH:mm:ss');
+    expect(await screen.findByRole('row', { name: new RegExp(`${expectedLocalTime}.*Chat`) })).toBeInTheDocument();
+  });
+
+  it('does not expand discarded AI quick actions', async () => {
+    mockAiLogs = [
+      {
+        id: 'ai-log-discarded',
+        queryType: 'rewrite',
+        query: 'Improve this writing',
+        response: 'AI improved sentence.',
+        timestamp: '2026-05-14T12:00:04.000Z',
+        status: 'cancelled',
+        modificationsApplied: false,
+        modifications: [
+          {
+            id: 'mod-1',
+            type: 'replace',
+            before: 'Original sentence.',
+            after: 'AI improved sentence.',
+            location: { startOffset: 0, endOffset: 18 },
+            timestamp: '2026-05-14T12:00:04.000Z',
+          },
+        ],
+      },
+    ];
+
+    render(<DocumentLogsPage />);
+
+    expect(await screen.findByText('Improve writing')).toBeInTheDocument();
+    const discardedRow = screen.getByText('Discarded').closest('tr');
+    expect(discardedRow).not.toBeNull();
+    expect(discardedRow).not.toHaveClass('cursor-pointer');
+
+    fireEvent.click(discardedRow!);
+
+    expect(screen.queryByText('AI modified text')).not.toBeInTheDocument();
+    expect(screen.queryByText('AI improved sentence.')).not.toBeInTheDocument();
   });
 });

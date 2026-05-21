@@ -479,6 +479,46 @@ describe('DocumentService.getDocumentEvents', () => {
   });
 });
 
+// ── getDocumentEventTimeline ─────────────────────────────────────────────────
+
+describe('DocumentService.getDocumentEventTimeline', () => {
+  it('returns grouped timeline data for owned documents', async () => {
+    MockDocumentModel.isOwner.mockResolvedValue(true);
+    MockDocumentEventModel.findByDocumentId.mockResolvedValue([
+      {
+        id: 'evt-1',
+        documentId: 'doc-1',
+        userId: 'user-1',
+        eventType: 'keydown',
+        timestamp: new Date('2026-05-20T12:00:00.000Z'),
+        keyChar: 'H',
+        textBefore: '',
+        textAfter: 'H',
+        cursorPosition: 1,
+        createdAt: new Date('2026-05-20T12:00:00.000Z'),
+      },
+    ] as any);
+    MockDocumentEventModel.countByDocumentIdWithFilters.mockResolvedValue(1);
+
+    const result = await DocumentService.getDocumentEventTimeline('doc-1', 'user-1');
+
+    expect(result.summary.rawEventTotal).toBe(1);
+    expect(result.items[0]).toMatchObject({ kind: 'typing_burst', text: 'H' });
+    expect(MockDocumentEventModel.findByDocumentId).toHaveBeenCalledWith(
+      'doc-1',
+      expect.objectContaining({ limit: 10000, offset: 0 })
+    );
+  });
+
+  it('throws 404 when user is not owner', async () => {
+    MockDocumentModel.isOwner.mockResolvedValue(false);
+
+    await expect(
+      DocumentService.getDocumentEventTimeline('doc-1', 'user-other')
+    ).rejects.toMatchObject({ statusCode: 404 });
+  });
+});
+
 // ── getDocumentStatistics ─────────────────────────────────────────────────────
 
 describe('DocumentService.getDocumentStatistics', () => {
