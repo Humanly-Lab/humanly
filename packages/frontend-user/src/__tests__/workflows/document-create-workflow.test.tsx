@@ -70,7 +70,7 @@ describe('document creation workflow', () => {
 
     render(<NewDocumentPage />);
 
-    await screen.findByRole('heading', { name: /new document/i });
+    await screen.findByRole('heading', { name: /create writing/i });
     await user.click(screen.getByRole('button', { name: /^create writing$/i }));
 
     expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({
@@ -110,7 +110,7 @@ describe('document creation workflow', () => {
 
     render(<NewDocumentPage />);
 
-    await screen.findByRole('heading', { name: /new document/i });
+    await screen.findByRole('heading', { name: /create writing/i });
     expect(screen.getByText('Choose Custom to configure AI access, copy-paste rules, or a time limit.')).toBeInTheDocument();
     expect(screen.queryByText('Writing Control')).not.toBeInTheDocument();
     expect(screen.queryByText('Time Limitation')).not.toBeInTheDocument();
@@ -132,7 +132,7 @@ describe('document creation workflow', () => {
 
     render(<NewDocumentPage />);
 
-    await screen.findByRole('heading', { name: /new document/i });
+    await screen.findByRole('heading', { name: /create writing/i });
     await user.type(screen.getByLabelText(/document name/i), 'Personal Character Policy');
     await user.click(screen.getByRole('combobox'));
     await user.click(await screen.findByRole('option', { name: 'Custom' }));
@@ -172,7 +172,7 @@ describe('document creation workflow', () => {
 
     render(<NewDocumentPage />);
 
-    await screen.findByRole('heading', { name: /new document/i });
+    await screen.findByRole('heading', { name: /create writing/i });
     await user.click(screen.getByRole('combobox'));
     await user.click(await screen.findByRole('option', { name: 'Custom' }));
     await user.click(screen.getAllByRole('combobox')[1]);
@@ -192,7 +192,7 @@ describe('document creation workflow', () => {
 
     render(<NewDocumentPage />);
 
-    await screen.findByRole('heading', { name: /new document/i });
+    await screen.findByRole('heading', { name: /create writing/i });
     await user.click(screen.getByRole('combobox'));
     await user.click(await screen.findByRole('option', { name: 'Custom' }));
     await user.click(screen.getByRole('combobox', { name: /time policy/i }));

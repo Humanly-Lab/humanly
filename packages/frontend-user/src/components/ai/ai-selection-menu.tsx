@@ -336,7 +336,7 @@ export function AISelectionMenu({
             </div>
           ) : null}
         </div>
-        <div className="max-h-40 overflow-y-auto rounded-md bg-muted/40 p-2 text-xs whitespace-pre-wrap text-foreground">
+        <div className="max-h-40 overflow-y-auto rounded-lg border border-border/60 bg-muted/35 p-2 text-xs whitespace-pre-wrap text-foreground">
           {reviewState.isStreaming
             ? reviewState.suggestedText || 'Waiting for AI response...'
             : (
@@ -358,7 +358,7 @@ export function AISelectionMenu({
           </Button>
           <Button
             size="sm"
-            className="h-8 px-3 text-xs font-medium gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
+            className="h-8 px-3 text-xs font-medium gap-1.5 bg-[#6f8a78] text-white hover:bg-[#607866]"
             onClick={handleKeep}
             disabled={reviewState.isStreaming || !reviewState.suggestedText.trim()}
           >
@@ -384,8 +384,8 @@ export function AISelectionMenu({
           size="sm"
           className={cn(
             'h-8 px-2.5 text-xs font-medium gap-1.5',
-            'hover:bg-violet-50 hover:text-violet-700',
-            loadingAction === action.type && 'bg-violet-50 text-violet-700'
+            'hover:bg-muted hover:text-foreground',
+            loadingAction === action.type && 'bg-muted text-foreground'
           )}
           onClick={() => handleAction(action)}
           disabled={isLoading}
@@ -404,9 +404,9 @@ export function AISelectionMenu({
           <Button
             variant="ghost"
             size="sm"
-            className={cn(
-              'h-8 px-2.5 text-xs font-medium gap-1.5',
-              'hover:bg-violet-50 hover:text-violet-700'
+          className={cn(
+            'h-8 px-2.5 text-xs font-medium gap-1.5',
+              'hover:bg-muted hover:text-foreground'
             )}
             onClick={() => {
               if (hasAISettings === false) {

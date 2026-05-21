@@ -41,8 +41,8 @@ import {
 const PDFViewer = dynamic(() => import('@/components/pdf/PDFViewer'), {
   ssr: false,
   loading: () => (
-    <div className="flex items-center justify-center h-full bg-gray-100">
-      <p className="text-gray-600">Loading PDF viewer...</p>
+    <div className="flex h-full items-center justify-center bg-muted/40">
+      <p className="text-muted-foreground">Loading PDF viewer...</p>
     </div>
   ),
 });
@@ -822,9 +822,7 @@ export default function DocumentEditorPage() {
     );
   }
 
-  // ✅ Overleaf-style canvas: nearly full-width with minimal padding
-  // px-2 gives a tiny gutter on edges for a more spacious panel layout
-  const CANVAS = 'mx-auto w-full max-w-[2400px] px-3';
+  const CANVAS = 'mx-auto w-full max-w-[2400px] px-3 sm:px-4';
   const selectedInstructionFile =
     taskInstructionFiles.find((file) => file.id === selectedInstructionFileId) ||
     taskInstructionFile;
@@ -846,17 +844,17 @@ export default function DocumentEditorPage() {
   };
 
   return (
-    <div className="h-screen bg-background flex flex-col overflow-hidden">
+    <div className="flex h-screen flex-col overflow-hidden bg-background">
       {/* Header */}
-      <div className="border-b bg-background shrink-0">
-        <div className={`${CANVAS} py-4`}>
+      <div className="shrink-0 border-b border-border/70 bg-card">
+        <div className={`${CANVAS} py-3`}>
           <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-4 min-w-0">
-              <Button variant="ghost" size="icon" onClick={() => router.push('/documents')}>
+            <div className="flex min-w-0 items-center gap-3">
+              <Button variant="outline" size="icon" onClick={() => router.push('/documents')}>
                 <ArrowLeft className="h-4 w-4" />
               </Button>
 
-              <div className="flex-1 min-w-0">
+              <div className="min-w-0 flex-1">
                 {isTitleEditing ? (
                   <div className="flex items-center gap-2">
                     <Input
@@ -878,7 +876,7 @@ export default function DocumentEditorPage() {
                   </div>
                 ) : (
                   <h1
-                    className="cursor-pointer text-lg font-semibold hover:text-muted-foreground truncate"
+                    className="cursor-pointer truncate text-lg font-semibold tracking-normal hover:text-muted-foreground"
                     onClick={() => setIsTitleEditing(true)}
                     title={title || 'Untitled Document'}
                   >
@@ -898,7 +896,7 @@ export default function DocumentEditorPage() {
                 {visibleCountdown && (
                   <Badge
                     variant={visibleCountdown.variant}
-                    className="mt-2 inline-flex max-w-full items-center gap-1.5"
+                    className="mt-2 inline-flex max-w-full items-center gap-1.5 rounded-md"
                     title={visibleCountdown.title}
                   >
                     <Clock className="h-3.5 w-3.5 shrink-0" />
@@ -949,7 +947,7 @@ export default function DocumentEditorPage() {
               )}
 
               {isSaving && (
-                <Badge variant="secondary" className="flex items-center gap-1">
+                <Badge variant="secondary" className="flex items-center gap-1 rounded-md">
                   <Clock className="h-3 w-3 animate-spin" />
                   <span className="hidden sm:inline">Saving...</span>
                 </Badge>
@@ -967,6 +965,7 @@ export default function DocumentEditorPage() {
               {hasCharacterBounds && (
                 <Badge
                   variant="secondary"
+                  className="rounded-md"
                   title={characterBoundsTitle}
                 >
                   {characterBoundsLabel}
@@ -1047,13 +1046,13 @@ export default function DocumentEditorPage() {
       <div className="flex-1 overflow-hidden">
         <div className={`${CANVAS} h-full py-3`}>
           {/* ✅ Resizable like Overleaf */}
-          <ResizablePanelGroup direction="horizontal" className="h-full w-full rounded-md border bg-background">
+          <ResizablePanelGroup direction="horizontal" className="h-full w-full overflow-hidden rounded-lg border border-border/80 bg-card">
             {/* PDF */}
             {displayFile && showPdfPanel ? (
               <ResizablePanel defaultSize={38} minSize={22}>
-                <div className="h-full border-r bg-background overflow-hidden flex flex-col">
+                <div className="flex h-full flex-col overflow-hidden border-r border-border/70 bg-card">
                   {taskInstructionFiles.length > 1 ? (
-                    <div className="shrink-0 border-b bg-background px-3 py-2">
+                    <div className="shrink-0 border-b border-border/70 bg-muted/30 px-3 py-2">
                       <div className="flex max-w-full gap-2 overflow-x-auto pb-1">
                         {taskInstructionFiles.map((file, index) => (
                           <Button
@@ -1089,10 +1088,10 @@ export default function DocumentEditorPage() {
               defaultSize={displayFile && showPdfPanel ? (isAIPanelOpen ? 37 : 62) : (isAIPanelOpen ? 70 : 100)}
               minSize={30}
             >
-              <div className="h-full overflow-auto">
+              <div className="h-full overflow-auto bg-background">
                 <div className={`${displayFile || isAIPanelOpen ? 'px-4 py-4' : 'px-6 py-6'} h-full`}>
                   {!displayFile && (
-                    <div className="mb-4 rounded-lg border border-dashed border-border bg-muted/30 p-4">
+                    <div className="mb-4 rounded-lg border border-dashed border-border/80 bg-muted/30 p-4">
                       <div>
                         <div>
                           <h2 className="text-sm font-semibold">No PDF linked</h2>
@@ -1104,7 +1103,7 @@ export default function DocumentEditorPage() {
                     </div>
                   )}
                   {isEditorReadOnly && (
-                    <div className="mb-4 rounded-lg border bg-muted/40 p-4 text-sm text-muted-foreground">
+                    <div className="mb-4 rounded-lg border border-border/70 bg-muted/40 p-4 text-sm text-muted-foreground">
                       The writing time limit has ended. This document is now read-only.
                       {taskEnrollment ? ' Humanly is submitting the task automatically.' : null}
                     </div>
@@ -1162,7 +1161,7 @@ export default function DocumentEditorPage() {
               <>
                 <ResizableHandle withHandle />
                 <ResizablePanel defaultSize={25} minSize={18}>
-                  <div className="h-full border-l bg-background overflow-hidden">
+                  <div className="h-full overflow-hidden border-l border-border/70 bg-card">
                     <AIAssistantPanel
                       documentId={documentId}
                       onClose={closeAIPanel}

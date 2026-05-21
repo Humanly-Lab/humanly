@@ -295,7 +295,7 @@ export default function CertificateDetailPage() {
 
   if (error || !certificate) {
     return (
-      <div className="container mx-auto max-w-5xl px-4 py-8">
+      <div className="humanly-page-narrow">
         <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4">
           <h2 className="text-lg font-semibold text-destructive">Error</h2>
           <p className="mt-2 text-sm">{error || 'Certificate not found'}</p>
@@ -331,7 +331,7 @@ export default function CertificateDetailPage() {
   const pdfPreviewUrl = getApiUrl(`/certificates/${certificateId}/pdf?disposition=inline&filename=certificate-${safeTitle}.pdf`);
 
   return (
-    <div className="mx-auto max-w-5xl pb-6">
+    <div className="mx-auto max-w-6xl px-5 pb-6 pt-5 sm:px-8 lg:px-10">
       <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <Button
           onClick={() => router.push('/certificates')}
@@ -367,9 +367,9 @@ export default function CertificateDetailPage() {
             <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
               <div className="min-w-0 flex-1">
                 <div className="flex items-start gap-3">
-                  <Award className="mt-1 h-6 w-6 shrink-0 text-primary" />
+                  <Award className="mt-1 h-6 w-6 shrink-0 text-accent" />
                   <div className="min-w-0">
-                    <h1 className="text-2xl font-bold tracking-tight break-words">{certificate.title}</h1>
+                    <h1 className="break-words text-2xl font-semibold tracking-normal">{certificate.title}</h1>
                     <p className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
                       <Calendar className="h-4 w-4" />
                       Generated {format(new Date(certificate.generatedAt), 'MMMM dd, yyyy')}
@@ -385,19 +385,19 @@ export default function CertificateDetailPage() {
             <Separator />
 
             <div className="grid gap-2 sm:grid-cols-4">
-              <div className="rounded-lg bg-muted/50 p-3">
+              <div className="rounded-lg border border-border/60 bg-muted/35 p-3">
                 <p className="text-xs text-muted-foreground">Typed</p>
                 <p className="mt-1 text-2xl font-semibold">{typedPercentage.toFixed(0)}%</p>
               </div>
-              <div className="rounded-lg bg-muted/50 p-3">
+              <div className="rounded-lg border border-border/60 bg-muted/35 p-3">
                 <p className="text-xs text-muted-foreground">Pasted</p>
                 <p className="mt-1 text-2xl font-semibold">{pastedPercentage.toFixed(0)}%</p>
               </div>
-              <div className="rounded-lg bg-muted/50 p-3">
+              <div className="rounded-lg border border-border/60 bg-muted/35 p-3">
                 <p className="text-xs text-muted-foreground">Final Text</p>
                 <p className="mt-1 text-2xl font-semibold">{certificate.totalCharacters.toLocaleString()}</p>
               </div>
-              <div className="rounded-lg bg-muted/50 p-3">
+              <div className="rounded-lg border border-border/60 bg-muted/35 p-3">
                 <p className="text-xs text-muted-foreground">Writing Time</p>
                 <p className="mt-1 text-2xl font-semibold">{editingMinutes} min</p>
               </div>
@@ -412,7 +412,7 @@ export default function CertificateDetailPage() {
               </div>
               <div className="flex h-3 overflow-hidden rounded-full bg-secondary">
                 <div className="bg-primary" style={{ width: `${typedPercentage}%` }} />
-                <div className="bg-orange-500" style={{ width: `${pastedPercentage}%` }} />
+                <div className="bg-[#b9774f]" style={{ width: `${pastedPercentage}%` }} />
               </div>
             </div>
 
@@ -423,7 +423,7 @@ export default function CertificateDetailPage() {
           <Card>
             <CardHeader className="pb-3">
               <div className="flex items-center gap-2">
-                <Bot className="h-5 w-5 text-orange-600" />
+                <Bot className="h-5 w-5 text-[#b9774f]" />
                 <CardTitle className="text-lg">AI Assistance</CardTitle>
               </div>
               <CardDescription>How AI was used while writing this document.</CardDescription>
@@ -438,23 +438,23 @@ export default function CertificateDetailPage() {
                 <div className="grid gap-4 lg:grid-cols-[1fr_220px]">
                   <div className="space-y-3">
                     <p className="flex items-center gap-2 text-sm font-medium">
-                      <Wand2 className="h-4 w-4 text-orange-500" />
+                      <Wand2 className="h-4 w-4 text-[#b9774f]" />
                       Text Improvements
                     </p>
                     <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                      <div className="rounded-lg bg-muted/50 p-3 text-center">
+                      <div className="rounded-lg border border-border/60 bg-muted/35 p-3 text-center">
                         <p className="text-xs text-muted-foreground">Grammar</p>
                         <p className="text-xl font-semibold">{aiStats.selectionActions.grammarFixes}</p>
                       </div>
-                      <div className="rounded-lg bg-muted/50 p-3 text-center">
+                      <div className="rounded-lg border border-border/60 bg-muted/35 p-3 text-center">
                         <p className="text-xs text-muted-foreground">Improve</p>
                         <p className="text-xl font-semibold">{aiStats.selectionActions.improveWriting}</p>
                       </div>
-                      <div className="rounded-lg bg-muted/50 p-3 text-center">
+                      <div className="rounded-lg border border-border/60 bg-muted/35 p-3 text-center">
                         <p className="text-xs text-muted-foreground">Simplify</p>
                         <p className="text-xl font-semibold">{aiStats.selectionActions.simplify}</p>
                       </div>
-                      <div className="rounded-lg bg-muted/50 p-3 text-center">
+                      <div className="rounded-lg border border-border/60 bg-muted/35 p-3 text-center">
                         <p className="text-xs text-muted-foreground">Formal</p>
                         <p className="text-xl font-semibold">{aiStats.selectionActions.makeFormal}</p>
                       </div>
@@ -465,9 +465,9 @@ export default function CertificateDetailPage() {
                     </p>
                   </div>
 
-                  <div className="rounded-lg border p-4">
+                  <div className="rounded-lg border border-border/70 bg-muted/25 p-4">
                     <p className="flex items-center gap-2 text-sm font-medium">
-                      <MessageSquare className="h-4 w-4 text-orange-500" />
+                      <MessageSquare className="h-4 w-4 text-[#b9774f]" />
                       AI Chat
                     </p>
                     <p className="mt-3 text-3xl font-semibold">{aiChatTotal}</p>
@@ -491,7 +491,7 @@ export default function CertificateDetailPage() {
               <button className="flex w-full items-center justify-between px-5 py-4 text-left">
                 <div>
                   <p className="font-medium">More details</p>
-                  <p className="text-sm text-muted-foreground">Verify, share, and manage access.</p>
+                  <p className="text-sm text-muted-foreground">Verification, access, display, and identifiers.</p>
                 </div>
                 <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform ${detailsOpen ? 'rotate-180' : ''}`} />
               </button>
@@ -499,7 +499,7 @@ export default function CertificateDetailPage() {
             <CollapsibleContent>
               <Separator />
               <CardContent className="grid gap-5 p-5 lg:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
-                <div className="grid gap-4 rounded-lg border p-4 lg:grid-cols-[minmax(190px,0.8fr)_minmax(280px,1.2fr)]">
+                <div className="grid gap-4 rounded-lg border border-border/70 bg-muted/20 p-4 lg:grid-cols-[minmax(190px,0.8fr)_minmax(280px,1.2fr)]">
                   <div className="space-y-3">
                     <div>
                       <h3 className="text-sm font-medium">Verification</h3>
@@ -530,7 +530,7 @@ export default function CertificateDetailPage() {
                   <div className="space-y-8">
                     <div className="space-y-2">
                       <div className="flex items-center gap-2">
-                        <Lock className={`h-4 w-4 ${certificate.isProtected ? 'text-yellow-600' : 'text-muted-foreground'}`} />
+                        <Lock className={`h-4 w-4 ${certificate.isProtected ? 'text-[#b9774f]' : 'text-muted-foreground'}`} />
                         <h3 className="text-sm font-medium">Access Protection</h3>
                       </div>
 
@@ -538,7 +538,7 @@ export default function CertificateDetailPage() {
                         <>
                           {certificate.isProtected && certificate.accessCode ? (
                             <div className="flex items-center gap-1">
-                              <div className="min-w-0 flex-1 truncate rounded bg-muted p-2 font-mono text-xs">
+                              <div className="min-w-0 flex-1 truncate rounded-lg border border-border/60 bg-background p-2 font-mono text-xs">
                                 {certificate.accessCode}
                               </div>
                               <Button
@@ -674,7 +674,7 @@ export default function CertificateDetailPage() {
                   </div>
                 </div>
 
-                <div className="space-y-3 rounded-lg border p-4 text-xs">
+                <div className="space-y-3 rounded-lg border border-border/70 bg-muted/20 p-4 text-xs">
                   <div>
                     <h3 className="text-sm font-medium">Identifiers</h3>
                     <p className="text-xs text-muted-foreground">Technical identifiers for audit and support.</p>
@@ -689,7 +689,7 @@ export default function CertificateDetailPage() {
                   </div>
                   <div>
                     <p className="text-muted-foreground">Verification Token</p>
-                    <div className="mt-1 max-h-20 overflow-y-auto rounded-md bg-muted p-2 font-mono text-[10px] break-all">
+                    <div className="mt-1 max-h-20 overflow-y-auto rounded-lg border border-border/60 bg-background p-2 font-mono text-[10px] break-all">
                       {certificate.verificationToken}
                     </div>
                     <Button

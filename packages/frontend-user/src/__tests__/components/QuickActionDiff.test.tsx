@@ -15,11 +15,11 @@ describe('QuickActionDiff', () => {
     expect(container.querySelector('.underline')).toBeNull();
   });
 
-  it('shows additions with the emerald underline classes', () => {
+  it('shows additions with the sage underline classes', () => {
     const { container } = render(
       <QuickActionDiff before="hello" after="hello there" />,
     );
-    const added = container.querySelector('.bg-emerald-100');
+    const added = container.querySelector('.underline');
     expect(added).not.toBeNull();
     expect(added?.textContent).toMatch(/there/);
   });
@@ -38,6 +38,6 @@ describe('QuickActionDiff', () => {
       <QuickActionDiff before="they are bad" after="they are good" />,
     );
     expect(container.querySelector('.line-through')?.textContent).toMatch(/bad/);
-    expect(container.querySelector('.bg-emerald-100')?.textContent).toMatch(/good/);
+    expect(container.querySelector('.underline')?.textContent).toMatch(/good/);
   });
 });

@@ -31,20 +31,20 @@ interface DocumentReplayProps {
 
 const AI_ACTION_FLASH_STYLES: Record<string, { overlay: string; border: string }> = {
   grammar: {
-    overlay: 'bg-sky-200/45',
-    border: 'ring-sky-300',
+    overlay: 'bg-[#dfe6dc]/55',
+    border: 'ring-[#c8d4c8]',
   },
   improve: {
-    overlay: 'bg-emerald-200/45',
-    border: 'ring-emerald-300',
+    overlay: 'bg-[#dfe6dc]/55',
+    border: 'ring-[#c8d4c8]',
   },
   simplify: {
     overlay: 'bg-amber-200/50',
     border: 'ring-amber-300',
   },
   formal: {
-    overlay: 'bg-violet-200/45',
-    border: 'ring-violet-300',
+    overlay: 'bg-[#eadfd6]/55',
+    border: 'ring-[#d6bba8]',
   },
 };
 
@@ -293,7 +293,7 @@ export function DocumentReplay({ token, className = '' }: DocumentReplayProps) {
 
         {showQuickActions && (
           <div className="absolute left-1/2 top-4 z-20 w-[320px] max-w-[calc(100%-2rem)] -translate-x-1/2 rounded-xl border bg-background/95 p-3 shadow-lg backdrop-blur-sm">
-            <p className="mb-2 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+            <p className="mb-2 humanly-eyebrow text-[10px]">
               Selected Text
             </p>
             <p className="mb-3 line-clamp-2 text-xs text-foreground/80">
@@ -327,7 +327,7 @@ export function DocumentReplay({ token, className = '' }: DocumentReplayProps) {
                     key={action.key}
                     className={`rounded-md border px-2 py-1.5 text-[11px] font-medium ${
                       isActive
-                        ? 'border-violet-300 bg-violet-100 text-violet-800'
+                        ? 'border-[#d6bba8] bg-[#f1e8df] text-[#8a5f43]'
                         : 'bg-muted/40 text-muted-foreground'
                     }`}
                   >
@@ -338,7 +338,7 @@ export function DocumentReplay({ token, className = '' }: DocumentReplayProps) {
             </div>
             <div className="grid gap-2 md:grid-cols-2">
               <div>
-                <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                <p className="mb-1 humanly-eyebrow text-[10px]">
                   Before
                 </p>
                 <div className="rounded-md border bg-background px-3 py-2 text-xs text-foreground/80">
@@ -346,7 +346,7 @@ export function DocumentReplay({ token, className = '' }: DocumentReplayProps) {
                 </div>
               </div>
               <div>
-                <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                <p className="mb-1 humanly-eyebrow text-[10px]">
                   After
                 </p>
                 <div className="rounded-md border bg-background px-3 py-2 text-xs text-foreground/80">
@@ -355,7 +355,7 @@ export function DocumentReplay({ token, className = '' }: DocumentReplayProps) {
               </div>
             </div>
             {quickActionLabel && (
-              <p className="mt-2 text-[11px] font-medium text-violet-700">
+              <p className="mt-2 text-[11px] font-medium text-[#8a5f43]">
                 {quickActionLabel} applied
               </p>
             )}
@@ -383,7 +383,7 @@ export function DocumentReplay({ token, className = '' }: DocumentReplayProps) {
           </div>
         )}
         {aiActionLabel && (
-          <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 text-[10px] sm:text-xs text-violet-700 bg-violet-100 px-1.5 py-0.5 sm:px-2 sm:py-1 rounded z-10 font-medium capitalize">
+          <div className="absolute top-1.5 right-1.5 z-10 rounded bg-[#f1e8df] px-1.5 py-0.5 text-[10px] font-medium capitalize text-[#8a5f43] sm:top-2 sm:right-2 sm:px-2 sm:py-1 sm:text-xs">
             {aiActionLabel}
           </div>
         )}

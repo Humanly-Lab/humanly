@@ -238,7 +238,7 @@ export function AISettingsDialog({ onSettingsChanged }: AISettingsDialogProps) {
         </DialogTrigger>
         <DialogContent className="max-w-md overflow-hidden">
           <DialogHeader>
-            <DialogTitle className="text-sm font-semibold">AI Settings</DialogTitle>
+            <DialogTitle className="text-sm font-semibold tracking-normal">AI Settings</DialogTitle>
           </DialogHeader>
 
           {loading ? (
@@ -268,7 +268,7 @@ export function AISettingsDialog({ onSettingsChanged }: AISettingsDialogProps) {
                     ))}
                   </SelectContent>
                 </Select>
-                <p className="text-[10px] text-muted-foreground">
+                <p className="text-[11px] leading-relaxed text-muted-foreground">
                   Choose a supported provider, or use Custom for any OpenAI-compatible API with tool calling.
                 </p>
               </div>
@@ -328,7 +328,7 @@ export function AISettingsDialog({ onSettingsChanged }: AISettingsDialogProps) {
                 <div
                   className={`flex items-start gap-2 rounded-lg border p-3 text-xs min-w-0 ${
                     testResult.success
-                      ? 'border-green-200 bg-green-50 text-green-700'
+                      ? 'border-[#c8d4c8] bg-[#eef3ed] text-[#58715f]'
                       : 'border-red-200 bg-red-50 text-red-700'
                   }`}
                 >
@@ -373,7 +373,7 @@ export function AISettingsDialog({ onSettingsChanged }: AISettingsDialogProps) {
                 </div>
               )}
 
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-4 rounded-lg border border-border/70 bg-muted/25 p-3 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label className="text-xs font-medium">Shortcut Tokens</Label>
                   <Input

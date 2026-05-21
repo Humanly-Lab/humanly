@@ -529,7 +529,7 @@ export function AIAssistantPanel({
       {/* Suggestions - Fixed at bottom above input */}
       {suggestions.length > 0 && (
         <div className="border-t px-4 py-3 bg-muted/20 shrink-0 w-full min-w-0">
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2 font-medium">Suggestions</p>
+          <p className="mb-2 humanly-eyebrow text-[10px]">Suggestions</p>
           <div className="space-y-2 min-w-0">
             {suggestions.filter(s => !s.applied).map((suggestion) => (
               <div
@@ -583,9 +583,9 @@ export function AIAssistantPanel({
       <div className="border-t p-4 bg-background shrink-0 w-full min-w-0">
         {/* PDF context indicator */}
         {pdfTextData && !pdfTextData.error && !pdfTextData.isExtracting && (
-          <div className="mb-2 rounded-lg border border-blue-200 bg-blue-50/50 p-2 flex items-center gap-2 min-w-0">
-            <CheckCircle className="h-3 w-3 text-blue-600 shrink-0" />
-            <p className="text-[10px] text-blue-700">
+          <div className="mb-2 flex min-w-0 items-center gap-2 rounded-lg border border-[#c8d4c8] bg-[#eef3ed] p-2">
+            <CheckCircle className="h-3 w-3 shrink-0 text-[#58715f]" />
+            <p className="text-[10px] text-[#58715f]">
               PDF context available ({pdfTextData.numPages} pages)
             </p>
           </div>
@@ -593,10 +593,10 @@ export function AIAssistantPanel({
 
         {/* Quoted text block */}
         {quotedText && (
-          <div className="mb-2 rounded-lg border border-violet-200 bg-violet-50/50 p-2.5 relative min-w-0">
+          <div className="relative mb-2 min-w-0 rounded-lg border border-border/70 bg-muted/35 p-2.5">
             <div className="flex items-start gap-2 min-w-0">
               <div className="flex-1 min-w-0 overflow-hidden">
-                <p className="text-[10px] uppercase tracking-wider text-violet-500 font-medium mb-1">
+                <p className="mb-1 humanly-eyebrow text-[10px]">
                   Selected text
                 </p>
                 <p className="text-xs text-muted-foreground line-clamp-3 italic break-words">
@@ -616,7 +616,7 @@ export function AIAssistantPanel({
         )}
         {/* Quick model selector */}
         {taskManaged && currentModel && (
-          <div className="mb-2 rounded-md border bg-muted/40 px-2 py-1.5 text-[11px] text-muted-foreground">
+          <div className="mb-2 rounded-lg border bg-muted/40 px-2 py-1.5 text-[11px] text-muted-foreground">
             Task AI model: {currentModel}
           </div>
         )}
@@ -628,7 +628,7 @@ export function AIAssistantPanel({
                 value={currentModel}
                 onChange={(e) => handleModelChange(e.target.value)}
                 disabled={modelSwitching || isStreaming}
-                className="w-full h-7 pl-2 pr-6 text-[11px] text-muted-foreground bg-muted/50 border border-border/50 rounded-md appearance-none cursor-pointer hover:bg-muted hover:text-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-50 truncate"
+                className="h-7 w-full cursor-pointer appearance-none truncate rounded-lg border border-border/50 bg-muted/50 pl-2 pr-6 text-[11px] text-muted-foreground hover:bg-muted hover:text-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-50"
               >
                 {availableModels.map((m) => (
                   <option key={m} value={m}>
@@ -655,7 +655,7 @@ export function AIAssistantPanel({
             {pendingAttachments.map((a) => (
               <div
                 key={a.storageKey}
-                className="flex items-center gap-1.5 rounded-md border border-border bg-muted px-2 py-1"
+                className="flex items-center gap-1.5 rounded-lg border border-border bg-muted px-2 py-1"
               >
                 <ImageIcon className="h-3 w-3 text-muted-foreground" />
                 <span className="max-w-[180px] truncate" title={a.filename}>
@@ -781,7 +781,7 @@ function MessageBubble({ message, isStreaming, toolCalls, thinking, insertAtCurs
     <div className={cn('flex min-w-0 w-full', isUser ? 'justify-end' : 'justify-start')}>
       <div
         className={cn(
-          'max-w-[85%] min-w-0 rounded-2xl px-4 py-2.5 text-sm overflow-hidden',
+          'max-w-[85%] min-w-0 rounded-lg px-4 py-2.5 text-sm overflow-hidden',
           isUser
             ? 'bg-primary text-primary-foreground rounded-br-md'
             : 'bg-muted rounded-bl-md'
@@ -1003,7 +1003,7 @@ function ChatSessionItem({ sessionId, date, logs, onSelect, onSelectLogs }: Chat
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
-              <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{date}</span>
+              <span className="humanly-eyebrow text-[10px]">{date}</span>
               <span className="text-[10px] text-muted-foreground">{time}</span>
               <Badge variant="secondary" className="h-4 px-1 text-[10px] font-normal ml-auto">
                 {messageCount}

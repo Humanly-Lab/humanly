@@ -218,8 +218,8 @@ const toolbarStyles = {
     flexWrap: 'wrap' as const,
     gap: '8px',
     padding: '8px',
-    borderBottom: '1px solid #e5e7eb',
-    backgroundColor: '#f9fafb',
+    borderBottom: '1px solid #d8d9cf',
+    backgroundColor: '#f7f8f3',
     alignItems: 'center',
   },
   section: {
@@ -229,11 +229,11 @@ const toolbarStyles = {
   divider: {
     width: '1px',
     height: '24px',
-    backgroundColor: '#d1d5db',
+    backgroundColor: '#d8d9cf',
   },
   button: {
     padding: '6px 12px',
-    border: '1px solid #d1d5db',
+    border: '1px solid #d8d9cf',
     borderRadius: '4px',
     backgroundColor: '#ffffff',
     cursor: 'pointer',
@@ -244,8 +244,8 @@ const toolbarStyles = {
     justifyContent: 'center',
   },
   activeButton: {
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#1a1c20',
     color: '#ffffff',
-    border: '1px solid #2563eb',
+    border: '1px solid #1a1c20',
   },
 };

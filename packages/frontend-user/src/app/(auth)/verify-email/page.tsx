@@ -105,8 +105,8 @@ export default function VerifyEmailPage() {
       return (
         <Card>
           <CardHeader className="text-center">
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900">
-              <Loader2 className="h-6 w-6 animate-spin text-blue-600 dark:text-blue-400" />
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-lg border border-border/70 bg-muted/40">
+              <Loader2 className="h-6 w-6 animate-spin text-accent" />
             </div>
             <CardTitle>Verifying Your Email</CardTitle>
             <CardDescription>
@@ -121,8 +121,8 @@ export default function VerifyEmailPage() {
       return (
         <Card>
           <CardHeader className="text-center">
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-green-100 dark:bg-green-900">
-              <CheckCircle2 className="h-6 w-6 text-green-600 dark:text-green-400" />
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-lg border border-border/70 bg-[#eef3ed]">
+              <CheckCircle2 className="h-6 w-6 text-[#58715f]" />
             </div>
             <CardTitle>Email Verified!</CardTitle>
             <CardDescription>
@@ -186,7 +186,7 @@ export default function VerifyEmailPage() {
                 value={code}
                 onChange={handleCodeChange}
                 maxLength={6}
-                className="text-center text-2xl tracking-widest font-mono"
+                className="text-center text-2xl tracking-normal font-mono"
                 autoComplete="one-time-code"
                 autoFocus
               />

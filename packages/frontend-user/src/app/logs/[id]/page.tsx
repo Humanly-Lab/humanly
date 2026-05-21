@@ -23,15 +23,15 @@ const EVENT_ICONS: Record<string, React.ReactNode> = {
 };
 
 const EVENT_COLORS: Record<string, string> = {
-  keydown: 'bg-blue-100 text-blue-800',
-  keyup: 'bg-blue-50 text-blue-600',
-  paste: 'bg-yellow-100 text-yellow-800',
-  copy: 'bg-orange-100 text-orange-800',
-  cut: 'bg-red-100 text-red-800',
-  click: 'bg-purple-100 text-purple-800',
-  focus: 'bg-green-100 text-green-800',
-  blur: 'bg-gray-100 text-gray-600',
-  input: 'bg-teal-100 text-teal-800',
+  keydown: 'bg-muted text-foreground',
+  keyup: 'bg-muted/70 text-muted-foreground',
+  paste: 'bg-[#f1e8df] text-[#8a5f43]',
+  copy: 'bg-[#f1e8df] text-[#8a5f43]',
+  cut: 'bg-destructive/10 text-destructive',
+  click: 'bg-secondary text-secondary-foreground',
+  focus: 'bg-[#eef3ed] text-[#58715f]',
+  blur: 'bg-muted/70 text-muted-foreground',
+  input: 'bg-muted text-foreground',
 };
 
 const AI_ACTION_LABELS: Record<string, string> = {
@@ -193,8 +193,8 @@ export default function DocumentLogsPage() {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <div className="border-b px-4 py-3 flex items-center gap-3">
-        <Button variant="ghost" size="sm" onClick={() => router.push(`/documents/${documentId}`)}>
+      <div className="flex items-center gap-3 border-b border-border/70 bg-card px-4 py-3">
+        <Button variant="outline" size="sm" onClick={() => router.push(`/documents/${documentId}`)}>
           <ArrowLeft className="h-4 w-4 mr-1" />
           Back
         </Button>
@@ -232,7 +232,7 @@ export default function DocumentLogsPage() {
           <div className="text-center py-12 text-muted-foreground text-sm">No events recorded yet.</div>
         ) : (
           <>
-            <div className="rounded-md border overflow-hidden">
+            <div className="overflow-hidden rounded-lg border border-border/80 bg-card">
               <table className="w-full text-sm">
                 <thead className="bg-muted/50 text-xs text-muted-foreground">
                   <tr>
@@ -252,7 +252,7 @@ export default function DocumentLogsPage() {
                             {format(new Date(event.timestamp), 'HH:mm:ss.SSS')}
                           </td>
                           <td className="px-4 py-2">
-                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${EVENT_COLORS[event.eventType] ?? 'bg-gray-100 text-gray-700'}`}>
+                            <span className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium ${EVENT_COLORS[event.eventType] ?? 'bg-muted text-muted-foreground'}`}>
                               {EVENT_ICONS[event.eventType] ?? null}
                               {event.eventType}
                             </span>
@@ -296,7 +296,7 @@ export default function DocumentLogsPage() {
                             </div>
                           </td>
                           <td className="px-4 py-2">
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-violet-100 text-violet-800">
+                            <span className="inline-flex items-center gap-1 rounded bg-[#f1e8df] px-2 py-0.5 text-xs font-medium text-[#8a5f43]">
                               <Sparkles className="h-3 w-3" />
                               {label}
                             </span>

@@ -35,7 +35,7 @@ export function QuickActionDiff({ before, after, className }: QuickActionDiffPro
           return (
             <span
               key={idx}
-              className="rounded-sm bg-emerald-100 px-0.5 text-emerald-900 underline decoration-emerald-400 decoration-1 underline-offset-2"
+              className="rounded-sm bg-[#eef3ed] px-0.5 text-[#58715f] underline decoration-[#9daf9d] decoration-1 underline-offset-2"
             >
               {part.value}
             </span>

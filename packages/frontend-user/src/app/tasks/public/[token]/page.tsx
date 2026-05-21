@@ -83,7 +83,7 @@ export default function PublicTaskDocumentStartPage() {
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-md bg-primary text-primary-foreground">
             <FileText className="h-6 w-6" />
           </div>
-          <h1 className="text-2xl font-semibold tracking-tight">
+          <h1 className="text-2xl font-semibold tracking-normal">
             {error ? 'Task link unavailable' : 'Opening Humanly document'}
           </h1>
           {!error && (

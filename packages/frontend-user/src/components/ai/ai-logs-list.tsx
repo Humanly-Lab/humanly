@@ -122,7 +122,7 @@ function LogEntry({ log }: LogEntryProps) {
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'success':
-        return <CheckCircle className="h-4 w-4 text-green-500" />;
+        return <CheckCircle className="h-4 w-4 text-[#58715f]" />;
       case 'error':
         return <XCircle className="h-4 w-4 text-destructive" />;
       case 'cancelled':
@@ -136,16 +136,16 @@ function LogEntry({ log }: LogEntryProps) {
 
   const getQueryTypeBadge = (type: AIQueryType) => {
     const variants: Record<AIQueryType, { label: string; className: string }> = {
-      grammar_check: { label: 'Grammar', className: 'bg-blue-100 text-blue-700' },
-      spelling_check: { label: 'Spelling', className: 'bg-blue-100 text-blue-700' },
-      rewrite: { label: 'Rewrite', className: 'bg-purple-100 text-purple-700' },
-      summarize: { label: 'Summary', className: 'bg-green-100 text-green-700' },
-      expand: { label: 'Expand', className: 'bg-orange-100 text-orange-700' },
-      translate: { label: 'Translate', className: 'bg-cyan-100 text-cyan-700' },
-      format: { label: 'Format', className: 'bg-pink-100 text-pink-700' },
-      question: { label: 'Q&A', className: 'bg-yellow-100 text-yellow-700' },
-      reference: { label: 'Reference', className: 'bg-indigo-100 text-indigo-700' },
-      other: { label: 'Chat', className: 'bg-gray-100 text-gray-700' },
+      grammar_check: { label: 'Grammar', className: 'bg-muted text-foreground' },
+      spelling_check: { label: 'Spelling', className: 'bg-muted text-foreground' },
+      rewrite: { label: 'Rewrite', className: 'bg-[#f1e8df] text-[#8a5f43]' },
+      summarize: { label: 'Summary', className: 'bg-[#eef3ed] text-[#58715f]' },
+      expand: { label: 'Expand', className: 'bg-[#f1e8df] text-[#8a5f43]' },
+      translate: { label: 'Translate', className: 'bg-muted text-foreground' },
+      format: { label: 'Format', className: 'bg-muted text-foreground' },
+      question: { label: 'Q&A', className: 'bg-muted text-foreground' },
+      reference: { label: 'Reference', className: 'bg-muted text-foreground' },
+      other: { label: 'Chat', className: 'bg-muted text-foreground' },
     };
 
     const variant = variants[type] || variants.other;
@@ -214,7 +214,7 @@ function LogEntry({ log }: LogEntryProps) {
                   {log.modifications.map((mod, idx) => (
                     <div key={idx} className="text-xs bg-muted rounded p-2 font-mono">
                       <div className="text-red-600 line-through">{mod.before}</div>
-                      <div className="text-green-600">{mod.after}</div>
+                      <div className="text-[#58715f]">{mod.after}</div>
                     </div>
                   ))}
                 </div>

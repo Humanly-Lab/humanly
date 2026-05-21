@@ -79,7 +79,7 @@ const styles = {
   container: { display: 'flex', gap: '4px' },
   button: {
     padding: '6px 12px',
-    border: '1px solid #d1d5db',
+    border: '1px solid #d8d9cf',
     borderRadius: '4px',
     backgroundColor: '#ffffff',
     cursor: 'pointer',
@@ -90,8 +90,8 @@ const styles = {
     justifyContent: 'center',
   },
   activeButton: {
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#1a1c20',
     color: '#ffffff',
-    borderColor: '#2563eb',
+    borderColor: '#1a1c20',
   },
 };

@@ -61,6 +61,36 @@
   }
 }
 
+@layer components {
+  .humanly-page {
+    @apply mx-auto w-full max-w-7xl px-5 py-7 sm:px-8 lg:px-10;
+  }
+
+  .humanly-page-narrow {
+    @apply mx-auto w-full max-w-4xl px-5 py-7 sm:px-8 lg:px-10;
+  }
+
+  .humanly-surface {
+    @apply rounded-lg border border-border/80 bg-card shadow-none;
+  }
+
+  .humanly-muted-surface {
+    @apply rounded-lg border border-border/70 bg-muted/40;
+  }
+
+  .humanly-eyebrow {
+    @apply text-xs font-medium uppercase tracking-normal text-muted-foreground;
+  }
+
+  .humanly-field {
+    @apply grid gap-2;
+  }
+
+  .humanly-focus {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background;
+  }
+}
+
 @layer utilities {
   .humanly-cursor-blink {
     animation: humanly-cursor-blink 1s steps(1) infinite;

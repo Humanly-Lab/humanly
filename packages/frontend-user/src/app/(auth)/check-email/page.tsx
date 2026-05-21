@@ -43,8 +43,8 @@ export default function CheckEmailPage() {
     <div className="w-full">
       <Card>
         <CardHeader className="text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900">
-            <Mail className="h-8 w-8 text-blue-600 dark:text-blue-400" />
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-lg border border-border/70 bg-muted/40">
+            <Mail className="h-7 w-7 text-accent" />
           </div>
           <CardTitle>Check Your Email</CardTitle>
           <CardDescription>
@@ -96,7 +96,7 @@ export default function CheckEmailPage() {
             </Alert>
           )}
 
-          <div className="rounded-lg bg-muted p-4 text-sm text-muted-foreground">
+          <div className="rounded-lg border border-border/70 bg-muted/35 p-4 text-sm text-muted-foreground">
             <p className="font-medium mb-2">Did not receive the code?</p>
             <ul className="space-y-1 list-disc list-inside">
               <li>Check your spam or junk folder</li>

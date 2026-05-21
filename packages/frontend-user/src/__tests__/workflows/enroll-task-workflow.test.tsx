@@ -130,7 +130,7 @@ describe('task enrollment workflow', () => {
     const user = userEvent.setup();
     const { rerender } = render(<DocumentsPage />);
 
-    expect(await screen.findByRole('heading', { name: /^workspace$/i })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: /writing dashboard/i })).toBeInTheDocument();
 
     await user.click(screen.getByRole('tab', { name: /task submissions/i }));
 
@@ -205,7 +205,7 @@ describe('task enrollment workflow', () => {
     const user = userEvent.setup();
     render(<DocumentsPage />);
 
-    await screen.findByRole('heading', { name: /^workspace$/i });
+    await screen.findByRole('heading', { name: /writing dashboard/i });
     await user.click(screen.getByRole('tab', { name: /task submissions/i }));
 
     expect(screen.getByText('Writing time left')).toBeInTheDocument();
@@ -231,7 +231,7 @@ describe('task enrollment workflow', () => {
 
     render(<DocumentsPage />);
 
-    expect(await screen.findByRole('heading', { name: /^workspace$/i })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: /writing dashboard/i })).toBeInTheDocument();
     expect(screen.getByText('Timed Personal Writing')).toBeInTheDocument();
     expect(screen.getByText('Writing time left')).toBeInTheDocument();
     expect(screen.getByText('0:30')).toBeInTheDocument();
@@ -256,7 +256,7 @@ describe('task enrollment workflow', () => {
 
     render(<DocumentsPage />);
 
-    expect(await screen.findByRole('heading', { name: /^workspace$/i })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: /writing dashboard/i })).toBeInTheDocument();
     expect(screen.getByText('Expired Personal Writing')).toBeInTheDocument();
     expect(screen.getByText('Writing time limit reached')).toBeInTheDocument();
     expect(screen.getByText('Opens in read-only mode.')).toBeInTheDocument();
@@ -285,7 +285,7 @@ describe('task enrollment workflow', () => {
     const user = userEvent.setup();
     render(<DocumentsPage />);
 
-    await screen.findByRole('heading', { name: /^workspace$/i });
+    await screen.findByRole('heading', { name: /writing dashboard/i });
     await user.click(screen.getByRole('tab', { name: /task submissions/i }));
 
     expect(screen.getByText('Writing time limit reached')).toBeInTheDocument();

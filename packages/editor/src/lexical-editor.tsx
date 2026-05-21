@@ -544,8 +544,8 @@ export function LexicalEditor(props: LexicalEditorProps): JSX.Element {
             }
 
             .editor-checklist-checked::before {
-              border-color: #3b82f6;
-              background-color: #3b82f6;
+              border-color: #1a1c20;
+              background-color: #1a1c20;
             }
 
             .editor-checklist-checked::after {

@@ -76,8 +76,8 @@ function SectionHeading({
   description: string;
 }) {
   return (
-    <div>
-      <h3 className="font-semibold">{title}</h3>
+    <div className="space-y-1">
+      <p className="humanly-eyebrow">{title}</p>
       <p className="text-sm text-muted-foreground">{description}</p>
     </div>
   );
@@ -647,33 +647,34 @@ export default function NewDocumentPage() {
   const showDetailedEnvironmentControls = environmentSelection !== 'default_writing';
 
   return (
-    <div className="container mx-auto max-w-2xl px-4 py-8">
+    <div className="humanly-page-narrow">
       <div className="mb-6">
-        <Button variant="ghost" className="mb-4" onClick={() => router.push('/documents')}>
+        <Button variant="outline" size="sm" className="mb-4" onClick={() => router.push('/documents')}>
           <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Documents
+          Back to Workspace
         </Button>
-        <h1 className="text-3xl font-bold">New Document</h1>
-        <p className="mt-2 text-muted-foreground">
+        <p className="humanly-eyebrow">Personal writing</p>
+        <h1 className="mt-2 text-2xl font-semibold tracking-normal sm:text-3xl">Create Writing</h1>
+        <p className="mt-2 max-w-2xl text-sm text-muted-foreground sm:text-base">
           Create a personal writing document and configure its writing environment.
         </p>
       </div>
 
-      <Card>
+      <Card className="overflow-hidden">
         <CardHeader>
-          <CardTitle>Document Configuration</CardTitle>
+          <CardTitle>Document setup</CardTitle>
           <CardDescription>
             Set up the document details, AI access, and writing controls before you start.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
-          <section className="space-y-4">
+        <CardContent className="space-y-5">
+          <section className="space-y-4 rounded-lg border border-border/70 bg-background p-4">
             <SectionHeading
               title="Basic Information"
               description="Name the document and attach an optional source PDF for side-by-side writing."
             />
 
-            <div className="grid gap-2">
+            <div className="humanly-field">
               <Label htmlFor="document-title">Document Name</Label>
               <Input
                 id="document-title"
@@ -684,7 +685,7 @@ export default function NewDocumentPage() {
               />
             </div>
 
-            <div className="grid gap-2">
+            <div className="humanly-field">
               <Label htmlFor="document-description">Description</Label>
               <Textarea
                 id="document-description"
@@ -695,9 +696,9 @@ export default function NewDocumentPage() {
               />
             </div>
 
-            <div className="rounded-md border border-dashed p-4">
+            <div className="rounded-lg border border-dashed border-border/80 bg-muted/25 p-4">
               <div className="flex items-center gap-2 text-sm font-medium">
-                <Upload className="h-4 w-4 text-muted-foreground" />
+                <Upload className="h-4 w-4 text-accent" />
                 PDF
               </div>
               <p className="mt-1 text-sm text-muted-foreground">
@@ -712,8 +713,8 @@ export default function NewDocumentPage() {
                 disabled={isCreating}
               />
               {pdfFile && (
-                <div className="mt-3 flex items-center gap-3 rounded-md border bg-muted/40 p-3">
-                  <FileText className="h-5 w-5 shrink-0 text-muted-foreground" />
+                <div className="mt-3 flex items-center gap-3 rounded-lg border border-border/70 bg-background p-3">
+                  <FileText className="h-5 w-5 shrink-0 text-accent" />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium" title={pdfFile.name}>
                       {pdfFile.name}
@@ -739,13 +740,13 @@ export default function NewDocumentPage() {
             </div>
           </section>
 
-          <div className="space-y-5 rounded-md border p-4">
+          <div className="space-y-5 rounded-lg border border-border/70 bg-background p-4">
             <SectionHeading
               title="Environment"
               description="Choose a default, customize the modules below, or import a JSON configuration."
             />
 
-            <div className="grid gap-2">
+            <div className="humanly-field">
               <Label>Environment</Label>
               <Select value={environmentSelection} onValueChange={(value) => handleEnvironmentSelectionChange(value as EnvironmentSelection)}>
                 <SelectTrigger>
@@ -760,9 +761,9 @@ export default function NewDocumentPage() {
             </div>
 
             {environmentSelection === IMPORT_ENVIRONMENT_VALUE && (
-              <div className="rounded-md border border-dashed p-4">
+              <div className="rounded-lg border border-dashed border-border/80 bg-muted/25 p-4">
                 <div className="flex items-center gap-2 text-sm font-medium">
-                  <Upload className="h-4 w-4 text-muted-foreground" />
+                  <Upload className="h-4 w-4 text-accent" />
                   Import JSON Configuration
                 </div>
                 <p className="mt-1 text-sm text-muted-foreground">
@@ -779,9 +780,9 @@ export default function NewDocumentPage() {
             )}
 
             {!showDetailedEnvironmentControls ? (
-              <div className="rounded-md border bg-muted/30 p-4">
+              <div className="rounded-lg border border-border/70 bg-muted/35 p-4">
                 <div className="flex items-start gap-3">
-                  <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                  <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-[#6f8a78]" />
                   <div>
                     <p className="font-medium">Default Environment</p>
                     <p className="text-sm text-muted-foreground">
@@ -791,16 +792,16 @@ export default function NewDocumentPage() {
                 </div>
 
                 <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                  <div className="rounded-md bg-background p-3">
-                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">AI</p>
+                  <div className="rounded-lg border border-border/60 bg-background p-3">
+                    <p className="humanly-eyebrow">AI</p>
                     <p className="mt-1 text-sm font-medium">Off</p>
                   </div>
-                  <div className="rounded-md bg-background p-3">
-                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Writing</p>
+                  <div className="rounded-lg border border-border/60 bg-background p-3">
+                    <p className="humanly-eyebrow">Writing</p>
                     <p className="mt-1 text-sm font-medium">Copy & paste allowed</p>
                   </div>
-                  <div className="rounded-md bg-background p-3">
-                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Time</p>
+                  <div className="rounded-lg border border-border/60 bg-background p-3">
+                    <p className="humanly-eyebrow">Time</p>
                     <p className="mt-1 text-sm font-medium">No limit</p>
                   </div>
                 </div>
@@ -811,13 +812,13 @@ export default function NewDocumentPage() {
               </div>
             ) : (
               <>
-                <div className="space-y-4 rounded-md border p-4">
+                <div className="space-y-4 rounded-lg border border-border/70 bg-card p-4">
                   <SectionHeading
                     title="AI"
                     description="Control whether this document can use assistant support."
                   />
 
-                  <div className="grid gap-2">
+                  <div className="humanly-field">
                     <Label>AI</Label>
                     <Select value={environmentConfig.aiAccess} onValueChange={(value) => setAiAccess(value as WritingAiAccess)}>
                       <SelectTrigger>
@@ -831,8 +832,8 @@ export default function NewDocumentPage() {
                   </div>
 
                   {environmentConfig.aiAccess !== 'off' && (
-                    <div className="grid gap-4 rounded-md border bg-muted/30 p-3">
-                      <div className="grid gap-2">
+                    <div className="grid gap-4 rounded-lg border border-border/70 bg-muted/30 p-3">
+                      <div className="humanly-field">
                         <Label htmlFor="ai-api-key">AI API Key</Label>
                         <Input
                           id="ai-api-key"
@@ -872,18 +873,18 @@ export default function NewDocumentPage() {
                       {aiConnectionResult && (
                         <div className="flex items-start gap-2 text-xs">
                           {aiConnectionResult.success ? (
-                            <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                            <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-[#6f8a78]" />
                           ) : (
                             <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
                           )}
-                          <p className={aiConnectionResult.success ? 'text-emerald-700' : 'text-destructive'}>
+                          <p className={aiConnectionResult.success ? 'text-[#58715f]' : 'text-destructive'}>
                             {aiConnectionResult.message}
                           </p>
                         </div>
                       )}
 
                       <div className="grid gap-4 sm:grid-cols-2">
-                        <div className="grid gap-2">
+                        <div className="humanly-field">
                           <Label>Model</Label>
                           <Select
                             value={aiModel}
@@ -911,7 +912,7 @@ export default function NewDocumentPage() {
                           </Select>
                         </div>
 
-                        <div className="grid gap-2">
+                        <div className="humanly-field">
                           <Label>Provider</Label>
                           <Select
                             value={getProviderValueForBaseUrl(aiBaseUrl)}
@@ -935,7 +936,7 @@ export default function NewDocumentPage() {
                         </div>
 
                         {getProviderValueForBaseUrl(aiBaseUrl) === CUSTOM_AI_PROVIDER_VALUE && (
-                          <div className="grid gap-2 sm:col-span-2">
+                          <div className="humanly-field sm:col-span-2">
                             <Label htmlFor="ai-base-url">Custom Base URL</Label>
                             <Input
                               id="ai-base-url"
@@ -949,7 +950,7 @@ export default function NewDocumentPage() {
                       </div>
 
                       {aiModel === CUSTOM_MODEL_VALUE && (
-                        <div className="grid gap-2">
+                        <div className="humanly-field">
                           <Label htmlFor="custom-ai-model">Custom Model</Label>
                           <Input
                             id="custom-ai-model"
@@ -965,7 +966,7 @@ export default function NewDocumentPage() {
                       )}
 
                       <div className="grid gap-4 sm:grid-cols-2">
-                        <div className="grid gap-2">
+                        <div className="humanly-field">
                           <Label htmlFor="ai-shortcut-max-tokens">Shortcut Tokens</Label>
                           <Input
                             id="ai-shortcut-max-tokens"
@@ -981,7 +982,7 @@ export default function NewDocumentPage() {
                           <p className="text-xs text-muted-foreground">Shortcut actions and fallback answers.</p>
                         </div>
 
-                        <div className="grid gap-2">
+                        <div className="humanly-field">
                           <Label htmlFor="ai-chat-max-tokens">Chat Tokens</Label>
                           <Input
                             id="ai-chat-max-tokens"
@@ -1001,13 +1002,13 @@ export default function NewDocumentPage() {
                   )}
                 </div>
 
-                <div className="space-y-4 rounded-md border p-4">
+                <div className="space-y-4 rounded-lg border border-border/70 bg-card p-4">
                   <SectionHeading
                     title="Writing Control"
                     description="Set rules for editing behavior during writing."
                   />
 
-                  <div className="grid gap-2">
+                  <div className="humanly-field">
                     <Label>Copy & Paste</Label>
                     <Select
                       value={normalizeCopyPastePolicy(environmentConfig.copyPastePolicy)}
@@ -1029,7 +1030,7 @@ export default function NewDocumentPage() {
                   </div>
 
                   <div className="grid gap-3">
-                    <div className="grid gap-2">
+                    <div className="humanly-field">
                       <Label htmlFor="maximum-characters">Maximum Characters</Label>
                       <Input
                         id="maximum-characters"
@@ -1049,13 +1050,13 @@ export default function NewDocumentPage() {
                   </div>
                 </div>
 
-                <div className="space-y-4 rounded-md border p-4">
+                <div className="space-y-4 rounded-lg border border-border/70 bg-card p-4">
                   <SectionHeading
                     title="Time Limitation"
                     description="Set whether the writing session should have a time limit."
                   />
 
-                  <div className="grid gap-2">
+                  <div className="humanly-field">
                     <Label>Time</Label>
                     <Select
                       value={timeMode}
@@ -1089,7 +1090,7 @@ export default function NewDocumentPage() {
                   </div>
 
                   {timeMode === 'time_restricted' && (
-                    <div className="grid gap-2">
+                    <div className="humanly-field">
                       <Label htmlFor="time-limit-minutes">Time Limit (minutes)</Label>
                       <Input
                         id="time-limit-minutes"
@@ -1129,7 +1130,7 @@ export default function NewDocumentPage() {
             )}
           </div>
         </CardContent>
-        <CardFooter className="flex justify-between">
+        <CardFooter className="flex justify-between border-t border-border/70 bg-muted/20">
           <Button variant="outline" onClick={() => router.push('/documents')} disabled={isCreating}>
             Cancel
           </Button>

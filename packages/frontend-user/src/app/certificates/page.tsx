@@ -19,7 +19,7 @@ export default function CertificatesPage() {
 
   if (isLoading) {
     return (
-      <div className="container mx-auto max-w-7xl px-4 py-8">
+      <div className="humanly-page">
         <div className="mb-8">
           <Skeleton className="h-8 w-64 mb-2" />
           <Skeleton className="h-4 w-96" />
@@ -42,7 +42,7 @@ export default function CertificatesPage() {
   }
 
   return (
-    <div className="container mx-auto max-w-7xl px-4 py-8">
+    <div className="humanly-page">
       <div className="mb-8">
         <Button
           variant="outline"
@@ -53,8 +53,9 @@ export default function CertificatesPage() {
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back to Workspace
         </Button>
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">My Certificates</h1>
-        <p className="text-sm sm:text-base text-muted-foreground mt-2">
+        <p className="humanly-eyebrow">Certificates</p>
+        <h1 className="mt-2 text-2xl font-semibold tracking-normal sm:text-3xl">Authorship records</h1>
+        <p className="mt-2 max-w-2xl text-sm text-muted-foreground sm:text-base">
           Proof of authorship generated from your personal documents
         </p>
       </div>
@@ -68,7 +69,7 @@ export default function CertificatesPage() {
       {!isLoading && certificates.length === 0 ? (
         <Card>
           <CardContent className="flex min-h-[400px] flex-col items-center justify-center py-12">
-            <Award className="h-16 w-16 text-muted-foreground" />
+            <Award className="h-12 w-12 text-accent" />
             <h3 className="mt-4 text-lg font-semibold">No certificates yet</h3>
             <p className="mt-2 text-center text-sm text-muted-foreground max-w-md">
               Generate a certificate from a personal document after you have enough writing activity.
@@ -94,17 +95,17 @@ export default function CertificatesPage() {
             return (
               <Card 
                 key={certificate.id} 
-                className="transition-shadow hover:shadow-md cursor-pointer h-full flex flex-col border-border/40"
+                className="flex h-full cursor-pointer flex-col transition-colors hover:border-foreground/30"
                 onClick={() => router.push(`/certificates/${certificate.id}`)}
               >
                 <CardContent className="p-5 flex flex-col gap-3 flex-1">
                   {/* Title and Badge row */}
                   <div className="flex items-start justify-between gap-2">
-                    <h3 className="text-lg font-semibold line-clamp-1 text-foreground flex-1">
-                      {certificate.title}
-                    </h3>
-                    {certificate.certificateType && (
-                      <Badge variant={certificate.certificateType === 'full_authorship' ? 'default' : 'secondary'} className="shrink-0">
+                      <h3 className="flex-1 text-lg font-semibold leading-tight text-foreground line-clamp-1">
+                        {certificate.title}
+                      </h3>
+                      {certificate.certificateType && (
+                      <Badge variant={certificate.certificateType === 'full_authorship' ? 'default' : 'secondary'} className="shrink-0 rounded-md">
                         {certificate.certificateType === 'full_authorship' ? 'Certificate' : 'Partial'}
                       </Badge>
                     )}
@@ -117,15 +118,15 @@ export default function CertificatesPage() {
 
                   {/* Metrics block */}
                   {pendingActivity ? (
-                    <div className="text-sm text-muted-foreground/80">
+                    <div className="text-sm text-muted-foreground">
                       Certificate pending activity
                     </div>
                   ) : lowActivity ? (
-                    <div className="text-sm text-muted-foreground/80">
+                    <div className="text-sm text-muted-foreground">
                       Low activity
                     </div>
                   ) : showMetrics ? (
-                    <div className="text-sm text-muted-foreground/80">
+                    <div className="text-sm text-muted-foreground">
                       Input events: {certificate.totalEvents} · Final characters: {certificate.totalCharacters}
                     </div>
                   ) : null}

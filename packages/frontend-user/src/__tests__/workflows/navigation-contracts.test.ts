@@ -11,8 +11,8 @@ describe('navigation workflow contracts', () => {
   it('keeps the current user portal routes available', () => {
     const userRoutes = [
       ['packages/frontend-user/src/app/documents/page.tsx', 'Personal Writing'],
-      ['packages/frontend-user/src/app/documents/new/page.tsx', 'New Document'],
-      ['packages/frontend-user/src/app/certificates/page.tsx', 'My Certificates'],
+      ['packages/frontend-user/src/app/documents/new/page.tsx', 'Create Writing'],
+      ['packages/frontend-user/src/app/certificates/page.tsx', 'Authorship records'],
       ['packages/frontend-user/src/app/terms/page.tsx', 'Terms of Service'],
       ['packages/frontend-user/src/app/privacy/page.tsx', 'Privacy Policy'],
     ];
