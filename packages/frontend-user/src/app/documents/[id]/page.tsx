@@ -70,7 +70,7 @@ const API_URL =
   process.env.NEXT_PUBLIC_API_URL ||
   (process.env.NODE_ENV === 'production' ? '/api/v1' : 'http://localhost:3001/api/v1');
 const SUBMISSION_SESSION_START_DELAY_MS = 250;
-const EDITOR_AUTO_SAVE_INTERVAL_MS = 1500;
+const EDITOR_AUTO_SAVE_INTERVAL_MS = 750;
 
 function formatTimerDuration(totalSeconds: number): string {
   const safeSeconds = Math.max(0, Math.floor(totalSeconds));
