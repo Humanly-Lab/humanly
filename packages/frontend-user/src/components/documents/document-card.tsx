@@ -70,10 +70,10 @@ export function DocumentCard({ document, timerState, onDelete }: DocumentCardPro
     <>
       <Link
         href={`/documents/${document.id}`}
-        className="block"
+        className="block h-full"
       >
-        <Card className="group cursor-pointer transition-colors hover:border-foreground/30">
-          <CardContent className="flex flex-col gap-3 p-4 sm:p-5">
+        <Card className="group flex h-full min-h-[18rem] cursor-pointer transition-colors hover:border-foreground/30">
+          <CardContent className="flex h-full flex-1 flex-col gap-3 p-4 sm:p-5">
             <div className="flex items-start justify-between gap-2">
               <h3 className="min-w-0 text-base font-semibold leading-snug text-foreground line-clamp-2 sm:text-lg">
                 {displayTitle}
@@ -109,7 +109,7 @@ export function DocumentCard({ document, timerState, onDelete }: DocumentCardPro
               </p>
             )}
 
-            <div className="mt-2 flex items-center justify-end gap-2 border-t border-border/60 pt-3">
+            <div className="mt-auto flex items-center justify-end gap-2 border-t border-border/60 pt-3">
               <Button
                 variant="outline"
                 size="sm"

@@ -519,8 +519,8 @@ export default function DocumentsPage() {
                   expiredDetail: 'Submission opens in read-only mode.',
                 });
                 return (
-                  <Card key={`${task.id}-${task.documentId}`} className="transition-colors hover:border-foreground/30">
-                    <CardContent className="flex h-full flex-col gap-3 p-5">
+                  <Card key={`${task.id}-${task.documentId}`} className="flex h-full min-h-[18rem] transition-colors hover:border-foreground/30">
+                    <CardContent className="flex h-full flex-1 flex-col gap-3 p-5">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <p className="humanly-eyebrow">
