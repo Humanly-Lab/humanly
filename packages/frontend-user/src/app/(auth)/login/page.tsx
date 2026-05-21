@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Mail, Lock, AlertCircle, Loader2, CheckCircle2 } from 'lucide-react';
+import { OAuthButtons } from '@/components/auth/oauth-buttons';
 
 // Form validation schema
 const loginSchema = z.object({
@@ -165,7 +166,15 @@ export default function LoginPage() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
+            <div className="flex items-center justify-between gap-3">
+              <Label htmlFor="password">Password</Label>
+              <Link
+                href="/forgot-password"
+                className="text-sm font-medium text-muted-foreground hover:text-foreground"
+              >
+                Forgot password?
+              </Link>
+            </div>
             <div className="relative">
               <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
               <Input
@@ -201,6 +210,9 @@ export default function LoginPage() {
             )}
           </Button>
         </form>
+        <div className="mt-5">
+          <OAuthButtons />
+        </div>
       </CardContent>
 
       <CardFooter className="flex flex-col items-center gap-3">

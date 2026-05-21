@@ -3,10 +3,58 @@ import { getBrandText } from '@humanly/shared';
 import { env } from '../config/env';
 import { logger } from '../utils/logger';
 
+export function getEmailConfigurationErrors(): string[] {
+  if (env.nodeEnv !== 'production') {
+    return [];
+  }
+
+  const errors: string[] = [];
+
+  if (env.emailService === 'console') {
+    errors.push(
+      'EMAIL_SERVICE=console is not allowed in production. Configure sendgrid or smtp for password reset email delivery.'
+    );
+  }
+
+  if (env.emailService === 'sendgrid' && !env.emailApiKey) {
+    errors.push('EMAIL_API_KEY is required when EMAIL_SERVICE=sendgrid');
+  }
+
+  if (env.emailService === 'smtp') {
+    const missing = [
+      !env.emailHost && 'EMAIL_HOST',
+      !env.emailUser && 'EMAIL_USER',
+      !env.emailPassword && 'EMAIL_PASSWORD',
+    ].filter(Boolean);
+
+    if (missing.length > 0) {
+      errors.push(`Missing SMTP email configuration: ${missing.join(', ')}`);
+    }
+  }
+
+  if (env.emailService === 'ses') {
+    errors.push('EMAIL_SERVICE=ses is not implemented. Use sendgrid or smtp in production.');
+  }
+
+  return errors;
+}
+
+export function validateEmailConfiguration(): void {
+  const errors = getEmailConfigurationErrors();
+  if (errors.length > 0) {
+    throw new Error(errors.join(' '));
+  }
+}
+
 class EmailService {
   private transporter: Transporter | null = null;
+  private configurationErrors: string[] = [];
 
   constructor() {
+    this.configurationErrors = getEmailConfigurationErrors();
+    if (this.configurationErrors.length > 0 && env.emailStrictDelivery) {
+      validateEmailConfiguration();
+    }
     this.initialize();
   }
 
@@ -18,6 +66,14 @@ class EmailService {
       emailUser: env.emailUser,
       emailFrom: env.emailFrom,
     });
+
+    if (this.configurationErrors.length > 0) {
+      logger.error('Email service is not operational', {
+        emailService: env.emailService,
+        errors: this.configurationErrors,
+      });
+      return;
+    }
 
     if (env.emailService === 'console') {
       // For development: log emails to console
@@ -71,8 +127,12 @@ class EmailService {
     text?: string
   ): Promise<void> {
     if (!this.transporter) {
-      logger.error('Email transporter not initialized');
-      return;
+      const message = 'Email transporter not initialized';
+      logger.error(message, {
+        emailService: env.emailService,
+        errors: this.configurationErrors,
+      });
+      throw new Error(message);
     }
 
     try {

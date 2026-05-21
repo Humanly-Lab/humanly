@@ -12,6 +12,7 @@ process.env.EMAIL_FROM = 'test@example.com';
 process.env.EMAIL_SERVICE = 'console';
 process.env.CORS_ORIGIN = 'http://localhost:3000';
 process.env.FRONTEND_USER_URL = 'http://localhost:3002';
+process.env.PUBLIC_API_URL = 'http://localhost:3001/api/v1';
 process.env.AI_PROVIDER = 'mock';
 process.env.AI_ENCRYPTION_KEY = '0'.repeat(64);
 process.env.RATE_LIMIT_ENABLED = 'false';

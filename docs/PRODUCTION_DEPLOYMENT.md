@@ -312,6 +312,34 @@ Add these repository secrets:
 The VM still uses its production `.env` file for backend runtime configuration,
 including database, Redis, JWT, email, CORS, and other server-side values.
 
+Required backend auth/email values on the VM:
+
+- `FRONTEND_USER_URL`: `https://app.writehumanly.net`, used in password reset
+  links and OAuth handoff redirects.
+- `PUBLIC_API_URL`: `https://app.writehumanly.net/api/v1`, used as the OAuth
+  callback base URL behind nginx.
+- `EMAIL_SERVICE`: `sendgrid` or `smtp` in production. `console` is treated as
+  non-operational in production so password reset cannot silently pretend to
+  send email.
+- `EMAIL_STRICT_DELIVERY`: optional. Set to `true` after provider secrets are
+  installed if production should fail startup instead of running with email
+  disabled.
+- `EMAIL_FROM`: verified sender, for example `no-reply@writehumanly.net`.
+- `EMAIL_API_KEY`: required for `EMAIL_SERVICE=sendgrid`.
+- `EMAIL_HOST`, `EMAIL_USER`, and `EMAIL_PASSWORD`: required for
+  `EMAIL_SERVICE=smtp`.
+- `GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_OAUTH_CLIENT_SECRET`: optional; enables
+  Google login when both are set.
+- `GITHUB_OAUTH_CLIENT_ID` / `GITHUB_OAUTH_CLIENT_SECRET`: optional; enables
+  GitHub login when both are set.
+
+OAuth provider callback URLs:
+
+```text
+Google: https://app.writehumanly.net/api/v1/auth/oauth/google/callback
+GitHub: https://app.writehumanly.net/api/v1/auth/oauth/github/callback
+```
+
 ## Database Migrations
 
 Production deploys run `scripts/run-migrations.sh` before restarting the

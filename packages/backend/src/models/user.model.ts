@@ -9,6 +9,12 @@ export interface CreateUserData {
   emailVerificationExpires: Date;
 }
 
+export interface OAuthAccountData {
+  provider: string;
+  providerUserId: string;
+  email: string;
+}
+
 export class UserModel {
   /**
    * Create a new user
@@ -27,6 +33,28 @@ export class UserModel {
       data.emailVerificationExpires,
     ]);
     if (!user) throw new Error('Failed to create user');
+    return user;
+  }
+
+  /**
+   * Create an email-verified user from a trusted OAuth provider.
+   */
+  static async createOAuthUser(data: {
+    email: string;
+    passwordHash: string;
+    role?: UserRole;
+  }): Promise<User> {
+    const sql = `
+      INSERT INTO users (email, password_hash, role, email_verified)
+      VALUES ($1, $2, $3, TRUE)
+      RETURNING id, email, role, email_verified as "emailVerified", created_at as "createdAt", updated_at as "updatedAt"
+    `;
+    const user = await queryOne<User>(sql, [
+      data.email,
+      data.passwordHash,
+      data.role || 'user',
+    ]);
+    if (!user) throw new Error('Failed to create OAuth user');
     return user;
   }
 
@@ -70,6 +98,56 @@ export class UserModel {
       WHERE id = $1
     `;
     return queryOne<User>(sql, [id]);
+  }
+
+  /**
+   * Find a Humanly user linked to an OAuth provider account.
+   */
+  static async findByOAuthAccount(
+    provider: string,
+    providerUserId: string
+  ): Promise<UserWithPassword | null> {
+    const sql = `
+      SELECT u.id, u.email, u.role, u.password_hash, u.email_verified,
+             u.email_verification_token, u.email_verification_expires,
+             u.password_reset_token, u.password_reset_expires,
+             u.created_at, u.updated_at
+      FROM user_oauth_accounts oa
+      JOIN users u ON u.id = oa.user_id
+      WHERE oa.provider = $1
+        AND oa.provider_user_id = $2
+    `;
+    const user = await queryOne<any>(sql, [provider, providerUserId]);
+    if (!user) return null;
+
+    return {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      passwordHash: user.password_hash,
+      emailVerified: user.email_verified,
+      emailVerificationToken: user.email_verification_token,
+      emailVerificationExpires: user.email_verification_expires,
+      passwordResetToken: user.password_reset_token,
+      passwordResetExpires: user.password_reset_expires,
+      createdAt: user.created_at,
+      updatedAt: user.updated_at,
+    };
+  }
+
+  /**
+   * Link a trusted OAuth identity to an existing Humanly user.
+   */
+  static async createOAuthAccount(
+    userId: string,
+    data: OAuthAccountData
+  ): Promise<void> {
+    const sql = `
+      INSERT INTO user_oauth_accounts (user_id, provider, provider_user_id, email)
+      VALUES ($1, $2, $3, $4)
+      ON CONFLICT (provider, provider_user_id) DO NOTHING
+    `;
+    await query(sql, [userId, data.provider, data.providerUserId, data.email]);
   }
 
   /**
