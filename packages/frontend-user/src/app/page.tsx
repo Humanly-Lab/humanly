@@ -104,6 +104,18 @@ const faqs = [
     'Can writers still use AI?',
     'Yes. Humanly is built for transparent human-AI collaboration, not hidden policing.',
   ],
+  [
+    'Who controls the writing rules?',
+    'For assigned tasks, the task owner sets the AI, paste, time, and character rules before writing begins.',
+  ],
+  [
+    'What can readers verify?',
+    'Readers can open the certificate to inspect the signed process record, activity summary, and sharing settings.',
+  ],
+  [
+    'Can I write outside an assignment?',
+    'Yes. Personal writing lets you create private documents and generate certificates when you want to share proof.',
+  ],
 ] as const;
 
 export default function HomePage() {
