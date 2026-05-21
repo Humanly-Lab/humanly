@@ -474,13 +474,13 @@ export default function NewDocumentPage() {
     }
   };
 
-  const handleTestAiConnection = async () => {
+  const testAiConnection = async (): Promise<boolean> => {
     if (!aiApiKey.trim() && !hasExistingAiKey) {
       setAiConnectionResult({
         success: false,
         message: 'Enter an AI API key before testing the connection.',
       });
-      return;
+      return false;
     }
     const baseUrlToTest = aiBaseUrl.trim();
     if (!baseUrlToTest) {
@@ -488,7 +488,7 @@ export default function NewDocumentPage() {
         success: false,
         message: 'Select a provider or enter a custom base URL before testing the connection.',
       });
-      return;
+      return false;
     }
 
     setIsTestingAiConnection(true);
@@ -501,13 +501,14 @@ export default function NewDocumentPage() {
         baseUrl: baseUrlToTest,
       });
       const result = response.data || {};
+      const success = !!result.success;
 
       setAiConnectionResult({
-        success: !!result.success,
+        success,
         message: result.message || (result.success ? 'Connection successful.' : 'Connection failed.'),
       });
 
-      if (result.success) {
+      if (success) {
         const fallbackModels = getWhitelist(baseUrlToTest) || [];
         const modelsFromApi = Array.isArray(result.models) ? result.models.filter(Boolean) : [];
         const nextModels = fallbackModels.length ? fallbackModels : modelsFromApi;
@@ -519,13 +520,32 @@ export default function NewDocumentPage() {
           setEnvironmentAiModel(nextModels[0]);
         }
       }
+
+      return success;
     } catch (err: any) {
       setAiConnectionResult({
         success: false,
         message: err.message || 'Connection test failed.',
       });
+      return false;
     } finally {
       setIsTestingAiConnection(false);
+    }
+  };
+
+  const handleTestAiConnection = async () => {
+    await testAiConnection();
+  };
+
+  const handleCustomEnvironmentDone = async () => {
+    if (environmentConfig.aiAccess === 'off') {
+      setEnvironmentDialogOpen(false);
+      return;
+    }
+
+    const success = await testAiConnection();
+    if (success) {
+      setEnvironmentDialogOpen(false);
     }
   };
 
@@ -1223,8 +1243,19 @@ export default function NewDocumentPage() {
           {customEnvironmentControls}
 
           <DialogFooter>
-            <Button type="button" onClick={() => setEnvironmentDialogOpen(false)}>
-              Done
+            <Button
+              type="button"
+              onClick={handleCustomEnvironmentDone}
+              disabled={isCreating || isTestingAiConnection}
+            >
+              {isTestingAiConnection ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Testing...
+                </>
+              ) : (
+                'Done'
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

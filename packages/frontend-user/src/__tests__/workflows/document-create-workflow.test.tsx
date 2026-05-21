@@ -231,6 +231,41 @@ describe('document creation workflow', () => {
     expect(screen.queryByText('qwen/qwen-plus-2025-07-28')).not.toBeInTheDocument();
   });
 
+  it('requires and auto-tests an AI key before closing custom settings with AI on', async () => {
+    const user = userEvent.setup();
+    render(<NewDocumentPage />);
+
+    await screen.findByRole('heading', { name: /create writing/i });
+    await user.click(screen.getByRole('combobox', { name: /environment/i }));
+    await user.click(await screen.findByRole('option', { name: 'Custom' }));
+    await user.click(screen.getByRole('combobox', { name: /ai access/i }));
+    await user.click(await screen.findByRole('option', { name: 'AI On' }));
+
+    await user.click(screen.getByRole('button', { name: /^done$/i }));
+
+    expect(mockApiPost).not.toHaveBeenCalled();
+    expect(screen.getByText('Enter an AI API key before testing the connection.')).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: /custom environment/i })).toBeInTheDocument();
+
+    mockApiPost.mockResolvedValueOnce({
+      data: {
+        success: true,
+        message: 'Connection successful.',
+        models: ['qwen/qwen3.5-397b-a17b'],
+      },
+    });
+
+    await user.type(screen.getByLabelText(/ai api key/i), 'sk-test');
+    await user.click(screen.getByRole('button', { name: /^done$/i }));
+
+    await waitFor(() => {
+      expect(mockApiPost).toHaveBeenCalledWith('/ai/settings/test', expect.objectContaining({
+        apiKey: 'sk-test',
+      }));
+      expect(screen.queryByRole('dialog', { name: /custom environment/i })).not.toBeInTheDocument();
+    });
+  });
+
   it('allows the time-limit minutes field to be cleared while editing', async () => {
     const user = userEvent.setup();
 
