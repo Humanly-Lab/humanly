@@ -174,6 +174,71 @@ describe('admin new task page', () => {
     });
   });
 
+  it('auto-tests AI connection before creating AI-enabled tasks', async () => {
+    mockApiPost.mockImplementation(async (url: string) => {
+      if (url === '/api/v1/ai/settings/test') {
+        return {
+          success: true,
+          message: 'Connection successful.',
+          models: ['qwen/qwen3.5-397b-a17b'],
+        };
+      }
+      if (url === '/api/v1/tasks') {
+        return {
+          success: true,
+          data: { id: 'created-ai-task' },
+          message: 'Task created',
+        };
+      }
+      throw new Error(`Unexpected POST ${url}`);
+    });
+    mockApiPut.mockResolvedValue({ success: true });
+
+    render(<NewTaskPage />);
+
+    expect(await screen.findByRole('heading', { name: 'New Task' })).toBeInTheDocument();
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText(/Task Name/i), {
+        target: { value: 'AI Task' },
+      });
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('option', { name: 'Custom' }));
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('option', { name: 'AI On' }));
+    });
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText(/AI API Key/i), {
+        target: { value: 'sk-test' },
+      });
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /^Create Task$/i }));
+    });
+
+    await waitFor(() => {
+      expect(mockApiPost).toHaveBeenCalledWith('/api/v1/ai/settings/test', expect.objectContaining({
+        apiKey: 'sk-test',
+      }));
+      expect(mockApiPut).toHaveBeenCalledWith('/api/v1/ai/settings', expect.objectContaining({
+        apiKey: 'sk-test',
+      }));
+      expect(mockApiPost).toHaveBeenCalledWith(
+        '/api/v1/tasks',
+        expect.objectContaining({
+          name: 'AI Task',
+          environmentConfig: expect.objectContaining({
+            aiAccess: 'full',
+            traceability: expect.objectContaining({
+              trackAiUsage: true,
+            }),
+          }),
+        })
+      );
+    });
+  });
+
   it('imports environment JSON but downgrades unverified AI-on config until tested', async () => {
     mockApiGet.mockResolvedValue({
       data: {

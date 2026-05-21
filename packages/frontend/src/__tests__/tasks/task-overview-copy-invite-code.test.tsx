@@ -584,6 +584,9 @@ describe('admin task overview invite code copy button', () => {
     fireEvent.click(screen.getByRole('button', { name: /save settings/i }));
 
     await waitFor(() => {
+      expect(mockApiPost).toHaveBeenCalledWith('/api/v1/ai/settings/test', expect.objectContaining({
+        apiKey: '__use_existing__',
+      }));
       expect(mockApiPut).toHaveBeenCalledWith('/api/v1/tasks/task-123', expect.objectContaining({
         name: 'Clipboard Task',
         description: 'Task details',

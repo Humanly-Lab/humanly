@@ -608,7 +608,7 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
     }));
   };
 
-  const handleTestAiConnection = async () => {
+  const testAiConnection = async (): Promise<boolean> => {
     if (!aiApiKey.trim() && !hasExistingAiKey) {
       setAdvancedAiSettingsTouched(true);
       setAdvancedAiSettingsOpen(true);
@@ -616,7 +616,7 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
         success: false,
         message: 'Enter an AI API key before testing the connection.',
       });
-      return;
+      return false;
     }
 
     setIsTestingAiConnection(true);
@@ -646,6 +646,8 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
           setEnvironmentAiModel(nextModels[0]);
         }
       }
+
+      return !!result.success;
     } catch (err: any) {
       setAdvancedAiSettingsTouched(true);
       setAdvancedAiSettingsOpen(true);
@@ -653,9 +655,14 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
         success: false,
         message: err.message || 'Connection test failed.',
       });
+      return false;
     } finally {
       setIsTestingAiConnection(false);
     }
+  };
+
+  const handleTestAiConnection = async () => {
+    await testAiConnection();
   };
 
   const handleInstructionFilesChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -788,6 +795,13 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
 
         if (!selectedAiModel) {
           throw new Error('Select or enter the AI model for this task.');
+        }
+
+        if (aiConnectionResult?.success !== true) {
+          const success = await testAiConnection();
+          if (!success) {
+            throw new Error('Test AI connection before saving an AI-enabled task.');
+          }
         }
 
         await api.put('/api/v1/ai/settings', {
