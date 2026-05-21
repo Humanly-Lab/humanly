@@ -957,7 +957,8 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
             </Alert>
           )}
 
-          <Card>
+          <div className="grid gap-6 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.15fr)] xl:items-start">
+            <Card>
             <CardHeader>
               <CardTitle>Task Details</CardTitle>
             </CardHeader>
@@ -1079,9 +1080,10 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
                 )}
               </div>
             </CardContent>
-          </Card>
+            </Card>
 
-          <Card>
+            <div className="space-y-6">
+              <Card>
             <CardHeader>
               <CardTitle>AI</CardTitle>
             </CardHeader>
@@ -1277,13 +1279,13 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
                 </div>
               )}
             </CardContent>
-          </Card>
+              </Card>
 
-          <Card>
+              <Card>
             <CardHeader>
               <CardTitle>Environment</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-6">
+            <CardContent className="grid gap-6 xl:grid-cols-2">
               <SettingRow label="Time">
                 <SegmentedControl
                   ariaLabel="Time"
@@ -1298,7 +1300,7 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
               </SettingRow>
 
               {timeLimitEnabled && (
-                <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid gap-4 sm:grid-cols-2 xl:col-span-2">
                   <FormField
                     control={form.control}
                     name="startDate"
@@ -1407,7 +1409,7 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
                 />
               </SettingRow>
 
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid gap-3 sm:grid-cols-2 xl:col-span-2">
                 <div className="grid gap-2">
                   <FormLabel htmlFor="minimum-characters">Minimum Characters</FormLabel>
                   <Input
@@ -1441,7 +1443,9 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
                 </FormDescription>
               </div>
             </CardContent>
-          </Card>
+              </Card>
+            </div>
+          </div>
 
           <div
             data-testid="settings-sticky-actions"

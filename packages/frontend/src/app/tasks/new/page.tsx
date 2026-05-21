@@ -804,7 +804,7 @@ export default function NewTaskPage() {
   const showDetailedEnvironmentControls = environmentSelection !== 'default_writing';
 
   return (
-    <div className="container mx-auto max-w-2xl px-4 py-8">
+    <div className="container mx-auto max-w-6xl px-4 py-8">
       <div className="mb-6">
         <Button variant="ghost" className="mb-4" onClick={() => router.push('/tasks')}>
           <ArrowLeft className="mr-2 h-4 w-4" />
@@ -826,9 +826,9 @@ export default function NewTaskPage() {
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)}>
-            <CardContent className="space-y-6">
+            <CardContent className="grid gap-6 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.25fr)] xl:items-start">
               {error && (
-                <Alert variant="destructive">
+                <Alert variant="destructive" className="xl:col-span-2">
                   <AlertDescription>{error}</AlertDescription>
                 </Alert>
               )}
@@ -994,8 +994,8 @@ export default function NewTaskPage() {
                     </p>
                   </div>
                 ) : (
-                  <>
-                    <div className="space-y-4 rounded-md border p-4">
+                  <div className="grid gap-4 xl:grid-cols-2">
+                    <div className="space-y-4 rounded-md border p-4 xl:col-span-2">
                       <SectionHeading
                         title="AI"
                         description="Control whether enrolled users can use assistant support."
@@ -1353,7 +1353,7 @@ export default function NewTaskPage() {
                         </div>
                       )}
                     </div>
-                  </>
+                  </div>
                 )}
               </div>
             </CardContent>
