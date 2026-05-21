@@ -404,6 +404,18 @@ export class AuthService {
   }
 
   /**
+   * Validate a password reset token without mutating the account.
+   */
+  static async validatePasswordResetToken(token: string): Promise<void> {
+    logger.info('Validating password reset token', { token: token.substring(0, 10) + '...' });
+
+    const user = await UserModel.findByResetToken(token);
+    if (!user) {
+      throw new AppError(400, 'Invalid or expired password reset token');
+    }
+  }
+
+  /**
    * Reset password using reset token
    */
   static async resetPassword(token: string, newPassword: string): Promise<void> {

@@ -8,6 +8,7 @@ import {
   verifyEmailSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
+  passwordResetTokenSchema,
 } from '@humanly/shared';
 import { logger } from '../utils/logger';
 import { env } from '../config/env';
@@ -191,6 +192,21 @@ export const forgotPassword = asyncHandler(async (req: Request, res: Response) =
   res.json({
     success: true,
     message: 'If an account with that email exists, a password reset link has been sent.',
+  });
+});
+
+/**
+ * Validate password reset link
+ * POST /api/v1/auth/reset-password/validate
+ */
+export const validatePasswordResetToken = asyncHandler(async (req: Request, res: Response) => {
+  const { token } = passwordResetTokenSchema.parse(req.body);
+
+  await AuthService.validatePasswordResetToken(token);
+
+  res.json({
+    success: true,
+    message: 'Password reset token is valid.',
   });
 });
 

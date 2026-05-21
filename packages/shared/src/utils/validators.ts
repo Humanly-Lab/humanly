@@ -90,6 +90,10 @@ export const resetPasswordSchema = z.object({
   newPassword: passwordSchema,
 });
 
+export const passwordResetTokenSchema = z.object({
+  token: z.string().min(1, 'Token is required'),
+});
+
 // Task validators
 export const createTaskSchema = z.object({
   name: z.string().min(1, 'Task name is required').max(255),

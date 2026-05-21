@@ -1,5 +1,6 @@
 import { query, queryOne } from '../config/database';
 import { User, UserRole, UserWithPassword } from '@humanly/shared';
+import { PASSWORD_RESET_TOKEN_TTL_MS } from '../constants/auth';
 
 export interface CreateUserData {
   email: string;
@@ -65,7 +66,7 @@ export class UserModel {
     const sql = `
       SELECT id, email, role, password_hash, email_verified,
              email_verification_token, email_verification_expires,
-             password_reset_token, password_reset_expires,
+             password_reset_token, password_reset_expires, password_reset_requested_at,
              created_at, updated_at
       FROM users
       WHERE email = $1
@@ -83,6 +84,7 @@ export class UserModel {
       emailVerificationExpires: user.email_verification_expires,
       passwordResetToken: user.password_reset_token,
       passwordResetExpires: user.password_reset_expires,
+      passwordResetRequestedAt: user.password_reset_requested_at,
       createdAt: user.created_at,
       updatedAt: user.updated_at,
     };
@@ -110,7 +112,7 @@ export class UserModel {
     const sql = `
       SELECT u.id, u.email, u.role, u.password_hash, u.email_verified,
              u.email_verification_token, u.email_verification_expires,
-             u.password_reset_token, u.password_reset_expires,
+             u.password_reset_token, u.password_reset_expires, u.password_reset_requested_at,
              u.created_at, u.updated_at
       FROM user_oauth_accounts oa
       JOIN users u ON u.id = oa.user_id
@@ -130,6 +132,7 @@ export class UserModel {
       emailVerificationExpires: user.email_verification_expires,
       passwordResetToken: user.password_reset_token,
       passwordResetExpires: user.password_reset_expires,
+      passwordResetRequestedAt: user.password_reset_requested_at,
       createdAt: user.created_at,
       updatedAt: user.updated_at,
     };
@@ -184,13 +187,15 @@ export class UserModel {
   static async findByResetToken(token: string): Promise<UserWithPassword | null> {
     const sql = `
       SELECT id, email, role, password_hash, email_verified,
-             password_reset_token, password_reset_expires,
+             password_reset_token, password_reset_expires, password_reset_requested_at,
              created_at, updated_at
       FROM users
       WHERE password_reset_token = $1
         AND password_reset_expires > NOW()
+        AND password_reset_requested_at IS NOT NULL
+        AND password_reset_requested_at > NOW() - ($2::int * INTERVAL '1 millisecond')
     `;
-    const user = await queryOne<any>(sql, [token]);
+    const user = await queryOne<any>(sql, [token, PASSWORD_RESET_TOKEN_TTL_MS]);
     if (!user) return null;
 
     return {
@@ -201,6 +206,7 @@ export class UserModel {
       emailVerified: user.email_verified,
       passwordResetToken: user.password_reset_token,
       passwordResetExpires: user.password_reset_expires,
+      passwordResetRequestedAt: user.password_reset_requested_at,
       createdAt: user.created_at,
       updatedAt: user.updated_at,
     };
@@ -231,7 +237,8 @@ export class UserModel {
     const sql = `
       UPDATE users
       SET password_reset_token = $1,
-          password_reset_expires = $2
+          password_reset_expires = $2,
+          password_reset_requested_at = NOW()
       WHERE id = $3
     `;
     await query(sql, [token, expires, id]);
@@ -245,7 +252,8 @@ export class UserModel {
       UPDATE users
       SET password_hash = $1,
           password_reset_token = NULL,
-          password_reset_expires = NULL
+          password_reset_expires = NULL,
+          password_reset_requested_at = NULL
       WHERE id = $2
     `;
     await query(sql, [passwordHash, id]);

@@ -33,6 +33,7 @@ interface AuthState {
   verifyEmail: (code: string) => Promise<void>;
   resendVerificationEmail: (email?: string) => Promise<void>;
   forgotPassword: (email: string) => Promise<void>;
+  validatePasswordResetToken: (token: string) => Promise<void>;
   resetPassword: (token: string, newPassword: string) => Promise<void>;
   fetchUser: () => Promise<void>;
   updateUser: (data: Partial<User>) => Promise<void>;
@@ -217,6 +218,20 @@ export const useAuthStore = create<AuthState>()(
         } catch (error) {
           const errorMessage = error instanceof ApiError ? error.message : 'Failed to send reset email';
           set({ isLoading: false, error: errorMessage });
+          throw error;
+        }
+      },
+
+      /**
+       * Validate password reset token before showing the reset form
+       */
+      validatePasswordResetToken: async (token: string) => {
+        try {
+          await api.post('/api/v1/auth/reset-password/validate', { token });
+        } catch (error) {
+          const errorMessage =
+            error instanceof ApiError ? error.message : 'Invalid or expired password reset link';
+          set({ error: errorMessage });
           throw error;
         }
       },

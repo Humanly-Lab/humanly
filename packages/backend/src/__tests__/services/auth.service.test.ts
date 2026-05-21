@@ -368,6 +368,32 @@ describe('AuthService.forgotPassword', () => {
   });
 });
 
+// ── validatePasswordResetToken ────────────────────────────────────────────────
+
+describe('AuthService.validatePasswordResetToken', () => {
+  it('accepts a valid reset token without mutating the user', async () => {
+    MockUserModel.findByResetToken.mockResolvedValue(makeUser() as any);
+
+    await expect(
+      AuthService.validatePasswordResetToken('validtoken')
+    ).resolves.toBeUndefined();
+
+    expect(MockUserModel.findByResetToken).toHaveBeenCalledWith('validtoken');
+    expect(MockUserModel.resetPassword).not.toHaveBeenCalled();
+    expect(MockRefreshTokenModel.deleteByUserId).not.toHaveBeenCalled();
+  });
+
+  it('throws 400 for an invalid or expired reset token', async () => {
+    MockUserModel.findByResetToken.mockResolvedValue(null);
+
+    await expect(
+      AuthService.validatePasswordResetToken('badtoken')
+    ).rejects.toMatchObject({
+      statusCode: 400,
+    });
+  });
+});
+
 // ── resetPassword ─────────────────────────────────────────────────────────────
 
 describe('AuthService.resetPassword', () => {

@@ -7,6 +7,7 @@ import {
   logout,
   refreshToken,
   forgotPassword,
+  validatePasswordResetToken,
   resetPassword,
   getCurrentUser,
   getOAuthProviders,
@@ -72,6 +73,13 @@ router.post('/refresh', refreshTokenRateLimiter, refreshToken);
  * Rate limited: 3 attempts per hour
  */
 router.post('/forgot-password', passwordResetRateLimiter, forgotPassword);
+
+/**
+ * POST /api/v1/auth/reset-password/validate
+ * Validate password reset link before showing the reset form
+ * Rate limited: 3 attempts per hour
+ */
+router.post('/reset-password/validate', passwordResetRateLimiter, validatePasswordResetToken);
 
 /**
  * POST /api/v1/auth/reset-password

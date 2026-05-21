@@ -27,4 +27,5 @@ export interface UserWithPassword extends User {
   emailVerificationExpires?: Date | null;
   passwordResetToken?: string | null;
   passwordResetExpires?: Date | null;
+  passwordResetRequestedAt?: Date | null;
 }
