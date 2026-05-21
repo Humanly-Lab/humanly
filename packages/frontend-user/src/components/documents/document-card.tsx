@@ -5,10 +5,7 @@ import Link from 'next/link';
 import { CalendarClock, FileText, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import {
-  Card,
-  CardContent,
-} from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -169,8 +166,8 @@ export function DocumentCard({ document, timerState, onDelete, variant = 'card' 
       <div className="relative h-full">
         <Link href={documentHref} className="group block h-full rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
           <Card className="flex h-[20rem] cursor-pointer overflow-hidden transition-colors group-hover:border-foreground/30">
-            <CardContent className="flex h-full flex-1 flex-col p-0">
-              <div className="relative h-[14rem] overflow-hidden border-b border-border/70 bg-background">
+            <div className="flex h-full min-w-0 flex-1 flex-col p-0">
+              <div className="relative h-[14rem] w-full overflow-hidden border-b border-border/70 bg-card">
                 <div className="absolute inset-0 px-5 py-5">
                   {previewText ? (
                     <p className="line-clamp-4 whitespace-pre-wrap text-[12px] leading-[1.45] text-muted-foreground/80">
@@ -217,7 +214,7 @@ export function DocumentCard({ document, timerState, onDelete, variant = 'card' 
                   )}
                 </div>
               </div>
-            </CardContent>
+            </div>
           </Card>
         </Link>
 
