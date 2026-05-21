@@ -498,7 +498,7 @@ export default function CertificateDetailPage() {
             </CollapsibleTrigger>
             <CollapsibleContent>
               <Separator />
-              <CardContent className="grid gap-5 p-5 lg:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
+              <CardContent className="grid gap-5 p-5 !pt-6 lg:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
                 <div className="grid gap-4 rounded-lg border border-border/70 bg-muted/20 p-4 lg:grid-cols-[minmax(190px,0.8fr)_minmax(280px,1.2fr)]">
                   <div className="space-y-3">
                     <div>
