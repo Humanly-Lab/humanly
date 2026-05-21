@@ -581,12 +581,12 @@ function StepIllo0() {
       <text x="26" y="32" fontFamily="var(--font-space-mono)" fontSize="8" fontWeight="700" fill={ink}>Document Configuration</text>
       <line x1="14" y1="40" x2="186" y2="40" stroke={hairline} strokeWidth="0.8" />
       <text x="26" y="56" fontFamily="var(--font-space-mono)" fontSize="6" fill={muted}>AI</text>
-      <rect x="80" y="50" width="34" height="10" rx="2" fill={ink} />
-      <text x="97" y="57" textAnchor="middle" fontFamily="var(--font-space-mono)" fontSize="6" fontWeight="700" fill="#fff">Assist only</text>
-      <rect x="116" y="50" width="22" height="10" rx="2" fill={bg2} />
-      <text x="127" y="57" textAnchor="middle" fontFamily="var(--font-space-mono)" fontSize="6" fontWeight="700" fill={muted}>Off</text>
-      <rect x="140" y="50" width="32" height="10" rx="2" fill={bg2} />
-      <text x="156" y="57" textAnchor="middle" fontFamily="var(--font-space-mono)" fontSize="6" fontWeight="700" fill={muted}>Full chat</text>
+      <rect x="70" y="50" width="48" height="10" rx="2" fill={ink} />
+      <text x="94" y="57" textAnchor="middle" fontFamily="var(--font-space-mono)" fontSize="6" fontWeight="700" fill="#fff">Assist only</text>
+      <rect x="121" y="50" width="20" height="10" rx="2" fill={bg2} />
+      <text x="131" y="57" textAnchor="middle" fontFamily="var(--font-space-mono)" fontSize="6" fontWeight="700" fill={muted}>Off</text>
+      <rect x="144" y="50" width="34" height="10" rx="2" fill={bg2} />
+      <text x="161" y="57" textAnchor="middle" fontFamily="var(--font-space-mono)" fontSize="6" fontWeight="700" fill={muted}>Full chat</text>
       <text x="26" y="76" fontFamily="var(--font-space-mono)" fontSize="6" fill={muted}>Paste</text>
       <rect x="80" y="70" width="34" height="10" rx="2" fill={bg2} />
       <text x="97" y="77" textAnchor="middle" fontFamily="var(--font-space-mono)" fontSize="6" fontWeight="700" fill={muted}>Allowed</text>
