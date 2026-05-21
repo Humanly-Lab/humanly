@@ -597,7 +597,7 @@ export function LexicalEditor(props: LexicalEditorProps): JSX.Element {
           copyPastePolicy={copyPastePolicy}
           onCharacterLimitReached={onCharacterLimitReached}
         />
-        <OnChangePlugin onChange={handleChange} />
+        <OnChangePlugin onChange={handleChange} ignoreSelectionChange />
         <TabIndentationPlugin />
         <HeadingPlugin />
         <FormattingPlugin />
