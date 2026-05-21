@@ -10,23 +10,23 @@ const good = '#6f8a78';
 
 const logRows = [
   ['12:41:48', 'input', '#dde6df', '#4a655a', '796'],
-  ['12:41:48', 'focus', '#dadfd9', '#56655a', '796'],
-  ['12:41:36', 'blur', '#e5e5e2', '#65655f', '0'],
-  ['12:41:33', 'select', '#e5e5e2', '#65655f', '0'],
-  ['12:41:31', '✦ Simplify', '#dee4ee', '#3a4a64', 'AI'],
-  ['12:41:31', 'input', '#dde6df', '#4a655a', '788'],
-  ['12:41:16', 'delete', '#e5e5e2', '#65655f', '44'],
-  ['12:41:02', 'input', '#dde6df', '#4a655a', '768'],
-  ['12:40:58', '✦ Grammar', '#dee4ee', '#3a4a64', 'AI'],
+  ['12:41:49', 'select', '#e5e5e2', '#65655f', '42'],
+  ['12:41:50', 'ai quick', '#dee4ee', '#3a4a64', 'AI'],
+  ['12:42:03', 'paste', '#f2e0d3', '#8a5a3c', '186'],
+  ['12:42:08', 'ai question', '#dee4ee', '#3a4a64', 'AI'],
+  ['12:42:13', 'ai answer', '#dee4ee', '#3a4a64', 'AI'],
+  ['12:42:16', 'ai insert', '#dee4ee', '#3a4a64', '52'],
+  ['12:42:19', 'delete', '#e5e5e2', '#65655f', '18'],
+  ['12:42:22', 'input', '#dde6df', '#4a655a', '1,204'],
 ];
 
 const toolRows = [
-  ['ls', '8ms'],
-  ['grep', '28ms'],
-  ['read', '52ms'],
-  ['grep', '43ms'],
-  ['read', '49ms'],
-];
+  { tool: 'ls', detail: 'paper list', ms: '8ms' },
+  { tool: 'grep', detail: '"attention"', ms: '28ms' },
+  { tool: 'read', detail: 'source passage', ms: '52ms' },
+  { tool: 'grep', detail: '"revision"', ms: '43ms' },
+  { tool: 'read', detail: 'nearby context', ms: '49ms' },
+] as const;
 
 const problemCards = [
   'AI detectors guess after the fact.',
@@ -227,12 +227,14 @@ function HeroDocCalm() {
           <p className="mb-3 text-[13px] leading-[1.75] text-[#2a2d33]">
             The first thing to notice about a draft is the pause before it.
             Before a sentence lands on the page there is a small, deliberate{' '}
-            <span className="rounded-sm bg-[rgba(91,111,140,0.14)] px-1">refusal</span>{' '}
+            refusal{' '}
             — the writer choosing not to type yet.
           </p>
           <p className="text-[13px] leading-[1.75] text-muted-foreground">
-            Most drafts fail in this earlier moment, when the mind accepts whatever
-            language arrives first. The discipline is to wait, then to choose.
+            <span className="box-decoration-clone bg-[rgba(142,190,238,0.62)] px-[2px] py-[1px]">
+              Most drafts fail in this earlier moment, when the mind accepts whatever
+              language arrives first. The discipline is to wait, then to choose.
+            </span>
           </p>
           <span className="humanly-cursor-blink mt-1 inline-block h-[17px] w-0.5 bg-foreground align-text-bottom" />
         </div>
@@ -248,23 +250,24 @@ function HeroDocCalm() {
 
           <div className="flex flex-1 flex-col gap-2.5 p-3.5 pb-0">
             <div className="self-center rounded-[14px] bg-foreground px-3 py-2 text-[11px] leading-normal text-white">
-              Find source support for my attention claim
+              Find source support for this paragraph
             </div>
             <div className="flex flex-col gap-1 rounded-lg bg-[#ebede4] p-2 pb-2.5">
-              {toolRows.map(([tool, ms]) => (
+              {toolRows.map(({ tool, detail, ms }) => (
                 <div
-                  key={`${tool}-${ms}`}
-                  className="flex items-center gap-1.5 rounded-md border border-[rgba(20,22,26,0.05)] bg-white px-2.5 py-1.5 text-[10px] text-[#2a2d33]"
+                  key={`${tool}-${detail}`}
+                  className="grid grid-cols-[auto_auto_minmax(0,1fr)_auto] items-center gap-1.5 rounded-md border border-[rgba(20,22,26,0.05)] bg-white px-2.5 py-1.5 text-[10px] text-[#2a2d33]"
                 >
                   <span className="text-[9px] text-[#6f8a78]">✓</span>
                   <span className="font-bold">{tool}</span>
-                  <span className="ml-auto text-muted-foreground">{ms}</span>
-                  <span className="text-[#a0a2a7]">›</span>
+                  <span className="truncate text-[9px] text-muted-foreground">{detail}</span>
+                  <span className="text-muted-foreground">{ms}</span>
                 </div>
               ))}
               <p className="px-1 pt-1 text-[10.5px] leading-[1.55] text-[#2a2d33]">
-                The source describes attention as sustained focus during revision,
-                supporting your point about waiting before drafting…
+                I found support in the attached PDF: the source frames attention
+                as revision discipline, which supports your point about waiting
+                before drafting…
               </p>
             </div>
           </div>
@@ -274,8 +277,8 @@ function HeroDocCalm() {
               <span>⊙</span>
               PDF context available (13 pages)
             </div>
-            <div className="flex justify-between rounded-md bg-[#ebede4] px-2.5 py-1.5 text-[10px] text-muted-foreground">
-              <span>kimi-k2.6 (image+text)</span>
+            <div className="flex min-w-0 justify-between gap-2 rounded-md bg-[#ebede4] px-2.5 py-1.5 text-[10px] text-muted-foreground">
+              <span className="truncate">moonshotai/Kimi-K2.6 (image+text)</span>
               <span>⇅</span>
             </div>
             <div className="flex items-stretch gap-1.5">
@@ -345,23 +348,23 @@ function TrackingCard() {
 
 function CertificateCard() {
   return (
-    <div className="humanly-hover-pop absolute right-[2.5%] top-[83.3%] z-30 hidden min-h-[92px] w-[41.8%] rotate-[-0.8deg] grid-cols-[1fr_auto] items-center gap-[18px] rounded-[10px] border border-[rgba(20,22,26,0.10)] bg-[#fdfcf7] px-[18px] py-3.5 shadow-[0_24px_50px_-18px_rgba(20,22,26,0.40)] hover:z-50 hover:shadow-[0_32px_70px_-18px_rgba(20,22,26,0.48)] lg:grid">
+    <div className="humanly-hover-pop absolute bottom-[5%] right-[3%] z-30 hidden min-h-[84px] w-[40%] rotate-[-0.8deg] grid-cols-[1fr_auto] items-center gap-3.5 rounded-[10px] border border-[rgba(20,22,26,0.10)] bg-[#fdfcf7] px-4 py-3 shadow-[0_24px_50px_-18px_rgba(20,22,26,0.40)] hover:z-50 hover:shadow-[0_32px_70px_-18px_rgba(20,22,26,0.48)] lg:grid">
       <div>
         <div className="mb-1.5 flex items-center gap-1.5">
           <CertBadge />
-          <span className="text-[8.5px] font-bold tracking-[0.2em] text-muted-foreground">CERTIFICATE · SIGNED</span>
+          <span className="text-[8.5px] font-bold tracking-[0.2em] text-muted-foreground">CERTIFICATE · GENERATED</span>
           <span className="ml-1.5 h-1.5 w-1.5 rounded-full bg-[#6f8a78]" />
         </div>
         <div className="text-sm font-bold tracking-[-0.005em]">Drafting with attention</div>
         <div className="mt-1 whitespace-nowrap text-[9.5px] text-muted-foreground">
-          Generated May 19, 2026 · SHA · 9F3A 7B2C
+          Generated May 19, 2026 · token · 9F3A 7B2C
         </div>
       </div>
-      <div className="flex gap-3.5">
+      <div className="flex gap-3">
         {[
-          ['TYPED', '74%'],
-          ['CHARS', '9,842'],
-          ['TIME', '42 min'],
+          ['TYPED', '93%'],
+          ['CHARS', '1,204'],
+          ['TIME', '18 min'],
         ].map(([label, value]) => (
           <div key={label} className="text-right">
             <div className="text-[8.5px] tracking-[0.12em] text-muted-foreground">{label}</div>
