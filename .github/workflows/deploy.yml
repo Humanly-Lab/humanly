@@ -9,7 +9,7 @@ on:
 
 concurrency:
   group: production-deploy
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   build-and-deploy:
@@ -17,6 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     permissions:
+      actions: write
       contents: read
       id-token: write
 
@@ -75,6 +76,87 @@ jobs:
       - name: Configure Docker for Artifact Registry
         run: gcloud auth configure-docker "${GCP_REGION}-docker.pkg.dev" --quiet
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Detect changed deployment targets
+        id: changes
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          base="${{ github.event.before }}"
+          head="${GITHUB_SHA}"
+          changed_file="$(mktemp)"
+          force_all=false
+
+          if [[ -z "$base" || "$base" =~ ^0+$ ]] || ! git cat-file -e "${base}^{commit}" 2>/dev/null; then
+            force_all=true
+            git ls-files > "$changed_file"
+          else
+            git diff --name-only "$base" "$head" > "$changed_file"
+          fi
+
+          backend=false
+          frontend_user=false
+          frontend=false
+          deploy=false
+
+          if [[ "$force_all" == "true" ]]; then
+            backend=true
+            frontend_user=true
+            frontend=true
+            deploy=true
+          else
+            while IFS= read -r file; do
+              [[ -z "$file" ]] && continue
+
+              case "$file" in
+                package.json|pnpm-lock.yaml|pnpm-workspace.yaml|tsconfig.json|docker-compose.prod.yml|.github/workflows/deploy.yml|scripts/deploy.sh|scripts/run-migrations.sh|docker/*.Dockerfile)
+                  backend=true
+                  frontend_user=true
+                  frontend=true
+                  deploy=true
+                  ;;
+                packages/shared/*|packages/shared/**)
+                  backend=true
+                  frontend_user=true
+                  frontend=true
+                  ;;
+                packages/backend/*|packages/backend/**|packages/tracker/*|packages/tracker/**)
+                  backend=true
+                  ;;
+                packages/editor/*|packages/editor/**|packages/frontend-user/*|packages/frontend-user/**)
+                  frontend_user=true
+                  ;;
+                packages/frontend/*|packages/frontend/**)
+                  frontend=true
+                  ;;
+                nginx/*|nginx/**|scripts/ensure-production-cert.sh|docs/PRODUCTION_DEPLOYMENT.md)
+                  deploy=true
+                  ;;
+              esac
+            done < "$changed_file"
+          fi
+
+          if [[ "$backend" == "true" || "$frontend_user" == "true" || "$frontend" == "true" ]]; then
+            deploy=true
+          fi
+
+          echo "Changed files:"
+          sed 's/^/  /' "$changed_file"
+          echo "Build backend: ${backend}"
+          echo "Build frontend-user: ${frontend_user}"
+          echo "Build frontend: ${frontend}"
+          echo "Run VM deploy: ${deploy}"
+
+          {
+            echo "backend=${backend}"
+            echo "frontend_user=${frontend_user}"
+            echo "frontend=${frontend}"
+            echo "deploy=${deploy}"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Set image tags
         id: images
         run: |
@@ -94,50 +176,69 @@ jobs:
           echo "Frontend image: ${frontend_image}"
 
       - name: Build and push backend image
-        run: |
-          docker build \
-            -f docker/backend.Dockerfile \
-            -t "${{ steps.images.outputs.backend_image }}" \
-            .
-          docker push "${{ steps.images.outputs.backend_image }}"
+        if: ${{ steps.changes.outputs.backend == 'true' }}
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/backend.Dockerfile
+          push: true
+          tags: ${{ steps.images.outputs.backend_image }}
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,mode=max,scope=backend
 
       - name: Build and push frontend-user image
-        run: |
-          docker build \
-            -f docker/frontend-user.Dockerfile \
-            --build-arg NEXT_PUBLIC_API_URL="$NEXT_PUBLIC_API_URL" \
-            --build-arg NEXT_PUBLIC_WS_URL="$NEXT_PUBLIC_WS_URL" \
-            -t "${{ steps.images.outputs.frontend_user_image }}" \
-            .
-          docker push "${{ steps.images.outputs.frontend_user_image }}"
+        if: ${{ steps.changes.outputs.frontend_user == 'true' }}
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/frontend-user.Dockerfile
+          push: true
+          tags: ${{ steps.images.outputs.frontend_user_image }}
+          build-args: |
+            NEXT_PUBLIC_API_URL=${{ env.NEXT_PUBLIC_API_URL }}
+            NEXT_PUBLIC_WS_URL=${{ env.NEXT_PUBLIC_WS_URL }}
+          cache-from: type=gha,scope=frontend-user
+          cache-to: type=gha,mode=max,scope=frontend-user
 
       - name: Build and push frontend image
-        run: |
-          admin_ws_url="wss://admin.writehumanly.net"
+        if: ${{ steps.changes.outputs.frontend == 'true' }}
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/frontend.Dockerfile
+          push: true
+          tags: ${{ steps.images.outputs.frontend_image }}
+          build-args: |
+            NEXT_PUBLIC_API_URL=
+            NEXT_PUBLIC_WS_URL=wss://admin.writehumanly.net
+            NEXT_PUBLIC_TRACKER_URL=https://admin.writehumanly.net
+            NEXT_PUBLIC_BASE_PATH=
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,mode=max,scope=frontend
 
-          docker build \
-            -f docker/frontend.Dockerfile \
-            --build-arg NEXT_PUBLIC_API_URL="" \
-            --build-arg NEXT_PUBLIC_WS_URL="$admin_ws_url" \
-            --build-arg NEXT_PUBLIC_TRACKER_URL="https://admin.writehumanly.net" \
-            --build-arg NEXT_PUBLIC_BASE_PATH="" \
-            -t "${{ steps.images.outputs.frontend_image }}" \
-            .
-          docker push "${{ steps.images.outputs.frontend_image }}"
+      - name: Show skipped image builds
+        run: |
+          echo "backend build: ${{ steps.changes.outputs.backend }}"
+          echo "frontend-user build: ${{ steps.changes.outputs.frontend_user }}"
+          echo "frontend build: ${{ steps.changes.outputs.frontend }}"
 
       - name: Deploy images on VM
+        if: ${{ steps.changes.outputs.deploy == 'true' }}
         uses: appleboy/ssh-action@v1.2.0
         env:
-          BACKEND_IMAGE: ${{ steps.images.outputs.backend_image }}
-          FRONTEND_USER_IMAGE: ${{ steps.images.outputs.frontend_user_image }}
-          FRONTEND_IMAGE: ${{ steps.images.outputs.frontend_image }}
+          BACKEND_IMAGE: ${{ steps.changes.outputs.backend == 'true' && steps.images.outputs.backend_image || '' }}
+          FRONTEND_USER_IMAGE: ${{ steps.changes.outputs.frontend_user == 'true' && steps.images.outputs.frontend_user_image || '' }}
+          FRONTEND_IMAGE: ${{ steps.changes.outputs.frontend == 'true' && steps.images.outputs.frontend_image || '' }}
+          BACKEND_CHANGED: ${{ steps.changes.outputs.backend }}
+          FRONTEND_USER_CHANGED: ${{ steps.changes.outputs.frontend_user }}
+          FRONTEND_CHANGED: ${{ steps.changes.outputs.frontend }}
           VM_DEPLOY_PATH: ${{ env.VM_DEPLOY_PATH }}
           GITHUB_SHA: ${{ github.sha }}
         with:
           host: ${{ env.VM_HOST }}
           username: ${{ env.VM_USER }}
           key: ${{ secrets.VM_SSH_KEY }}
-          envs: BACKEND_IMAGE,FRONTEND_USER_IMAGE,FRONTEND_IMAGE,VM_DEPLOY_PATH,GITHUB_SHA
+          envs: BACKEND_IMAGE,FRONTEND_USER_IMAGE,FRONTEND_IMAGE,BACKEND_CHANGED,FRONTEND_USER_CHANGED,FRONTEND_CHANGED,VM_DEPLOY_PATH,GITHUB_SHA
           script: |
             set -euo pipefail
 
@@ -155,7 +256,7 @@ jobs:
             git checkout main
             git pull --ff-only origin main
             test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
-            BACKEND_IMAGE="$BACKEND_IMAGE" FRONTEND_USER_IMAGE="$FRONTEND_USER_IMAGE" FRONTEND_IMAGE="$FRONTEND_IMAGE" VM_DEPLOY_PATH="$VM_DEPLOY_PATH" bash scripts/deploy.sh
+            BACKEND_IMAGE="$BACKEND_IMAGE" FRONTEND_USER_IMAGE="$FRONTEND_USER_IMAGE" FRONTEND_IMAGE="$FRONTEND_IMAGE" BACKEND_CHANGED="$BACKEND_CHANGED" FRONTEND_USER_CHANGED="$FRONTEND_USER_CHANGED" FRONTEND_CHANGED="$FRONTEND_CHANGED" VM_DEPLOY_PATH="$VM_DEPLOY_PATH" bash scripts/deploy.sh
           script_stop: true
           command_timeout: 40m
 
