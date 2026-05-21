@@ -115,7 +115,7 @@ describe('document creation workflow', () => {
     expect(screen.queryByText('Writing Control')).not.toBeInTheDocument();
     expect(screen.queryByText('Time Limitation')).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole('combobox'));
+    await user.click(screen.getByRole('combobox', { name: /environment/i }));
     await user.click(await screen.findByRole('option', { name: 'Custom' }));
 
     expect(screen.getByText('Writing Control')).toBeInTheDocument();
@@ -134,11 +134,12 @@ describe('document creation workflow', () => {
 
     await screen.findByRole('heading', { name: /create writing/i });
     await user.type(screen.getByLabelText(/document name/i), 'Personal Character Policy');
-    await user.click(screen.getByRole('combobox'));
+    await user.click(screen.getByRole('combobox', { name: /environment/i }));
     await user.click(await screen.findByRole('option', { name: 'Custom' }));
 
     expect(screen.queryByLabelText(/minimum characters/i)).not.toBeInTheDocument();
     await user.type(screen.getByLabelText(/maximum characters/i), '200');
+    await user.click(screen.getByRole('button', { name: /^done$/i }));
     await user.click(screen.getByRole('button', { name: /^create writing$/i }));
 
     await waitFor(() => {
@@ -173,9 +174,9 @@ describe('document creation workflow', () => {
     render(<NewDocumentPage />);
 
     await screen.findByRole('heading', { name: /create writing/i });
-    await user.click(screen.getByRole('combobox'));
+    await user.click(screen.getByRole('combobox', { name: /environment/i }));
     await user.click(await screen.findByRole('option', { name: 'Custom' }));
-    await user.click(screen.getAllByRole('combobox')[1]);
+    await user.click(screen.getByRole('combobox', { name: /ai access/i }));
     await user.click(await screen.findByRole('option', { name: 'AI On' }));
 
     await user.type(screen.getByLabelText(/ai api key/i), 'sk-or-test');
@@ -193,7 +194,7 @@ describe('document creation workflow', () => {
     render(<NewDocumentPage />);
 
     await screen.findByRole('heading', { name: /create writing/i });
-    await user.click(screen.getByRole('combobox'));
+    await user.click(screen.getByRole('combobox', { name: /environment/i }));
     await user.click(await screen.findByRole('option', { name: 'Custom' }));
     await user.click(screen.getByRole('combobox', { name: /time policy/i }));
     await user.click(await screen.findByRole('option', { name: 'Time limited' }));
