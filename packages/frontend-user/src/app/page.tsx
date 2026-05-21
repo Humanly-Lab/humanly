@@ -126,7 +126,7 @@ export default function HomePage() {
       <section id="product" className="relative px-5 pb-14 pt-16 sm:px-8 sm:pb-16 sm:pt-20 lg:px-14 lg:pt-[82px]">
         <div className="mx-auto max-w-[940px] text-center">
           <Eyebrow className="mb-7">{BRAND.name}</Eyebrow>
-          <h1 className="text-[40px] font-semibold leading-[1.06] tracking-[-0.025em] sm:text-[56px] lg:text-[64px]">
+          <h1 className="text-[36px] font-semibold leading-[1.08] tracking-[-0.025em] sm:text-[50px] lg:text-[58px]">
             <span>Write with AI.</span>
             <br />
             <span className="text-[#a0a2a7]">Prove your process.</span>
