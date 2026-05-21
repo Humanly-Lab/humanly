@@ -12,14 +12,18 @@ Storage, and does not introduce Kubernetes, GKE, or Cloud Run.
 
 ```text
 product push to main
-  -> GitHub Actions builds backend, frontend-user, and frontend images
-  -> GitHub Actions pushes commit-SHA tags to Artifact Registry
+  -> GitHub Actions cancels older in-progress production deploy runs
+  -> GitHub Actions detects which app surfaces changed
+  -> GitHub Actions builds only affected backend, frontend-user, and/or frontend images
+  -> GitHub Actions uses Docker Buildx layer cache for repeated builds
+  -> GitHub Actions pushes commit-SHA tags for rebuilt images to Artifact Registry
   -> GitHub Actions SSHes into the production VM
   -> VM syncs the deploy files from main
-  -> VM runs scripts/deploy.sh with exact image tags
-  -> docker compose pull backend frontend-user frontend
-  -> VM runs pending SQL migrations
-  -> docker compose up -d backend frontend-user frontend nginx
+  -> VM runs scripts/deploy.sh with exact image tags for changed services
+  -> VM preserves existing image tags for unchanged services
+  -> docker compose pulls changed application images
+  -> VM runs pending SQL migrations when backend changes
+  -> docker compose up -d restarts changed app services and nginx
   -> deploy script expands TLS cert SANs when needed and restarts nginx
   -> GitHub Actions verifies app/admin/api health endpoints over HTTPS
 ```
@@ -28,6 +32,18 @@ Docs-only pushes to `main` are ignored by `.github/workflows/deploy.yml`.
 Related small product PRs can be merged into an `integration/<theme>` or
 `release/<theme>` branch first, then shipped through one final PR to `main` so
 production deploys once.
+
+Selective deploy rules are conservative:
+
+- `packages/backend/**`, `packages/tracker/**`, backend Dockerfile, or backend
+  deploy inputs rebuild/restart `backend`.
+- `packages/frontend-user/**`, `packages/editor/**`, or the user-portal
+  Dockerfile rebuild/restart `frontend-user`.
+- `packages/frontend/**` or the admin Dockerfile rebuild/restart `frontend`.
+- `packages/shared/**`, workspace manifests, lockfile, root TypeScript config,
+  Compose file, or deploy workflow/script changes rebuild all three app images.
+- nginx/certificate-only changes can deploy without rebuilding app images; the
+  VM keeps the previous image tags and recreates nginx.
 
 Production service compatibility is unchanged:
 
@@ -375,7 +391,7 @@ docker compose -f docker-compose.prod.yml exec -e PAGER=cat postgres \
 
 ## Manual Deploy
 
-To deploy a specific set of images from the VM:
+To deploy a new set of images from the VM:
 
 ```bash
 cd /home/humanly/humanly
@@ -384,11 +400,28 @@ export BACKEND_IMAGE="REGION-docker.pkg.dev/PROJECT_ID/humanly/humanly-backend:G
 export FRONTEND_USER_IMAGE="REGION-docker.pkg.dev/PROJECT_ID/humanly/humanly-frontend-user:GIT_SHA"
 export FRONTEND_IMAGE="REGION-docker.pkg.dev/PROJECT_ID/humanly/humanly-frontend:GIT_SHA"
 
-bash scripts/deploy.sh
+BACKEND_CHANGED=true FRONTEND_USER_CHANGED=true FRONTEND_CHANGED=true bash scripts/deploy.sh
 ```
 
 The deploy script writes the image tags to `.env.production-images`. Running
-`bash scripts/deploy.sh` later with no image variables reuses the stored tags.
+`bash scripts/deploy.sh` later with no image variables reuses the stored tags
+and refreshes nginx without restarting unchanged app services. To restart all
+application services with the currently stored image tags:
+
+```bash
+cd /home/humanly/humanly
+RESTART_ALL=1 bash scripts/deploy.sh
+```
+
+For a one-service manual deploy, pass only that service's image and changed
+flag, for example:
+
+```bash
+cd /home/humanly/humanly
+BACKEND_IMAGE="REGION-docker.pkg.dev/PROJECT_ID/humanly/humanly-backend:GIT_SHA" \
+BACKEND_CHANGED=true \
+bash scripts/deploy.sh
+```
 
 ## Rollback
 
@@ -401,7 +434,7 @@ export BACKEND_IMAGE="REGION-docker.pkg.dev/PROJECT_ID/humanly/humanly-backend:P
 export FRONTEND_USER_IMAGE="REGION-docker.pkg.dev/PROJECT_ID/humanly/humanly-frontend-user:PREVIOUS_GIT_SHA"
 export FRONTEND_IMAGE="REGION-docker.pkg.dev/PROJECT_ID/humanly/humanly-frontend:PREVIOUS_GIT_SHA"
 
-bash scripts/deploy.sh
+BACKEND_CHANGED=true FRONTEND_USER_CHANGED=true FRONTEND_CHANGED=true bash scripts/deploy.sh
 ```
 
 The deploy script prunes unused images after a successful release. Rollback

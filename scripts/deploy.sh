@@ -1,12 +1,20 @@
 #!/bin/bash
 # Production deploy script.
 # Runs on the GCP VM. Called by GitHub Actions on every push to main,
-# or run manually with BACKEND_IMAGE, FRONTEND_USER_IMAGE, and FRONTEND_IMAGE set.
+# or run manually with image variables set. Use RESTART_ALL=1 to restart
+# every application service with the currently persisted image tags.
 set -euo pipefail
 
 REPO_DIR="${VM_DEPLOY_PATH:-${REPO_DIR:-/home/humanly/humanly}}"
 COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.prod.yml}"
 IMAGE_ENV_FILE="${IMAGE_ENV_FILE:-.env.production-images}"
+
+bool_env() {
+  case "${1:-false}" in
+    true|TRUE|1|yes|YES) printf 'true' ;;
+    *) printf 'false' ;;
+  esac
+}
 
 disable_conflicting_host_certbot() {
   if [[ "${DISABLE_HOST_CERTBOT:-1}" != "1" ]]; then
@@ -36,38 +44,76 @@ disable_conflicting_host_certbot() {
 echo "==> [1/8] Enter deployment directory"
 cd "$REPO_DIR"
 
-if [[ -n "${BACKEND_IMAGE:-}" || -n "${FRONTEND_USER_IMAGE:-}" || -n "${FRONTEND_IMAGE:-}" ]]; then
-  : "${BACKEND_IMAGE:?BACKEND_IMAGE is required when updating image tags}"
-  : "${FRONTEND_USER_IMAGE:?FRONTEND_USER_IMAGE is required when updating image tags}"
-  : "${FRONTEND_IMAGE:?FRONTEND_IMAGE is required when updating image tags}"
+INCOMING_BACKEND_IMAGE="${BACKEND_IMAGE:-}"
+INCOMING_FRONTEND_USER_IMAGE="${FRONTEND_USER_IMAGE:-}"
+INCOMING_FRONTEND_IMAGE="${FRONTEND_IMAGE:-}"
 
-  echo "==> [2/8] Persist image tags to ${IMAGE_ENV_FILE}"
-  umask 077
-  {
-    printf 'BACKEND_IMAGE=%s\n' "$BACKEND_IMAGE"
-    printf 'FRONTEND_USER_IMAGE=%s\n' "$FRONTEND_USER_IMAGE"
-    printf 'FRONTEND_IMAGE=%s\n' "$FRONTEND_IMAGE"
-  } > "$IMAGE_ENV_FILE"
-else
-  echo "==> [2/8] Load existing image tags from ${IMAGE_ENV_FILE}"
-  if [[ ! -f "$IMAGE_ENV_FILE" ]]; then
-    echo "ERROR: BACKEND_IMAGE, FRONTEND_USER_IMAGE, and FRONTEND_IMAGE were not provided, and ${IMAGE_ENV_FILE} does not exist." >&2
-    exit 1
-  fi
+BACKEND_CHANGED="$(bool_env "${BACKEND_CHANGED:-false}")"
+FRONTEND_USER_CHANGED="$(bool_env "${FRONTEND_USER_CHANGED:-false}")"
+FRONTEND_CHANGED="$(bool_env "${FRONTEND_CHANGED:-false}")"
+RESTART_ALL="$(bool_env "${RESTART_ALL:-false}")"
+
+echo "==> [2/8] Load and persist image tags"
+if [[ -f "$IMAGE_ENV_FILE" ]]; then
+  set -a
+  # shellcheck disable=SC1090
+  source "$IMAGE_ENV_FILE"
+  set +a
+elif [[ -z "$INCOMING_BACKEND_IMAGE" || -z "$INCOMING_FRONTEND_USER_IMAGE" || -z "$INCOMING_FRONTEND_IMAGE" ]]; then
+  echo "ERROR: ${IMAGE_ENV_FILE} does not exist; all three image tags are required for the first deploy." >&2
+  exit 1
 fi
 
-set -a
-# shellcheck disable=SC1090
-source "$IMAGE_ENV_FILE"
-set +a
+if [[ "$BACKEND_CHANGED" == "true" && "$RESTART_ALL" != "true" && -z "$INCOMING_BACKEND_IMAGE" ]]; then
+  echo "ERROR: BACKEND_CHANGED=true but BACKEND_IMAGE was not provided." >&2
+  exit 1
+fi
+
+if [[ "$FRONTEND_USER_CHANGED" == "true" && "$RESTART_ALL" != "true" && -z "$INCOMING_FRONTEND_USER_IMAGE" ]]; then
+  echo "ERROR: FRONTEND_USER_CHANGED=true but FRONTEND_USER_IMAGE was not provided." >&2
+  exit 1
+fi
+
+if [[ "$FRONTEND_CHANGED" == "true" && "$RESTART_ALL" != "true" && -z "$INCOMING_FRONTEND_IMAGE" ]]; then
+  echo "ERROR: FRONTEND_CHANGED=true but FRONTEND_IMAGE was not provided." >&2
+  exit 1
+fi
+
+if [[ -n "$INCOMING_BACKEND_IMAGE" ]]; then
+  BACKEND_IMAGE="$INCOMING_BACKEND_IMAGE"
+  BACKEND_CHANGED=true
+fi
+
+if [[ -n "$INCOMING_FRONTEND_USER_IMAGE" ]]; then
+  FRONTEND_USER_IMAGE="$INCOMING_FRONTEND_USER_IMAGE"
+  FRONTEND_USER_CHANGED=true
+fi
+
+if [[ -n "$INCOMING_FRONTEND_IMAGE" ]]; then
+  FRONTEND_IMAGE="$INCOMING_FRONTEND_IMAGE"
+  FRONTEND_CHANGED=true
+fi
+
+if [[ "$RESTART_ALL" == "true" ]]; then
+  BACKEND_CHANGED=true
+  FRONTEND_USER_CHANGED=true
+  FRONTEND_CHANGED=true
+fi
 
 : "${BACKEND_IMAGE:?BACKEND_IMAGE is required}"
 : "${FRONTEND_USER_IMAGE:?FRONTEND_USER_IMAGE is required}"
 : "${FRONTEND_IMAGE:?FRONTEND_IMAGE is required}"
 
-echo "    backend: ${BACKEND_IMAGE}"
-echo "    frontend-user: ${FRONTEND_USER_IMAGE}"
-echo "    frontend: ${FRONTEND_IMAGE}"
+umask 077
+{
+  printf 'BACKEND_IMAGE=%s\n' "$BACKEND_IMAGE"
+  printf 'FRONTEND_USER_IMAGE=%s\n' "$FRONTEND_USER_IMAGE"
+  printf 'FRONTEND_IMAGE=%s\n' "$FRONTEND_IMAGE"
+} > "$IMAGE_ENV_FILE"
+
+echo "    backend: ${BACKEND_IMAGE} (changed=${BACKEND_CHANGED})"
+echo "    frontend-user: ${FRONTEND_USER_IMAGE} (changed=${FRONTEND_USER_CHANGED})"
+echo "    frontend: ${FRONTEND_IMAGE} (changed=${FRONTEND_CHANGED})"
 
 echo "==> [3/8] Ensure uploads directory exists"
 mkdir -p uploads
@@ -75,17 +121,40 @@ mkdir -p uploads
 echo "==> [4/8] Validate compose configuration"
 docker compose -f "$COMPOSE_FILE" config --quiet
 
-echo "==> [5/8] Pull prebuilt application images"
-docker compose -f "$COMPOSE_FILE" pull backend frontend-user frontend
+changed_services=()
+if [[ "$BACKEND_CHANGED" == "true" ]]; then
+  changed_services+=(backend)
+fi
+if [[ "$FRONTEND_USER_CHANGED" == "true" ]]; then
+  changed_services+=(frontend-user)
+fi
+if [[ "$FRONTEND_CHANGED" == "true" ]]; then
+  changed_services+=(frontend)
+fi
+
+echo "==> [5/8] Pull changed prebuilt application images"
+if [[ "${#changed_services[@]}" -gt 0 ]]; then
+  docker compose -f "$COMPOSE_FILE" pull "${changed_services[@]}"
+else
+  echo "    No application image changes; preserving existing image tags."
+fi
 
 echo "==> [6/8] Ensure stateful services are running"
 docker compose -f "$COMPOSE_FILE" up -d --wait postgres redis
 
 echo "==> [7/8] Run pending database migrations"
-COMPOSE_FILE="$COMPOSE_FILE" bash scripts/run-migrations.sh
+if [[ "$BACKEND_CHANGED" == "true" || "${RUN_MIGRATIONS:-0}" == "1" ]]; then
+  COMPOSE_FILE="$COMPOSE_FILE" bash scripts/run-migrations.sh
+else
+  echo "    Backend unchanged; skipping migration check."
+fi
 
 echo "==> [8/8] Restart application services"
-docker compose -f "$COMPOSE_FILE" up -d --no-deps --wait backend frontend-user frontend
+if [[ "${#changed_services[@]}" -gt 0 ]]; then
+  docker compose -f "$COMPOSE_FILE" up -d --no-deps --wait "${changed_services[@]}"
+else
+  echo "    No application services to restart."
+fi
 docker compose -f "$COMPOSE_FILE" up -d --no-deps --force-recreate nginx
 
 echo "==> Ensure production TLS certificate covers supported hostnames"
