@@ -110,7 +110,9 @@ function ResetPasswordContent() {
                 <AlertCircle className="h-4 w-4" />
                 <AlertTitle>Invalid Reset Link</AlertTitle>
                 <AlertDescription>
-                  This password reset link is invalid or has expired.{' '}
+                  This password reset page only accepts a reset link from the
+                  Reset Your Password - Humanly email. Verification codes cannot
+                  reset your password.{' '}
                   <Link href="/forgot-password" className="underline font-medium">
                     Request a new reset link
                   </Link>

@@ -24,6 +24,7 @@ jest.mock('../../utils/logger', () => ({
 // ── Imports ───────────────────────────────────────────────────────────────────
 
 import { AuthService } from '../../services/auth.service';
+import { emailService } from '../../services/email.service';
 import { UserModel } from '../../models/user.model';
 import { RefreshTokenModel } from '../../models/refresh-token.model';
 import { UserAISettingsModel } from '../../models/user-ai-settings.model';
@@ -32,6 +33,7 @@ import { hashPassword } from '../../utils/crypto';
 const MockUserModel = UserModel as jest.Mocked<typeof UserModel>;
 const MockRefreshTokenModel = RefreshTokenModel as jest.Mocked<typeof RefreshTokenModel>;
 const MockUserAISettingsModel = UserAISettingsModel as jest.Mocked<typeof UserAISettingsModel>;
+const MockEmailService = emailService as jest.Mocked<typeof emailService>;
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -317,7 +319,7 @@ describe('AuthService.verifyEmail', () => {
 // ── forgotPassword ────────────────────────────────────────────────────────────
 
 describe('AuthService.forgotPassword', () => {
-  it('stores a reset token and sends email for known user', async () => {
+  it('stores a reset token and sends a password-reset email for known user', async () => {
     MockUserModel.findByEmail.mockResolvedValue(makeUser() as any);
     MockUserModel.setPasswordResetToken.mockResolvedValue(undefined);
     await AuthService.forgotPassword('alice@example.com');
@@ -326,12 +328,29 @@ describe('AuthService.forgotPassword', () => {
       expect.any(String),
       expect.any(Date)
     );
+    expect(MockEmailService.sendPasswordResetEmail).toHaveBeenCalledWith(
+      'alice@example.com',
+      expect.any(String)
+    );
+    expect(MockEmailService.sendVerificationEmail).not.toHaveBeenCalled();
+  });
+
+  it('surfaces reset email delivery failures for known users', async () => {
+    MockUserModel.findByEmail.mockResolvedValue(makeUser() as any);
+    MockUserModel.setPasswordResetToken.mockResolvedValue(undefined);
+    MockEmailService.sendPasswordResetEmail.mockRejectedValueOnce(new Error('sendgrid rejected'));
+
+    await expect(AuthService.forgotPassword('alice@example.com')).rejects.toThrow(
+      'sendgrid rejected'
+    );
   });
 
   it('does nothing (no error, no DB write) for unknown email', async () => {
     MockUserModel.findByEmail.mockResolvedValue(null);
     await expect(AuthService.forgotPassword('unknown@x.com')).resolves.toBeUndefined();
     expect(MockUserModel.setPasswordResetToken).not.toHaveBeenCalled();
+    expect(MockEmailService.sendPasswordResetEmail).not.toHaveBeenCalled();
+    expect(MockEmailService.sendVerificationEmail).not.toHaveBeenCalled();
   });
 });
 

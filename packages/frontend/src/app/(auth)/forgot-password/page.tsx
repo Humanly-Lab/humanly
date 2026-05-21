@@ -59,7 +59,8 @@ export default function ForgotPasswordPage() {
             <CheckCircle2 className="h-4 w-4" />
             <AlertTitle>Check your email</AlertTitle>
             <AlertDescription>
-              We have sent password reset instructions to your email address. Please check your inbox and follow the link to reset your password.
+              Look for the subject Reset Your Password - Humanly. It contains
+              a reset link, not a verification code.
             </AlertDescription>
           </Alert>
         ) : (

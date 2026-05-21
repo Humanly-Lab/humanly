@@ -397,12 +397,7 @@ export class AuthService {
     // Store reset token
     await UserModel.setPasswordResetToken(user.id, resetToken, resetExpires);
 
-    // Send reset email (don't await to avoid blocking)
-    emailService
-      .sendPasswordResetEmail(email, resetToken)
-      .catch((error) => {
-        logger.error('Failed to send password reset email', { email, error });
-      });
+    await emailService.sendPasswordResetEmail(email, resetToken);
 
     logger.info('Password reset email sent', { userId: user.id, email });
   }

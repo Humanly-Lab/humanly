@@ -46,6 +46,55 @@ export function validateEmailConfiguration(): void {
   }
 }
 
+export function buildPasswordResetUrl(token: string): string {
+  return `${env.frontendUserUrl.replace(/\/$/, '')}/reset-password?token=${encodeURIComponent(token)}`;
+}
+
+export function buildPasswordResetEmailHtml(resetUrl: string): string {
+  return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background-color: #4F46E5; color: white; padding: 20px; text-align: center; }
+          .content { padding: 30px 20px; background-color: #f9fafb; }
+          .button { display: inline-block; padding: 12px 24px; background-color: #4F46E5; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+          .footer { padding: 20px; text-align: center; color: #6b7280; font-size: 14px; }
+          .warning { padding: 15px; background-color: #FEF3C7; border-left: 4px solid #F59E0B; margin: 20px 0; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>Password Reset Request</h1>
+          </div>
+          <div class="content">
+            <h2>Reset Your Password</h2>
+            <p>${getBrandText().passwordResetBody}</p>
+            <p style="text-align: center;">
+              <a href="${resetUrl}" class="button">Reset Password</a>
+            </p>
+            <p>Or copy and paste this link into your browser:</p>
+            <p style="word-break: break-all; color: #6b7280;">${resetUrl}</p>
+            <div class="warning">
+              <p><strong>This link will expire in 1 hour.</strong></p>
+            </div>
+            <p>This password reset email uses a secure link. A 6-digit verification code is only for account verification and cannot reset your password.</p>
+            <p>If you didn't request a password reset, please ignore this email. Your password will remain unchanged.</p>
+            <p>For security reasons, we recommend changing your password regularly and never sharing it with anyone.</p>
+          </div>
+          <div class="footer">
+            <p>${getBrandText().copyright}</p>
+            <p>This is an automated email. Please do not reply.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+}
+
 class EmailService {
   private transporter: Transporter | null = null;
   private configurationErrors: string[] = [];
@@ -210,49 +259,8 @@ class EmailService {
    * Send password reset email
    */
   async sendPasswordResetEmail(email: string, token: string): Promise<void> {
-    const resetUrl = `${env.frontendUserUrl}/reset-password?token=${token}`;
-
-    const html = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <style>
-          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .header { background-color: #4F46E5; color: white; padding: 20px; text-align: center; }
-          .content { padding: 30px 20px; background-color: #f9fafb; }
-          .button { display: inline-block; padding: 12px 24px; background-color: #4F46E5; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }
-          .footer { padding: 20px; text-align: center; color: #6b7280; font-size: 14px; }
-          .warning { padding: 15px; background-color: #FEF3C7; border-left: 4px solid: #F59E0B; margin: 20px 0; }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <div class="header">
-            <h1>Password Reset Request</h1>
-          </div>
-          <div class="content">
-            <h2>Reset Your Password</h2>
-            <p>${getBrandText().passwordResetBody}</p>
-            <p style="text-align: center;">
-              <a href="${resetUrl}" class="button">Reset Password</a>
-            </p>
-            <p>Or copy and paste this link into your browser:</p>
-            <p style="word-break: break-all; color: #6b7280;">${resetUrl}</p>
-            <div class="warning">
-              <p><strong>This link will expire in 1 hour.</strong></p>
-            </div>
-            <p>If you didn't request a password reset, please ignore this email. Your password will remain unchanged.</p>
-            <p>For security reasons, we recommend changing your password regularly and never sharing it with anyone.</p>
-          </div>
-          <div class="footer">
-            <p>${getBrandText().copyright}</p>
-            <p>This is an automated email. Please do not reply.</p>
-          </div>
-        </div>
-      </body>
-      </html>
-    `;
+    const resetUrl = buildPasswordResetUrl(token);
+    const html = buildPasswordResetEmailHtml(resetUrl);
 
     await this.send(email, getBrandText().emailSubjects.resetPassword, html);
   }

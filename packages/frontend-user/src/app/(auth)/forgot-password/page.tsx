@@ -59,13 +59,13 @@ export default function ForgotPasswordPage() {
               <CheckCircle2 className="h-4 w-4" />
               <AlertTitle>Reset link requested</AlertTitle>
               <AlertDescription>
-                Check your inbox and spam folder. For security, this page shows the same
-                message whether or not the email is registered.
+                Look for the subject Reset Your Password - Humanly. It contains
+                a reset link, not a verification code.
               </AlertDescription>
             </Alert>
             <p className="rounded-lg border border-border/80 bg-muted/40 p-4 text-sm leading-6 text-muted-foreground">
-              The link expires after a short window. If it does not arrive, wait a
-              minute and request a new reset link.
+              Check your inbox and spam folder. For security, this page shows the
+              same message whether or not the email is registered.
             </p>
           </div>
         ) : (
