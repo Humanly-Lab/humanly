@@ -3,10 +3,8 @@
  * End-to-end agentic chat integration test.
  *
  * Boots a self-contained replica of the AgentRunner loop against a real
- * Together AI endpoint, with the same four read-only tools the production
- * backend exposes. The "document" is the user-supplied syllabus PDF
- * (treated as a linked paper so the listLinkedPapers + getPaperContent
- * flow is exercised end to end).
+ * Together AI endpoint, with the same read-only retrieval tools the production
+ * backend exposes. The "document" is the user-supplied syllabus PDF.
  *
  * Captures every step of the canonical agent trace —
  *   user-input → thinking → tool-call → env-feedback → thinking →
@@ -50,9 +48,9 @@ const MAX_TURNS = Number(process.env.AGENT_TEST_MAX_TURNS || 8);
 const OUT_DIR = path.join(REPO_ROOT, 'tmp', 'agent-trace');
 fs.mkdirSync(OUT_DIR, { recursive: true });
 
-// Prompts now exercise the #70 ls / grep / read primitives. Every prompt
-// expects at minimum an ls() call (always cheap, always first) plus one of
-// grep / read once the agent locates what it needs.
+// Prompts exercise the file retrieval primitives. Web retrieval is exposed in
+// the harness too so external/source-verification prompts can be added without
+// drifting from production.
 const PROMPT_CASES = [
   // 1. simple lookup
   {
@@ -215,7 +213,7 @@ function nearestPrecedingPage(targetLine /* 1-indexed */) {
   return best;
 }
 
-// ── Tool registry — schema mirrors AIRetrievalService.tools (#70) ──────────
+// ── Tool registry — schema mirrors AIRetrievalService.tools (#315) ─────────
 
 const TOOLS = [
   {
@@ -266,6 +264,38 @@ const TOOLS = [
           limit: { type: 'integer', description: 'Max lines to return. Default 200.' },
         },
         required: ['file', 'offset', 'limit'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'web_search',
+      description:
+        'Search the public web for external/current information or source verification. Returns { query, results: [{ title, url, snippet }], truncated? }. Use before web_fetch; refine query if results are irrelevant.',
+      parameters: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          query: { type: 'string', description: 'Search query.' },
+        },
+        required: ['query'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'web_fetch',
+      description:
+        'Fetch cleaned text from a public web page URL returned by web_search. Returns { url, title, text, truncated? }. Do not use on invented URLs.',
+      parameters: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          url: { type: 'string', description: 'Full public http(s) URL returned by web_search.' },
+        },
+        required: ['url'],
       },
     },
   },
@@ -336,6 +366,77 @@ function readFile(fileId, offset, limit) {
   };
 }
 
+const webFetchAllowlist = new Set();
+
+function decodeHtmlEntities(value) {
+  return String(value || '')
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>');
+}
+
+function stripHtml(html) {
+  return decodeHtmlEntities(String(html || '')
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim());
+}
+
+function extractDuckDuckGoResults(html, maxResults = 5) {
+  const results = [];
+  const resultBlocks = String(html || '').split(/<div class="result\b/i).slice(1);
+  for (const block of resultBlocks) {
+    const linkMatch = block.match(/<a[^>]+class="result__a"[^>]+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/i);
+    if (!linkMatch) continue;
+    const url = decodeHtmlEntities(linkMatch[1]);
+    const title = stripHtml(linkMatch[2]);
+    const snippetMatch = block.match(/<a[^>]+class="result__snippet"[^>]*>([\s\S]*?)<\/a>/i)
+      || block.match(/<div[^>]+class="result__snippet"[^>]*>([\s\S]*?)<\/div>/i);
+    const snippet = snippetMatch ? stripHtml(snippetMatch[1]) : '';
+    if (!title || !url.startsWith('http')) continue;
+    results.push({ title, url, snippet });
+    if (results.length >= maxResults) break;
+  }
+  return results;
+}
+
+async function webSearch(query) {
+  if (!query || typeof query !== 'string') return { query, results: [], error: 'query required' };
+  const url = `https://duckduckgo.com/html/?q=${encodeURIComponent(query)}`;
+  const response = await fetch(url, {
+    headers: {
+      'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/124.0 Safari/537.36',
+      accept: 'text/html',
+    },
+  });
+  if (!response.ok) return { query, results: [], error: `web_search returned HTTP ${response.status}` };
+  const results = extractDuckDuckGoResults(await response.text(), 5);
+  for (const result of results) webFetchAllowlist.add(result.url);
+  return { query, provider: 'duckduckgo', results, truncated: results.length >= 5 };
+}
+
+async function webFetch(url) {
+  if (!url || typeof url !== 'string') return { url, error: 'url required' };
+  if (!webFetchAllowlist.has(url)) {
+    return { url, error: 'web_fetch only accepts URLs returned by web_search during this agent turn.' };
+  }
+  const response = await fetch(url, {
+    headers: {
+      'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/124.0 Safari/537.36',
+      accept: 'text/html,text/plain,application/json',
+    },
+  });
+  if (!response.ok) return { url, error: `web_fetch returned HTTP ${response.status}` };
+  const html = await response.text();
+  const title = stripHtml(html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1] || url);
+  const text = stripHtml(html).slice(0, 20000);
+  return { url, title, text, truncated: html.length > 20000 };
+}
+
 async function executeTool(name, args) {
   switch (name) {
     case 'ls':
@@ -344,8 +445,12 @@ async function executeTool(name, args) {
       return grepFile(args.file, args.pattern, args.context_before, args.context_after);
     case 'read':
       return readFile(args.file, args.offset, args.limit);
+    case 'web_search':
+      return webSearch(args.query);
+    case 'web_fetch':
+      return webFetch(args.url);
     default:
-      return { error: `unknown tool "${name}". Available tools: ls, grep, read.` };
+      return { error: `unknown tool "${name}". Available tools: ls, grep, read, web_search, web_fetch.` };
   }
 }
 
@@ -353,7 +458,7 @@ async function executeTool(name, args) {
 
 const client = new OpenAI({ apiKey: API_KEY, baseURL: BASE_URL });
 
-const SYSTEM_PROMPT = `You are an AI writing assistant. You answer questions about uploaded reference files using three primitives:
+const SYSTEM_PROMPT = `You are an AI writing assistant. You answer questions using two read-only retrieval domains:
 
   ls()                                              — list files: [{ id, filename }]
   grep(file, pattern, context_before?, context_after?) — case-insensitive substring search
@@ -363,9 +468,11 @@ const SYSTEM_PROMPT = `You are an AI writing assistant. You answer questions abo
   read(file, offset?, limit?)                       — read a contiguous line range
                                                        returns { lines, totalLines, hasPages, pageRange?, truncated? }
                                                        offset 1-indexed (default 1); limit default 200, hard cap 800
+  web_search(query)                                 — search the public web for external/current/source-verification context
+  web_fetch(url)                                    — fetch cleaned public page text from a URL returned by web_search
 
 PRIVACY BOUNDARY (hard rule):
-You can only see files in ls(). You CANNOT read the user's editor draft, their current writing, selected text, or anything not in ls(). The schema does not expose such a tool. If the user asks for editor content ("summarize my draft", "find a typo in what I wrote"), refuse honestly:
+You can only see files in ls(), public web pages returned by web_search/web_fetch, and text the user explicitly typed into chat. You CANNOT read the user's editor draft, their current writing, selected text, or anything not exposed through tools. The schema does not expose such a tool. If the user asks for editor content ("summarize my draft", "find a typo in what I wrote"), refuse honestly:
 
   "I can only read reference files you've uploaded. For your own writing, paste it into chat or use the selection-menu Quick Actions."
 
@@ -376,16 +483,21 @@ STRATEGY HINTS — adapt to file size and question, no fixed workflow:
 - Large file (>1000 lines): always grep first, never read sequentially.
 - For PDFs the [page N] markers appear inline — cite them ("see page 21").
 - For late-document sections (conclusion / references / appendix on a long PDF), read at high offset is often faster than guessing keywords.
+- Use web_search/web_fetch only for external/current/source-verification questions, or after local retrieval fails on a question that is external rather than file-bound.
+- Never construct or guess URLs. Use web_fetch only with URLs returned by web_search in this turn unless the user pasted the URL.
 
 FALLBACK LADDER — keep trying before answering "not found":
 1. grep returned []? Try a synonym, then a shorter substring, then a numbered-heading style ("Conclusion" → "5. Conclusion"), then read the likely region directly.
 2. read returned content that doesn't answer? grep with a better pattern or read an adjacent range.
-3. ls returned []? Tell the user no files are attached. Don't pretend.
-4. Tool errored? Retry once. If still failing, surface the error honestly.
-5. Only after 3-4 reasonable attempts: "I could not find X in <filename>. Could you point me at a specific page or term?" Never fabricate.
+3. web_search returned irrelevant results? Refine with author, paper title, venue, year, or exact phrase.
+4. web_fetch failed? Try another URL from search results. If all public results fail, say what limitation you hit.
+5. ls returned []? Tell the user no files are attached. Don't pretend.
+6. Tool errored? Retry once. If still failing, surface the error honestly.
+7. Only after 3-4 reasonable attempts: "I could not find X in <filename>. Could you point me at a specific page or term?" Never fabricate.
 
 OUTPUT:
 - Cite by [page N] when present, otherwise by line.
+- Cite web sources by title/URL when web_fetch results support the answer.
 - Tool calls must be REAL structured function calls. Never write XML, DSML, JSON snippets like {"function":"ls","arguments":{}}, pseudo-tags, or prose tool calls.`;
 
 function extractThinkingFromContent(content) {
@@ -426,6 +538,8 @@ Retry by emitting exactly one or more valid tool calls using JSON arguments. The
 - ls() — pass {} as arguments.
 - grep — pass {"file":"<id from ls>","pattern":"...","context_before":0,"context_after":0}.
 - read — pass {"file":"<id from ls>","offset":1,"limit":200}.
+- web_search — pass {"query":"..."} for external/current/source-verification context.
+- web_fetch — pass {"url":"<url returned by web_search>"}.
 
 Do not write XML, DSML, JSON snippets like {"function":"ls","arguments":{}}, pseudo-tags, or prose tool calls.`;
 }

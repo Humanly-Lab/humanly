@@ -1,4 +1,6 @@
 import OpenAI from 'openai';
+import dns from 'dns/promises';
+import net from 'net';
 import path from 'path';
 import { query, queryOne } from '../config/database';
 import { DocumentModel } from '../models/document.model';
@@ -14,6 +16,20 @@ const CHUNK_SIZE = 1800;
 const CHUNK_OVERLAP = 200;
 const COMPACT_CONTEXT_MAX_CHARS = 18000;
 const COMPACT_CONTEXT_MAX_FILES = 3;
+const WEB_SEARCH_DEFAULT_MAX_RESULTS = 5;
+const WEB_SEARCH_HARD_MAX_RESULTS = 10;
+const WEB_FETCH_DEFAULT_MAX_CHARS = 20000;
+const WEB_FETCH_HARD_MAX_CHARS = 60000;
+const WEB_FETCH_DEFAULT_TIMEOUT_MS = 10000;
+const WEB_FETCH_HARD_TIMEOUT_MS = 20000;
+const WEB_FETCH_MAX_BYTES = 1_500_000;
+const WEB_ALLOWLIST_TTL_MS = 30 * 60 * 1000;
+
+type WebSearchResult = {
+  title: string;
+  url: string;
+  snippet: string;
+};
 
 function excerpt(text: string, maxLength = MAX_TEXT): string {
   return text.length > maxLength ? `${text.slice(0, maxLength)}\n[truncated]` : text;
@@ -79,6 +95,163 @@ function textItemsToString(items: any[]): string {
   return text;
 }
 
+function clampInteger(value: any, fallback: number, min: number, max: number): number {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(min, Math.min(max, Math.floor(parsed)));
+}
+
+function isWebRetrievalEnabled(): boolean {
+  return process.env.WEB_RETRIEVAL_ENABLED !== 'false';
+}
+
+function decodeHtmlEntities(input: string): string {
+  return input
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;|&apos;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&#(\d+);/g, (_match, code) => String.fromCharCode(Number(code)))
+    .replace(/&#x([0-9a-f]+);/gi, (_match, code) => String.fromCharCode(parseInt(code, 16)));
+}
+
+function stripHtml(input: string): string {
+  return decodeHtmlEntities(input.replace(/<[^>]+>/g, ' '))
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function extractTitle(html: string): string | null {
+  const title = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1];
+  return title ? stripHtml(title) : null;
+}
+
+function extractReadableText(html: string): string {
+  const withoutNoise = html
+    .replace(/<script\b[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style\b[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<noscript\b[\s\S]*?<\/noscript>/gi, ' ')
+    .replace(/<!--[\s\S]*?-->/g, ' ');
+  const main =
+    withoutNoise.match(/<main\b[^>]*>([\s\S]*?)<\/main>/i)?.[1]
+    || withoutNoise.match(/<article\b[^>]*>([\s\S]*?)<\/article>/i)?.[1]
+    || withoutNoise.match(/<body\b[^>]*>([\s\S]*?)<\/body>/i)?.[1]
+    || withoutNoise;
+  return stripHtml(
+    main
+      .replace(/<\/(p|div|section|article|main|h[1-6]|li|tr)>/gi, '\n')
+      .replace(/<br\s*\/?>/gi, '\n')
+  ).replace(/\n{3,}/g, '\n\n');
+}
+
+function normalizePublicHttpUrl(rawUrl: string): URL {
+  if (!rawUrl || typeof rawUrl !== 'string') {
+    throw new AppError(400, 'url is required');
+  }
+  let parsed: URL;
+  try {
+    parsed = new URL(rawUrl);
+  } catch {
+    throw new AppError(400, 'url must be a valid absolute URL');
+  }
+  if (!['http:', 'https:'].includes(parsed.protocol)) {
+    throw new AppError(400, 'web_fetch only supports http and https URLs');
+  }
+  if (!parsed.hostname) {
+    throw new AppError(400, 'url must include a hostname');
+  }
+  parsed.hash = '';
+  return parsed;
+}
+
+function isPrivateIPv4(address: string): boolean {
+  const parts = address.split('.').map(Number);
+  if (parts.length !== 4 || parts.some(part => !Number.isInteger(part) || part < 0 || part > 255)) {
+    return false;
+  }
+  const [a, b] = parts;
+  return (
+    a === 10 ||
+    a === 127 ||
+    (a === 169 && b === 254) ||
+    (a === 172 && b >= 16 && b <= 31) ||
+    (a === 192 && b === 168) ||
+    (a === 100 && b >= 64 && b <= 127) ||
+    a === 0
+  );
+}
+
+function isPrivateIPv6(address: string): boolean {
+  const normalized = address.toLowerCase();
+  const mappedIPv4 = normalized.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
+  if (mappedIPv4) {
+    return isPrivateIPv4(mappedIPv4[1]);
+  }
+
+  return (
+    normalized === '::1' ||
+    normalized === '::' ||
+    normalized.startsWith('fc') ||
+    normalized.startsWith('fd') ||
+    normalized.startsWith('fe80:')
+  );
+}
+
+function isForbiddenHostname(hostname: string): boolean {
+  const normalized = hostname.toLowerCase();
+  return (
+    normalized === 'localhost' ||
+    normalized.endsWith('.localhost') ||
+    normalized.endsWith('.local') ||
+    normalized.endsWith('.internal') ||
+    normalized === 'metadata.google.internal'
+  );
+}
+
+function isPrivateAddress(address: string): boolean {
+  const family = net.isIP(address);
+  if (family === 4) return isPrivateIPv4(address);
+  if (family === 6) return isPrivateIPv6(address);
+  return false;
+}
+
+function decodeDuckDuckGoUrl(url: string): string {
+  try {
+    const absolute = url.startsWith('//') ? `https:${url}` : url;
+    const parsed = new URL(absolute);
+    const uddg = parsed.searchParams.get('uddg');
+    return uddg ? decodeURIComponent(uddg) : absolute;
+  } catch {
+    return url;
+  }
+}
+
+function extractDuckDuckGoResults(html: string, maxResults: number): WebSearchResult[] {
+  const results: WebSearchResult[] = [];
+  const seen = new Set<string>();
+  const anchorPattern = /<a(?=[^>]*class="[^"]*result__a[^"]*")[^>]+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
+  let match: RegExpExecArray | null;
+
+  while ((match = anchorPattern.exec(html)) !== null) {
+    if (results.length >= maxResults) break;
+    const url = decodeDuckDuckGoUrl(decodeHtmlEntities(match[1]));
+    if (!url.startsWith('http://') && !url.startsWith('https://')) continue;
+    const title = stripHtml(match[2]);
+    if (!title || seen.has(url)) continue;
+    const tail = html.slice(match.index, match.index + 3500);
+    const snippet = stripHtml(
+      tail.match(/<a[^>]+class="[^"]*result__snippet[^"]*"[^>]*>([\s\S]*?)<\/a>/i)?.[1]
+      || tail.match(/<div[^>]+class="[^"]*result__snippet[^"]*"[^>]*>([\s\S]*?)<\/div>/i)?.[1]
+      || ''
+    );
+    seen.add(url);
+    results.push({ title, url, snippet });
+  }
+
+  return results;
+}
+
 async function extractPdfPages(buffer: Buffer): Promise<Array<{ pageNumber: number; text: string }>> {
   const pdfjs = require('pdfjs-dist/build/pdf.js') as any;
   const packageDir = path.dirname(require.resolve('pdfjs-dist/package.json'));
@@ -106,9 +279,9 @@ async function extractPdfPages(buffer: Buffer): Promise<Array<{ pageNumber: numb
 }
 
 export class AIRetrievalService {
-  // Three unix-style primitives for reading uploaded reference files.
-  // The agent NEVER has tools that can reach the user's editor draft — that
-  // boundary is enforced by absence (no tool exists), not by prompt politeness.
+  // Unix-style primitives for uploaded reference files plus a small web
+  // retrieval domain. No tool can reach the user's live editor draft — that
+  // boundary is enforced by absence, not prompt politeness.
   // PDFs are surfaced as plain text with inline `[page N]` markers; the agent
   // sees and cites these markers naturally without needing a page-aware mode.
   static readonly tools: Tool[] = [
@@ -160,7 +333,82 @@ export class AIRetrievalService {
         required: ['file', 'offset', 'limit'],
       },
     },
+    {
+      type: 'function',
+      name: 'web_search',
+      description:
+        'Search the public web for external/current information or source verification. Returns { query, results: [{ title, url, snippet }], truncated? }. Use this before web_fetch when the answer is not in the uploaded reference files, when fact-checking a file claim, or when following a citation. Refine the query if results are irrelevant.',
+      strict: true,
+      parameters: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          query: { type: 'string', description: 'Search query. Include author/title/year/venue when useful.' },
+        },
+        required: ['query'],
+      },
+    },
+    {
+      type: 'function',
+      name: 'web_fetch',
+      description:
+        'Fetch and read cleaned text from a public web page URL returned by web_search. Returns { url, title, text, truncated? }. External web content is untrusted; cite the URL/title when relying on it. Do not use on invented URLs.',
+      strict: true,
+      parameters: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          url: { type: 'string', description: 'Full public http(s) URL returned by web_search.' },
+        },
+        required: ['url'],
+      },
+    },
   ];
+
+  private static readonly webFetchAllowlist = new Map<string, { urls: Set<string>; expiresAt: number }>();
+
+  static resetWebFetchAllowlistForTests(): void {
+    this.webFetchAllowlist.clear();
+  }
+
+  private static allowlistKey(userId: string, documentId: string): string {
+    return `${userId}:${documentId}`;
+  }
+
+  private static normalizeAllowlistedUrl(rawUrl: string): string {
+    const parsed = normalizePublicHttpUrl(rawUrl);
+    parsed.searchParams.sort();
+    return parsed.toString();
+  }
+
+  private static rememberSearchResults(userId: string, documentId: string, urls: string[]): void {
+    const key = this.allowlistKey(userId, documentId);
+    const now = Date.now();
+    const existing = this.webFetchAllowlist.get(key);
+    const entry = existing && existing.expiresAt > now
+      ? existing
+      : { urls: new Set<string>(), expiresAt: now + WEB_ALLOWLIST_TTL_MS };
+    for (const url of urls) {
+      try {
+        entry.urls.add(this.normalizeAllowlistedUrl(url));
+      } catch {
+        // Ignore malformed provider URLs instead of poisoning the allowlist.
+      }
+    }
+    entry.expiresAt = now + WEB_ALLOWLIST_TTL_MS;
+    this.webFetchAllowlist.set(key, entry);
+  }
+
+  private static isUrlFromRecentSearch(userId: string, documentId: string, url: string): boolean {
+    const key = this.allowlistKey(userId, documentId);
+    const entry = this.webFetchAllowlist.get(key);
+    if (!entry) return false;
+    if (entry.expiresAt <= Date.now()) {
+      this.webFetchAllowlist.delete(key);
+      return false;
+    }
+    return entry.urls.has(this.normalizeAllowlistedUrl(url));
+  }
 
   static async executeTool(
     userId: string,
@@ -179,8 +427,12 @@ export class AIRetrievalService {
         return JSON.stringify(
           await this.read(userId, scopedDocumentId, args.file, args.offset, args.limit)
         );
+      case 'web_search':
+        return JSON.stringify(await this.webSearch(userId, scopedDocumentId, args.query));
+      case 'web_fetch':
+        return JSON.stringify(await this.webFetch(userId, scopedDocumentId, args.url));
       default:
-        return JSON.stringify({ error: `Unknown tool: ${name}. Available tools: ls, grep, read.` });
+        return JSON.stringify({ error: `Unknown tool: ${name}. Available tools: ls, grep, read, web_search, web_fetch.` });
     }
   }
 
@@ -232,7 +484,7 @@ export class AIRetrievalService {
 
     return [
       'Uploaded reference snapshot:',
-      'Use this snapshot first for straightforward questions about attached references. If it is insufficient or truncated, use ls/grep/read tools for more evidence.',
+      'Use this snapshot first for straightforward questions about attached references. If it is insufficient or truncated, use ls/grep/read tools for more evidence. Use web_search/web_fetch only for external/current/source-verification questions.',
       '',
       sections.join('\n\n'),
     ].join('\n');
@@ -497,5 +749,223 @@ export class AIRetrievalService {
       truncated: endIdx < lines.length,
       lines: slice.map((text, i) => ({ line: startIdx + i + 1, text })),
     };
+  }
+
+  // ── web_search / web_fetch implementation ──────────────────────────────
+
+  private static async assertPublicFetchTarget(url: URL): Promise<void> {
+    if (isForbiddenHostname(url.hostname)) {
+      throw new AppError(400, 'web_fetch cannot access local or internal hostnames');
+    }
+
+    if (isPrivateAddress(url.hostname)) {
+      throw new AppError(400, 'web_fetch cannot access private or loopback addresses');
+    }
+
+    let records: Array<{ address: string; family: number }>;
+    try {
+      records = await dns.lookup(url.hostname, { all: true });
+    } catch {
+      throw new AppError(400, 'web_fetch could not resolve the URL hostname');
+    }
+
+    if (records.length === 0 || records.some(record => isPrivateAddress(record.address))) {
+      throw new AppError(400, 'web_fetch cannot access private or loopback addresses');
+    }
+  }
+
+  private static async fetchTextWithLimit(url: string, timeoutMs: number, redirectDepth = 0): Promise<{
+    status: number;
+    ok: boolean;
+    contentType: string;
+    text: string;
+    finalUrl: string;
+  }> {
+    const response = await fetch(url, {
+      method: 'GET',
+      redirect: 'manual',
+      signal: AbortSignal.timeout(timeoutMs),
+      headers: {
+        accept: 'text/html,application/xhtml+xml,text/plain,application/json;q=0.8,*/*;q=0.2',
+        'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
+      },
+    });
+
+    if (response.status >= 300 && response.status < 400) {
+      if (redirectDepth >= 5) {
+        throw new AppError(400, 'web_fetch followed too many redirects');
+      }
+      const location = response.headers.get('location');
+      if (!location) {
+        throw new AppError(400, 'web_fetch redirect response did not include a location');
+      }
+      const redirected = normalizePublicHttpUrl(new URL(location, url).toString());
+      await this.assertPublicFetchTarget(redirected);
+      return this.fetchTextWithLimit(redirected.toString(), timeoutMs, redirectDepth + 1);
+    }
+
+    const contentType = response.headers.get('content-type') || '';
+    const contentLength = Number(response.headers.get('content-length') || 0);
+    if (contentLength > WEB_FETCH_MAX_BYTES) {
+      throw new AppError(413, 'web_fetch response is too large');
+    }
+
+    const body = response.body as any;
+    if (!body?.getReader) {
+      const text = await response.text();
+      return {
+        status: response.status,
+        ok: response.ok,
+        contentType,
+        text: text.slice(0, WEB_FETCH_MAX_BYTES),
+        finalUrl: response.url || url,
+      };
+    }
+
+    const reader = body.getReader();
+    const decoder = new TextDecoder();
+    let total = 0;
+    let text = '';
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > WEB_FETCH_MAX_BYTES) {
+        await reader.cancel();
+        throw new AppError(413, 'web_fetch response is too large');
+      }
+      text += decoder.decode(value, { stream: true });
+    }
+    text += decoder.decode();
+
+    return {
+      status: response.status,
+      ok: response.ok,
+      contentType,
+      text,
+      finalUrl: response.url || url,
+    };
+  }
+
+  private static async webSearch(userId: string, documentId: string, queryText: string) {
+    await this.getOwnedDocument(userId, documentId);
+    if (!isWebRetrievalEnabled()) {
+      return { error: 'Web retrieval is disabled on this server.' };
+    }
+    if (!queryText || typeof queryText !== 'string' || !queryText.trim()) {
+      throw new AppError(400, 'query is required');
+    }
+
+    const queryValue = queryText.trim().slice(0, 500);
+    const maxResults = clampInteger(
+      process.env.WEB_SEARCH_MAX_RESULTS,
+      WEB_SEARCH_DEFAULT_MAX_RESULTS,
+      1,
+      WEB_SEARCH_HARD_MAX_RESULTS
+    );
+    const timeoutMs = clampInteger(
+      process.env.WEB_SEARCH_TIMEOUT_MS,
+      WEB_FETCH_DEFAULT_TIMEOUT_MS,
+      1000,
+      WEB_FETCH_HARD_TIMEOUT_MS
+    );
+    const searchUrl = `https://duckduckgo.com/html/?q=${encodeURIComponent(queryValue)}`;
+
+    try {
+      const fetched = await this.fetchTextWithLimit(searchUrl, timeoutMs);
+      if (!fetched.ok) {
+        return {
+          query: queryValue,
+          results: [],
+          error: `web_search provider returned HTTP ${fetched.status}`,
+        };
+      }
+
+      const results = extractDuckDuckGoResults(fetched.text, maxResults);
+      this.rememberSearchResults(userId, documentId, results.map(result => result.url));
+      return {
+        query: queryValue,
+        provider: 'duckduckgo',
+        results,
+        truncated: results.length === maxResults,
+      };
+    } catch (error) {
+      logger.warn('web_search failed', { userId, documentId, query: queryValue, error });
+      return {
+        query: queryValue,
+        results: [],
+        error: error instanceof Error ? error.message : 'web_search failed',
+      };
+    }
+  }
+
+  private static async webFetch(userId: string, documentId: string, rawUrl: string) {
+    await this.getOwnedDocument(userId, documentId);
+    if (!isWebRetrievalEnabled()) {
+      return { error: 'Web retrieval is disabled on this server.' };
+    }
+
+    const parsed = normalizePublicHttpUrl(rawUrl);
+    await this.assertPublicFetchTarget(parsed);
+
+    if (!this.isUrlFromRecentSearch(userId, documentId, parsed.toString())) {
+      return {
+        url: parsed.toString(),
+        error: 'web_fetch only accepts URLs returned by web_search during this agent turn. Run web_search first and choose one of its result URLs.',
+      };
+    }
+
+    const timeoutMs = clampInteger(
+      process.env.WEB_FETCH_TIMEOUT_MS,
+      WEB_FETCH_DEFAULT_TIMEOUT_MS,
+      1000,
+      WEB_FETCH_HARD_TIMEOUT_MS
+    );
+    const maxChars = clampInteger(
+      process.env.WEB_FETCH_MAX_CHARS,
+      WEB_FETCH_DEFAULT_MAX_CHARS,
+      1000,
+      WEB_FETCH_HARD_MAX_CHARS
+    );
+
+    try {
+      const fetched = await this.fetchTextWithLimit(parsed.toString(), timeoutMs);
+      if (!fetched.ok) {
+        return {
+          url: parsed.toString(),
+          finalUrl: fetched.finalUrl,
+          error: `web_fetch returned HTTP ${fetched.status}`,
+        };
+      }
+
+      if (
+        fetched.contentType
+        && !/(text\/html|application\/xhtml\+xml|text\/plain|application\/json)/i.test(fetched.contentType)
+      ) {
+        return {
+          url: parsed.toString(),
+          finalUrl: fetched.finalUrl,
+          contentType: fetched.contentType,
+          error: 'web_fetch only supports public text, HTML, XHTML, or JSON responses.',
+        };
+      }
+
+      const title = extractTitle(fetched.text);
+      const text = extractReadableText(fetched.text);
+      const truncated = text.length > maxChars;
+      return {
+        url: parsed.toString(),
+        finalUrl: fetched.finalUrl,
+        title,
+        text: truncated ? `${text.slice(0, maxChars)}\n[truncated]` : text,
+        truncated,
+      };
+    } catch (error) {
+      logger.warn('web_fetch failed', { userId, documentId, url: parsed.toString(), error });
+      return {
+        url: parsed.toString(),
+        error: error instanceof Error ? error.message : 'web_fetch failed',
+      };
+    }
   }
 }
