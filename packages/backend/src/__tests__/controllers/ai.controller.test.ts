@@ -180,6 +180,20 @@ describe('sendChatMessage', () => {
       expect.objectContaining({ message: 'hello world' })
     );
   });
+
+  it('passes explicit fresh-session requests to AIService.chat', async () => {
+    MockAIService.chat.mockResolvedValue({ sessionId: 'session-2', message: makeMessage(), logId: 'log-2' });
+
+    const req = makeReq({ body: { ...validBody, forceNewSession: true } });
+    const res = makeRes();
+
+    await sendChatMessage(req, res);
+
+    expect(MockAIService.chat).toHaveBeenCalledWith(
+      'user-1',
+      expect.objectContaining({ forceNewSession: true })
+    );
+  });
 });
 
 // ── getLogs ───────────────────────────────────────────────────────────────────

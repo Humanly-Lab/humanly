@@ -314,10 +314,14 @@ export async function handleAIMessage(
       return;
     }
 
-    // Get or create session
-    const session = sessionId
-      ? await AIModel.findSessionById(sessionId)
-      : await AIModel.getOrCreateSession(documentId, userId);
+    // Resolve the durable session for this turn. `forceNewSession` is the
+    // explicit New Chat boundary: do not collapse it into the latest active
+    // session for the document.
+    const session = data.forceNewSession
+      ? await AIModel.createSession(documentId, userId)
+      : sessionId
+        ? await AIModel.findSessionById(sessionId)
+        : await AIModel.getOrCreateSession(documentId, userId);
 
     if (!session) {
       socket.emit('ai:error', {
@@ -411,6 +415,7 @@ export async function handleAIMessage(
         documentId,
         sessionId: session.id,
         message: message.trim(),
+        forceNewSession: false,
         context,
         // Pass through image attachments uploaded via
         // `POST /api/v1/ai/chat/attachments` so capability gating and the

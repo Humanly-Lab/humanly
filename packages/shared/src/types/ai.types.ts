@@ -259,6 +259,10 @@ export interface AIChatRequest {
   // actions can overlap when a user retries/cancels quickly, so the shared
   // `sessionId: 'silent'` sentinel is not specific enough by itself.
   clientRequestId?: string;
+  // Explicitly create a fresh durable chat session instead of reusing the
+  // latest active session for this document. Used by the AI panel New Chat
+  // action to make session boundaries real on the backend.
+  forceNewSession?: boolean;
   context?: {
     fullContent?: string;
     selection?: {

@@ -91,6 +91,62 @@ describe('AI store session lifecycle', () => {
     expect(useAIStore.getState().currentSession).toBeNull();
     expect(useAIStore.getState().messages).toEqual([]);
     expect(useAIStore.getState().logs).toHaveLength(1);
+    expect(useAIStore.getState().pendingNewSession).toBe(true);
+  });
+
+  it('forces a fresh backend session for the first turn after New Chat', async () => {
+    useAIStore.getState().setupSocketListeners();
+    useAIStore.setState({ currentSession: session('session-1') });
+
+    await useAIStore.getState().startNewChat();
+    useAIStore.getState().sendMessageViaSocket('doc-1', 'new thread question');
+
+    const firstMessageCall = (emitEvent as jest.Mock).mock.calls
+      .filter(([event]) => event === 'ai:message')
+      .at(-1);
+    const clientRequestId = firstMessageCall?.[1]?.clientRequestId;
+    expect(firstMessageCall?.[1]).toEqual(expect.objectContaining({
+      documentId: 'doc-1',
+      sessionId: undefined,
+      forceNewSession: true,
+      message: 'new thread question',
+    }));
+
+    serverEmit('ai:response-start', {
+      sessionId: 'session-2',
+      messageId: 'assistant-live-2',
+      clientRequestId,
+    });
+    expect(useAIStore.getState().pendingNewSession).toBe(false);
+
+    serverEmit('ai:response-chunk', {
+      sessionId: 'session-2',
+      messageId: 'assistant-live-2',
+      clientRequestId,
+      chunk: 'new answer',
+    });
+    serverEmit('ai:response-complete', {
+      sessionId: 'session-2',
+      clientRequestId,
+      message: assistantMessage('assistant-live-2', 'new answer'),
+      logId: 'log-live-2',
+    });
+
+    expect(useAIStore.getState().currentSession?.id).toBe('session-2');
+    expect(useAIStore.getState().messages.map((message) => message.content)).toEqual([
+      'new thread question',
+      'new answer',
+    ]);
+
+    useAIStore.getState().sendMessageViaSocket('doc-1', 'follow-up in same thread');
+    const secondMessageCall = (emitEvent as jest.Mock).mock.calls
+      .filter(([event]) => event === 'ai:message')
+      .at(-1);
+    expect(secondMessageCall?.[1]).toEqual(expect.objectContaining({
+      sessionId: 'session-2',
+      forceNewSession: false,
+      message: 'follow-up in same thread',
+    }));
   });
 
   it('ignores stale websocket frames from a request that was superseded by New Chat', async () => {

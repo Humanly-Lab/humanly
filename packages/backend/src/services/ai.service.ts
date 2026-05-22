@@ -2443,6 +2443,18 @@ export class AIService {
     request: AIChatRequest,
     modelSnapshot?: { modelVersion: string; capabilities: ModelCapabilities },
   ): Promise<AIChatSession> {
+    if (request.forceNewSession) {
+      const fresh = await AIModel.createSession(
+        request.documentId,
+        userId,
+        modelSnapshot,
+      );
+      if (!fresh) {
+        throw new AppError(500, 'Failed to create AI chat session');
+      }
+      return fresh;
+    }
+
     if (request.sessionId) {
       const existing = await AIModel.findSessionById(request.sessionId);
       if (existing) return existing;

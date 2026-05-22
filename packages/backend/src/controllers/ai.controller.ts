@@ -93,7 +93,7 @@ export async function sendChatMessage(req: Request, res: Response): Promise<void
     throw new AppError(401, 'Unauthorized');
   }
 
-  const { documentId, sessionId, message, context, silent, attachments } = req.body;
+  const { documentId, sessionId, message, context, silent, attachments, forceNewSession } = req.body;
 
   if (!documentId) {
     throw new AppError(400, 'Document ID is required');
@@ -112,6 +112,7 @@ export async function sendChatMessage(req: Request, res: Response): Promise<void
     message: messageStr,
     context,
     attachments: hasAttachments ? attachments : undefined,
+    forceNewSession: forceNewSession === true,
   };
 
   // Silent mode: only get AI response without creating session/logs

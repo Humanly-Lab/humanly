@@ -131,6 +131,11 @@ interface AIState {
   activeStreamSessionId: string | null;
   activeStreamClientRequestId: string | null;
 
+  // Set by New Chat. The next user turn must create a fresh backend session
+  // instead of letting the backend reuse the latest active session for the
+  // document.
+  pendingNewSession: boolean;
+
   // Logs
   logs: AIInteractionLog[];
   logsTotal: number;
@@ -216,6 +221,7 @@ const initialState = {
   streamingMessageId: null,
   activeStreamSessionId: null,
   activeStreamClientRequestId: null,
+  pendingNewSession: false,
   logs: [],
   logsTotal: 0,
   isPanelOpen: false,
@@ -277,7 +283,8 @@ export const useAIStore = create<AIState>()(
 
       // Send message via REST API (non-streaming)
       sendMessage: async (documentId, message, context, attachments) => {
-        const { currentSession } = get();
+        const { currentSession, pendingNewSession } = get();
+        const forceNewSession = !currentSession?.id && pendingNewSession;
 
         set({ isLoading: true, error: null });
 
@@ -288,6 +295,7 @@ export const useAIStore = create<AIState>()(
           }>('/ai/chat', {
             documentId,
             sessionId: currentSession?.id,
+            forceNewSession,
             message,
             context,
             attachments,
@@ -309,9 +317,18 @@ export const useAIStore = create<AIState>()(
             messages: [...state.messages, userMessage, responseMessage],
             currentSession: state.currentSession
               ? { ...state.currentSession, id: sessionId }
-              : null,
+              : {
+                  id: sessionId,
+                  documentId,
+                  userId: '',
+                  messages: [],
+                  createdAt: new Date(),
+                  updatedAt: new Date(),
+                  status: 'active' as const,
+                },
             activeSuggestions: suggestions || [],
             isLoading: false,
+            pendingNewSession: false,
           }));
         } catch (error: any) {
           set({
@@ -323,7 +340,8 @@ export const useAIStore = create<AIState>()(
 
       // Send message via WebSocket (streaming)
       sendMessageViaSocket: (documentId, message, context, attachments) => {
-        const { currentSession } = get();
+        const { currentSession, pendingNewSession } = get();
+        const forceNewSession = !currentSession?.id && pendingNewSession;
         const clientRequestId = createClientRequestId('chat');
 
         // Check if socket is connected before attempting to send
@@ -359,6 +377,7 @@ export const useAIStore = create<AIState>()(
         emitEvent('ai:message', {
           documentId,
           sessionId: currentSession?.id,
+          forceNewSession,
           message,
           context,
           attachments,
@@ -493,6 +512,7 @@ export const useAIStore = create<AIState>()(
           streamingMessageId: null,
           activeStreamSessionId: null,
           activeStreamClientRequestId: null,
+          pendingNewSession: true,
           logs: deletedSessionId
             ? get().logs.filter((log) => log.sessionId !== deletedSessionId)
             : get().logs,
@@ -529,6 +549,7 @@ export const useAIStore = create<AIState>()(
           streamingMessageId: null,
           activeStreamSessionId: null,
           activeStreamClientRequestId: null,
+          pendingNewSession: true,
         });
       },
 
@@ -572,11 +593,13 @@ export const useAIStore = create<AIState>()(
               // message's persisted metadata so reopening the panel shows
               // the agent trail, not just the final answer (#94).
               toolCallTimelines: rehydrateToolCallTimelines(loadedMessages),
+              pendingNewSession: false,
               isLoading: false,
             });
           } else {
             set({
               sessions,
+              pendingNewSession: false,
               isLoading: false,
             });
           }
@@ -604,6 +627,7 @@ export const useAIStore = create<AIState>()(
             // Rehydrate the tool-call timeline from persisted metadata so
             // the chat panel shows the agent trail across reloads (#94).
             toolCallTimelines: rehydrateToolCallTimelines(loadedMessages),
+            pendingNewSession: false,
             isLoading: false,
           });
         } catch (error: any) {
@@ -633,7 +657,7 @@ export const useAIStore = create<AIState>()(
             });
           }
         });
-        set({ messages, currentSession: null });
+        set({ messages, currentSession: null, pendingNewSession: false });
       },
 
       closeSession: async () => {
@@ -649,6 +673,7 @@ export const useAIStore = create<AIState>()(
             currentSession: null,
             messages: [],
             activeSuggestions: [],
+            pendingNewSession: true,
             logs: get().logs.filter((log) => log.sessionId !== deletedSessionId),
           });
         } catch (error: any) {
@@ -759,6 +784,7 @@ export const useAIStore = create<AIState>()(
             streamingMessageId: messageId,
             activeStreamSessionId: sessionId,
             activeStreamClientRequestId: clientRequestId ?? state.activeStreamClientRequestId,
+            pendingNewSession: false,
           });
         });
 
@@ -793,6 +819,7 @@ export const useAIStore = create<AIState>()(
                 streamingMessageId: null,
                 activeStreamSessionId: null,
                 activeStreamClientRequestId: null,
+                pendingNewSession: false,
               };
             }
 
@@ -836,6 +863,7 @@ export const useAIStore = create<AIState>()(
                 streamingMessageId: null,
                 activeStreamSessionId: null,
                 activeStreamClientRequestId: null,
+                pendingNewSession: false,
                 toolCallTimelines,
                 thinkingByMessageId,
               };
@@ -851,6 +879,7 @@ export const useAIStore = create<AIState>()(
               streamingMessageId: null,
               activeStreamSessionId: null,
               activeStreamClientRequestId: null,
+              pendingNewSession: false,
               toolCallTimelines,
               thinkingByMessageId,
             };

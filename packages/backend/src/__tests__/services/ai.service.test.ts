@@ -1209,6 +1209,29 @@ describe('AIService.chat', () => {
     expect(MockAIModel.getOrCreateSession).not.toHaveBeenCalled();
   });
 
+  it('creates a fresh session when forceNewSession is true', async () => {
+    MockAIModel.createSession.mockResolvedValue(makeSession({ id: 'session-fresh' }));
+
+    const result = await AIService.chat('user-1', {
+      ...request,
+      forceNewSession: true,
+    } as any);
+
+    expect(MockAIModel.createSession).toHaveBeenCalledWith(
+      'doc-1',
+      'user-1',
+      expect.objectContaining({
+        modelVersion: expect.any(String),
+        capabilities: expect.objectContaining({ inputs: expect.any(Array) }),
+      }),
+    );
+    expect(MockAIModel.getOrCreateSession).not.toHaveBeenCalled();
+    expect(result.sessionId).toBe('session-fresh');
+    expect(MockAIModel.createLog).toHaveBeenCalledWith(
+      expect.objectContaining({ sessionId: 'session-fresh' }),
+    );
+  });
+
   it('throws 404 when document not owned', async () => {
     MockDocumentModel.isOwner.mockResolvedValue(false);
 
