@@ -242,7 +242,7 @@ describe('admin new task page', () => {
     });
   });
 
-  it('imports AI-on environment JSON and preserves the inferred provider', async () => {
+  it('imports AI-on environment JSON and preserves the explicit provider', async () => {
     mockApiGet.mockResolvedValue({
       data: {
         hasApiKey: true,
@@ -284,6 +284,10 @@ describe('admin new task page', () => {
 
     const environmentJson = JSON.stringify({
       aiAccess: 'full',
+      aiProvider: {
+        provider: 'openrouter',
+        baseUrl: 'https://openrouter.ai/api/v1',
+      },
       allowedModels: ['qwen/qwen3.5-397b-a17b'],
       aiUsageLimit: { mode: 'max_requests', maxRequests: 42 },
       submission: { mode: 'multiple', minCharacters: 1000 },
@@ -352,5 +356,40 @@ describe('admin new task page', () => {
       model: 'qwen/qwen3.5-397b-a17b',
     }));
 
+  });
+
+  it('rejects AI-on environment JSON without an explicit provider', async () => {
+    render(<NewTaskPage />);
+
+    const importOption = await screen.findByRole('option', { name: 'Import Environment' });
+    await act(async () => {
+      fireEvent.click(importOption);
+    });
+
+    const jsonInput = document.querySelector('input[accept="application/json,.json"]') as HTMLInputElement;
+    expect(jsonInput).not.toBeNull();
+
+    const environmentJson = JSON.stringify({
+      aiAccess: 'full',
+      allowedModels: ['qwen/qwen3.5-397b-a17b'],
+      aiUsageLimit: { mode: 'max_requests', maxRequests: 42 },
+    });
+    const environmentFile = new File([environmentJson], 'missing-provider-environment.json', { type: 'application/json' });
+    Object.defineProperty(environmentFile, 'text', {
+      value: async () => environmentJson,
+    });
+
+    await act(async () => {
+      fireEvent.change(jsonInput, { target: { files: [environmentFile] } });
+    });
+
+    await waitFor(() => {
+      expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({
+        title: 'Invalid environment file',
+        variant: 'destructive',
+      }));
+    });
+    expect(screen.getByRole('option', { name: 'Import Environment' })).toHaveAttribute('aria-selected', 'true');
+    expect(mockApiPost).not.toHaveBeenCalledWith('/api/v1/tasks', expect.anything());
   });
 });

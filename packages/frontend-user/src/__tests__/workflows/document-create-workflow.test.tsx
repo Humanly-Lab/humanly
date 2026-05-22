@@ -170,7 +170,7 @@ describe('document creation workflow', () => {
     expect(screen.queryByText('Custom Environment')).not.toBeInTheDocument();
   });
 
-  it('preserves imported AI-on environments and infers provider from known models', async () => {
+  it('preserves imported AI-on environments with an explicit provider', async () => {
     const user = userEvent.setup();
     render(<NewDocumentPage />);
 
@@ -183,6 +183,10 @@ describe('document creation workflow', () => {
 
     const environmentJson = JSON.stringify({
       aiAccess: 'full',
+      aiProvider: {
+        provider: 'openrouter',
+        baseUrl: 'https://openrouter.ai/api/v1',
+      },
       allowedModels: ['qwen/qwen3.5-397b-a17b'],
       traceability: { trackAiUsage: true },
     });
@@ -206,6 +210,39 @@ describe('document creation workflow', () => {
     await user.click(screen.getByRole('button', { name: /^edit settings$/i }));
     expect(screen.getByText('qwen/qwen3.5-397b-a17b')).toBeInTheDocument();
     expect(screen.getByText('OpenRouter')).toBeInTheDocument();
+  });
+
+  it('rejects AI-on environment JSON without an explicit provider', async () => {
+    const user = userEvent.setup();
+    render(<NewDocumentPage />);
+
+    await screen.findByRole('heading', { name: /create writing/i });
+    await user.click(screen.getByRole('combobox', { name: /environment/i }));
+    await user.click(await screen.findByRole('option', { name: 'Import Environment' }));
+
+    const fileInput = document.querySelector<HTMLInputElement>('input[type="file"][accept="application/json,.json"]');
+    expect(fileInput).toBeTruthy();
+
+    const environmentJson = JSON.stringify({
+      aiAccess: 'full',
+      allowedModels: ['qwen/qwen3.5-397b-a17b'],
+      traceability: { trackAiUsage: true },
+    });
+    const environmentFile = new File([environmentJson], 'missing-provider-environment.json', { type: 'application/json' });
+    Object.defineProperty(environmentFile, 'text', {
+      value: jest.fn().mockResolvedValue(environmentJson),
+    });
+
+    await user.upload(fileInput!, environmentFile);
+
+    await waitFor(() => {
+      expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({
+        title: 'Invalid environment file',
+        variant: 'destructive',
+      }));
+    });
+    expect(screen.getByText('Import JSON Configuration')).toBeInTheDocument();
+    expect(screen.queryByText('Custom Environment')).not.toBeInTheDocument();
   });
 
   it('does not expose or persist minimum character limits for personal writing', async () => {

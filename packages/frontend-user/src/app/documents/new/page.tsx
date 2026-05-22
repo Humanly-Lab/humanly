@@ -138,17 +138,6 @@ const getAiProviderConfigForBaseUrl = (baseUrl: string): WritingAiProviderConfig
   };
 };
 
-const getAiProviderConfigForModel = (model: string): WritingAiProviderConfig | undefined => {
-  const normalizedModel = model.trim();
-  if (!normalizedModel) return undefined;
-
-  const provider = AI_PROVIDER_OPTIONS.find((option) => (
-    !!option.baseUrl && getWhitelist(option.baseUrl)?.includes(normalizedModel)
-  ));
-
-  return provider?.baseUrl ? getAiProviderConfigForBaseUrl(provider.baseUrl) : undefined;
-};
-
 const normalizeStringArray = (value: unknown, fallback: string[] = []) => (
   Array.isArray(value)
     ? value.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
@@ -163,7 +152,10 @@ const normalizeImportedEnvironmentConfig = (value: unknown): WritingEnvironmentC
   const base = getPresetConfig('default_writing');
   const imported = value;
   const instructions = isRecord(imported.instructions) ? imported.instructions : {};
-  const aiProvider = isRecord(imported.aiProvider) ? imported.aiProvider : {};
+  const hasImportedAiProvider = isRecord(imported.aiProvider);
+  const aiProvider: Record<string, unknown> = hasImportedAiProvider
+    ? imported.aiProvider as Record<string, unknown>
+    : {};
   const aiUsageLimit = isRecord(imported.aiUsageLimit) ? imported.aiUsageLimit : {};
   const aiTokenBudget = isRecord(imported.aiTokenBudget) ? imported.aiTokenBudget : {};
   const time = isRecord(imported.time) ? imported.time : {};
@@ -196,10 +188,23 @@ const normalizeImportedEnvironmentConfig = (value: unknown): WritingEnvironmentC
       baseUrl: importedProviderBaseUrl,
     }
     : undefined;
-  const modelForProvider = normalizedAllowedModels[0] || normalizedCustomModels[0] || '';
-  const aiProviderConfig = aiAccess === 'off'
-    ? undefined
-    : explicitProviderConfig || getAiProviderConfigForModel(modelForProvider);
+  const aiProviderConfig = aiAccess === 'off' ? undefined : explicitProviderConfig;
+
+  if (aiAccess !== 'off') {
+    if (!hasImportedAiProvider || !aiProviderConfig) {
+      throw new Error('AI-enabled environment JSON is incomplete. Include aiProvider.provider and aiProvider.baseUrl.');
+    }
+
+    try {
+      new URL(aiProviderConfig.baseUrl);
+    } catch {
+      throw new Error('AI-enabled environment JSON has an invalid aiProvider.baseUrl.');
+    }
+
+    if (!normalizedAllowedModels.length && !normalizedCustomModels.length) {
+      throw new Error('AI-enabled environment JSON must include at least one allowed model.');
+    }
+  }
 
   return {
     ...base,
@@ -425,7 +430,7 @@ export default function NewDocumentPage() {
       });
     } catch (err: any) {
       toast({
-        title: 'Import failed',
+        title: 'Invalid environment file',
         description: err.message || 'Unable to import the environment JSON file.',
         variant: 'destructive',
       });
