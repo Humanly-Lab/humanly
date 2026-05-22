@@ -149,7 +149,9 @@ describe('tool-call repair helpers', () => {
     const prompt = buildToolCallRepairPrompt('doc-123');
     expect(prompt).toContain('doc-123');
     expect(prompt).toContain('Available tools are exactly: ls, grep, read');
-    expect(prompt).toContain('{"documentId":"doc-123"}');
+    expect(prompt).toContain('Start with ls using {}');
+    expect(prompt).toContain('Do not pass it as a tool argument');
+    expect(prompt).not.toContain('{"documentId":"doc-123"}');
     expect(prompt).toContain('{"file":"<file id from ls>","pattern":"..."');
     expect(prompt).toContain('Do not write XML, DSML');
   });
@@ -370,12 +372,24 @@ describe('AIRetrievalService.tools', () => {
     expect(names).toEqual(['ls', 'grep', 'read']);
   });
 
+  it('ls schema takes no arguments and advertises file-size metadata', () => {
+    const ls = AIRetrievalService.tools.find((t: any) => t.name === 'ls');
+    expect(ls.parameters.properties).toEqual({});
+    expect(ls.parameters.required).toEqual([]);
+    expect(ls.description).toContain('Takes no arguments');
+    expect(ls.description).toContain('lineCount');
+    expect(ls.description).toContain('sizeHint');
+    expect(ls.description).toContain('do not pass documentId');
+  });
+
   it('does not expose any of the dropped tools (privacy + simplification)', () => {
     const names = AIRetrievalService.tools.map((t: any) => t.name);
     expect(names).not.toContain('getDocumentText');
     expect(names).not.toContain('searchDocument');
     expect(names).not.toContain('listLinkedPapers');
     expect(names).not.toContain('getPaperContent');
+    expect(names).not.toContain('web_search');
+    expect(names).not.toContain('web_fetch');
   });
 
   it('grep schema requires file/pattern/context_before/context_after', () => {
@@ -414,9 +428,21 @@ describe('buildRetrievalInstructions (#70 prompt)', () => {
   it('lists ls / grep / read primitives in the schema block', () => {
     const prompt = buildRetrievalInstructions('doc-1');
     if (!prompt) return; // function not exported; this becomes a no-op
-    expect(prompt).toContain('ls()');
-    expect(prompt).toContain('grep(file, pattern');
-    expect(prompt).toContain('read(file, offset?, limit?)');
+    expect(prompt).toContain('ls({})');
+    expect(prompt).toContain('grep({"file":"<id>","pattern":"<literal text>"');
+    expect(prompt).toContain('read({"file":"<id>","offset":1,"limit":200})');
+  });
+
+  it('keeps tool examples aligned with the current strict schemas', () => {
+    const prompt = buildRetrievalInstructions('doc-1');
+    if (!prompt) return;
+    expect(prompt).toContain('do not pass documentId');
+    expect(prompt).not.toContain('{"documentId"');
+    expect(prompt).not.toContain('ls()');
+    expect(prompt).toContain('"context_before":0');
+    expect(prompt).toContain('"context_after":0');
+    expect(prompt).toContain('"offset":1');
+    expect(prompt).toContain('"limit":200');
   });
 
   it('declares the editor-content privacy boundary', () => {
@@ -433,6 +459,8 @@ describe('buildRetrievalInstructions (#70 prompt)', () => {
     expect(prompt).toContain('Small file');
     expect(prompt).toContain('Medium file');
     expect(prompt).toContain('Large file');
+    expect(prompt).toContain('Unknown size');
+    expect(prompt).toContain('sizeHint');
   });
 
   it('includes the FALLBACK LADDER with synonym + numbered-heading retries', () => {
@@ -442,6 +470,13 @@ describe('buildRetrievalInstructions (#70 prompt)', () => {
     expect(prompt).toContain('synonym');
     expect(prompt).toContain('numbered-heading');
     expect(prompt).toContain('Never fabricate');
+  });
+
+  it('states the current build has no web/search tool', () => {
+    const prompt = buildRetrievalInstructions('doc-1');
+    if (!prompt) return;
+    expect(prompt).toContain('No web/search tool exists');
+    expect(prompt).toContain('only use uploaded references');
   });
 });
 

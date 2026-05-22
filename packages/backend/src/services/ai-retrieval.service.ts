@@ -116,7 +116,7 @@ export class AIRetrievalService {
       type: 'function',
       name: 'ls',
       description:
-        'List uploaded reference files attached to the current chat. Returns [{ id, filename }] in upload order. Call first when you need to know what is available; idempotent and cheap.',
+        'List uploaded reference files attached to the current chat. Takes no arguments: use {}. Returns { files: [{ id, filename, lineCount, pageCount, hasPages, sizeHint }] } in upload order. lineCount/pageCount may be null if extraction metadata is not ready. Use sizeHint to choose read-all vs grep-first; do not pass documentId.',
       strict: true,
       parameters: {
         type: 'object',
@@ -129,13 +129,13 @@ export class AIRetrievalService {
       type: 'function',
       name: 'grep',
       description:
-        'Case-insensitive literal substring search over one file. Returns up to 50 matches in document order: each is { line, page (nearest preceding [page N] marker, or null), text, contextLines? }. Use context_before / context_after to pull surrounding lines without an extra read. Pattern is plain text — do NOT use regex syntax. Best when you have a clear keyword; if it returns nothing try a synonym, a shorter substring, or just read the likely region directly.',
+        'Case-insensitive literal substring search over one uploaded reference file. Use a file id from ls. Returns up to 50 matches in document order: each is { line, page (nearest preceding [page N] marker, or null), text, contextLines? }. Pattern is plain text, not regex. Always include context_before and context_after integers. If it returns nothing, try a synonym, shorter substring, numbered heading, or targeted read.',
       strict: true,
       parameters: {
         type: 'object',
         additionalProperties: false,
         properties: {
-          file: { type: 'string', description: 'File id from ls().' },
+          file: { type: 'string', description: 'File id returned by ls({}).' },
           pattern: { type: 'string', description: 'Literal substring to match, case-insensitive. No regex.' },
           context_before: { type: 'integer', description: 'Lines to include before each match. Default 0.' },
           context_after: { type: 'integer', description: 'Lines to include after each match. Default 0.' },
@@ -147,13 +147,13 @@ export class AIRetrievalService {
       type: 'function',
       name: 'read',
       description:
-        'Read a contiguous line range from one file. Returns { lines: [{ line, text }], totalLines, hasPages, truncated? }. offset is the 1-indexed first line; limit is the max number of lines to return (default 200). The full content of each requested line is returned — lines are never character-truncated. For PDFs the [page N] markers appear as their own lines; cite them when you reference the source ("see page 21").',
+        'Read a contiguous line range from one uploaded reference file. Use a file id from ls. Returns { lines: [{ line, text }], totalLines, hasPages, pageRange, truncated }. offset is the 1-indexed first line and limit is max lines returned; always include both. The full content of requested lines is returned. For PDFs, [page N] markers appear as their own lines; cite them when answering.',
       strict: true,
       parameters: {
         type: 'object',
         additionalProperties: false,
         properties: {
-          file: { type: 'string', description: 'File id from ls().' },
+          file: { type: 'string', description: 'File id returned by ls({}).' },
           offset: { type: 'integer', description: '1-indexed start line. Default 1.' },
           limit: { type: 'integer', description: 'Max lines to return. Default 200.' },
         },
@@ -231,8 +231,8 @@ export class AIRetrievalService {
     }
 
     return [
-      'Uploaded reference snapshot:',
-      'Use this snapshot first for straightforward questions about attached references. If it is insufficient or truncated, use ls/grep/read tools for more evidence.',
+      'Fallback uploaded-reference snapshot:',
+      'Use this snapshot only for direct answer synthesis when the agent tool loop is unavailable or has timed out. If it is insufficient or truncated, say what evidence is missing instead of inventing details.',
       '',
       sections.join('\n\n'),
     ].join('\n');
@@ -329,7 +329,14 @@ export class AIRetrievalService {
 
   /** List uploaded references attached to the current document. */
   static async listReferenceFiles(userId: string, documentId: string): Promise<{
-    files: Array<{ id: string; filename: string }>;
+    files: Array<{
+      id: string;
+      filename: string;
+      lineCount?: number | null;
+      pageCount?: number | null;
+      hasPages?: boolean;
+      sizeHint?: 'unknown' | 'small' | 'medium' | 'large';
+    }>;
   }> {
     await this.getOwnedDocument(userId, documentId);
     const files = await query<any>(
@@ -347,11 +354,55 @@ export class AIRetrievalService {
        ORDER BY files.created_at ASC`,
       [documentId, userId]
     );
+    const fileIds = files.map((file) => file.id);
+    const metadataByFileId = new Map<
+      string,
+      { lineCount: number; pageCount: number; hasPages: boolean; sizeHint: 'small' | 'medium' | 'large' }
+    >();
+
+    if (fileIds.length > 0) {
+      const pageRows = await query<{ file_id: string; page_number: number; text: string }>(
+        `SELECT file_id, page_number, text
+         FROM file_pages
+         WHERE file_id = ANY($1::uuid[])
+         ORDER BY file_id ASC, page_number ASC`,
+        [fileIds]
+      );
+      const grouped = new Map<string, { pageCount: number; lineCount: number }>();
+      for (const row of pageRows) {
+        const current = grouped.get(row.file_id) || { pageCount: 0, lineCount: 0 };
+        current.pageCount += 1;
+        // loadFileText adds one `[page N]` marker line per page before
+        // the page text, so expose the same logical line count in ls.
+        current.lineCount += 1 + (row.text || '').split('\n').length;
+        grouped.set(row.file_id, current);
+      }
+      for (const [fileId, metadata] of grouped) {
+        metadataByFileId.set(fileId, {
+          ...metadata,
+          hasPages: metadata.pageCount > 0,
+          sizeHint:
+            metadata.lineCount <= 200
+              ? 'small'
+              : metadata.lineCount <= 1000
+                ? 'medium'
+                : 'large',
+        });
+      }
+    }
+
     return {
-      files: files.map((file) => ({
-        id: file.id,
-        filename: file.title || file.original_filename || 'untitled',
-      })),
+      files: files.map((file) => {
+        const metadata = metadataByFileId.get(file.id);
+        return {
+          id: file.id,
+          filename: file.title || file.original_filename || 'untitled',
+          lineCount: metadata?.lineCount ?? null,
+          pageCount: metadata?.pageCount ?? null,
+          hasPages: metadata?.hasPages ?? false,
+          sizeHint: metadata?.sizeHint ?? 'unknown',
+        };
+      }),
     };
   }
 

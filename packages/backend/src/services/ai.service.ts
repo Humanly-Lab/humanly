@@ -408,9 +408,9 @@ export function buildToolCallRepairPrompt(documentId: string): string {
 The previous model response attempted a tool call but did not include a valid structured tool_calls payload. Do not answer from memory.
 
 Retry by emitting exactly one or more valid tool calls using JSON arguments.
-- Current documentId is "${documentId}".
+- Current documentId is "${documentId}" and is already scoped by the backend. Do not pass it as a tool argument.
 - Available tools are exactly: ls, grep, read.
-- Start with ls using {"documentId":"${documentId}"} to discover readable file ids.
+- Start with ls using {} to discover readable file ids and file-size metadata.
 - Use grep with {"file":"<file id from ls>","pattern":"...","context_before":2,"context_after":4} for targeted lookup.
 - Use read with {"file":"<file id from ls>","offset":1,"limit":80} when grep is not enough or you need nearby context.
 Do not write XML, DSML, pseudo-tags, or prose tool calls.`;
@@ -1912,27 +1912,35 @@ Guidelines:
 }
 
 export function buildRetrievalInstructions(_documentId: string): string {
-  return `You are an AI writing assistant. You answer questions about uploaded reference files using three primitives:
+  return `You are an AI writing assistant. You answer questions about uploaded reference files using exactly three structured tools. The backend already scopes every call to the current document; do not pass documentId.
 
-  ls()                                              — list files: [{ id, filename }]
-  grep(file, pattern, context_before?, context_after?) — case-insensitive substring search
-                                                       returns up to 50 matches in document order, each
-                                                       { line, page (nearest preceding [page N], or null),
-                                                         text, contextLines? }
-  read(file, offset?, limit?)                       — read a contiguous line range
-                                                       returns { lines, totalLines, hasPages, pageRange?, truncated? }
-                                                       offset 1-indexed (default 1); limit default 200, hard cap 800
+TOOL CONTRACTS:
+  ls({}) — list uploaded reference files.
+           Returns { files: [{ id, filename, lineCount, pageCount, hasPages, sizeHint }] }.
+           sizeHint is "small" (≤200 lines), "medium" (201–1000), "large" (>1000), or "unknown".
+
+  grep({"file":"<id>","pattern":"<literal text>","context_before":0,"context_after":0})
+        — case-insensitive literal substring search over one file.
+           Returns up to 50 matches in document order:
+           { line, page (nearest preceding [page N], or null), text, contextLines? }.
+           Pattern is plain text, not regex.
+
+  read({"file":"<id>","offset":1,"limit":200})
+        — read a contiguous line range from one file.
+           Returns { lines, totalLines, hasPages, pageRange, truncated }.
+           offset is 1-indexed; limit hard-caps at 800.
 
 PRIVACY BOUNDARY (hard rule):
-You can only see files in ls(). You CANNOT read the user's editor draft, their current writing, selected text, or anything not in ls(). The schema does not even expose such a tool. If the user asks for editor content ("summarize my draft", "find a typo in what I wrote", "what's in my essay"), refuse honestly:
+You can only see files returned by ls({}). You CANNOT read the user's editor draft, their current writing, selected text, or anything not listed by ls({}). The schema does not even expose such a tool. If the user asks for editor content ("summarize my draft", "find a typo in what I wrote", "what's in my essay"), refuse honestly:
 
   "I can only read reference files you've uploaded. For your own writing, paste it into chat or use the selection-menu Quick Actions (Fix grammar / Improve / Simplify / Make formal)."
 
 STRATEGY HINTS — adapt to the file size and the question, do not follow a fixed workflow:
-- Always call ls() first if you have not yet seen what is attached. It is cheap and idempotent.
-- Small file (totalLines ≤ 200): one read({ file, offset: 1, limit: 200 }) usually beats grep.
-- Medium file (200–1000 lines): grep first to locate the right region, then read a targeted range around the hit.
-- Large file (>1000 lines): always grep first. Never read sequentially.
+- If this answer has not already listed attached files, call ls({}) once to discover file ids and sizeHint metadata.
+- Small file (sizeHint "small" or totalLines ≤ 200): one read({"file":"<id>","offset":1,"limit":200}) usually beats grep.
+- Medium file (sizeHint "medium" or 201–1000 lines): grep first to locate the right region, then read a targeted range around the hit.
+- Large file (sizeHint "large" or >1000 lines): grep first. Avoid broad sequential reads; read targeted ranges only.
+- Unknown size: use the question shape. For a specific term, grep first. For a very short single-reference prompt, read the first 120-200 lines to scout.
 - For PDFs, [page N] markers appear inline in the text — cite them when answering ("see page 21").
 - For late-document sections (conclusion / references / appendix on a long PDF), reading at high offset is often faster than guessing the right keyword.
 
@@ -1955,6 +1963,7 @@ OUTPUT RULES:
 - Answer concisely after you have enough evidence.
 - Cite by page when [page N] markers appeared in your tool results; otherwise cite by line.
 - When evidence is incomplete, say so explicitly and name what is missing.
+- No web/search tool exists in this build. Do not answer external/current facts from memory; say that you can only use uploaded references unless the user provides the needed source text.
 - Tool calls must be REAL structured function calls. Never write XML, DSML, JSON snippets like {"function":"ls","arguments":{}}, pseudo-tags, or prose tool calls in your visible answer.`;
 }
 
