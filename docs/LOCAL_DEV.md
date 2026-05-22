@@ -59,6 +59,8 @@ session caching, or to exercise a real LLM provider.
 # one-time
 bash scripts/setup-env.sh    # copies .env.example → .env in each package
 # fill in AI_API_KEY, AI_BASE_URL, AI_MODEL, etc. in packages/backend/.env
+# web retrieval for agent chat is enabled by default; set
+# WEB_RETRIEVAL_ENABLED=false to disable web_search/web_fetch locally.
 
 # each session
 pnpm docker:up               # postgres + redis
