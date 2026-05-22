@@ -14,6 +14,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Mail, Lock, AlertCircle, Loader2, CheckCircle2 } from 'lucide-react';
 import { OAuthButtons } from '@/components/auth/oauth-buttons';
 import { AuthCard } from '@/components/auth/auth-card';
+import { AuthenticatedRedirect } from '@/components/auth/authenticated-redirect';
 
 // Form validation schema
 const loginSchema = z.object({
@@ -111,6 +112,7 @@ export default function LoginPage() {
         </>
       }
     >
+        <AuthenticatedRedirect />
         <form method="post" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           {error && (
             <Alert variant={resendSuccess ? "default" : "destructive"}>

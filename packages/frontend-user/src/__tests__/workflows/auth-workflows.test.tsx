@@ -5,14 +5,18 @@ import LoginPage from '@/app/(auth)/login/page';
 import RegisterPage from '@/app/(auth)/register/page';
 
 const mockPush = jest.fn();
+const mockReplace = jest.fn();
 const mockLogin = jest.fn();
 const mockRegister = jest.fn();
 const mockResendVerificationEmail = jest.fn();
 const mockApiGet = jest.fn();
+const mockCheckAuth = jest.fn();
+let mockIsAuthenticated = false;
 
 jest.mock('next/navigation', () => ({
   useRouter: () => ({
     push: mockPush,
+    replace: mockReplace,
   }),
 }));
 
@@ -20,10 +24,12 @@ jest.mock('@/stores/auth-store', () => ({
   useAuthStore: (selector?: any) => {
     const state = {
       login: mockLogin,
-      register: mockRegister,
-      resendVerificationEmail: mockResendVerificationEmail,
-      isLoading: false,
-    };
+        register: mockRegister,
+        resendVerificationEmail: mockResendVerificationEmail,
+        checkAuth: mockCheckAuth,
+        isAuthenticated: mockIsAuthenticated,
+        isLoading: false,
+      };
 
     return selector ? selector(state) : state;
   },
@@ -41,9 +47,13 @@ describe('user auth workflows', () => {
   beforeEach(() => {
     jest.useRealTimers();
     mockPush.mockClear();
+    mockReplace.mockClear();
     mockLogin.mockReset();
     mockRegister.mockReset();
     mockResendVerificationEmail.mockReset();
+    mockCheckAuth.mockReset();
+    mockCheckAuth.mockResolvedValue(undefined);
+    mockIsAuthenticated = false;
     mockApiGet.mockResolvedValue({
       data: {
         providers: {
@@ -86,6 +96,18 @@ describe('user auth workflows', () => {
       expect(mockLogin).toHaveBeenLastCalledWith('user@example.com', 'Password123!', 'user');
       expect(mockPush).toHaveBeenCalledWith('/documents');
     });
+  });
+
+  it('redirects authenticated users away from the login page after restoring auth', async () => {
+    mockIsAuthenticated = true;
+
+    render(<LoginPage />);
+
+    await waitFor(() => {
+      expect(mockCheckAuth).toHaveBeenCalled();
+      expect(mockReplace).toHaveBeenCalledWith('/documents');
+    });
+    expect(screen.getByRole('heading', { name: /welcome back/i })).toBeInTheDocument();
   });
 
   it('blocks weak registration passwords and redirects valid registration to login', async () => {
