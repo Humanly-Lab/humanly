@@ -184,7 +184,7 @@ export async function handleAIMessage(
   data: AIChatRequest
 ): Promise<void> {
   const { userId } = socket.data;
-  const { documentId, sessionId, message, context } = data;
+  const { documentId, sessionId, message, context, clientRequestId } = data;
 
   const messageId = uuidv4();
 
@@ -192,6 +192,7 @@ export async function handleAIMessage(
     if (!documentId) {
       socket.emit('ai:error', {
         sessionId: sessionId || '',
+        clientRequestId,
         message: 'Document ID is required',
         code: 'MISSING_DOCUMENT_ID',
       });
@@ -207,6 +208,7 @@ export async function handleAIMessage(
     if (rawAttachments.length > MAX_ATTACHMENTS) {
       socket.emit('ai:error', {
         sessionId: sessionId || '',
+        clientRequestId,
         message: `At most ${MAX_ATTACHMENTS} attachments per turn`,
         code: 'TOO_MANY_ATTACHMENTS',
       });
@@ -223,6 +225,7 @@ export async function handleAIMessage(
       ) {
         socket.emit('ai:error', {
           sessionId: sessionId || '',
+          clientRequestId,
           message: 'Malformed attachment payload',
           code: 'INVALID_ATTACHMENT',
         });
@@ -236,6 +239,7 @@ export async function handleAIMessage(
     if ((!message || message.trim().length === 0) && !hasAttachments) {
       socket.emit('ai:error', {
         sessionId: sessionId || '',
+        clientRequestId,
         message: 'Message or image attachment is required',
         code: 'MISSING_MESSAGE',
       });
@@ -303,6 +307,7 @@ export async function handleAIMessage(
     if (!isOwner) {
       socket.emit('ai:error', {
         sessionId: sessionId || '',
+        clientRequestId,
         message: 'Document not found or unauthorized',
         code: 'UNAUTHORIZED',
       });
@@ -317,6 +322,7 @@ export async function handleAIMessage(
     if (!session) {
       socket.emit('ai:error', {
         sessionId: sessionId || '',
+        clientRequestId,
         message: 'Failed to create session',
         code: 'SESSION_ERROR',
       });
@@ -331,6 +337,7 @@ export async function handleAIMessage(
     socket.emit('ai:response-start', {
       sessionId: session.id,
       messageId,
+      clientRequestId,
     });
 
     logger.info('AI message received', {
@@ -415,6 +422,7 @@ export async function handleAIMessage(
           socket.emit('ai:response-chunk', {
             sessionId: session.id,
             messageId,
+            clientRequestId,
             chunk,
           });
         }
@@ -424,7 +432,10 @@ export async function handleAIMessage(
         activeStreams.delete(session.id);
 
         if (!streamState.cancelled) {
-          socket.emit('ai:response-complete', response);
+          socket.emit('ai:response-complete', {
+            ...response,
+            clientRequestId,
+          });
 
           // If there are suggestions, emit them separately
           if (response.suggestions && response.suggestions.length > 0) {
@@ -463,6 +474,7 @@ export async function handleAIMessage(
 
         socket.emit('ai:error', {
           sessionId: session.id,
+          clientRequestId,
           message: error.message || 'An error occurred while processing your request',
           code: 'AI_ERROR',
         });
@@ -478,6 +490,7 @@ export async function handleAIMessage(
 
     socket.emit('ai:error', {
       sessionId: sessionId || '',
+      clientRequestId,
       message: 'Failed to process message',
       code: 'PROCESS_ERROR',
     });

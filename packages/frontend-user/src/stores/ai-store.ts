@@ -125,6 +125,12 @@ interface AIState {
   // used to bridge tool-call timelines onto the final persisted message id.
   streamingMessageId: string | null;
 
+  // Request/session currently allowed to update the streaming UI. The chat
+  // header's New Chat action clears these so stale frames from the previous
+  // request cannot bleed into the next conversation.
+  activeStreamSessionId: string | null;
+  activeStreamClientRequestId: string | null;
+
   // Logs
   logs: AIInteractionLog[];
   logsTotal: number;
@@ -208,6 +214,8 @@ const initialState = {
   toolCallTimelines: {} as Record<string, ToolCallEntry[]>,
   thinkingByMessageId: {} as Record<string, string>,
   streamingMessageId: null,
+  activeStreamSessionId: null,
+  activeStreamClientRequestId: null,
   logs: [],
   logsTotal: 0,
   isPanelOpen: false,
@@ -219,6 +227,40 @@ const initialState = {
 
 // Track whether socket listeners have been set up (singleton pattern to prevent duplicates)
 let listenersSetup = false;
+const ignoredClientRequestIds = new Set<string>();
+
+function createClientRequestId(prefix: string): string {
+  return typeof crypto !== 'undefined' && 'randomUUID' in crypto
+    ? crypto.randomUUID()
+    : `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function shouldIgnoreStreamEvent(
+  state: Pick<
+    AIState,
+    'currentSession' | 'isStreaming' | 'activeStreamSessionId' | 'activeStreamClientRequestId'
+  >,
+  sessionId: string,
+  clientRequestId?: string,
+): boolean {
+  if (sessionId === SILENT_SESSION_ID) return true;
+  if (clientRequestId && ignoredClientRequestIds.has(clientRequestId)) return true;
+
+  if (state.activeStreamClientRequestId && clientRequestId !== undefined) {
+    return clientRequestId !== state.activeStreamClientRequestId;
+  }
+
+  if (state.activeStreamSessionId) {
+    return sessionId !== state.activeStreamSessionId;
+  }
+
+  if (state.activeStreamClientRequestId) return true;
+
+  if (state.isStreaming) return false;
+  if (state.currentSession?.id) return sessionId !== state.currentSession.id;
+
+  return true;
+}
 
 export const useAIStore = create<AIState>()(
   persist(
@@ -282,6 +324,7 @@ export const useAIStore = create<AIState>()(
       // Send message via WebSocket (streaming)
       sendMessageViaSocket: (documentId, message, context, attachments) => {
         const { currentSession } = get();
+        const clientRequestId = createClientRequestId('chat');
 
         // Check if socket is connected before attempting to send
         const socket = getSocket();
@@ -306,6 +349,9 @@ export const useAIStore = create<AIState>()(
           messages: [...state.messages, userMessage],
           isStreaming: true,
           streamingContent: '',
+          streamingMessageId: null,
+          activeStreamSessionId: currentSession?.id ?? null,
+          activeStreamClientRequestId: clientRequestId,
           error: null,
         }));
 
@@ -316,23 +362,31 @@ export const useAIStore = create<AIState>()(
           message,
           context,
           attachments,
+          clientRequestId,
         } as AIChatRequest);
       },
 
       cancelStream: () => {
-        const { currentSession } = get();
-        if (currentSession) {
-          emitEvent('ai:cancel', { sessionId: currentSession.id });
+        const { currentSession, activeStreamSessionId, activeStreamClientRequestId } = get();
+        if (activeStreamClientRequestId) {
+          ignoredClientRequestIds.add(activeStreamClientRequestId);
         }
-        set({ isStreaming: false, streamingContent: '' });
+        const sessionId = activeStreamSessionId || currentSession?.id;
+        if (sessionId) {
+          emitEvent('ai:cancel', { sessionId });
+        }
+        set({
+          isStreaming: false,
+          streamingContent: '',
+          streamingMessageId: null,
+          activeStreamSessionId: null,
+          activeStreamClientRequestId: null,
+        });
       },
 
       streamSilent: (documentId, message, context, onChunk) =>
         new Promise<string>((resolve, reject) => {
-          const clientRequestId =
-            typeof crypto !== 'undefined' && 'randomUUID' in crypto
-              ? crypto.randomUUID()
-              : `silent-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+          const clientRequestId = createClientRequestId('silent');
           let messageId: string | null = null;
           let finalContent = '';
           const timeoutId = window.setTimeout(() => {
@@ -404,8 +458,16 @@ export const useAIStore = create<AIState>()(
       },
 
       clearMessages: async () => {
-        const { currentSession } = get();
+        const { currentSession, activeStreamSessionId, activeStreamClientRequestId } = get();
         const deletedSessionId = currentSession?.id;
+        const streamSessionId = activeStreamSessionId || deletedSessionId;
+
+        if (activeStreamClientRequestId) {
+          ignoredClientRequestIds.add(activeStreamClientRequestId);
+        }
+        if (streamSessionId) {
+          emitEvent('ai:cancel', { sessionId: streamSessionId });
+        }
 
         // If there's an active session, delete it from the backend
         if (deletedSessionId) {
@@ -422,12 +484,15 @@ export const useAIStore = create<AIState>()(
         set({
           messages: [],
           streamingContent: '',
+          isStreaming: false,
           currentSession: null,
           activeSuggestions: [],
           quotedText: null,
           toolCallTimelines: {},
           thinkingByMessageId: {},
           streamingMessageId: null,
+          activeStreamSessionId: null,
+          activeStreamClientRequestId: null,
           logs: deletedSessionId
             ? get().logs.filter((log) => log.sessionId !== deletedSessionId)
             : get().logs,
@@ -435,23 +500,25 @@ export const useAIStore = create<AIState>()(
       },
 
       startNewChat: async () => {
-        const { currentSession } = get();
-        const deletedSessionId = currentSession?.id;
+        const { currentSession, activeStreamSessionId, activeStreamClientRequestId } = get();
+        const previousSessionId = activeStreamSessionId || currentSession?.id;
 
-        // Close the current session on the backend to ensure a new one is created
-        if (deletedSessionId) {
-          try {
-            await api.delete(`/ai/sessions/${deletedSessionId}`);
-            emitEvent('ai:leave-session', { sessionId: deletedSessionId });
-          } catch (error) {
-            // Log but continue - we still want to clear the local state
-            console.warn('Failed to close previous session:', error);
-          }
+        if (activeStreamClientRequestId) {
+          ignoredClientRequestIds.add(activeStreamClientRequestId);
+        }
+
+        // New Chat is navigation, not deletion. Preserve the old session in
+        // history, cancel any known in-flight stream, and leave the socket
+        // room so future frames from that session are ignored locally.
+        if (previousSessionId) {
+          emitEvent('ai:cancel', { sessionId: previousSessionId });
+          emitEvent('ai:leave-session', { sessionId: previousSessionId });
         }
 
         // Clear messages AND reset current session to force creation of a new session
         set({
           messages: [],
+          isStreaming: false,
           streamingContent: '',
           currentSession: null,
           activeSuggestions: [],
@@ -460,9 +527,8 @@ export const useAIStore = create<AIState>()(
           toolCallTimelines: {},
           thinkingByMessageId: {},
           streamingMessageId: null,
-          logs: deletedSessionId
-            ? get().logs.filter((log) => log.sessionId !== deletedSessionId)
-            : get().logs,
+          activeStreamSessionId: null,
+          activeStreamClientRequestId: null,
         });
       },
 
@@ -684,22 +750,29 @@ export const useAIStore = create<AIState>()(
         listenersSetup = true;
 
         // Response start
-        onEvent('ai:response-start', ({ sessionId, messageId }) => {
-          if (sessionId === SILENT_SESSION_ID) return; // quick-action stream, handled by streamSilent
-          set({ isStreaming: true, streamingContent: '', streamingMessageId: messageId });
+        onEvent('ai:response-start', ({ sessionId, messageId, clientRequestId }) => {
+          const state = get();
+          if (shouldIgnoreStreamEvent(state, sessionId, clientRequestId)) return;
+          set({
+            isStreaming: true,
+            streamingContent: '',
+            streamingMessageId: messageId,
+            activeStreamSessionId: sessionId,
+            activeStreamClientRequestId: clientRequestId ?? state.activeStreamClientRequestId,
+          });
         });
 
         // Response chunk (streaming)
-        onEvent('ai:response-chunk', ({ sessionId, chunk }) => {
-          if (sessionId === SILENT_SESSION_ID) return;
+        onEvent('ai:response-chunk', ({ sessionId, clientRequestId, chunk }) => {
+          if (shouldIgnoreStreamEvent(get(), sessionId, clientRequestId)) return;
           set((state) => ({
             streamingContent: state.streamingContent + chunk,
           }));
         });
 
         // Response complete
-        onEvent('ai:response-complete', (response: AIChatResponse) => {
-          if (response.sessionId === SILENT_SESSION_ID) return;
+        onEvent('ai:response-complete', (response: AIChatResponse & { clientRequestId?: string }) => {
+          if (shouldIgnoreStreamEvent(get(), response.sessionId, response.clientRequestId)) return;
           set((state) => {
             // Don't add if it's the system connection message
             if (response.message.role === 'system' && response.logId === '') {
@@ -718,6 +791,8 @@ export const useAIStore = create<AIState>()(
                 isStreaming: false,
                 streamingContent: '',
                 streamingMessageId: null,
+                activeStreamSessionId: null,
+                activeStreamClientRequestId: null,
               };
             }
 
@@ -759,6 +834,8 @@ export const useAIStore = create<AIState>()(
                 isStreaming: false,
                 streamingContent: '', // Clear streaming content since message is now in messages array
                 streamingMessageId: null,
+                activeStreamSessionId: null,
+                activeStreamClientRequestId: null,
                 toolCallTimelines,
                 thinkingByMessageId,
               };
@@ -772,6 +849,8 @@ export const useAIStore = create<AIState>()(
               isStreaming: false,
               streamingContent: '',
               streamingMessageId: null,
+              activeStreamSessionId: null,
+              activeStreamClientRequestId: null,
               toolCallTimelines,
               thinkingByMessageId,
             };
@@ -779,16 +858,22 @@ export const useAIStore = create<AIState>()(
         });
 
         // Suggestions
-        onEvent('ai:suggestion', ({ suggestions }) => {
+        onEvent('ai:suggestion', ({ sessionId, suggestions }) => {
+          if (sessionId === SILENT_SESSION_ID) return;
+          const { currentSession } = get();
+          if (currentSession?.id && sessionId !== currentSession.id) return;
           set({ activeSuggestions: suggestions });
         });
 
         // Error
-        onEvent('ai:error', ({ sessionId, message }) => {
-          if (sessionId === SILENT_SESSION_ID) return;
+        onEvent('ai:error', ({ sessionId, clientRequestId, message }) => {
+          if (shouldIgnoreStreamEvent(get(), sessionId, clientRequestId)) return;
           set({
             isStreaming: false,
             streamingContent: '',
+            streamingMessageId: null,
+            activeStreamSessionId: null,
+            activeStreamClientRequestId: null,
             error: message,
           });
         });
@@ -800,10 +885,12 @@ export const useAIStore = create<AIState>()(
         // before the ToolCallCard UI lands in #05.
 
         onEvent('ai:turn-start', (payload: AgentTurnStartPayload) => {
+          if (shouldIgnoreStreamEvent(get(), payload.sessionId)) return;
           console.log('[agent] turn-start', payload);
         });
 
         onEvent('ai:tool-call', (payload: AgentToolCallPayload) => {
+          if (shouldIgnoreStreamEvent(get(), payload.sessionId)) return;
           console.log('[agent] tool-call', payload);
           set((state) => {
             const existing = state.toolCallTimelines[payload.messageId] || [];
@@ -824,6 +911,7 @@ export const useAIStore = create<AIState>()(
         });
 
         onEvent('ai:tool-result', (payload: AgentToolResultPayload) => {
+          if (shouldIgnoreStreamEvent(get(), payload.sessionId)) return;
           console.log('[agent] tool-result', payload);
           set((state) => {
             const existing = state.toolCallTimelines[payload.messageId];
@@ -850,7 +938,7 @@ export const useAIStore = create<AIState>()(
         });
 
         onEvent('ai:thinking-delta', (payload: AgentThinkingDeltaPayload) => {
-          if (payload.sessionId === SILENT_SESSION_ID) return;
+          if (shouldIgnoreStreamEvent(get(), payload.sessionId)) return;
           console.log('[agent] thinking-delta', {
             ...payload,
             text: `${payload.text.length} chars`,
@@ -864,6 +952,7 @@ export const useAIStore = create<AIState>()(
         });
 
         onEvent('ai:turn-end', (payload: AgentTurnEndPayload) => {
+          if (shouldIgnoreStreamEvent(get(), payload.sessionId)) return;
           console.log('[agent] turn-end', payload);
         });
       },

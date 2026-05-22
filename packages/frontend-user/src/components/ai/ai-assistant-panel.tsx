@@ -293,6 +293,7 @@ export function AIAssistantPanel({
 
   const handleNewChat = async () => {
     await startNewChat();
+    refreshLogs();
     textareaRef.current?.focus();
   };
 
