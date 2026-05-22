@@ -35,7 +35,6 @@ type ProviderCredentialValidation =
 
 type ProviderCredentialRule = {
   label: string;
-  keyPrefix?: string;
   validate?: (
     normalizedUrl: string,
     apiKey: string,
@@ -52,7 +51,6 @@ const TOGETHER_AI_BASE_URL = 'https://api.together.xyz/v1';
 const PROVIDER_CREDENTIAL_RULES: Record<string, ProviderCredentialRule> = {
   'openrouter.ai': {
     label: 'OpenRouter',
-    keyPrefix: 'sk-or-',
     validate: async (normalizedUrl, apiKey) => {
       // OpenRouter's model catalog can be reachable even when the key does not
       // belong to OpenRouter. The /key endpoint validates the bearer credential
@@ -79,7 +77,6 @@ const PROVIDER_CREDENTIAL_RULES: Record<string, ProviderCredentialRule> = {
   },
   'api.together.xyz': {
     label: 'Together AI',
-    keyPrefix: 'tgp_',
     validate: async (normalizedUrl, apiKey) => {
       const modelsResult = await fetchProviderModelsCatalog(`${normalizedUrl}/models`, apiKey);
       if (!modelsResult.ok) {
@@ -113,25 +110,6 @@ async function readProviderErrorMessage(response: globalThis.Response): Promise<
 
   const text = await response.text().catch(() => '');
   return text.trim() || `API returned ${response.status}`;
-}
-
-function validateProviderKeyShape(
-  hostname: string,
-  apiKey: string,
-): { ok: true } | { ok: false; message: string } {
-  const rule = PROVIDER_CREDENTIAL_RULES[hostname];
-  if (!rule?.keyPrefix || apiKey.startsWith(rule.keyPrefix)) {
-    return { ok: true };
-  }
-
-  return {
-    ok: false,
-    message: [
-      `${rule.label} authentication failed.`,
-      `Use a valid ${rule.label} API key for this provider`,
-      `(expected prefix "${rule.keyPrefix}").`,
-    ].join(' '),
-  };
 }
 
 function validateProviderBaseUrl(url: URL): { ok: true } | { ok: false; message: string } {
@@ -191,11 +169,6 @@ async function validateProviderCredentials(
   apiKey: string,
 ): Promise<ProviderCredentialValidation> {
   const rule = PROVIDER_CREDENTIAL_RULES[hostname];
-  const keyShape = validateProviderKeyShape(hostname, apiKey);
-  if (!keyShape.ok) {
-    return keyShape;
-  }
-
   if (!rule?.validate) {
     return { ok: true };
   }

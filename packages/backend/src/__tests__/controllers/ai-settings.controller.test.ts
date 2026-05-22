@@ -124,6 +124,12 @@ describe('testConnection', () => {
   });
 
   it('rejects non-OpenRouter keys when the selected provider is OpenRouter', async () => {
+    mockFetchJson({
+      error: {
+        message: 'No auth credentials found',
+      },
+    }, false, 401);
+
     const req = makeReq({
       body: { apiKey: 'tgp_wrong_provider', baseUrl: 'https://openrouter.ai/api/v1' },
     });
@@ -131,17 +137,32 @@ describe('testConnection', () => {
 
     await testConnection(req, res);
 
-    expect(global.fetch).not.toHaveBeenCalled();
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    expect(global.fetch).toHaveBeenCalledWith(
+      'https://openrouter.ai/api/v1/key',
+      expect.objectContaining({
+        method: 'GET',
+        headers: expect.objectContaining({
+          Authorization: 'Bearer tgp_wrong_provider',
+        }),
+      }),
+    );
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
       success: false,
       message: expect.stringContaining('OpenRouter authentication failed'),
     }));
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
-      message: expect.stringContaining('Use a valid OpenRouter API key'),
+      message: expect.stringContaining('No auth credentials found'),
     }));
   });
 
   it('rejects non-Together keys when the selected provider is Together AI', async () => {
+    mockFetchJson({
+      error: {
+        message: 'Invalid API key',
+      },
+    }, false, 401);
+
     const req = makeReq({
       body: { apiKey: 'sk-or-wrong-provider', baseUrl: 'https://api.together.xyz/v1' },
     });
@@ -149,13 +170,51 @@ describe('testConnection', () => {
 
     await testConnection(req, res);
 
-    expect(global.fetch).not.toHaveBeenCalled();
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    expect(global.fetch).toHaveBeenCalledWith(
+      'https://api.together.xyz/v1/models',
+      expect.objectContaining({
+        method: 'GET',
+        headers: expect.objectContaining({
+          Authorization: 'Bearer sk-or-wrong-provider',
+        }),
+      }),
+    );
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
       success: false,
       message: expect.stringContaining('Together AI authentication failed'),
     }));
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
-      message: expect.stringContaining('expected prefix "tgp_"'),
+      message: expect.stringContaining('Invalid API key'),
+    }));
+  });
+
+  it('rejects expired provider-shaped keys based on the provider response', async () => {
+    mockFetchJson({
+      error: {
+        message: 'API key expired',
+      },
+    }, false, 401);
+
+    const req = makeReq({
+      body: { apiKey: 'sk-or-expired', baseUrl: 'https://openrouter.ai/api/v1' },
+    });
+    const res = makeRes();
+
+    await testConnection(req, res);
+
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    expect(global.fetch).toHaveBeenCalledWith(
+      'https://openrouter.ai/api/v1/key',
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: 'Bearer sk-or-expired',
+        }),
+      }),
+    );
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      success: false,
+      message: expect.stringContaining('API key expired'),
     }));
   });
 
@@ -317,6 +376,12 @@ describe('saveSettings', () => {
   });
 
   it('rejects saving settings when the key does not match the selected provider', async () => {
+    mockFetchJson({
+      error: {
+        message: 'Invalid API key',
+      },
+    }, false, 401);
+
     const req = makeReq({
       body: {
         apiKey: 'sk-or-wrong-provider',
@@ -328,7 +393,15 @@ describe('saveSettings', () => {
 
     await saveSettings(req, res);
 
-    expect(global.fetch).not.toHaveBeenCalled();
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    expect(global.fetch).toHaveBeenCalledWith(
+      'https://api.together.xyz/v1/models',
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: 'Bearer sk-or-wrong-provider',
+        }),
+      }),
+    );
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
       success: false,
