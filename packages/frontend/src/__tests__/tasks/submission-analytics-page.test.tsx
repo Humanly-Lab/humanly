@@ -77,6 +77,81 @@ const eventFixtures = [
   },
 ];
 
+const timelineFixtures = [
+  {
+    id: 'timeline-typing',
+    kind: 'typing_burst',
+    label: 'Typed',
+    timestamp: '2026-05-15T01:50:00.000Z',
+    startTimestamp: '2026-05-15T01:50:00.000Z',
+    endTimestamp: '2026-05-15T01:50:00.000Z',
+    text: 'Hello',
+    charCount: 5,
+    wordCount: 1,
+    rawEventCount: 1,
+    rawEvents: [
+      {
+        id: 'event-1',
+        eventType: 'input',
+        timestamp: '2026-05-15T01:50:00.000Z',
+        insertedText: 'Hello',
+        cursorPosition: 5,
+      },
+    ],
+  },
+  {
+    id: 'timeline-paste',
+    kind: 'paste',
+    label: 'Pasted',
+    timestamp: '2026-05-15T01:51:00.000Z',
+    startTimestamp: '2026-05-15T01:51:00.000Z',
+    endTimestamp: '2026-05-15T01:51:00.000Z',
+    text: 'pasted text',
+    charCount: 12,
+    wordCount: 2,
+    rawEventCount: 1,
+    rawEvents: [
+      {
+        id: 'event-2',
+        eventType: 'paste',
+        timestamp: '2026-05-15T01:51:00.000Z',
+        insertedText: 'pasted text',
+        cursorPosition: 17,
+      },
+    ],
+  },
+];
+
+const aiLogFixtures = [
+  {
+    id: 'ai-log-1',
+    documentId: 'document-latest',
+    userId: 'user-123',
+    timestamp: '2026-05-15T01:51:30.000Z',
+    query: 'Improve this sentence',
+    queryType: 'rewrite',
+    contextSnapshot: {
+      selection: {
+        text: 'Hello',
+        startOffset: 0,
+        endOffset: 5,
+      },
+    },
+    response: 'Hello there',
+    modificationsApplied: true,
+    modifications: [
+      {
+        before: 'Hello',
+        after: 'Hello there',
+        startOffset: 0,
+        endOffset: 5,
+      },
+    ],
+    status: 'success',
+    createdAt: '2026-05-15T01:51:30.000Z',
+  },
+];
+
 describe('admin submission analytics page', () => {
   beforeEach(() => {
     mockPush.mockClear();
@@ -89,6 +164,10 @@ describe('admin submission analytics page', () => {
         submission: submissionFixture,
         events: eventFixtures,
         totalEvents: eventFixtures.length,
+        timeline: {
+          items: timelineFixtures,
+        },
+        aiLogs: aiLogFixtures,
       },
     });
   });
@@ -107,9 +186,13 @@ describe('admin submission analytics page', () => {
     expect(screen.getByRole('heading', { name: 'Composition' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Event Log' })).toBeInTheDocument();
     expect(screen.getByRole('columnheader', { name: 'Time' })).toBeInTheDocument();
-    expect(screen.getByRole('columnheader', { name: 'Event' })).toBeInTheDocument();
-    expect(screen.getByRole('columnheader', { name: 'Key / Detail' })).toBeInTheDocument();
-    expect(screen.getByRole('columnheader', { name: 'Cursor' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Activity' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Text / Detail' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Count' })).toBeInTheDocument();
+    expect(screen.getByText('Typed')).toBeInTheDocument();
+    expect(screen.getByText('Pasted')).toBeInTheDocument();
+    expect(screen.getByText('Improve writing')).toBeInTheDocument();
+    expect(screen.queryByText('Event Summary')).not.toBeInTheDocument();
     expect(screen.queryByRole('columnheader', { name: 'Before' })).not.toBeInTheDocument();
     expect(screen.queryByRole('columnheader', { name: 'After' })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Open Certificate' })).toHaveAttribute('href', '/verify/cert-token-123');

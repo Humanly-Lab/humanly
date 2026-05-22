@@ -10,6 +10,7 @@ import { SessionModel } from '../models/session.model';
 import { SubmissionModel } from '../models/submission.model';
 import { CertificateModel } from '../models/certificate.model';
 import { DocumentEventModel } from '../models/document-event.model';
+import { AIModel } from '../models/ai.model';
 import { FileModel } from '../models/file.model';
 import { UserModel } from '../models/user.model';
 import { RefreshTokenModel } from '../models/refresh-token.model';
@@ -21,6 +22,7 @@ import { logger } from '../utils/logger';
 import { env } from '../config/env';
 import { cacheDelPattern } from '../config/redis';
 import { FileStorageService } from './file-storage.service';
+import { buildDocumentEventTimeline } from './document-event-timeline.service';
 import { generateToken, hashPassword, hashToken } from '../utils/crypto';
 import { generateAccessToken, generateRefreshToken, TokenPayload } from '../utils/jwt';
 
@@ -823,16 +825,32 @@ export class TaskService {
       throw new AppError(404, 'Submission not found');
     }
 
-    const events = await DocumentEventModel.findByDocumentId(submission.documentId, {
+    const eventFilters = {
       endDate: new Date(submission.submittedAt),
       limit: 5000,
       offset: 0,
-    });
+    };
+
+    const [events, totalEvents, aiLogsResult] = await Promise.all([
+      DocumentEventModel.findByDocumentId(submission.documentId, eventFilters),
+      DocumentEventModel.countByDocumentIdWithFilters(submission.documentId, eventFilters),
+      AIModel.getLogs({
+        documentId: submission.documentId,
+        userId: submission.userId,
+        endDate: new Date(submission.submittedAt),
+        limit: 50,
+        offset: 0,
+      }),
+    ]);
+
+    const timeline = buildDocumentEventTimeline(events, totalEvents);
 
     return {
       submission,
       events: events.reverse(),
-      totalEvents: events.length,
+      totalEvents,
+      timeline,
+      aiLogs: aiLogsResult.logs,
     };
   }
 
