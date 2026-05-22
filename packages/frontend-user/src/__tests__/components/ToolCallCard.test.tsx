@@ -70,7 +70,7 @@ describe('ToolCallTimeline', () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it('renders one card per entry', () => {
+  it('renders a collapsed pending summary by default', () => {
     render(
       <ToolCallTimeline
         entries={[
@@ -80,8 +80,44 @@ describe('ToolCallTimeline', () => {
       />
     );
 
+    expect(screen.getByRole('button', { name: /tool activity/i })).toBeInTheDocument();
+    expect(screen.getByText('Using tools...')).toBeInTheDocument();
+    expect(screen.getByText('2 tools')).toBeInTheDocument();
+    expect(screen.getByTestId('tool-call-timeline-spinner')).toBeInTheDocument();
+    expect(screen.queryByText('getDocumentText')).not.toBeInTheDocument();
+    expect(screen.queryByText('searchDocument')).not.toBeInTheDocument();
+  });
+
+  it('expands to show individual tool cards', async () => {
+    const user = userEvent.setup();
+
+    render(
+      <ToolCallTimeline
+        entries={[
+          makeEntry({ toolCallId: 't1', toolName: 'getDocumentText' }),
+          makeEntry({ toolCallId: 't2', toolName: 'searchDocument' }),
+        ]}
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: /tool activity/i }));
+
     expect(screen.getByText('getDocumentText')).toBeInTheDocument();
     expect(screen.getByText('searchDocument')).toBeInTheDocument();
+  });
+
+  it('renders completed summary without a spinner', () => {
+    render(
+      <ToolCallTimeline
+        entries={[
+          makeEntry({ toolCallId: 't1', status: 'done', isError: false }),
+        ]}
+      />
+    );
+
+    expect(screen.getByText('Tools used')).toBeInTheDocument();
+    expect(screen.getByText('1 tool')).toBeInTheDocument();
+    expect(screen.queryByTestId('tool-call-timeline-spinner')).not.toBeInTheDocument();
   });
 });
 

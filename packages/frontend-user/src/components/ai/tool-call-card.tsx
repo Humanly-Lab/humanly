@@ -144,13 +144,68 @@ export function ToolCallCard({ entry }: ToolCallCardProps): JSX.Element {
 }
 
 export function ToolCallTimeline({ entries }: ToolCallTimelineProps): JSX.Element | null {
+  const [open, setOpen] = useState(false);
+
   if (!entries || entries.length === 0) return null;
 
+  const pendingCount = entries.filter((entry) => entry.status === 'pending').length;
+  const errorCount = entries.filter((entry) => entry.status === 'done' && entry.isError).length;
+  const isPending = pendingCount > 0;
+  const hasErrors = errorCount > 0;
+  const label = isPending ? 'Using tools...' : hasErrors ? 'Tool activity needs review' : 'Tools used';
+  const countLabel = `${entries.length} ${entries.length === 1 ? 'tool' : 'tools'}`;
+
   return (
-    <div className="mb-2 space-y-1">
-      {entries.map((entry) => (
-        <ToolCallCard key={entry.toolCallId} entry={entry} />
-      ))}
-    </div>
+    <Collapsible open={open} onOpenChange={setOpen}>
+      <div
+        className={cn(
+          'mb-2 rounded-md border bg-background/60 px-2.5 py-1.5 text-xs shadow-sm',
+          hasErrors && 'border-red-300 bg-red-50/70 dark:bg-red-950/20'
+        )}
+      >
+        <CollapsibleTrigger asChild>
+          <button
+            type="button"
+            className="flex w-full min-w-0 items-center gap-2 text-left"
+            aria-label="Tool activity"
+          >
+            {isPending && (
+              <Loader2
+                className="h-3.5 w-3.5 shrink-0 animate-spin text-muted-foreground"
+                data-testid="tool-call-timeline-spinner"
+              />
+            )}
+            {!isPending && !hasErrors && (
+              <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-[#58715f]" />
+            )}
+            {!isPending && hasErrors && (
+              <XCircle className="h-3.5 w-3.5 shrink-0 text-red-600" />
+            )}
+
+            <span className="min-w-0 flex-1 truncate font-mono text-[11px] font-medium">
+              {label}
+            </span>
+            <span className="shrink-0 tabular-nums text-muted-foreground">
+              {countLabel}
+            </span>
+            <ChevronRight
+              className={cn(
+                'h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform',
+                open && 'rotate-90'
+              )}
+              aria-hidden="true"
+            />
+          </button>
+        </CollapsibleTrigger>
+
+        <CollapsibleContent>
+          <div className="mt-1.5 space-y-1">
+            {entries.map((entry) => (
+              <ToolCallCard key={entry.toolCallId} entry={entry} />
+            ))}
+          </div>
+        </CollapsibleContent>
+      </div>
+    </Collapsible>
   );
 }

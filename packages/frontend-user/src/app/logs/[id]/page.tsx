@@ -306,7 +306,7 @@ function renderTextPreview(text?: string, fallback = 'No text detail', maxTextCh
           {part.kind === 'lineBreak' ? (
             <LineBreakToken count={part.count} />
           ) : (
-            <span className="min-w-0 truncate">"{part.text}"</span>
+            <span className="min-w-0 truncate">&quot;{part.text}&quot;</span>
           )}
         </Fragment>
       ))}

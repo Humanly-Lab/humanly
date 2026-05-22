@@ -388,7 +388,7 @@ export function AIAssistantPanel({
               <Sparkles className="h-8 w-8 text-amber-500 mx-auto mb-2" />
               <h3 className="font-medium text-sm mb-1">AI unavailable</h3>
               <p className="text-xs text-muted-foreground mb-3 max-w-[220px] mx-auto">
-                This document's AI configuration is locked, but no usable API key is available.
+                This document&apos;s AI configuration is locked, but no usable API key is available.
               </p>
             </div>
           )}
