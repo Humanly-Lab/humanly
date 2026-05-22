@@ -9,7 +9,6 @@ import {
   Loader2,
   Upload,
   X,
-  XCircle,
 } from 'lucide-react';
 import {
   AI_CHAT_MAX_TOKENS_DEFAULT,
@@ -70,11 +69,6 @@ const DEFAULT_AI_BASE_URL = TOGETHER_AI_BASE_URL;
 const CUSTOM_MODEL_VALUE = '__custom_model__';
 const USE_EXISTING_AI_KEY = '__use_existing__';
 const IMPORT_ENVIRONMENT_VALUE = 'import_environment';
-
-type AiConnectionResult = {
-  success: boolean;
-  message: string;
-};
 
 type EnvironmentSelection = WritingEnvironmentPreset | typeof IMPORT_ENVIRONMENT_VALUE;
 
@@ -278,9 +272,6 @@ export default function NewDocumentPage() {
   const [customAiModel, setCustomAiModel] = useState('');
   const [hasExistingAiKey, setHasExistingAiKey] = useState(false);
   const [maskedAiKey, setMaskedAiKey] = useState('');
-  const [isTestingAiConnection, setIsTestingAiConnection] = useState(false);
-  const [aiConnectionResult, setAiConnectionResult] = useState<AiConnectionResult | null>(null);
-  const [testedAiModels, setTestedAiModels] = useState<string[]>([]);
   const [timeLimitMinutesInput, setTimeLimitMinutesInput] = useState('60');
   const [environmentDialogOpen, setEnvironmentDialogOpen] = useState(false);
   const allowEnvironmentDialogCloseRef = useRef(false);
@@ -332,8 +323,6 @@ export default function NewDocumentPage() {
     let options: string[];
     if (whitelist?.length) {
       options = whitelist;
-    } else if (testedAiModels.length) {
-      options = testedAiModels;
     } else {
       options = WRITING_AI_MODELS.filter((model) => model !== 'Custom models');
     }
@@ -341,7 +330,7 @@ export default function NewDocumentPage() {
     return aiModel && aiModel !== CUSTOM_MODEL_VALUE && !options.includes(aiModel)
       ? [aiModel, ...options]
       : options;
-  }, [aiBaseUrl, aiModel, testedAiModels]);
+  }, [aiBaseUrl, aiModel]);
 
   const selectedAiModel = aiModel === CUSTOM_MODEL_VALUE ? customAiModel.trim() : aiModel.trim();
   const timeMode = environmentConfig.aiUsageLimit.mode === 'time_restricted' ? 'time_restricted' : 'unlimited';
@@ -378,8 +367,6 @@ export default function NewDocumentPage() {
     setEnvironmentSelection(preset);
     setEnvironmentConfig(config);
     syncAiModelFromEnvironment(config);
-    setAiConnectionResult(null);
-    setTestedAiModels([]);
   };
 
   const handleEnvironmentSelectionChange = (value: EnvironmentSelection) => {
@@ -423,12 +410,10 @@ export default function NewDocumentPage() {
       syncAiModelFromEnvironment(importedConfig);
       setEnvironmentSelection('custom');
       setEnvironmentConfig(config);
-      setAiConnectionResult(null);
-      setTestedAiModels([]);
       toast({
         title: 'Environment imported',
         description: disabledImportedAi
-          ? 'The JSON configuration was applied. AI was set to Off until an API key is tested.'
+          ? 'The JSON configuration was applied. AI was set to Off until an API key is added.'
           : 'The JSON configuration was applied to this document.',
       });
     } catch (err: any) {
@@ -452,8 +437,6 @@ export default function NewDocumentPage() {
 
   const updateAiBaseUrl = (nextBaseUrl: string, resetModel = false) => {
     setAiBaseUrl(nextBaseUrl);
-    setAiConnectionResult(null);
-    setTestedAiModels([]);
     markCustom((current) => ({
       ...current,
       aiProvider: getAiProviderConfigForBaseUrl(nextBaseUrl),
@@ -532,94 +515,9 @@ export default function NewDocumentPage() {
     }
   };
 
-  const testAiConnection = async (): Promise<boolean> => {
-    if (!aiApiKey.trim() && !hasExistingAiKey) {
-      setAiConnectionResult({
-        success: false,
-        message: 'Enter an AI API key before testing the connection.',
-      });
-      return false;
-    }
-    const baseUrlToTest = aiBaseUrl.trim();
-    if (!baseUrlToTest) {
-      setAiConnectionResult({
-        success: false,
-        message: 'Select a provider or enter a custom base URL before testing the connection.',
-      });
-      return false;
-    }
-
-    setIsTestingAiConnection(true);
-    setAiConnectionResult(null);
-    setTestedAiModels([]);
-
-    try {
-      const response = await apiClient.post('/ai/settings/test', {
-        apiKey: aiApiKey.trim() || USE_EXISTING_AI_KEY,
-        baseUrl: baseUrlToTest,
-      });
-      const result = response.data || {};
-      const success = !!result.success;
-
-      setAiConnectionResult({
-        success,
-        message: result.message || (result.success ? 'Connection successful.' : 'Connection failed.'),
-      });
-
-      if (success) {
-        const providerConfig = getAiProviderConfigForBaseUrl(baseUrlToTest);
-        if (providerConfig) {
-          markCustom((current) => ({
-            ...current,
-            aiProvider: providerConfig,
-          }));
-        }
-
-        toast({
-          title: 'AI key verified',
-          description: 'Connection test passed. This writing environment can use AI.',
-        });
-
-        const fallbackModels = getWhitelist(baseUrlToTest) || [];
-        const modelsFromApi = Array.isArray(result.models) ? result.models.filter(Boolean) : [];
-        const nextModels = fallbackModels.length ? fallbackModels : modelsFromApi;
-
-        setTestedAiModels(nextModels);
-
-        if (nextModels.length > 0 && (!aiModel || !nextModels.includes(aiModel))) {
-          setAiModel(nextModels[0]);
-          setEnvironmentAiModel(nextModels[0]);
-        }
-      }
-
-      return success;
-    } catch (err: any) {
-      setAiConnectionResult({
-        success: false,
-        message: err.message || 'Connection test failed.',
-      });
-      return false;
-    } finally {
-      setIsTestingAiConnection(false);
-    }
-  };
-
-  const handleTestAiConnection = async () => {
-    await testAiConnection();
-  };
-
-  const handleCustomEnvironmentDone = async () => {
-    if (environmentConfig.aiAccess === 'off') {
-      allowEnvironmentDialogCloseRef.current = true;
-      setEnvironmentDialogOpen(false);
-      return;
-    }
-
-    const success = await testAiConnection();
-    if (success) {
-      allowEnvironmentDialogCloseRef.current = true;
-      setEnvironmentDialogOpen(false);
-    }
+  const handleCustomEnvironmentDone = () => {
+    allowEnvironmentDialogCloseRef.current = true;
+    setEnvironmentDialogOpen(false);
   };
 
   const handleEnvironmentDialogOpenChange = (open: boolean) => {
@@ -632,10 +530,8 @@ export default function NewDocumentPage() {
     if (
       environmentConfig.aiAccess !== 'off'
       && !allowEnvironmentDialogCloseRef.current
-      && aiConnectionResult?.success !== true
     ) {
       setAiAccess('off');
-      setAiConnectionResult(null);
     }
 
     allowEnvironmentDialogCloseRef.current = false;
@@ -800,11 +696,7 @@ export default function NewDocumentPage() {
                 id="ai-api-key"
                 type="password"
                 value={aiApiKey}
-                onChange={(event) => {
-                  setAiApiKey(event.target.value);
-                  setAiConnectionResult(null);
-                  setTestedAiModels([]);
-                }}
+                onChange={(event) => setAiApiKey(event.target.value)}
                 placeholder={hasExistingAiKey ? `Current: ${maskedAiKey || 'saved key'}` : 'Enter API key'}
                 disabled={isCreating}
               />
@@ -814,35 +706,6 @@ export default function NewDocumentPage() {
                 </p>
               )}
             </div>
-
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleTestAiConnection}
-              disabled={isCreating || isTestingAiConnection || (!aiApiKey.trim() && !hasExistingAiKey)}
-            >
-              {isTestingAiConnection ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Testing...
-                </>
-              ) : (
-                'Test Connection'
-              )}
-            </Button>
-
-            {aiConnectionResult && (
-              <div className="flex items-start gap-2 text-xs">
-                {aiConnectionResult.success ? (
-                  <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-[#6f8a78]" />
-                ) : (
-                  <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
-                )}
-                <p className={aiConnectionResult.success ? 'text-[#58715f]' : 'text-destructive'}>
-                  {aiConnectionResult.message}
-                </p>
-              </div>
-            )}
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="humanly-field">
@@ -1281,9 +1144,6 @@ export default function NewDocumentPage() {
                         <p className="mt-1 text-sm font-medium">
                           {environmentConfig.aiAccess === 'off' ? 'Off' : 'On'}
                         </p>
-                        {environmentConfig.aiAccess !== 'off' && aiConnectionResult?.success === true && (
-                          <p className="mt-1 text-xs text-muted-foreground">Key verified</p>
-                        )}
                       </div>
                       <div className="rounded-lg border border-border/60 bg-background p-2.5">
                         <p className="humanly-eyebrow">Writing</p>
@@ -1346,16 +1206,9 @@ export default function NewDocumentPage() {
             <Button
               type="button"
               onClick={handleCustomEnvironmentDone}
-              disabled={isCreating || isTestingAiConnection}
+              disabled={isCreating}
             >
-              {isTestingAiConnection ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Testing...
-                </>
-              ) : (
-                'Done'
-              )}
+              Done
             </Button>
           </DialogFooter>
         </DialogContent>
