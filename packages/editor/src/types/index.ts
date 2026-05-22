@@ -133,6 +133,11 @@ export interface LexicalEditorProps {
  */
 export interface EditorTheme {
   paragraph?: string;
+  link?: string;
+  table?: string;
+  tableRow?: string;
+  tableCell?: string;
+  tableCellHeader?: string;
   text?: {
     bold?: string;
     italic?: string;
@@ -172,6 +177,9 @@ export interface ToolbarConfig {
   showStrikethrough?: boolean;
   showCode?: boolean;
   showClear?: boolean;
+  showMarkdownToggle?: boolean;
+  markdownEnabled?: boolean;
+  onMarkdownEnabledChange?: (enabled: boolean) => void;
 }
 
 /**

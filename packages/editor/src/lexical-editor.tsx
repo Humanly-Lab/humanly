@@ -6,20 +6,26 @@ import { HistoryPlugin } from '@lexical/react/LexicalHistoryPlugin';
 import { OnChangePlugin } from '@lexical/react/LexicalOnChangePlugin';
 import { TabIndentationPlugin } from '@lexical/react/LexicalTabIndentationPlugin';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
+import { MarkdownShortcutPlugin } from '@lexical/react/LexicalMarkdownShortcutPlugin';
+import { TablePlugin } from '@lexical/react/LexicalTablePlugin';
+import { HorizontalRulePlugin } from '@lexical/react/LexicalHorizontalRulePlugin';
 import LexicalErrorBoundary from '@lexical/react/LexicalErrorBoundary';
 import {
   $createParagraphNode,
   $createTextNode,
   $getRoot,
   $getSelection,
+  $insertNodes,
   $isRangeSelection,
+  $parseSerializedNode,
   COMMAND_PRIORITY_HIGH,
+  COMMAND_PRIORITY_LOW,
   EditorState,
   KEY_DOWN_COMMAND,
   PASTE_COMMAND,
+  type LexicalNode,
+  type SerializedLexicalNode,
 } from 'lexical';
-import { HeadingNode, QuoteNode } from '@lexical/rich-text';
-import { ListNode, ListItemNode } from '@lexical/list';
 import { TrackingPlugin } from './plugins/tracking-plugin';
 import { ToolbarPlugin } from './plugins/toolbar-plugin';
 import { AutoSavePlugin } from './plugins/auto-save-plugin';
@@ -29,6 +35,12 @@ import { ListPlugin } from './plugins/list-plugin';
 import { AlignmentPlugin } from './plugins/alignment-plugin';
 import { SelectionPopupPlugin } from './plugins/selection-popup-plugin';
 import { LexicalEditorProps, EditorTheme, EditorInsertResult } from './types';
+import {
+  createSerializedMarkdownNodes,
+  editorNodes,
+  looksLikeMarkdown,
+  markdownShortcutTransformers,
+} from './markdown/common-markdown';
 
 /**
  * Default editor theme
@@ -36,6 +48,12 @@ import { LexicalEditorProps, EditorTheme, EditorInsertResult } from './types';
  */
 const defaultTheme: EditorTheme = {
   paragraph: 'mb-2',
+  link: 'editor-link',
+  code: 'editor-code-block',
+  table: 'editor-table',
+  tableRow: 'editor-table-row',
+  tableCell: 'editor-table-cell',
+  tableCellHeader: 'editor-table-cell-header',
   text: {
     bold: 'font-bold',
     italic: 'italic',
@@ -63,6 +81,63 @@ const defaultTheme: EditorTheme = {
   },
   quote: 'border-l-4 border-gray-300 pl-4 italic my-3',
 };
+
+function insertSerializedNodesAtSelection(serializedNodes: SerializedLexicalNode[]): void {
+  const nodes = serializedNodes
+    .map((serializedNode) => $parseSerializedNode(serializedNode))
+    .filter((node): node is LexicalNode => Boolean(node));
+
+  if (nodes.length > 0) {
+    $insertNodes(nodes);
+  }
+}
+
+interface MarkdownPastePromptPosition {
+  left: number;
+  top: number;
+}
+
+function getMarkdownPastePromptPosition(rootElement: HTMLElement | null): MarkdownPastePromptPosition {
+  if (!rootElement || typeof window === 'undefined') {
+    return { left: 16, top: 48 };
+  }
+
+  const wrapperElement = rootElement.parentElement || rootElement;
+  const wrapperRect = wrapperElement.getBoundingClientRect();
+  const rootRect = rootElement.getBoundingClientRect();
+  const selection = window.getSelection();
+  let selectionRect: DOMRect | null = null;
+
+  if (selection && selection.rangeCount > 0) {
+    const range = selection.getRangeAt(0);
+    const commonAncestor = range.commonAncestorContainer;
+    const selectionNode =
+      commonAncestor.nodeType === Node.ELEMENT_NODE
+        ? commonAncestor
+        : commonAncestor.parentNode;
+
+    if (selectionNode && rootElement.contains(selectionNode)) {
+      const firstRect = range.getClientRects()[0];
+      const rangeRect = firstRect || range.getBoundingClientRect();
+      if (rangeRect && (rangeRect.width > 0 || rangeRect.height > 0)) {
+        selectionRect = rangeRect;
+      }
+    }
+  }
+
+  const rawLeft = selectionRect
+    ? selectionRect.left - wrapperRect.left + wrapperElement.scrollLeft
+    : rootRect.left - wrapperRect.left + wrapperElement.scrollLeft + 16;
+  const rawTop = selectionRect
+    ? selectionRect.bottom - wrapperRect.top + wrapperElement.scrollTop + 8
+    : rootRect.top - wrapperRect.top + wrapperElement.scrollTop + 48;
+  const maxLeft = Math.max(16, wrapperRect.width - 376);
+
+  return {
+    left: Math.min(Math.max(16, rawLeft), maxLeft),
+    top: Math.max(12, rawTop),
+  };
+}
 
 interface AIBridgePluginProps {
   renderAIBridge: NonNullable<LexicalEditorProps['renderAIBridge']>;
@@ -330,6 +405,147 @@ function CharacterLimitPlugin({
   return null;
 }
 
+interface MarkdownPastePromptPluginProps {
+  enabled: boolean;
+  copyPastePolicy?: LexicalEditorProps['copyPastePolicy'];
+  maxCharacters?: number | null;
+  onCharacterLimitReached?: (limit: number) => void;
+}
+
+interface PendingMarkdownPaste {
+  text: string;
+  position: MarkdownPastePromptPosition;
+}
+
+function MarkdownPastePromptPlugin({
+  enabled,
+  copyPastePolicy = 'allowed',
+  maxCharacters,
+  onCharacterLimitReached,
+}: MarkdownPastePromptPluginProps): JSX.Element | null {
+  const [editor] = useLexicalComposerContext();
+  const [pendingMarkdownPaste, setPendingMarkdownPaste] = React.useState<PendingMarkdownPaste | null>(null);
+
+  const notifyLimitReached = React.useCallback(() => {
+    const limit = normalizeCharacterLimit(maxCharacters);
+    if (limit) {
+      onCharacterLimitReached?.(limit);
+    }
+  }, [maxCharacters, onCharacterLimitReached]);
+
+  React.useEffect(() => {
+    if (!enabled) {
+      setPendingMarkdownPaste(null);
+      return;
+    }
+
+    return editor.registerCommand(
+      PASTE_COMMAND,
+      (event: ClipboardEvent | null) => {
+        if (copyPastePolicy === 'blocked') {
+          return false;
+        }
+
+        const incomingText = event?.clipboardData?.getData('text/plain') || '';
+        if (!incomingText || !looksLikeMarkdown(incomingText)) {
+          return false;
+        }
+
+        event?.preventDefault();
+        setPendingMarkdownPaste({
+          text: incomingText,
+          position: getMarkdownPastePromptPosition(editor.getRootElement()),
+        });
+        return true;
+      },
+      COMMAND_PRIORITY_LOW
+    );
+  }, [copyPastePolicy, editor, enabled]);
+
+  const insertPlainText = React.useCallback(() => {
+    const text = pendingMarkdownPaste?.text;
+    if (!text) {
+      return;
+    }
+
+    editor.update(() => {
+      if (shouldBlockTextInsertion(text, maxCharacters)) {
+        notifyLimitReached();
+        return;
+      }
+
+      const selection = $getSelection();
+      if ($isRangeSelection(selection)) {
+        selection.insertRawText(text);
+        return;
+      }
+
+      const paragraph = $createParagraphNode();
+      paragraph.append($createTextNode(text));
+      $getRoot().append(paragraph);
+    }, { discrete: true });
+    setPendingMarkdownPaste(null);
+    editor.focus();
+  }, [editor, maxCharacters, notifyLimitReached, pendingMarkdownPaste]);
+
+  const renderMarkdown = React.useCallback(() => {
+    const text = pendingMarkdownPaste?.text;
+    if (!text) {
+      return;
+    }
+
+    const serializedNodes = createSerializedMarkdownNodes(text);
+    editor.update(() => {
+      if (shouldBlockTextInsertion(text, maxCharacters)) {
+        notifyLimitReached();
+        return;
+      }
+
+      insertSerializedNodesAtSelection(serializedNodes);
+    }, { discrete: true });
+    setPendingMarkdownPaste(null);
+    editor.focus();
+  }, [editor, maxCharacters, notifyLimitReached, pendingMarkdownPaste]);
+
+  if (!pendingMarkdownPaste) {
+    return null;
+  }
+
+  return (
+    <div
+      role="dialog"
+      aria-live="polite"
+      aria-label="Markdown paste options"
+      style={{
+        ...editorStyles.markdownPastePrompt,
+        left: pendingMarkdownPaste.position.left,
+        top: pendingMarkdownPaste.position.top,
+      }}
+      onMouseDown={(event) => event.preventDefault()}
+    >
+      <span style={editorStyles.markdownPastePromptText}>
+        Markdown detected. Render formatting?
+      </span>
+      <div style={editorStyles.markdownPastePromptActions}>
+        <button
+          type="button"
+          style={editorStyles.markdownPasteSecondaryButton}
+          onClick={insertPlainText}
+        >
+          Plain text
+        </button>
+        <button
+          type="button"
+          style={editorStyles.markdownPastePrimaryButton}
+          onClick={renderMarkdown}
+        >
+          Render
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function AIBridgePlugin({
   renderAIBridge,
   maxCharacters,
@@ -453,11 +669,12 @@ export function LexicalEditor(props: LexicalEditorProps): JSX.Element {
   } = props;
 
   const editorStateJSON = getInitialEditorStateJSON(initialContent);
+  const [markdownEnabled, setMarkdownEnabled] = React.useState(false);
 
   const initialConfig = {
     namespace: 'humanlyEditor',
     theme: defaultTheme,
-    nodes: [HeadingNode, QuoteNode, ListNode, ListItemNode],
+    nodes: editorNodes,
     onError: (error: Error) => {
       console.error('Lexical Editor Error:', error);
     },
@@ -481,7 +698,10 @@ export function LexicalEditor(props: LexicalEditorProps): JSX.Element {
   return (
     <LexicalComposer initialConfig={initialConfig}>
       <div className={`editor-container ${className}`} style={editorStyles.container}>
-        <ToolbarPlugin />
+        <ToolbarPlugin
+          markdownEnabled={markdownEnabled}
+          onMarkdownEnabledChange={setMarkdownEnabled}
+        />
 
         <div style={editorStyles.editorWrapper}>
           <style>{`
@@ -502,6 +722,58 @@ export function LexicalEditor(props: LexicalEditorProps): JSX.Element {
               font-size: inherit;
               color: inherit;
               background-color: inherit;
+            }
+
+            .editor-link {
+              color: #2563eb;
+              text-decoration: underline;
+              text-underline-offset: 2px;
+            }
+
+            .editor-code-block {
+              display: block;
+              margin: 8px 0;
+              padding: 12px;
+              border-radius: 6px;
+              background-color: #f3f4f6;
+              color: #111827;
+              font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+              font-size: 14px;
+              line-height: 1.5;
+              white-space: pre-wrap;
+            }
+
+            .editor-content-editable hr {
+              border: 0;
+              border-top: 1px solid #d8d9cf;
+              margin: 12px 0;
+            }
+
+            .editor-table {
+              border-collapse: collapse;
+              width: max-content;
+              min-width: 100%;
+              margin: 10px 0;
+              table-layout: auto;
+            }
+
+            .editor-table-cell,
+            .editor-table-cell-header {
+              border: 1px solid #d8d9cf;
+              min-width: 96px;
+              padding: 6px 8px;
+              vertical-align: top;
+              overflow-wrap: anywhere;
+            }
+
+            .editor-table-cell-header {
+              background-color: #f7f8f3;
+              font-weight: 600;
+            }
+
+            .editor-table-cell p,
+            .editor-table-cell-header p {
+              margin: 0;
             }
 
             /* List indentation support */
@@ -589,6 +861,14 @@ export function LexicalEditor(props: LexicalEditorProps): JSX.Element {
             }
             ErrorBoundary={LexicalErrorBoundary}
           />
+          {markdownEnabled && (
+            <MarkdownPastePromptPlugin
+              enabled={markdownEnabled}
+              copyPastePolicy={copyPastePolicy}
+              maxCharacters={maxCharacters}
+              onCharacterLimitReached={onCharacterLimitReached}
+            />
+          )}
         </div>
 
         <HistoryPlugin />
@@ -599,10 +879,19 @@ export function LexicalEditor(props: LexicalEditorProps): JSX.Element {
         />
         <OnChangePlugin onChange={handleChange} ignoreSelectionChange />
         <TabIndentationPlugin />
+        <TablePlugin
+          hasCellMerge={false}
+          hasCellBackgroundColor={false}
+          hasTabHandler
+        />
+        <HorizontalRulePlugin />
         <HeadingPlugin />
         <FormattingPlugin />
         <ListPlugin />
         <AlignmentPlugin />
+        {markdownEnabled && (
+          <MarkdownShortcutPlugin transformers={markdownShortcutTransformers} />
+        )}
 
         {trackingEnabled && (
           <TrackingPlugin
@@ -671,6 +960,7 @@ const editorStyles = {
     fontFamily:
       '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
     flex: '1 0 auto',
+    overflowX: 'auto' as const,
   },
   placeholder: {
     position: 'absolute' as const,
@@ -679,5 +969,56 @@ const editorStyles = {
     color: '#9ca3af',
     pointerEvents: 'none' as const,
     userSelect: 'none' as const,
+  },
+  markdownPastePrompt: {
+    position: 'absolute' as const,
+    zIndex: 10,
+    maxWidth: 'min(360px, calc(100% - 32px))',
+    padding: '8px 10px',
+    border: '1px solid #d8d9cf',
+    borderRadius: '8px',
+    backgroundColor: '#ffffff',
+    boxShadow: '0 8px 20px rgba(26, 28, 32, 0.10)',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    flexWrap: 'wrap' as const,
+    justifyContent: 'space-between',
+    fontFamily:
+      '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+  },
+  markdownPastePromptText: {
+    color: '#1a1c20',
+    fontSize: '12px',
+    lineHeight: 1.4,
+  },
+  markdownPastePromptActions: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+  },
+  markdownPasteSecondaryButton: {
+    border: '1px solid #d8d9cf',
+    borderRadius: '999px',
+    backgroundColor: '#ffffff',
+    color: '#1a1c20',
+    cursor: 'pointer',
+    fontFamily: 'inherit',
+    fontSize: '12px',
+    lineHeight: 1,
+    padding: '6px 9px',
+    whiteSpace: 'nowrap' as const,
+  },
+  markdownPastePrimaryButton: {
+    border: '1px solid #1a1c20',
+    borderRadius: '999px',
+    backgroundColor: '#1a1c20',
+    color: '#ffffff',
+    cursor: 'pointer',
+    fontFamily: 'inherit',
+    fontSize: '12px',
+    lineHeight: 1,
+    padding: '6px 9px',
+    whiteSpace: 'nowrap' as const,
   },
 };
