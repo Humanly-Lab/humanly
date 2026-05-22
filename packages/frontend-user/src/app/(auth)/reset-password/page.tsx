@@ -7,7 +7,6 @@ import { z } from 'zod';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/stores/auth-store';
-import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -260,11 +259,15 @@ function ResetPasswordContent() {
 export default function ResetPasswordPage() {
   return (
     <Suspense fallback={
-      <Card>
-        <CardContent className="flex items-center justify-center py-8">
-          <Loader2 className="h-8 w-8 animate-spin" />
-        </CardContent>
-      </Card>
+      <AuthCard
+        title="Checking reset link"
+        description="Humanly is confirming this reset link before showing the password form."
+        footer={<AuthBackLink href="/login">Back to login</AuthBackLink>}
+      >
+        <div className="flex items-center justify-center py-6 text-muted-foreground">
+          <Loader2 className="h-6 w-6 animate-spin" />
+        </div>
+      </AuthCard>
     }>
       <ResetPasswordContent />
     </Suspense>

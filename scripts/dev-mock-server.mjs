@@ -12,9 +12,11 @@
  *     GET  /health
  *     GET  /api/v1/auth/me
  *     POST /api/v1/auth/login            (also returns the bypass token)
+ *     GET  /api/v1/auth/oauth/providers
  *     GET  /api/v1/ai/settings
  *     GET  /api/v1/documents
  *     GET  /api/v1/documents/:id
+ *     GET  /api/v1/tasks/my-enrollments
  *     POST /api/v1/documents/:id/events
  *     GET  /api/v1/certificates
  *     POST /api/v1/certificates
@@ -171,6 +173,18 @@ function ok(res, data) {
   json(res, 200, { success: true, data });
 }
 
+function unauthorized(res) {
+  json(res, 401, {
+    success: false,
+    error: 'Unauthorized',
+    message: 'Authentication required',
+  });
+}
+
+function hasMockAuth(req) {
+  return req.headers.authorization === `Bearer ${MOCK_TOKEN}`;
+}
+
 async function readBody(req) {
   return new Promise((resolve) => {
     const chunks = [];
@@ -212,6 +226,7 @@ const server = createServer(async (req, res) => {
 
   // Auth endpoints — frontend expects response.data.user / response.data.accessToken
   if (p === '/api/v1/auth/me') {
+    if (!hasMockAuth(req)) return unauthorized(res);
     return ok(res, { user: MOCK_USER });
   }
   if (p === '/api/v1/auth/login' && method === 'POST') {
@@ -219,14 +234,24 @@ const server = createServer(async (req, res) => {
     return ok(res, { user: MOCK_USER, accessToken: MOCK_TOKEN, refreshToken: MOCK_TOKEN });
   }
   if (p === '/api/v1/auth/refresh' && method === 'POST') {
+    if (!hasMockAuth(req)) return unauthorized(res);
     return ok(res, { accessToken: MOCK_TOKEN, refreshToken: MOCK_TOKEN });
   }
   if (p === '/api/v1/auth/logout' && method === 'POST') {
     return ok(res, { ok: true });
   }
+  if (p === '/api/v1/auth/oauth/providers' && method === 'GET') {
+    return ok(res, { providers: { google: true, github: true } });
+  }
 
   if (p === '/api/v1/ai/settings') {
     return ok(res, { baseUrl: 'mock://local', model: 'mock-llm', hasApiKey: true, maskedApiKey: 'mock-****' });
+  }
+
+  // Task enrollment list used by the workspace dashboard. Keep empty in mock
+  // mode so local visual QA can load both Personal Writing and Assigned Tasks.
+  if (p === '/api/v1/tasks/my-enrollments' && method === 'GET') {
+    return ok(res, { enrollments: [] });
   }
 
   // Documents.
