@@ -45,7 +45,7 @@ import {
 } from '@/components/ui/select';
 import { useToast } from '@/components/ui/use-toast';
 import { api } from '@/lib/api-client';
-import { getWhitelist } from '@/lib/ai-models';
+import { MODEL_WHITELIST, getWhitelist } from '@/lib/ai-models';
 import {
   getLocalTimeZoneLabel,
   localDateTimeInputToISOString,
@@ -64,6 +64,8 @@ import {
   type Task,
   type UserAISettings,
   type WritingAiAccess,
+  type WritingAiProvider,
+  type WritingAiProviderConfig,
   type WritingEnvironmentConfig,
   type WritingEnvironmentPreset,
 } from '@humanly/shared';
@@ -106,6 +108,65 @@ const fallbackWritingModels = () => (
 const modelBelongsToOptions = (model: string, options: string[]) => (
   !!model && model !== CUSTOM_MODEL_VALUE && options.includes(model)
 );
+
+const KNOWN_AI_PROVIDER_BASE_URLS: Record<string, string> = {
+  'api.together.xyz': 'https://api.together.xyz/v1',
+  'openrouter.ai': 'https://openrouter.ai/api/v1',
+  'api.openai.com': 'https://api.openai.com/v1',
+  'api.deepseek.com': 'https://api.deepseek.com/v1',
+  'api.anthropic.com': 'https://api.anthropic.com/v1',
+  'generativelanguage.googleapis.com': 'https://generativelanguage.googleapis.com/v1beta',
+};
+
+const getAiProviderForBaseUrl = (baseUrl: string): WritingAiProvider => {
+  try {
+    const host = new URL(baseUrl).hostname;
+    if (host === 'api.together.xyz') return 'together';
+    if (host === 'openrouter.ai') return 'openrouter';
+  } catch {
+    return 'custom';
+  }
+  return 'custom';
+};
+
+const getAiProviderConfigForBaseUrl = (baseUrl: string): WritingAiProviderConfig | undefined => {
+  const normalizedBaseUrl = baseUrl.trim();
+  if (!normalizedBaseUrl) return undefined;
+  return {
+    provider: getAiProviderForBaseUrl(normalizedBaseUrl),
+    baseUrl: normalizedBaseUrl,
+  };
+};
+
+const getAiProviderConfigForModel = (model: string): WritingAiProviderConfig | undefined => {
+  const normalizedModel = model.trim();
+  if (!normalizedModel) return undefined;
+
+  const match = Object.entries(MODEL_WHITELIST).find(([, descriptors]) => (
+    descriptors.some((descriptor) => descriptor.id === normalizedModel)
+  ));
+  if (!match) return undefined;
+
+  const [host] = match;
+  return getAiProviderConfigForBaseUrl(KNOWN_AI_PROVIDER_BASE_URLS[host] || `https://${host}/v1`);
+};
+
+const resolveAiProviderConfig = (
+  model: string,
+  baseUrl: string,
+  existingProvider?: WritingAiProviderConfig,
+): WritingAiProviderConfig | undefined => {
+  const normalizedBaseUrl = baseUrl.trim();
+  if (normalizedBaseUrl && getWhitelist(normalizedBaseUrl)?.includes(model)) {
+    return getAiProviderConfigForBaseUrl(normalizedBaseUrl);
+  }
+
+  return (
+    getAiProviderConfigForModel(model)
+    || (existingProvider?.baseUrl ? existingProvider : undefined)
+    || getAiProviderConfigForBaseUrl(normalizedBaseUrl || DEFAULT_AI_BASE_URL)
+  );
+};
 
 type AiConnectionResult = {
   success: boolean;
@@ -155,6 +216,10 @@ const isPositiveNumber = (value: unknown): value is number => (
   typeof value === 'number' && Number.isFinite(value) && value > 0
 );
 
+const isWritingAiProvider = (value: unknown): value is WritingAiProvider => (
+  value === 'together' || value === 'openrouter' || value === 'custom'
+);
+
 const getTimeLimitMinutesValue = (seconds?: number): string => (
   String(Math.max(1, Math.round((seconds || 3600) / 60)))
 );
@@ -199,17 +264,42 @@ const normalizeImportedEnvironmentConfig = (value: unknown): WritingEnvironmentC
   const base = getAdminEnvironmentConfig('default_writing');
   const imported = value;
   const instructions = isRecord(imported.instructions) ? imported.instructions : {};
+  const aiProvider = isRecord(imported.aiProvider) ? imported.aiProvider : {};
   const aiUsageLimit = isRecord(imported.aiUsageLimit) ? imported.aiUsageLimit : {};
   const aiTokenBudget = isRecord(imported.aiTokenBudget) ? imported.aiTokenBudget : {};
   const time = isRecord(imported.time) ? imported.time : {};
   const submission = isRecord(imported.submission) ? imported.submission : {};
   const traceability = isRecord(imported.traceability) ? imported.traceability : {};
   const aiAccess = normalizeAiAccessForForm(imported.aiAccess, base.aiAccess);
+  const importedProviderBaseUrl = typeof aiProvider.baseUrl === 'string'
+    ? aiProvider.baseUrl.trim()
+    : undefined;
+  const importedProvider = isWritingAiProvider(aiProvider.provider)
+    ? aiProvider.provider
+    : importedProviderBaseUrl
+      ? getAiProviderForBaseUrl(importedProviderBaseUrl)
+      : undefined;
   const copyPastePolicy = normalizeCopyPastePolicy(
     typeof imported.copyPastePolicy === 'string'
       ? imported.copyPastePolicy
       : base.copyPastePolicy
   );
+  const normalizedAllowedModels = aiAccess === 'off'
+    ? []
+    : normalizeStringArray(imported.allowedModels, base.allowedModels);
+  const normalizedCustomModels = aiAccess === 'off'
+    ? []
+    : normalizeStringArray(imported.customModels, base.customModels);
+  const explicitProviderConfig = importedProviderBaseUrl && importedProvider
+    ? {
+      provider: importedProvider,
+      baseUrl: importedProviderBaseUrl,
+    }
+    : undefined;
+  const modelForProvider = normalizedAllowedModels[0] || normalizedCustomModels[0] || '';
+  const aiProviderConfig = aiAccess === 'off'
+    ? undefined
+    : explicitProviderConfig || getAiProviderConfigForModel(modelForProvider);
 
   return {
     ...base,
@@ -217,8 +307,9 @@ const normalizeImportedEnvironmentConfig = (value: unknown): WritingEnvironmentC
     preset: 'custom',
     taskType: 'admin_assigned',
     aiAccess,
-    allowedModels: aiAccess === 'off' ? [] : normalizeStringArray(imported.allowedModels, base.allowedModels),
-    customModels: aiAccess === 'off' ? [] : normalizeStringArray(imported.customModels, base.customModels),
+    aiProvider: aiProviderConfig,
+    allowedModels: normalizedAllowedModels,
+    customModels: normalizedCustomModels,
     instructions: {
       ...base.instructions,
       hasInstructionPdf: typeof instructions.hasInstructionPdf === 'boolean'
@@ -277,17 +368,6 @@ const normalizeImportedEnvironmentConfig = (value: unknown): WritingEnvironmentC
     copyPastePolicy,
   };
 };
-
-const disableUnverifiedAiAccess = (config: WritingEnvironmentConfig): WritingEnvironmentConfig => ({
-  ...config,
-  aiAccess: 'off',
-  allowedModels: [],
-  customModels: [],
-  traceability: {
-    ...config.traceability,
-    trackAiUsage: false,
-  },
-});
 
 const getDefaultEndDate = () => new Date(Date.now() + DEFAULT_TASK_WINDOW_DAYS * 24 * 60 * 60 * 1000);
 
@@ -464,11 +544,10 @@ export default function NewTaskPage() {
 
     try {
       const parsed = JSON.parse(await file.text());
-      const importedConfig = normalizeImportedEnvironmentConfig(parsed);
-      const disabledImportedAi = importedConfig.aiAccess !== 'off';
-      const config = disabledImportedAi
-        ? disableUnverifiedAiAccess(importedConfig)
-        : importedConfig;
+      const config = normalizeImportedEnvironmentConfig(parsed);
+      if (config.aiProvider?.baseUrl) {
+        setAiBaseUrl(config.aiProvider.baseUrl);
+      }
       setEnvironmentSelection(IMPORT_ENVIRONMENT_VALUE);
       setEnvironmentConfig(config);
       setAiAccessState(config.aiAccess);
@@ -479,9 +558,7 @@ export default function NewTaskPage() {
       form.setValue('aiUsageLimit', config.aiUsageLimit.maxRequests || 100);
       toast({
         title: 'Environment imported',
-        description: disabledImportedAi
-          ? 'The JSON configuration was applied. AI was set to Off until an API key is tested.'
-          : 'The JSON configuration was applied to this task.',
+        description: 'The JSON configuration was applied to this task.',
       });
     } catch (err: any) {
       toast({
@@ -697,6 +774,9 @@ export default function NewTaskPage() {
       }
 
       const allowedModels = aiAccess === 'off' ? [] : [selectedAiModel];
+      const resolvedAiProvider = aiAccess === 'off'
+        ? undefined
+        : resolveAiProviderConfig(selectedAiModel, aiBaseUrl, environmentConfig.aiProvider);
       if (timeLimitEnabled && (!data.startDate || !data.endDate)) {
         throw new Error('Select both start and end time when Time is on.');
       }
@@ -733,6 +813,7 @@ export default function NewTaskPage() {
           ...environmentConfig,
           taskType: 'admin_assigned',
           aiAccess,
+          aiProvider: resolvedAiProvider,
           allowedModels,
           customModels: aiModel === CUSTOM_MODEL_VALUE && selectedAiModel ? [selectedAiModel] : [],
           instructions: {

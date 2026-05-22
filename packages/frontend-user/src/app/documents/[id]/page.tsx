@@ -36,11 +36,17 @@ import type { TrackedEvent } from '@humanly/editor';
 import { useState, useEffect, useCallback, useMemo, useRef, type ChangeEvent } from 'react';
 import dynamic from 'next/dynamic';
 import { apiClient, TokenManager } from '@/lib/api-client';
+import {
+  AI_PROVIDER_OPTIONS,
+  getProviderValueForBaseUrl,
+  getWhitelist,
+} from '@/lib/ai-models';
 import { formatDateTime } from '@/lib/utils';
 import { isGuestUserEmail } from '@/components/navigation/user-display';
 import {
   DEFAULT_WRITING_ENVIRONMENT_CONFIG,
   normalizeCopyPastePolicy,
+  type WritingAiProviderConfig,
   type WritingEnvironmentConfig,
 } from '@humanly/shared';
 
@@ -118,6 +124,38 @@ const getTimestampMs = (value?: string | Date | null): number | null => {
   if (!value) return null;
   const timestamp = new Date(value).getTime();
   return Number.isFinite(timestamp) ? timestamp : null;
+};
+
+const getAiProviderConfigForBaseUrl = (baseUrl: string): WritingAiProviderConfig | undefined => {
+  const normalizedBaseUrl = baseUrl.trim();
+  if (!normalizedBaseUrl) return undefined;
+  return {
+    provider: getProviderValueForBaseUrl(normalizedBaseUrl),
+    baseUrl: normalizedBaseUrl,
+  };
+};
+
+const getAiProviderConfigForModel = (model: string): WritingAiProviderConfig | undefined => {
+  const normalizedModel = model.trim();
+  if (!normalizedModel) return undefined;
+
+  const provider = AI_PROVIDER_OPTIONS.find((option) => (
+    !!option.baseUrl && getWhitelist(option.baseUrl)?.includes(normalizedModel)
+  ));
+
+  return provider?.baseUrl ? getAiProviderConfigForBaseUrl(provider.baseUrl) : undefined;
+};
+
+const enrichEnvironmentConfigForExport = (
+  config: WritingEnvironmentConfig,
+): WritingEnvironmentConfig => {
+  if (config.aiAccess === 'off' || config.aiProvider?.baseUrl) {
+    return config;
+  }
+
+  const model = config.allowedModels?.[0] || config.customModels?.[0] || '';
+  const inferredProvider = getAiProviderConfigForModel(model);
+  return inferredProvider ? { ...config, aiProvider: inferredProvider } : config;
 };
 
 function normalizeEditorInitialContent(content: unknown): string | Record<string, any> | undefined {
@@ -925,8 +963,9 @@ export default function DocumentEditorPage() {
   const lockedAiBaseUrl = currentEnvironmentConfig.aiProvider?.baseUrl;
 
   const handleExportConfig = () => {
+    const configForExport = enrichEnvironmentConfigForExport(currentEnvironmentConfig);
     const blob = new Blob(
-      [JSON.stringify(currentEnvironmentConfig, null, 2)],
+      [JSON.stringify(configForExport, null, 2)],
       { type: 'application/json' }
     );
     downloadBlob(

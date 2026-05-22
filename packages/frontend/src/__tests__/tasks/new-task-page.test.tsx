@@ -242,16 +242,36 @@ describe('admin new task page', () => {
     });
   });
 
-  it('imports environment JSON but downgrades unverified AI-on config until tested', async () => {
+  it('imports AI-on environment JSON and preserves the inferred provider', async () => {
     mockApiGet.mockResolvedValue({
       data: {
         hasApiKey: true,
         maskedApiKey: 'sk-****1234',
         baseUrl: 'https://api.together.xyz/v1',
-        model: 'GPT-5',
+        model: 'moonshotai/Kimi-K2.6',
       },
     });
     mockApiPut.mockResolvedValue({ success: true });
+    mockApiPost.mockImplementation(async (url: string, payload: any) => {
+      if (url === '/api/v1/ai/settings/test') {
+        expect(payload).toEqual(expect.objectContaining({
+          apiKey: '__use_existing__',
+          baseUrl: 'https://openrouter.ai/api/v1',
+        }));
+        return {
+          success: true,
+          models: ['qwen/qwen3.5-397b-a17b'],
+        };
+      }
+      if (url === '/api/v1/tasks') {
+        return {
+          success: true,
+          data: { id: 'created-task-1' },
+          message: 'Task created',
+        };
+      }
+      throw new Error(`Unexpected POST ${url}`);
+    });
     render(<NewTaskPage />);
 
     const importOption = await screen.findByRole('option', { name: 'Import Environment' });
@@ -264,7 +284,7 @@ describe('admin new task page', () => {
 
     const environmentJson = JSON.stringify({
       aiAccess: 'full',
-      allowedModels: ['GPT-5'],
+      allowedModels: ['qwen/qwen3.5-397b-a17b'],
       aiUsageLimit: { mode: 'max_requests', maxRequests: 42 },
       submission: { mode: 'multiple', minCharacters: 1000 },
       copyPastePolicy: 'blocked',
@@ -282,12 +302,12 @@ describe('admin new task page', () => {
     await waitFor(() => {
       expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({
         title: 'Environment imported',
-        description: expect.stringContaining('AI was set to Off'),
+        description: 'The JSON configuration was applied to this task.',
       }));
     });
 
-    expect(screen.getByRole('option', { name: 'AI Off' })).toHaveAttribute('aria-selected', 'true');
-    expect(screen.queryByLabelText(/AI Usage Limit/i)).not.toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'AI On' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByLabelText(/AI Usage Limit/i)).toBeInTheDocument();
 
     await act(async () => {
       fireEvent.change(screen.getByLabelText(/Task Name/i), {
@@ -304,8 +324,12 @@ describe('admin new task page', () => {
         expect.objectContaining({
           environmentConfig: expect.objectContaining({
             taskType: 'admin_assigned',
-            aiAccess: 'off',
-            allowedModels: [],
+            aiAccess: 'full',
+            aiProvider: {
+              provider: 'openrouter',
+              baseUrl: 'https://openrouter.ai/api/v1',
+            },
+            allowedModels: ['qwen/qwen3.5-397b-a17b'],
             copyPastePolicy: 'blocked',
             aiUsageLimit: {
               mode: 'max_requests',
@@ -316,13 +340,17 @@ describe('admin new task page', () => {
               minCharacters: 1000,
             }),
             traceability: expect.objectContaining({
-              trackAiUsage: false,
+              trackAiUsage: true,
             }),
           }),
         })
       );
     });
-    expect(mockApiPut).not.toHaveBeenCalled();
+    expect(mockApiPut).toHaveBeenCalledWith('/api/v1/ai/settings', expect.objectContaining({
+      apiKey: '__use_existing__',
+      baseUrl: 'https://openrouter.ai/api/v1',
+      model: 'qwen/qwen3.5-397b-a17b',
+    }));
 
   });
 });

@@ -7,7 +7,7 @@ const mockPush = jest.fn();
 const mockToast = jest.fn();
 const mockCreateDocument = jest.fn();
 const mockApiGet = jest.fn();
-const mockApiPost = jest.fn();
+const mockApiPut = jest.fn();
 
 jest.mock('next/navigation', () => ({
   useRouter: () => ({
@@ -30,8 +30,8 @@ jest.mock('@/hooks/use-documents', () => ({
 jest.mock('@/lib/api-client', () => ({
   apiClient: {
     get: (...args: any[]) => mockApiGet(...args),
-    put: jest.fn(),
-    post: (...args: any[]) => mockApiPost(...args),
+    put: (...args: any[]) => mockApiPut(...args),
+    post: jest.fn(),
   },
 }));
 
@@ -60,8 +60,9 @@ describe('document creation workflow', () => {
     mockToast.mockClear();
     mockCreateDocument.mockReset();
     mockApiGet.mockReset();
-    mockApiPost.mockReset();
+    mockApiPut.mockReset();
     mockApiGet.mockResolvedValue({ data: { data: null } });
+    mockApiPut.mockResolvedValue({ data: { success: true } });
   });
 
   it('blocks empty titles and creates an AI-off document that opens the editor', async () => {
@@ -169,7 +170,7 @@ describe('document creation workflow', () => {
     expect(screen.queryByText('Custom Environment')).not.toBeInTheDocument();
   });
 
-  it('downgrades imported AI-on environments until an API key is tested', async () => {
+  it('preserves imported AI-on environments and infers provider from known models', async () => {
     const user = userEvent.setup();
     render(<NewDocumentPage />);
 
@@ -182,10 +183,6 @@ describe('document creation workflow', () => {
 
     const environmentJson = JSON.stringify({
       aiAccess: 'full',
-      aiProvider: {
-        provider: 'openrouter',
-        baseUrl: 'https://openrouter.ai/api/v1',
-      },
       allowedModels: ['qwen/qwen3.5-397b-a17b'],
       traceability: { trackAiUsage: true },
     });
@@ -199,13 +196,16 @@ describe('document creation workflow', () => {
     await waitFor(() => {
       expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({
         title: 'Environment imported',
-        description: expect.stringContaining('AI was set to Off'),
+        description: 'The JSON configuration was applied to this document.',
       }));
     });
 
     expect(screen.getByText('Custom Environment')).toBeInTheDocument();
-    expect(screen.getByText('Off')).toBeInTheDocument();
-    expect(screen.queryByText('On')).not.toBeInTheDocument();
+    expect(screen.getByText('On')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /^edit settings$/i }));
+    expect(screen.getByText('qwen/qwen3.5-397b-a17b')).toBeInTheDocument();
+    expect(screen.getByText('OpenRouter')).toBeInTheDocument();
   });
 
   it('does not expose or persist minimum character limits for personal writing', async () => {
@@ -241,17 +241,8 @@ describe('document creation workflow', () => {
     expect(mockCreateDocument.mock.calls[0][2].submission.minCharacters).toBeUndefined();
   });
 
-  it('keeps known-provider model choices on the curated whitelist after testing connection', async () => {
+  it('keeps known-provider model choices on the curated whitelist without a separate connection test', async () => {
     const user = userEvent.setup();
-    mockApiPost.mockResolvedValueOnce({
-      data: {
-        success: true,
-        models: [
-          'qwen/qwen-plus-2025-07-28',
-          'qwen/qwen3-30b-a3b-thinking-2507',
-        ],
-      },
-    });
 
     render(<NewDocumentPage />);
 
@@ -264,29 +255,15 @@ describe('document creation workflow', () => {
     await user.type(screen.getByLabelText(/ai api key/i), 'sk-or-test');
     await user.click(screen.getByRole('combobox', { name: /ai provider/i }));
     await user.click(await screen.findByRole('option', { name: 'OpenRouter' }));
-    await user.click(screen.getByRole('button', { name: /test connection/i }));
 
-    expect(mockApiPost).toHaveBeenCalledWith('/ai/settings/test', expect.objectContaining({
-      apiKey: 'sk-or-test',
-      baseUrl: 'https://openrouter.ai/api/v1',
-    }));
-    expect(await screen.findByText('qwen/qwen3.5-397b-a17b')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /test connection/i })).not.toBeInTheDocument();
+    expect(screen.getByText('qwen/qwen3.5-397b-a17b')).toBeInTheDocument();
     expect(screen.queryByText('qwen/qwen-plus-2025-07-28')).not.toBeInTheDocument();
   });
 
   it('persists the selected provider with the environment JSON config', async () => {
     const user = userEvent.setup();
     mockCreateDocument.mockResolvedValueOnce({ id: 'doc-456', title: 'Provider-bound Writing' });
-    const connectionSuccess = {
-      data: {
-        success: true,
-        message: 'Connection successful.',
-        models: ['qwen/qwen3.5-397b-a17b'],
-      },
-    };
-    mockApiPost
-      .mockResolvedValueOnce(connectionSuccess)
-      .mockResolvedValueOnce(connectionSuccess);
 
     render(<NewDocumentPage />);
 
@@ -299,12 +276,15 @@ describe('document creation workflow', () => {
     await user.type(screen.getByLabelText(/ai api key/i), 'sk-or-test');
     await user.click(screen.getByRole('combobox', { name: /ai provider/i }));
     await user.click(await screen.findByRole('option', { name: 'OpenRouter' }));
-    await user.click(screen.getByRole('button', { name: /test connection/i }));
-    await screen.findByText('Connection successful.');
     await user.click(screen.getByRole('button', { name: /^done$/i }));
     await user.click(screen.getByRole('button', { name: /^create writing$/i }));
 
     await waitFor(() => {
+      expect(mockApiPut).toHaveBeenCalledWith('/ai/settings', expect.objectContaining({
+        apiKey: 'sk-or-test',
+        baseUrl: 'https://openrouter.ai/api/v1',
+        model: 'qwen/qwen3.5-397b-a17b',
+      }));
       expect(mockCreateDocument).toHaveBeenCalledWith(
         'Provider-bound Writing',
         undefined,
@@ -321,7 +301,7 @@ describe('document creation workflow', () => {
     });
   });
 
-  it('requires and auto-tests an AI key before closing custom settings with AI on', async () => {
+  it('closes custom settings without a separate AI key verification step and validates on create', async () => {
     const user = userEvent.setup();
     render(<NewDocumentPage />);
 
@@ -333,31 +313,21 @@ describe('document creation workflow', () => {
 
     await user.click(screen.getByRole('button', { name: /^done$/i }));
 
-    expect(mockApiPost).not.toHaveBeenCalled();
-    expect(screen.getByText('Enter an AI API key before testing the connection.')).toBeInTheDocument();
-    expect(screen.getByRole('dialog', { name: /custom environment/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /test connection/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: /custom environment/i })).not.toBeInTheDocument();
+    expect(screen.getByText('Custom Environment')).toBeInTheDocument();
+    expect(screen.getByText('On')).toBeInTheDocument();
 
-    mockApiPost.mockResolvedValueOnce({
-      data: {
-        success: true,
-        message: 'Connection successful.',
-        models: ['qwen/qwen3.5-397b-a17b'],
-      },
-    });
-
-    await user.type(screen.getByLabelText(/ai api key/i), 'sk-test');
-    await user.click(screen.getByRole('button', { name: /^done$/i }));
+    await user.type(screen.getByLabelText(/document name/i), 'Needs AI Key');
+    await user.click(screen.getByRole('button', { name: /^create writing$/i }));
 
     await waitFor(() => {
-      expect(mockApiPost).toHaveBeenCalledWith('/ai/settings/test', expect.objectContaining({
-        apiKey: 'sk-test',
-      }));
       expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({
-        title: 'AI key verified',
+        title: 'AI key required',
       }));
-      expect(screen.queryByRole('dialog', { name: /custom environment/i })).not.toBeInTheDocument();
     });
-    expect(screen.getByText('Key verified')).toBeInTheDocument();
+    expect(mockApiPut).not.toHaveBeenCalled();
+    expect(mockCreateDocument).not.toHaveBeenCalled();
   });
 
   it('reverts unvalidated AI-on settings when the custom dialog is dismissed', async () => {

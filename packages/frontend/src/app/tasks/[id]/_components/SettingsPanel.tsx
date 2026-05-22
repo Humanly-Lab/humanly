@@ -31,11 +31,13 @@ import {
   type Task,
   type UserAISettings,
   type WritingAiAccess,
+  type WritingAiProvider,
+  type WritingAiProviderConfig,
   type WritingEnvironmentConfig,
 } from '@humanly/shared';
 
 import { api } from '@/lib/api-client';
-import { getWhitelist } from '@/lib/ai-models';
+import { MODEL_WHITELIST, getWhitelist } from '@/lib/ai-models';
 import { downloadBlob } from '@/lib/download';
 import {
   cn,
@@ -119,6 +121,65 @@ const fallbackWritingModels = () => (
 const modelBelongsToOptions = (model: string, options: string[]) => (
   !!model && model !== CUSTOM_MODEL_VALUE && options.includes(model)
 );
+
+const KNOWN_AI_PROVIDER_BASE_URLS: Record<string, string> = {
+  'api.together.xyz': 'https://api.together.xyz/v1',
+  'openrouter.ai': 'https://openrouter.ai/api/v1',
+  'api.openai.com': 'https://api.openai.com/v1',
+  'api.deepseek.com': 'https://api.deepseek.com/v1',
+  'api.anthropic.com': 'https://api.anthropic.com/v1',
+  'generativelanguage.googleapis.com': 'https://generativelanguage.googleapis.com/v1beta',
+};
+
+const getAiProviderForBaseUrl = (baseUrl: string): WritingAiProvider => {
+  try {
+    const host = new URL(baseUrl).hostname;
+    if (host === 'api.together.xyz') return 'together';
+    if (host === 'openrouter.ai') return 'openrouter';
+  } catch {
+    return 'custom';
+  }
+  return 'custom';
+};
+
+const getAiProviderConfigForBaseUrl = (baseUrl: string): WritingAiProviderConfig | undefined => {
+  const normalizedBaseUrl = baseUrl.trim();
+  if (!normalizedBaseUrl) return undefined;
+  return {
+    provider: getAiProviderForBaseUrl(normalizedBaseUrl),
+    baseUrl: normalizedBaseUrl,
+  };
+};
+
+const getAiProviderConfigForModel = (model: string): WritingAiProviderConfig | undefined => {
+  const normalizedModel = model.trim();
+  if (!normalizedModel) return undefined;
+
+  const match = Object.entries(MODEL_WHITELIST).find(([, descriptors]) => (
+    descriptors.some((descriptor) => descriptor.id === normalizedModel)
+  ));
+  if (!match) return undefined;
+
+  const [host] = match;
+  return getAiProviderConfigForBaseUrl(KNOWN_AI_PROVIDER_BASE_URLS[host] || `https://${host}/v1`);
+};
+
+const resolveAiProviderConfig = (
+  model: string,
+  baseUrl: string,
+  existingProvider?: WritingAiProviderConfig,
+): WritingAiProviderConfig | undefined => {
+  const normalizedBaseUrl = baseUrl.trim();
+  if (normalizedBaseUrl && getWhitelist(normalizedBaseUrl)?.includes(model)) {
+    return getAiProviderConfigForBaseUrl(normalizedBaseUrl);
+  }
+
+  return (
+    getAiProviderConfigForModel(model)
+    || (existingProvider?.baseUrl ? existingProvider : undefined)
+    || getAiProviderConfigForBaseUrl(normalizedBaseUrl || DEFAULT_AI_BASE_URL)
+  );
+};
 
 const parseOptionalMinCharacters = (value: string): number | undefined => {
   const trimmed = value.trim();
@@ -412,6 +473,9 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
         );
 
         setTask(taskFromApi);
+        if (mergedConfig.aiProvider?.baseUrl) {
+          setAiBaseUrl(mergedConfig.aiProvider.baseUrl);
+        }
         setEnvironmentConfig({
           ...mergedConfig,
           aiAccess: existingAiAccess,
@@ -732,6 +796,9 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
 
   const buildCurrentEnvironmentConfig = (data: TaskSettingsFormData): WritingEnvironmentConfig => {
     const allowedModels = aiAccess === 'off' ? [] : selectedAiModel ? [selectedAiModel] : [];
+    const resolvedAiProvider = aiAccess === 'off'
+      ? undefined
+      : resolveAiProviderConfig(selectedAiModel, aiBaseUrl, environmentConfig.aiProvider);
     const startTime = timeLimitEnabled && data.startDate
       ? localDateTimeInputToISOString(data.startDate)
       : undefined;
@@ -751,6 +818,7 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
       taskType: 'admin_assigned',
       preset: 'custom',
       aiAccess,
+      aiProvider: resolvedAiProvider,
       allowedModels,
       customModels: aiModel === CUSTOM_MODEL_VALUE && selectedAiModel ? [selectedAiModel] : [],
       instructions: {
