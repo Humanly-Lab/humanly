@@ -61,6 +61,7 @@ import {
   WRITING_AI_MODELS,
   WRITING_ENVIRONMENT_PRESETS,
   normalizeCopyPastePolicy,
+  validateWritingEnvironmentImportTemplate,
   type Task,
   type UserAISettings,
   type WritingAiAccess,
@@ -204,22 +205,6 @@ const getAdminEnvironmentConfig = (preset: WritingEnvironmentPreset = 'default_w
   },
 });
 
-const isRecord = (value: unknown): value is Record<string, unknown> => (
-  !!value && typeof value === 'object' && !Array.isArray(value)
-);
-
-const normalizeAiAccessForForm = (value: unknown, fallback: WritingAiAccess): WritingAiAccess => (
-  value === 'off' ? 'off' : value === 'full' || value === 'readonly' ? 'full' : fallback
-);
-
-const isPositiveNumber = (value: unknown): value is number => (
-  typeof value === 'number' && Number.isFinite(value) && value > 0
-);
-
-const isWritingAiProvider = (value: unknown): value is WritingAiProvider => (
-  value === 'together' || value === 'openrouter' || value === 'custom'
-);
-
 const getTimeLimitMinutesValue = (seconds?: number): string => (
   String(Math.max(1, Math.round((seconds || 3600) / 60)))
 );
@@ -250,136 +235,23 @@ const parseOptionalMaxCharacters = (value: string): number | undefined => {
   return Math.min(Math.floor(parsed), SUBMISSION_MAX_CHARACTERS_MAX);
 };
 
-const normalizeStringArray = (value: unknown, fallback: string[] = []) => (
-  Array.isArray(value)
-    ? value.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
-    : fallback
-);
-
 const normalizeImportedEnvironmentConfig = (value: unknown): WritingEnvironmentConfig => {
-  if (!isRecord(value)) {
-    throw new Error('Environment configuration must be a JSON object.');
-  }
-
-  const base = getAdminEnvironmentConfig('default_writing');
-  const imported = value;
-  const instructions = isRecord(imported.instructions) ? imported.instructions : {};
-  const hasImportedAiProvider = isRecord(imported.aiProvider);
-  const aiProvider: Record<string, unknown> = hasImportedAiProvider
-    ? imported.aiProvider as Record<string, unknown>
-    : {};
-  const aiUsageLimit = isRecord(imported.aiUsageLimit) ? imported.aiUsageLimit : {};
-  const aiTokenBudget = isRecord(imported.aiTokenBudget) ? imported.aiTokenBudget : {};
-  const time = isRecord(imported.time) ? imported.time : {};
-  const submission = isRecord(imported.submission) ? imported.submission : {};
-  const traceability = isRecord(imported.traceability) ? imported.traceability : {};
-  const aiAccess = normalizeAiAccessForForm(imported.aiAccess, base.aiAccess);
-  const importedProviderBaseUrl = typeof aiProvider.baseUrl === 'string'
-    ? aiProvider.baseUrl.trim()
-    : undefined;
-  const importedProvider = isWritingAiProvider(aiProvider.provider)
-    ? aiProvider.provider
-    : importedProviderBaseUrl
-      ? getAiProviderForBaseUrl(importedProviderBaseUrl)
-      : undefined;
-  const copyPastePolicy = normalizeCopyPastePolicy(
-    typeof imported.copyPastePolicy === 'string'
-      ? imported.copyPastePolicy
-      : base.copyPastePolicy
-  );
-  const normalizedAllowedModels = aiAccess === 'off'
-    ? []
-    : normalizeStringArray(imported.allowedModels, base.allowedModels);
-  const normalizedCustomModels = aiAccess === 'off'
-    ? []
-    : normalizeStringArray(imported.customModels, base.customModels);
-  const explicitProviderConfig = importedProviderBaseUrl && importedProvider
-    ? {
-      provider: importedProvider,
-      baseUrl: importedProviderBaseUrl,
-    }
-    : undefined;
-  const aiProviderConfig = aiAccess === 'off' ? undefined : explicitProviderConfig;
-
-  if (aiAccess !== 'off') {
-    if (!hasImportedAiProvider || !aiProviderConfig) {
-      throw new Error('AI-enabled environment JSON is incomplete. Include aiProvider.provider and aiProvider.baseUrl.');
-    }
-
-    try {
-      new URL(aiProviderConfig.baseUrl);
-    } catch {
-      throw new Error('AI-enabled environment JSON has an invalid aiProvider.baseUrl.');
-    }
-
-    if (!normalizedAllowedModels.length && !normalizedCustomModels.length) {
-      throw new Error('AI-enabled environment JSON must include at least one allowed model.');
-    }
-  }
+  const imported = validateWritingEnvironmentImportTemplate(value, 'admin_assigned');
+  const aiAccess: WritingAiAccess = imported.aiAccess === 'off' ? 'off' : 'full';
+  const copyPastePolicy = normalizeCopyPastePolicy(imported.copyPastePolicy);
 
   return {
-    ...base,
-    description: typeof imported.description === 'string' ? imported.description : base.description,
+    ...imported,
     preset: 'custom',
     taskType: 'admin_assigned',
     aiAccess,
-    aiProvider: aiProviderConfig,
-    allowedModels: normalizedAllowedModels,
-    customModels: normalizedCustomModels,
-    instructions: {
-      ...base.instructions,
-      hasInstructionPdf: typeof instructions.hasInstructionPdf === 'boolean'
-        ? instructions.hasInstructionPdf
-        : base.instructions.hasInstructionPdf,
-      editableAfterSubmission: typeof instructions.editableAfterSubmission === 'boolean'
-        ? instructions.editableAfterSubmission
-        : base.instructions.editableAfterSubmission,
-    },
-    aiUsageLimit: {
-      mode: 'max_requests',
-      maxRequests: isPositiveNumber(aiUsageLimit.maxRequests)
-        ? aiUsageLimit.maxRequests
-        : base.aiUsageLimit.maxRequests || 100,
-    },
-    aiTokenBudget: {
-      shortcutMaxTokens: isPositiveNumber(aiTokenBudget.shortcutMaxTokens)
-        ? aiTokenBudget.shortcutMaxTokens
-        : base.aiTokenBudget?.shortcutMaxTokens || AI_SHORTCUT_MAX_TOKENS_DEFAULT,
-      chatMaxTokens: isPositiveNumber(aiTokenBudget.chatMaxTokens)
-        ? aiTokenBudget.chatMaxTokens
-        : base.aiTokenBudget?.chatMaxTokens || AI_CHAT_MAX_TOKENS_DEFAULT,
-    },
-    time: {
-      ...base.time,
-      lateSubmission: time.lateSubmission === 'not_allowed' ? 'not_allowed' : base.time.lateSubmission,
-      timeLimitSeconds: isPositiveNumber(time.timeLimitSeconds) ? time.timeLimitSeconds : undefined,
-    },
-    submission: {
-      ...base.submission,
-      mode: submission.mode === 'single' || submission.mode === 'multiple'
-        ? submission.mode
-        : base.submission.mode,
-      minCharacters: isPositiveNumber(submission.minCharacters)
-        ? Math.min(Math.floor(submission.minCharacters), SUBMISSION_MIN_CHARACTERS_MAX)
-        : undefined,
-      maxCharacters: isPositiveNumber(submission.maxCharacters)
-        ? Math.min(Math.floor(submission.maxCharacters), SUBMISSION_MAX_CHARACTERS_MAX)
-        : undefined,
-    },
+    aiProvider: aiAccess === 'off' ? undefined : imported.aiProvider,
+    allowedModels: aiAccess === 'off' ? [] : imported.allowedModels,
+    customModels: aiAccess === 'off' ? [] : imported.customModels || [],
     traceability: {
-      ...base.traceability,
-      trackAiUsage: aiAccess !== 'off' && (
-        typeof traceability.trackAiUsage === 'boolean'
-          ? traceability.trackAiUsage
-          : true
-      ),
-      trackTyping: typeof traceability.trackTyping === 'boolean'
-        ? traceability.trackTyping
-        : base.traceability.trackTyping,
+      ...imported.traceability,
+      trackAiUsage: aiAccess !== 'off',
       trackCopyPaste: copyPastePolicy === 'allowed',
-      trackFocusBlur: typeof traceability.trackFocusBlur === 'boolean'
-        ? traceability.trackFocusBlur
-        : base.traceability.trackFocusBlur,
     },
     copyPastePolicy,
   };

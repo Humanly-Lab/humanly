@@ -8,6 +8,10 @@ import {
   SUBMISSION_MAX_CHARACTERS_MAX,
   SUBMISSION_MIN_CHARACTERS_MAX,
 } from './constants';
+import type {
+  WritingEnvironmentConfig,
+  WritingTaskType,
+} from '../types/environment.types';
 
 const writingSubmissionConfigSchema = z.object({
   mode: z.enum(['single', 'multiple']),
@@ -60,6 +64,142 @@ export const writingEnvironmentConfigSchema = z.object({
   }),
   copyPastePolicy: z.enum(['allowed', 'blocked']),
 });
+
+const hasOwn = (value: Record<string, unknown>, key: string) => (
+  Object.prototype.hasOwnProperty.call(value, key)
+);
+
+const assertImportRecord = (value: unknown, path: string): Record<string, unknown> => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error(`${path} must be an object.`);
+  }
+  return value as Record<string, unknown>;
+};
+
+const assertRequiredImportKeys = (
+  value: Record<string, unknown>,
+  path: string,
+  keys: string[],
+) => {
+  const missing = keys.filter((key) => !hasOwn(value, key));
+  if (missing.length) {
+    throw new Error(`${path} is incomplete. Missing: ${missing.join(', ')}.`);
+  }
+};
+
+export const validateWritingEnvironmentImportTemplate = (
+  value: unknown,
+  expectedTaskType?: WritingTaskType,
+): WritingEnvironmentConfig => {
+  const root = assertImportRecord(value, 'Environment configuration');
+
+  assertRequiredImportKeys(root, 'Environment configuration', [
+    'taskType',
+    'instructions',
+    'aiAccess',
+    'allowedModels',
+    'customModels',
+    'aiTokenBudget',
+    'aiUsageLimit',
+    'time',
+    'submission',
+    'traceability',
+    'copyPastePolicy',
+  ]);
+
+  const instructions = assertImportRecord(root.instructions, 'instructions');
+  assertRequiredImportKeys(instructions, 'instructions', [
+    'hasInstructionPdf',
+    'editableAfterSubmission',
+  ]);
+
+  const aiTokenBudget = assertImportRecord(root.aiTokenBudget, 'aiTokenBudget');
+  assertRequiredImportKeys(aiTokenBudget, 'aiTokenBudget', [
+    'shortcutMaxTokens',
+    'chatMaxTokens',
+  ]);
+
+  const aiUsageLimit = assertImportRecord(root.aiUsageLimit, 'aiUsageLimit');
+  assertRequiredImportKeys(aiUsageLimit, 'aiUsageLimit', ['mode']);
+  if (aiUsageLimit.mode === 'max_requests') {
+    assertRequiredImportKeys(aiUsageLimit, 'aiUsageLimit', ['maxRequests']);
+  }
+  if (aiUsageLimit.mode === 'max_tokens') {
+    assertRequiredImportKeys(aiUsageLimit, 'aiUsageLimit', ['maxTokens']);
+  }
+
+  const time = assertImportRecord(root.time, 'time');
+  assertRequiredImportKeys(time, 'time', ['lateSubmission']);
+  if (aiUsageLimit.mode === 'time_restricted') {
+    assertRequiredImportKeys(time, 'time', ['timeLimitSeconds']);
+  }
+
+  const submission = assertImportRecord(root.submission, 'submission');
+  assertRequiredImportKeys(submission, 'submission', ['mode']);
+
+  const traceability = assertImportRecord(root.traceability, 'traceability');
+  assertRequiredImportKeys(traceability, 'traceability', [
+    'trackAiUsage',
+    'trackTyping',
+    'trackCopyPaste',
+    'trackFocusBlur',
+  ]);
+
+  const parsed = writingEnvironmentConfigSchema.parse(value);
+
+  if (expectedTaskType && parsed.taskType !== expectedTaskType) {
+    throw new Error(`Environment configuration taskType must be ${expectedTaskType}.`);
+  }
+  if (
+    expectedTaskType === 'personal'
+    && parsed.aiUsageLimit.mode !== 'unlimited'
+    && parsed.aiUsageLimit.mode !== 'time_restricted'
+  ) {
+    throw new Error('Personal environment JSON must use aiUsageLimit.mode "unlimited" or "time_restricted".');
+  }
+  if (
+    expectedTaskType === 'admin_assigned'
+    && parsed.aiUsageLimit.mode !== 'max_requests'
+  ) {
+    throw new Error('Admin task environment JSON must use aiUsageLimit.mode "max_requests".');
+  }
+
+  const customModels = parsed.customModels || [];
+  const hasModels = parsed.allowedModels.length > 0 || customModels.length > 0;
+
+  if (parsed.aiAccess === 'off') {
+    if (hasOwn(root, 'aiProvider')) {
+      throw new Error('AI-off environment JSON must not include aiProvider.');
+    }
+    if (hasModels) {
+      throw new Error('AI-off environment JSON must not include allowedModels or customModels.');
+    }
+    if (parsed.traceability.trackAiUsage) {
+      throw new Error('AI-off environment JSON must set traceability.trackAiUsage to false.');
+    }
+  } else {
+    const aiProvider = assertImportRecord(root.aiProvider, 'aiProvider');
+    assertRequiredImportKeys(aiProvider, 'aiProvider', ['provider', 'baseUrl']);
+    if (!hasModels) {
+      throw new Error('AI-enabled environment JSON must include at least one allowed model.');
+    }
+    if (!parsed.traceability.trackAiUsage) {
+      throw new Error('AI-enabled environment JSON must set traceability.trackAiUsage to true.');
+    }
+  }
+
+  const expectedTrackCopyPaste = parsed.copyPastePolicy === 'allowed';
+  if (parsed.traceability.trackCopyPaste !== expectedTrackCopyPaste) {
+    throw new Error(
+      `traceability.trackCopyPaste must be ${String(expectedTrackCopyPaste)} when copyPastePolicy is ${parsed.copyPastePolicy}.`
+    );
+  }
+
+  return {
+    ...parsed,
+    customModels,
+  };
+};
 
 // User validators
 export const emailSchema = z.string().email('Invalid email address');

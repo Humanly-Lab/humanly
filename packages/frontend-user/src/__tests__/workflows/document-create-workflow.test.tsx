@@ -35,6 +35,39 @@ jest.mock('@/lib/api-client', () => ({
   },
 }));
 
+const createPersonalEnvironmentJson = (overrides: Record<string, unknown> = {}) => ({
+  preset: 'custom',
+  taskType: 'personal',
+  instructions: {
+    hasInstructionPdf: false,
+    editableAfterSubmission: true,
+  },
+  aiAccess: 'off',
+  allowedModels: [],
+  customModels: [],
+  aiTokenBudget: {
+    shortcutMaxTokens: 1024,
+    chatMaxTokens: 4096,
+  },
+  aiUsageLimit: {
+    mode: 'unlimited',
+  },
+  time: {
+    lateSubmission: 'allowed',
+  },
+  submission: {
+    mode: 'multiple',
+  },
+  traceability: {
+    trackAiUsage: false,
+    trackTyping: true,
+    trackCopyPaste: true,
+    trackFocusBlur: true,
+  },
+  copyPastePolicy: 'allowed',
+  ...overrides,
+});
+
 describe('document creation workflow', () => {
   beforeAll(() => {
     Object.defineProperty(Element.prototype, 'hasPointerCapture', {
@@ -142,11 +175,16 @@ describe('document creation workflow', () => {
     const fileInput = document.querySelector<HTMLInputElement>('input[type="file"][accept="application/json,.json"]');
     expect(fileInput).toBeTruthy();
 
-    const environmentJson = JSON.stringify({
-      aiAccess: 'off',
+    const environmentJson = JSON.stringify(createPersonalEnvironmentJson({
       copyPastePolicy: 'blocked',
-      submission: { maxCharacters: 123 },
-    });
+      submission: { mode: 'multiple', maxCharacters: 123 },
+      traceability: {
+        trackAiUsage: false,
+        trackTyping: true,
+        trackCopyPaste: false,
+        trackFocusBlur: true,
+      },
+    }));
     const environmentFile = new File([environmentJson], 'environment.json', { type: 'application/json' });
     Object.defineProperty(environmentFile, 'text', {
       value: jest.fn().mockResolvedValue(environmentJson),
@@ -181,15 +219,20 @@ describe('document creation workflow', () => {
     const fileInput = document.querySelector<HTMLInputElement>('input[type="file"][accept="application/json,.json"]');
     expect(fileInput).toBeTruthy();
 
-    const environmentJson = JSON.stringify({
+    const environmentJson = JSON.stringify(createPersonalEnvironmentJson({
       aiAccess: 'full',
       aiProvider: {
         provider: 'openrouter',
         baseUrl: 'https://openrouter.ai/api/v1',
       },
       allowedModels: ['qwen/qwen3.5-397b-a17b'],
-      traceability: { trackAiUsage: true },
-    });
+      traceability: {
+        trackAiUsage: true,
+        trackTyping: true,
+        trackCopyPaste: true,
+        trackFocusBlur: true,
+      },
+    }));
     const environmentFile = new File([environmentJson], 'ai-on-environment.json', { type: 'application/json' });
     Object.defineProperty(environmentFile, 'text', {
       value: jest.fn().mockResolvedValue(environmentJson),
@@ -223,12 +266,49 @@ describe('document creation workflow', () => {
     const fileInput = document.querySelector<HTMLInputElement>('input[type="file"][accept="application/json,.json"]');
     expect(fileInput).toBeTruthy();
 
-    const environmentJson = JSON.stringify({
+    const environment = createPersonalEnvironmentJson({
       aiAccess: 'full',
       allowedModels: ['qwen/qwen3.5-397b-a17b'],
-      traceability: { trackAiUsage: true },
+      traceability: {
+        trackAiUsage: true,
+        trackTyping: true,
+        trackCopyPaste: true,
+        trackFocusBlur: true,
+      },
     });
+    const environmentJson = JSON.stringify(environment);
     const environmentFile = new File([environmentJson], 'missing-provider-environment.json', { type: 'application/json' });
+    Object.defineProperty(environmentFile, 'text', {
+      value: jest.fn().mockResolvedValue(environmentJson),
+    });
+
+    await user.upload(fileInput!, environmentFile);
+
+    await waitFor(() => {
+      expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({
+        title: 'Invalid environment file',
+        variant: 'destructive',
+      }));
+    });
+    expect(screen.getByText('Import JSON Configuration')).toBeInTheDocument();
+    expect(screen.queryByText('Custom Environment')).not.toBeInTheDocument();
+  });
+
+  it('rejects environment JSON missing required template entries', async () => {
+    const user = userEvent.setup();
+    render(<NewDocumentPage />);
+
+    await screen.findByRole('heading', { name: /create writing/i });
+    await user.click(screen.getByRole('combobox', { name: /environment/i }));
+    await user.click(await screen.findByRole('option', { name: 'Import Environment' }));
+
+    const fileInput = document.querySelector<HTMLInputElement>('input[type="file"][accept="application/json,.json"]');
+    expect(fileInput).toBeTruthy();
+
+    const environment = createPersonalEnvironmentJson();
+    delete (environment as any).aiTokenBudget;
+    const environmentJson = JSON.stringify(environment);
+    const environmentFile = new File([environmentJson], 'incomplete-environment.json', { type: 'application/json' });
     Object.defineProperty(environmentFile, 'text', {
       value: jest.fn().mockResolvedValue(environmentJson),
     });
