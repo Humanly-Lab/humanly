@@ -7,6 +7,16 @@ import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
@@ -94,6 +104,8 @@ export function AIAssistantPanel({
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [historyPopoverOpen, setHistoryPopoverOpen] = useState(false);
+  const [sessionPendingDelete, setSessionPendingDelete] = useState<string | null>(null);
+  const [isDeletingSession, setIsDeletingSession] = useState(false);
   const [hasAISettings, setHasAISettings] = useState<boolean | null>(null); // null = loading
   const [currentModel, setCurrentModel] = useState('');
   const [currentBaseUrl, setCurrentBaseUrl] = useState('');
@@ -144,6 +156,7 @@ export function AIAssistantPanel({
     startNewChat,
     loadSession,
     viewLogsAsMessages,
+    deleteSession: deleteChatSession,
     clearError,
   } = useAI(documentId);
 
@@ -319,6 +332,23 @@ export function AIAssistantPanel({
     setHistoryPopoverOpen(false);
   };
 
+  const handleRequestDeleteHistorySession = (sessionId: string) => {
+    setSessionPendingDelete(sessionId);
+  };
+
+  const handleConfirmDeleteHistorySession = async () => {
+    if (!sessionPendingDelete) return;
+
+    setIsDeletingSession(true);
+    try {
+      await deleteChatSession(sessionPendingDelete);
+      await refreshLogs();
+      setSessionPendingDelete(null);
+    } finally {
+      setIsDeletingSession(false);
+    }
+  };
+
   const streamingToolCalls = streamingMessageId ? toolCallTimelines[streamingMessageId] : undefined;
   const hasStreamingToolCalls = Boolean(streamingToolCalls?.length);
   const streamingThinking = streamingMessageId ? thinkingByMessageId?.[streamingMessageId] : undefined;
@@ -376,10 +406,43 @@ export function AIAssistantPanel({
                   onLoadMore={loadMore}
                   onSelectSession={handleSelectHistorySession}
                   onSelectLogs={handleSelectHistoryLogs}
+                  onDeleteSession={handleRequestDeleteHistorySession}
                 />
               </div>
             </DialogContent>
           </Dialog>
+
+          <AlertDialog
+            open={!!sessionPendingDelete}
+            onOpenChange={(open) => {
+              if (!open && !isDeletingSession) {
+                setSessionPendingDelete(null);
+              }
+            }}
+          >
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete this conversation?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This permanently deletes the selected AI chat session from the database.
+                  This action cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={isDeletingSession}>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={(event) => {
+                    event.preventDefault();
+                    handleConfirmDeleteHistorySession();
+                  }}
+                  disabled={isDeletingSession}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  {isDeletingSession ? 'Deleting...' : 'Delete permanently'}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
 
           {/* Close Button */}
           <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={onClose}>
@@ -760,9 +823,18 @@ interface ChatHistoryListProps {
   onLoadMore: () => void;
   onSelectSession?: (sessionId: string) => void;
   onSelectLogs?: (logs: AIInteractionLog[]) => void;
+  onDeleteSession?: (sessionId: string) => void;
 }
 
-function ChatHistoryList({ logs, isLoading, hasMore, onLoadMore, onSelectSession, onSelectLogs }: ChatHistoryListProps) {
+function ChatHistoryList({
+  logs,
+  isLoading,
+  hasMore,
+  onLoadMore,
+  onSelectSession,
+  onSelectLogs,
+  onDeleteSession,
+}: ChatHistoryListProps) {
   // Group logs by session
   const groupedLogs = useMemo(() => {
     const groups: { sessionId: string | null; date: string; logs: AIInteractionLog[] }[] = [];
@@ -831,6 +903,7 @@ function ChatHistoryList({ logs, isLoading, hasMore, onLoadMore, onSelectSession
             logs={group.logs}
             onSelect={onSelectSession}
             onSelectLogs={onSelectLogs}
+            onDelete={onDeleteSession}
           />
         ))}
 
@@ -860,9 +933,10 @@ interface ChatSessionItemProps {
   logs: AIInteractionLog[];
   onSelect?: (sessionId: string) => void;
   onSelectLogs?: (logs: AIInteractionLog[]) => void;
+  onDelete?: (sessionId: string) => void;
 }
 
-function ChatSessionItem({ sessionId, date, logs, onSelect, onSelectLogs }: ChatSessionItemProps) {
+function ChatSessionItem({ sessionId, date, logs, onSelect, onSelectLogs, onDelete }: ChatSessionItemProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
   const firstQuery = logs[0]?.query || 'Chat session';
@@ -882,9 +956,17 @@ function ChatSessionItem({ sessionId, date, logs, onSelect, onSelectLogs }: Chat
 
   return (
     <div className="rounded-lg border bg-card overflow-hidden hover:bg-accent/50 transition-colors">
-      <button
+      <div
+        role="button"
+        tabIndex={0}
         className="w-full p-3 text-left"
         onClick={handleClick}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            handleClick();
+          }
+        }}
       >
         <div className="flex items-start gap-2">
           <div
@@ -907,11 +989,33 @@ function ChatSessionItem({ sessionId, date, logs, onSelect, onSelectLogs }: Chat
               <Badge variant="secondary" className="h-4 px-1 text-[10px] font-normal ml-auto">
                 {messageCount}
               </Badge>
+              {sessionId && onDelete && (
+                <span
+                  role="button"
+                  tabIndex={0}
+                  aria-label="Delete conversation"
+                  title="Delete conversation"
+                  className="inline-flex h-5 w-5 items-center justify-center rounded-sm text-muted-foreground hover:bg-destructive/10 hover:text-destructive focus:outline-none focus:ring-2 focus:ring-ring"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onDelete(sessionId);
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      onDelete(sessionId);
+                    }
+                  }}
+                >
+                  <X className="h-3.5 w-3.5" />
+                </span>
+              )}
             </div>
             <p className="text-sm truncate font-medium">{firstQuery}</p>
           </div>
         </div>
-      </button>
+      </div>
 
       {isExpanded && (
         <div className="border-t bg-muted/20 p-3 space-y-2 max-h-[200px] overflow-y-auto">

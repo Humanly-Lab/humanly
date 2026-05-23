@@ -226,6 +226,52 @@ describe('AI store session lifecycle', () => {
     expect(useAIStore.getState().isStreaming).toBe(false);
   });
 
+  it('deletes a historical session without touching the current session', async () => {
+    useAIStore.setState({
+      currentSession: session('session-current'),
+      sessions: [session('session-current'), session('session-old')],
+      messages: [{ id: 'u-current', role: 'user', content: 'current', timestamp: new Date() }],
+      logs: [
+        { id: 'log-current', sessionId: 'session-current', query: 'current' } as any,
+        { id: 'log-old', sessionId: 'session-old', query: 'old' } as any,
+      ],
+    });
+
+    await useAIStore.getState().deleteSession('session-old');
+
+    expect(api.delete).toHaveBeenCalledWith('/ai/sessions/session-old');
+    expect(emitEvent).toHaveBeenCalledWith('ai:leave-session', { sessionId: 'session-old' });
+    expect(emitEvent).not.toHaveBeenCalledWith('ai:cancel', { sessionId: 'session-old' });
+    expect(useAIStore.getState().currentSession?.id).toBe('session-current');
+    expect(useAIStore.getState().messages.map((message) => message.content)).toEqual(['current']);
+    expect(useAIStore.getState().sessions.map((s) => s.id)).toEqual(['session-current']);
+    expect(useAIStore.getState().logs.map((log) => log.id)).toEqual(['log-current']);
+    expect(useAIStore.getState().pendingNewSession).toBe(false);
+  });
+
+  it('deletes the loaded session and prepares the next turn for a fresh session', async () => {
+    useAIStore.setState({
+      currentSession: session('session-current'),
+      sessions: [session('session-current'), session('session-old')],
+      messages: [{ id: 'u-current', role: 'user', content: 'current', timestamp: new Date() }],
+      logs: [
+        { id: 'log-current', sessionId: 'session-current', query: 'current' } as any,
+        { id: 'log-old', sessionId: 'session-old', query: 'old' } as any,
+      ],
+    });
+
+    await useAIStore.getState().deleteSession('session-current');
+
+    expect(api.delete).toHaveBeenCalledWith('/ai/sessions/session-current');
+    expect(emitEvent).toHaveBeenCalledWith('ai:cancel', { sessionId: 'session-current' });
+    expect(emitEvent).toHaveBeenCalledWith('ai:leave-session', { sessionId: 'session-current' });
+    expect(useAIStore.getState().currentSession).toBeNull();
+    expect(useAIStore.getState().messages).toEqual([]);
+    expect(useAIStore.getState().sessions.map((s) => s.id)).toEqual(['session-old']);
+    expect(useAIStore.getState().logs.map((log) => log.id)).toEqual(['log-old']);
+    expect(useAIStore.getState().pendingNewSession).toBe(true);
+  });
+
   afterEach(() => {
     useAIStore.getState().cleanupSocketListeners();
     expect(offEvent).toHaveBeenCalled();

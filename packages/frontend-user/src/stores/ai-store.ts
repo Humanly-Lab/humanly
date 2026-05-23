@@ -190,6 +190,7 @@ interface AIState {
   loadSession: (sessionId: string) => Promise<void>;
   viewLogsAsMessages: (logs: AIInteractionLog[]) => void;
   closeSession: () => Promise<void>;
+  deleteSession: (sessionId: string) => Promise<void>;
 
   // Suggestion actions
   applySuggestion: (logId: string, suggestion: AISuggestion, modification: { before: string; after: string }) => Promise<void>;
@@ -678,6 +679,57 @@ export const useAIStore = create<AIState>()(
           });
         } catch (error: any) {
           set({ error: error.message || 'Failed to close session' });
+        }
+      },
+
+      deleteSession: async (sessionId: string) => {
+        const {
+          currentSession,
+          activeStreamSessionId,
+          activeStreamClientRequestId,
+        } = get();
+        const deletingCurrentSession = currentSession?.id === sessionId;
+        const deletingActiveStream = activeStreamSessionId === sessionId;
+
+        if (deletingCurrentSession || deletingActiveStream) {
+          if (activeStreamClientRequestId) {
+            ignoredClientRequestIds.add(activeStreamClientRequestId);
+          }
+          emitEvent('ai:cancel', { sessionId });
+        }
+
+        try {
+          await api.delete(`/ai/sessions/${sessionId}`);
+          emitEvent('ai:leave-session', { sessionId });
+
+          set((state) => {
+            const nextState: Partial<AIState> = {
+              sessions: state.sessions.filter((session) => session.id !== sessionId),
+              logs: state.logs.filter((log) => log.sessionId !== sessionId),
+            };
+
+            if (deletingCurrentSession || deletingActiveStream) {
+              Object.assign(nextState, {
+                currentSession: null,
+                messages: [],
+                streamingContent: '',
+                isStreaming: false,
+                activeSuggestions: [],
+                quotedText: null,
+                toolCallTimelines: {},
+                thinkingByMessageId: {},
+                streamingMessageId: null,
+                activeStreamSessionId: null,
+                activeStreamClientRequestId: null,
+                pendingNewSession: true,
+              });
+            }
+
+            return nextState;
+          });
+        } catch (error: any) {
+          set({ error: error.message || 'Failed to delete session' });
+          throw error;
         }
       },
 
