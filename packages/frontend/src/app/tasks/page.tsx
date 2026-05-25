@@ -3,48 +3,26 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Task } from '@humanly/shared';
 import api, { ApiError } from '@/lib/api-client';
-import { formatDateTime } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Plus,
   Search,
-  Eye,
-  Settings,
-  Trash2,
-  Calendar,
-  Users,
   AlertCircle,
   Folder,
-  Loader2,
-  MoreHorizontal,
 } from 'lucide-react';
-
-/**
- * Extended task interface with stats
- */
-interface TaskWithStats extends Task {
-  eventCount?: number;
-  sessionCount?: number;
-  enrolledUserCount?: number;
-  documentCount?: number;
-  submissionCount?: number;
-  aiUsageLimit?: number;
-  allowedAiModels?: string[];
-  allowedLlmModels?: string[];
-  inviteCode?: string;
-}
+import { TaskCard } from './_components/task-card';
+import {
+  filterTasksForDashboard,
+  getTaskActiveStateAction,
+  getTaskDashboardTabCountText,
+  type TaskDashboardItem,
+  type TaskDashboardTab,
+} from './_components/task-dashboard-lifecycle';
 
 /**
  * Tasks list page component
@@ -52,13 +30,16 @@ interface TaskWithStats extends Task {
  */
 export default function TasksPage() {
   const router = useRouter();
-  const [tasks, setTasks] = useState<TaskWithStats[]>([]);
+  const [tasks, setTasks] = useState<TaskDashboardItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<TaskDashboardTab>('open');
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [deletingTaskId, setDeletingTaskId] = useState<string | null>(null);
+  const [changingActiveStateTaskId, setChangingActiveStateTaskId] = useState<string | null>(null);
   const [openOptionsTaskId, setOpenOptionsTaskId] = useState<string | null>(null);
+  const [dashboardNowMs] = useState(() => Date.now());
 
   const itemsPerPage = 9; // 3x3 grid
 
@@ -73,7 +54,7 @@ export default function TasksPage() {
       // Fetch tasks from API
       const response = await api.get<{
         success: boolean;
-        data: TaskWithStats[];
+        data: TaskDashboardItem[];
       }>('/api/v1/tasks');
       setTasks(response.data);
     } catch (err) {
@@ -89,20 +70,20 @@ export default function TasksPage() {
   /**
    * Delete a task
    */
-  const handleDeleteTask = async (taskId: string, taskName: string) => {
-    if (!confirm(`Are you sure you want to delete "${taskName}"? This action cannot be undone.`)) {
+  const handleDeleteTask = async (task: TaskDashboardItem) => {
+    if (!confirm(`Are you sure you want to delete "${task.name}"? This action cannot be undone.`)) {
       return;
     }
 
     try {
-      setDeletingTaskId(taskId);
-      await api.delete(`/api/v1/tasks/${taskId}`);
+      setDeletingTaskId(task.id);
+      await api.delete(`/api/v1/tasks/${task.id}`);
 
       // Remove task from state
-      setTasks(prev => prev.filter(p => p.id !== taskId));
+      setTasks(prev => prev.filter(p => p.id !== task.id));
 
       // Reset to page 1 if current page is now empty
-      const remainingTasks = tasks.length - 1;
+      const remainingTasks = filteredTasks.length - 1;
       const maxPage = Math.ceil(remainingTasks / itemsPerPage);
       if (currentPage > maxPage && maxPage > 0) {
         setCurrentPage(maxPage);
@@ -117,20 +98,56 @@ export default function TasksPage() {
     }
   };
 
-  /**
-   * Filter tasks based on search query
-   */
-  const filteredTasks = useMemo(() => {
-    if (!searchQuery.trim()) {
-      return tasks;
+  const handleTaskActiveStateChange = async (task: TaskDashboardItem, nextIsActive: boolean) => {
+    const action = getTaskActiveStateAction(nextIsActive);
+    if (!confirm(action.confirmMessage)) {
+      return;
     }
 
-    const query = searchQuery.toLowerCase();
-    return tasks.filter(task =>
-      task.name.toLowerCase().includes(query) ||
-      task.description?.toLowerCase().includes(query)
-    );
-  }, [tasks, searchQuery]);
+    try {
+      setChangingActiveStateTaskId(task.id);
+      const response = await api.put<{
+        success: boolean;
+        data: TaskDashboardItem;
+        message: string;
+      }>(`/api/v1/tasks/${task.id}`, {
+        isActive: nextIsActive,
+      });
+
+      setTasks(prev => prev.map(currentTask => (
+        currentTask.id === task.id ? { ...currentTask, ...response.data } : currentTask
+      )));
+      setOpenOptionsTaskId(null);
+
+      const remainingTasks = filteredTasks.length - 1;
+      const maxPage = Math.ceil(remainingTasks / itemsPerPage);
+      if (currentPage > maxPage && maxPage > 0) {
+        setCurrentPage(maxPage);
+      }
+    } catch (err) {
+      const errorMessage = err instanceof ApiError
+        ? err.message
+        : `Failed to ${nextIsActive ? 'restore' : 'archive'} task`;
+      alert(errorMessage);
+    } finally {
+      setChangingActiveStateTaskId(null);
+    }
+  };
+
+  /**
+   * Filter tasks based on lifecycle tab and search query
+   */
+  const filteredTasks = useMemo(() => {
+    return filterTasksForDashboard(tasks, activeTab, searchQuery);
+  }, [tasks, activeTab, searchQuery]);
+
+  const openTaskCount = useMemo(() => (
+    tasks.filter(task => task.isActive).length
+  ), [tasks]);
+
+  const archivedTaskCount = useMemo(() => (
+    tasks.filter(task => !task.isActive).length
+  ), [tasks]);
 
   /**
    * Paginate filtered tasks
@@ -146,13 +163,6 @@ export default function TasksPage() {
    */
   const totalPages = Math.ceil(filteredTasks.length / itemsPerPage);
 
-  const getCompletionCount = (task: TaskWithStats) => task.submissionCount ?? 0;
-
-  const formatCompletionCount = (task: TaskWithStats) => {
-    const count = getCompletionCount(task);
-    return `${count.toLocaleString()} ${count === 1 ? 'completion' : 'completions'}`;
-  };
-
   /**
    * Load tasks on mount
    */
@@ -161,11 +171,11 @@ export default function TasksPage() {
   }, []);
 
   /**
-   * Reset to page 1 when search query changes
+   * Reset to page 1 when filters change
    */
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery]);
+  }, [activeTab, searchQuery]);
 
   /**
    * Loading state
@@ -280,15 +290,30 @@ export default function TasksPage() {
   /**
    * Empty state - no search results
    */
+  const hasSearchQuery = searchQuery.trim().length > 0;
+  const tabCountText = getTaskDashboardTabCountText(filteredTasks.length, activeTab, hasSearchQuery);
+  const renderTaskTabs = () => (
+    <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as TaskDashboardTab)}>
+      <TabsList className="border border-border/70 bg-muted/60">
+        <TabsTrigger value="open" onClick={() => setActiveTab('open')}>
+          Open ({openTaskCount})
+        </TabsTrigger>
+        <TabsTrigger value="archived" onClick={() => setActiveTab('archived')}>
+          Archived ({archivedTaskCount})
+        </TabsTrigger>
+      </TabsList>
+    </Tabs>
+  );
+
   if (filteredTasks.length === 0) {
+    const activeTabLabel = activeTab === 'open' ? 'open' : 'archived';
+
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Admin Tasks</h1>
-            <p className="text-muted-foreground">
-              {tasks.length} {tasks.length === 1 ? 'task' : 'tasks'} total
-            </p>
+            <p className="text-muted-foreground">{tabCountText}</p>
           </div>
           <Button asChild>
             <Link href="/tasks/new">
@@ -311,23 +336,38 @@ export default function TasksPage() {
           </div>
         </div>
 
+        {renderTaskTabs()}
+
         <Card className="border-dashed">
           <CardHeader className="text-center pb-4">
             <div className="mx-auto mb-4 h-12 w-12 rounded-full bg-muted flex items-center justify-center">
               <Search className="h-6 w-6 text-muted-foreground" />
             </div>
-            <CardTitle>No tasks found</CardTitle>
+            <CardTitle>{hasSearchQuery ? 'No tasks found' : `No ${activeTabLabel} tasks`}</CardTitle>
             <CardDescription>
-              No tasks match your search query {searchQuery}
+              {hasSearchQuery
+                ? `No ${activeTabLabel} tasks match your search query ${searchQuery}`
+                : activeTab === 'open'
+                  ? 'Open tasks will appear here until you archive them.'
+                  : 'Archived tasks will appear here when you close tasks from the dashboard.'}
             </CardDescription>
           </CardHeader>
           <CardContent className="text-center pb-6">
-            <Button
-              variant="outline"
-              onClick={() => setSearchQuery('')}
-            >
-              Clear Search
-            </Button>
+            {hasSearchQuery ? (
+              <Button
+                variant="outline"
+                onClick={() => setSearchQuery('')}
+              >
+                Clear Search
+              </Button>
+            ) : activeTab === 'open' ? (
+              <Button asChild>
+                <Link href="/tasks/new">
+                  <Plus className="mr-2 h-4 w-4" />
+                  Create Task
+                </Link>
+              </Button>
+            ) : null}
           </CardContent>
         </Card>
       </div>
@@ -343,10 +383,7 @@ export default function TasksPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Admin Tasks</h1>
-          <p className="text-muted-foreground">
-            {filteredTasks.length} {filteredTasks.length === 1 ? 'task' : 'tasks'}
-            {searchQuery && ' found'}
-          </p>
+          <p className="text-muted-foreground">{tabCountText}</p>
         </div>
         <Button asChild>
           <Link href="/tasks/new">
@@ -370,92 +407,25 @@ export default function TasksPage() {
         </div>
       </div>
 
+      {renderTaskTabs()}
+
       {/* Task Grid */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {paginatedTasks.map((task) => (
-          <Card key={task.id} className="flex flex-col hover:shadow-lg transition-shadow">
-            <CardHeader>
-              <CardTitle className="line-clamp-2 break-words leading-tight" title={task.name}>
-                {task.name}
-              </CardTitle>
-              <CardDescription className="line-clamp-3 min-h-[3.75rem]" title={task.description || undefined}>
-                {task.description || 'No description provided.'}
-              </CardDescription>
-            </CardHeader>
-
-            <CardContent className="flex-1">
-              <div className="space-y-2 text-sm text-muted-foreground">
-                <div className="flex items-center gap-3">
-                  <Users className="h-4 w-4 text-muted-foreground" />
-                  <span>{formatCompletionCount(task)}</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
-                  <span>Created {formatDateTime(task.createdAt)}</span>
-                </div>
-              </div>
-            </CardContent>
-
-            <CardFooter className="flex pt-4 border-t space-x-2">
-              <Button
-                variant="default"
-                size="sm"
-                className="w-full"
-                onClick={() => router.push(`/tasks/${task.id}`)}
-              >
-                <Eye className="mr-2 h-4 w-4" />
-                View
-              </Button>
-              <DropdownMenu
-                open={openOptionsTaskId === task.id}
-                onOpenChange={(open) => setOpenOptionsTaskId(open ? task.id : null)}
-              >
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="min-w-[120px]"
-                    onPointerDown={(event) => event.preventDefault()}
-                    onClick={(event) => {
-                      if (event.detail === 0) return;
-                      setOpenOptionsTaskId((currentTaskId) => (
-                        currentTaskId === task.id ? null : task.id
-                      ));
-                    }}
-                  >
-                    <MoreHorizontal className="mr-2 h-4 w-4" />
-                    Options
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent
-                  align="end"
-                  className="w-44"
-                >
-                  <DropdownMenuItem onClick={() => router.push(`/tasks/${task.id}`)}>
-                    <Eye className="mr-2 h-4 w-4" />
-                    View Details
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => router.push(`/tasks/${task.id}?tab=setting`)}>
-                    <Settings className="mr-2 h-4 w-4" />
-                    Edit Setting
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    className="text-destructive focus:text-destructive"
-                    disabled={deletingTaskId === task.id}
-                    onClick={() => handleDeleteTask(task.id, task.name)}
-                  >
-                    {deletingTaskId === task.id ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      <Trash2 className="mr-2 h-4 w-4" />
-                    )}
-                    Delete
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </CardFooter>
-          </Card>
+          <TaskCard
+            key={task.id}
+            task={task}
+            activeTab={activeTab}
+            nowMs={dashboardNowMs}
+            isDeleting={deletingTaskId === task.id}
+            isChangingActiveState={changingActiveStateTaskId === task.id}
+            isOptionsOpen={openOptionsTaskId === task.id}
+            onOptionsOpenChange={(open) => setOpenOptionsTaskId(open ? task.id : null)}
+            onView={(selectedTask) => router.push(`/tasks/${selectedTask.id}`)}
+            onEditSetting={(selectedTask) => router.push(`/tasks/${selectedTask.id}?tab=setting`)}
+            onDelete={handleDeleteTask}
+            onActiveStateChange={handleTaskActiveStateChange}
+          />
         ))}
       </div>
 

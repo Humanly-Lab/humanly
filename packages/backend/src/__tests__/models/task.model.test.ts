@@ -51,4 +51,21 @@ describe('TaskModel task card stats', () => {
     expect(tasksSql).toContain('document_events');
     expect(tasksSql).toContain('submissions');
   });
+
+  it('keeps public share and invite lookups limited to active tasks', async () => {
+    mockQueryOne.mockResolvedValue(null);
+
+    await TaskModel.findByToken('share-token-1');
+    await TaskModel.findByInviteCode('ABC123');
+
+    const publicShareSql = mockQueryOne.mock.calls[0][0];
+    expect(publicShareSql).toContain('p.task_token = $1');
+    expect(publicShareSql).toContain('p.is_active = TRUE');
+
+    const inviteCodeSql = mockQueryOne.mock.calls[1][0];
+    expect(inviteCodeSql).toContain('SUBSTRING(p.task_token FROM 1 FOR 6)');
+    expect(inviteCodeSql).toContain('p.is_active = TRUE');
+    expect(mockQueryOne).toHaveBeenNthCalledWith(1, expect.any(String), ['share-token-1']);
+    expect(mockQueryOne).toHaveBeenNthCalledWith(2, expect.any(String), ['ABC123']);
+  });
 });
