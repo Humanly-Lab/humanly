@@ -70,7 +70,7 @@ export function OverviewPanel({
   const copyPasteSummary = normalizeCopyPastePolicy(task.environmentConfig?.copyPastePolicy) === 'blocked'
     ? 'Blocked'
     : 'Allowed';
-  const writingSessionSummary = formatWritingSessionLimit(task.environmentConfig?.time.timeLimitSeconds);
+  const writingSessionSummary = formatWritingSessionLimit(task.environmentConfig?.time?.timeLimitSeconds);
   const characterBoundsSummary = formatCharacterBounds(task.environmentConfig?.submission);
 
   const copyInviteCode = async () => {

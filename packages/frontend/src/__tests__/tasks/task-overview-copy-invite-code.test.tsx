@@ -334,6 +334,62 @@ describe('admin task overview invite code copy button', () => {
     expect(await screen.findByRole('status')).toHaveTextContent('Share link copied to clipboard.');
   });
 
+  it('renders overview writing rules for legacy environment configs without time settings', async () => {
+    mockApiGet.mockImplementation((url: string) => {
+      if (url === '/api/v1/ai/settings') {
+        return Promise.resolve({ success: true, data: mockAiSettings });
+      }
+
+      if (url.endsWith('/files')) {
+        return Promise.resolve({ success: true, data: [] });
+      }
+
+      if (url.endsWith('/analytics/summary')) {
+        return Promise.resolve({ success: true, data: statsFixture });
+      }
+
+      if (url.endsWith('/analytics/events-timeline')) {
+        return Promise.resolve({ success: true, data: { timeline: eventsTimelineFixture } });
+      }
+
+      if (url.endsWith('/analytics/event-types')) {
+        return Promise.resolve({ success: true, data: { eventTypes: eventTypesFixture } });
+      }
+
+      if (url.endsWith('/enrollments')) {
+        return Promise.resolve({ success: true, data: { enrollments: enrollmentsFixture } });
+      }
+
+      if (url.endsWith('/submissions')) {
+        return Promise.resolve({ success: true, data: { submissions: submissionsFixture } });
+      }
+
+      return Promise.resolve({
+        success: true,
+        data: {
+          ...taskFixture,
+          environmentConfig: {
+            copyPastePolicy: 'blocked',
+            submission: {
+              minCharacters: 100,
+              maxCharacters: 500,
+            },
+          },
+        },
+      });
+    });
+
+    render(<TaskDetailPage />);
+
+    const overviewRegion = (await screen.findByText('Task Overview')).closest('.rounded-lg');
+    expect(overviewRegion).not.toBeNull();
+    expect(within(overviewRegion as HTMLElement).getByText('Writing Session')).toBeInTheDocument();
+    expect(within(overviewRegion as HTMLElement).getByText('No limit')).toBeInTheDocument();
+    expect(within(overviewRegion as HTMLElement).getByText('Copy & Paste')).toBeInTheDocument();
+    expect(within(overviewRegion as HTMLElement).getByText('Blocked')).toBeInTheDocument();
+    expect(within(overviewRegion as HTMLElement).getByText('100-500 characters')).toBeInTheDocument();
+  });
+
   it('shows a recoverable error when clipboard permission is denied', async () => {
     const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
     mockClipboardWriteText.mockRejectedValueOnce(

@@ -452,6 +452,25 @@ describe('TaskService.startPublicTaskDocument', () => {
   });
 });
 
+describe('TaskService.updateTask active state', () => {
+  it('archives and restores a task through the existing update payload', async () => {
+    const activeTask = makeTask({ isActive: true });
+    const archivedTask = makeTask({ isActive: false });
+    MockTaskModel.findById.mockResolvedValue(activeTask);
+    MockTaskModel.update
+      .mockResolvedValueOnce(archivedTask)
+      .mockResolvedValueOnce(activeTask);
+
+    const archived = await TaskService.updateTask('task-1', 'admin-1', { isActive: false });
+    const restored = await TaskService.updateTask('task-1', 'admin-1', { isActive: true });
+
+    expect(archived.isActive).toBe(false);
+    expect(restored.isActive).toBe(true);
+    expect(MockTaskModel.update).toHaveBeenNthCalledWith(1, 'task-1', { isActive: false });
+    expect(MockTaskModel.update).toHaveBeenNthCalledWith(2, 'task-1', { isActive: true });
+  });
+});
+
 describe('TaskService.submitPublicTaskDocument', () => {
   it('creates a guest document and task submission for a public share link', async () => {
     const task = makeTask({
