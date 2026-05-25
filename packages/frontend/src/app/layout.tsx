@@ -1,9 +1,13 @@
 import type { Metadata } from 'next';
-import { Courier_Prime, Inter } from 'next/font/google';
+import { Courier_Prime, Space_Mono } from 'next/font/google';
 import { BRAND, getBrandText } from '@humanly/shared';
 import './globals.css';
 
-const inter = Inter({ subsets: ['latin'] });
+const spaceMono = Space_Mono({
+  subsets: ['latin'],
+  weight: ['400', '700'],
+  variable: '--font-space-mono',
+});
 const courierPrime = Courier_Prime({
   subsets: ['latin'],
   weight: ['400', '700'],
@@ -31,7 +35,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.className} ${courierPrime.variable}`}>
+      <body className={`${spaceMono.variable} ${courierPrime.variable}`}>
         {children}
       </body>
     </html>

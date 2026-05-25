@@ -185,7 +185,7 @@ export default function TasksPage() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Admin Tasks</h1>
+            <h1 className="text-3xl font-bold tracking-normal">Admin Tasks</h1>
             <p className="text-muted-foreground">Loading task dashboard...</p>
           </div>
         </div>
@@ -194,17 +194,17 @@ export default function TasksPage() {
           {[1, 2, 3].map((i) => (
             <Card key={i} className="animate-pulse">
               <CardHeader>
-                <div className="h-6 bg-muted rounded w-3/4 mb-2"></div>
-                <div className="h-4 bg-muted rounded w-1/2"></div>
+                <div className="h-6 bg-muted rounded w-3/4 mb-2" />
+                <div className="h-4 bg-muted rounded w-1/2" />
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
-                  <div className="h-4 bg-muted rounded"></div>
-                  <div className="h-4 bg-muted rounded w-5/6"></div>
+                  <div className="h-4 bg-muted rounded" />
+                  <div className="h-4 bg-muted rounded w-5/6" />
                 </div>
               </CardContent>
               <CardFooter>
-                <div className="h-10 bg-muted rounded w-full"></div>
+                <div className="h-10 bg-muted rounded w-full" />
               </CardFooter>
             </Card>
           ))}
@@ -221,7 +221,7 @@ export default function TasksPage() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Admin Tasks</h1>
+            <h1 className="text-3xl font-bold tracking-normal">Admin Tasks</h1>
             <p className="text-muted-foreground">Manage invite-code writing tasks</p>
           </div>
           <Button asChild>
@@ -259,14 +259,14 @@ export default function TasksPage() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Admin Tasks</h1>
+            <h1 className="text-3xl font-bold tracking-normal">Admin Tasks</h1>
             <p className="text-muted-foreground">Create a writing task and share its invite code with users</p>
           </div>
         </div>
 
-        <Card className="border-dashed">
+        <Card className="border-dashed bg-card/70">
           <CardHeader className="text-center pb-4">
-            <div className="mx-auto mb-4 h-12 w-12 rounded-full bg-muted flex items-center justify-center">
+            <div className="mx-auto mb-4 h-12 w-12 rounded-full bg-muted/60 flex items-center justify-center">
               <Folder className="h-6 w-6 text-muted-foreground" />
             </div>
             <CardTitle>No admin tasks yet</CardTitle>
@@ -294,7 +294,7 @@ export default function TasksPage() {
   const tabCountText = getTaskDashboardTabCountText(filteredTasks.length, activeTab, hasSearchQuery);
   const renderTaskTabs = () => (
     <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as TaskDashboardTab)}>
-      <TabsList className="border border-border/70 bg-muted/60">
+      <TabsList className="border border-border/70 bg-muted/45">
         <TabsTrigger value="open" onClick={() => setActiveTab('open')}>
           Open ({openTaskCount})
         </TabsTrigger>
@@ -312,7 +312,7 @@ export default function TasksPage() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Admin Tasks</h1>
+            <h1 className="text-3xl font-bold tracking-normal">Admin Tasks</h1>
             <p className="text-muted-foreground">{tabCountText}</p>
           </div>
           <Button asChild>
@@ -338,9 +338,9 @@ export default function TasksPage() {
 
         {renderTaskTabs()}
 
-        <Card className="border-dashed">
+        <Card className="border-dashed bg-card/70">
           <CardHeader className="text-center pb-4">
-            <div className="mx-auto mb-4 h-12 w-12 rounded-full bg-muted flex items-center justify-center">
+            <div className="mx-auto mb-4 h-12 w-12 rounded-full bg-muted/60 flex items-center justify-center">
               <Search className="h-6 w-6 text-muted-foreground" />
             </div>
             <CardTitle>{hasSearchQuery ? 'No tasks found' : `No ${activeTabLabel} tasks`}</CardTitle>
@@ -382,7 +382,7 @@ export default function TasksPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Admin Tasks</h1>
+          <h1 className="text-3xl font-bold tracking-normal">Admin Tasks</h1>
           <p className="text-muted-foreground">{tabCountText}</p>
         </div>
         <Button asChild>

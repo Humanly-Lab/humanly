@@ -44,9 +44,9 @@ const formatCompletionCount = (task: TaskDashboardItem) => {
 };
 
 const statusToneClass: Record<TaskWindowStatus['tone'], string> = {
-  muted: 'border-border bg-muted text-muted-foreground',
-  success: 'border-emerald-200 bg-emerald-50 text-emerald-700',
-  warning: 'border-amber-200 bg-amber-50 text-amber-700',
+  muted: 'border-border/80 bg-muted/45 text-muted-foreground',
+  success: 'border-[#b9c8b8] bg-[#edf2eb] text-[#5d7766]',
+  warning: 'border-[#dfc8aa] bg-[#f6efe4] text-[#92714e]',
 };
 
 export function TaskCard({
@@ -67,11 +67,11 @@ export function TaskCard({
   const taskWindowStatus = activeTab === 'open' ? getTaskWindowStatus(task, nowMs) : null;
 
   return (
-    <Card className="flex flex-col transition-shadow hover:shadow-lg">
+    <Card className="flex min-h-[270px] flex-col transition-[border-color,transform] hover:-translate-y-1 hover:border-foreground/20">
       <CardHeader>
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <CardTitle className="line-clamp-2 break-words leading-tight" title={task.name}>
+            <CardTitle className="line-clamp-2 break-words text-xl leading-tight" title={task.name}>
               {task.name}
             </CardTitle>
           </div>
@@ -80,7 +80,7 @@ export function TaskCard({
               {taskWindowStatus.label}
             </Badge>
           ) : (
-            <Badge variant="outline" className="shrink-0 whitespace-nowrap border-border bg-muted text-muted-foreground">
+            <Badge variant="outline" className="shrink-0 whitespace-nowrap border-border/80 bg-muted/45 text-muted-foreground">
               Archived
             </Badge>
           )}
@@ -103,7 +103,7 @@ export function TaskCard({
         </div>
       </CardContent>
 
-      <CardFooter className="flex space-x-2 border-t pt-4">
+      <CardFooter className="flex space-x-2 border-t border-border/70 pt-4">
         <Button
           variant="default"
           size="sm"

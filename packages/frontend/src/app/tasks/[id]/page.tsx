@@ -226,19 +226,19 @@ export default function TaskDetailPage() {
     <div className="space-y-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <h1 className="line-clamp-2 break-words text-3xl font-bold tracking-tight" title={task.name}>
+          <h1 className="line-clamp-2 break-words text-3xl font-bold tracking-normal" title={task.name}>
             {task.name}
           </h1>
           {task.description && (
             <p className="mt-2 whitespace-pre-line text-muted-foreground">{task.description}</p>
           )}
         </div>
-        <Button variant="outline" onClick={() => router.push('/tasks')}>
+        <Button variant="ghost" className="px-0 hover:bg-transparent" onClick={() => router.push('/tasks')}>
           Back to Tasks
         </Button>
       </div>
 
-      <div className="border-b">
+      <div className="border-b border-border/70">
         <nav className="-mb-px flex gap-6 overflow-x-auto" aria-label="Task sections">
           {TASK_DETAIL_TABS.map((tab) => (
             <button

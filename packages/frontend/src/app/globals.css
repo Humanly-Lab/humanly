@@ -4,25 +4,25 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --background: 75 26% 96%;
+    --foreground: 225 10% 11%;
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 225 10% 11%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --popover-foreground: 225 10% 11%;
+    --primary: 225 10% 11%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 72 21% 91%;
+    --secondary-foreground: 225 10% 11%;
+    --muted: 72 21% 91%;
+    --muted-foreground: 220 4% 45%;
+    --accent: 216 21% 45%;
+    --accent-foreground: 0 0% 98%;
     --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 70 13% 84%;
+    --input: 70 13% 84%;
+    --ring: 225 10% 11%;
     --radius: 0.5rem;
   }
 
@@ -55,5 +55,38 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family: var(--font-space-mono), ui-monospace, "SF Mono", Menlo, monospace;
+    letter-spacing: 0;
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+@layer components {
+  .humanly-page {
+    @apply mx-auto w-full max-w-7xl px-5 py-7 sm:px-8 lg:px-10;
+  }
+
+  .humanly-surface {
+    @apply rounded-lg border border-border/80 bg-card shadow-none;
+  }
+
+  .humanly-muted-surface {
+    @apply rounded-lg border border-border/70 bg-muted/35;
+  }
+
+  .humanly-eyebrow {
+    @apply text-xs font-medium uppercase tracking-normal text-muted-foreground;
+  }
+}
+
+@layer utilities {
+  .humanly-cursor-blink {
+    animation: humanly-cursor-blink 1s steps(1) infinite;
+  }
+
+  @keyframes humanly-cursor-blink {
+    50% {
+      opacity: 0;
+    }
   }
 }

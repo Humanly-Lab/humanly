@@ -812,13 +812,13 @@ export default function NewTaskPage() {
   const showDetailedEnvironmentControls = environmentSelection !== 'default_writing';
 
   return (
-    <div className="container mx-auto max-w-6xl px-4 py-8">
+    <div className="mx-auto w-full max-w-6xl py-2">
       <div className="mb-6">
-        <Button variant="ghost" className="mb-4" onClick={() => router.push('/tasks')}>
+        <Button variant="ghost" className="mb-4 px-0 hover:bg-transparent" onClick={() => router.push('/tasks')}>
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back to Tasks
         </Button>
-        <h1 className="text-3xl font-bold">New Task</h1>
+        <h1 className="text-3xl font-bold tracking-normal">New Task</h1>
         <p className="mt-2 text-muted-foreground">
           Create an admin-managed writing task and configure its writing environment.
         </p>
@@ -886,7 +886,7 @@ export default function NewTaskPage() {
                   )}
                 />
 
-                <div className="rounded-md border border-dashed p-4">
+                <div className="rounded-lg border border-dashed border-border/80 bg-muted/20 p-4">
                   <div className="flex items-center gap-2 text-sm font-medium">
                     <Upload className="h-4 w-4 text-muted-foreground" />
                     Files
@@ -905,7 +905,7 @@ export default function NewTaskPage() {
                   {instructionFiles.length > 0 && (
                     <div className="mt-3 space-y-2">
                       {instructionFiles.map((file) => (
-                        <div key={`${file.name}-${file.size}`} className="flex items-center gap-3 rounded-md border bg-muted/40 p-3">
+                        <div key={`${file.name}-${file.size}`} className="flex items-center gap-3 rounded-lg border border-border/70 bg-muted/40 p-3">
                           <FileText className="h-5 w-5 shrink-0 text-muted-foreground" />
                           <div className="min-w-0 flex-1">
                             <p className="truncate text-sm font-medium" title={file.name}>
@@ -1424,7 +1424,7 @@ export default function NewTaskPage() {
               </div>
             </CardContent>
 
-            <CardFooter className="flex justify-between">
+            <CardFooter className="flex justify-end gap-3 border-t border-border/70 pt-4">
               <Button
                 type="button"
                 variant="outline"

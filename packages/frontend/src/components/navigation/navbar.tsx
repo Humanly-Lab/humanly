@@ -35,11 +35,11 @@ export function Navbar() {
   };
 
   return (
-    <nav className="border-b bg-background">
+    <nav className="border-b border-border/70 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/85">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between">
           <div className="flex items-center">
-            <Link href="/tasks" className="flex items-center">
+            <Link href="/tasks" className="flex items-center rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
               <HumanlyWordmark admin size="md" />
             </Link>
           </div>
@@ -49,7 +49,7 @@ export function Navbar() {
             <div className="hidden sm:block">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="flex items-center gap-2">
+                  <Button variant="ghost" className="flex items-center gap-2 rounded-lg text-muted-foreground hover:text-foreground">
                     <User className="h-4 w-4" />
                     <span className="hidden lg:inline">{user?.email}</span>
                   </Button>

@@ -42,7 +42,7 @@ export function HumanlyWordmark({
         <span
           aria-hidden="true"
           className={cn(
-            'inline-block translate-y-[0.08em] bg-current',
+            'humanly-cursor-blink inline-block translate-y-[0.08em] bg-current',
             cursorClasses[size]
           )}
         />
