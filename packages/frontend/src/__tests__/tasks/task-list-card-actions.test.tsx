@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 
 import TasksPage from '@/app/tasks/page';
 
@@ -87,6 +87,7 @@ describe('admin task list card actions', () => {
   });
 
   afterEach(() => {
+    jest.useRealTimers();
     jest.restoreAllMocks();
   });
 
@@ -214,5 +215,30 @@ describe('admin task list card actions', () => {
     await waitFor(() => {
       expect(mockApiDelete).toHaveBeenCalledWith('/api/v1/tasks/task-123');
     });
+  });
+
+  it('refreshes task window badges while the dashboard stays open', async () => {
+    jest.useFakeTimers({
+      now: new Date('2026-05-15T23:52:50.000Z'),
+    });
+    mockApiGet.mockResolvedValue({
+      success: true,
+      data: [
+        makeTaskFixture({
+          startDate: '2026-05-15T23:53:00.000Z',
+          endDate: '2026-05-16T23:53:00.000Z',
+        }),
+      ],
+    });
+
+    render(<TasksPage />);
+
+    expect(await screen.findByText('Scheduled')).toBeInTheDocument();
+
+    act(() => {
+      jest.advanceTimersByTime(15_000);
+    });
+
+    expect(await screen.findByText('Open now')).toBeInTheDocument();
   });
 });

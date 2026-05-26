@@ -448,7 +448,6 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
 
         setHasExistingAiKey(true);
         setMaskedAiKey(settings.maskedApiKey || '');
-        setAiBaseUrl(settings.baseUrl || DEFAULT_AI_BASE_URL);
       } catch {
         if (!cancelled) {
           setHasExistingAiKey(false);

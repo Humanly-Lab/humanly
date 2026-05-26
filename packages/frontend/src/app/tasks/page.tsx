@@ -39,7 +39,7 @@ export default function TasksPage() {
   const [deletingTaskId, setDeletingTaskId] = useState<string | null>(null);
   const [changingActiveStateTaskId, setChangingActiveStateTaskId] = useState<string | null>(null);
   const [openOptionsTaskId, setOpenOptionsTaskId] = useState<string | null>(null);
-  const [dashboardNowMs] = useState(() => Date.now());
+  const [dashboardNowMs, setDashboardNowMs] = useState(() => Date.now());
 
   const itemsPerPage = 9; // 3x3 grid
 
@@ -168,6 +168,14 @@ export default function TasksPage() {
    */
   useEffect(() => {
     fetchTasks();
+  }, []);
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      setDashboardNowMs(Date.now());
+    }, 15_000);
+
+    return () => window.clearInterval(intervalId);
   }, []);
 
   /**

@@ -47,6 +47,19 @@ const formatWritingSessionLimit = (timeLimitSeconds?: number) => {
   return `${minutes.toLocaleString()} ${minutes === 1 ? 'minute' : 'minutes'}`;
 };
 
+const formatAiProvider = (provider?: NonNullable<Task['environmentConfig']>['aiProvider']) => {
+  if (!provider?.baseUrl) return null;
+
+  if (provider.provider === 'together') return 'Together AI';
+  if (provider.provider === 'openrouter') return 'OpenRouter';
+
+  try {
+    return new URL(provider.baseUrl).hostname;
+  } catch {
+    return provider.baseUrl;
+  }
+};
+
 export function OverviewPanel({
   task,
   stats,
@@ -65,8 +78,18 @@ export function OverviewPanel({
   const totalSubmissions = submissions.length;
   const submittedUserCount = new Set(submissions.map((submission) => submission.userId)).size;
   const completionRate = enrolledUserCount > 0 ? (submittedUserCount / enrolledUserCount) * 100 : 0;
-  const allowedLlmModels = task.allowedLlmModels?.length ? task.allowedLlmModels : ['GPT-4o mini'];
-  const aiUsageLimit = task.aiUsageLimit ?? 100;
+  const environmentAiAccess = task.environmentConfig?.aiAccess;
+  const isAiEnabled = environmentAiAccess ? environmentAiAccess !== 'off' : !!task.allowedLlmModels?.length;
+  const allowedLlmModels = isAiEnabled
+    ? (task.environmentConfig?.allowedModels?.length ? task.environmentConfig.allowedModels : task.allowedLlmModels || [])
+    : [];
+  const aiProviderLabel = isAiEnabled ? formatAiProvider(task.environmentConfig?.aiProvider) : null;
+  const aiUsageLimit = isAiEnabled
+    ? (task.environmentConfig?.aiUsageLimit?.maxRequests ?? task.aiUsageLimit ?? null)
+    : null;
+  const aiUsageLimitSummary = isAiEnabled
+    ? (aiUsageLimit === null ? 'No request limit configured' : `${aiUsageLimit.toLocaleString()} requests per user`)
+    : 'AI disabled';
   const copyPasteSummary = normalizeCopyPastePolicy(task.environmentConfig?.copyPastePolicy) === 'blocked'
     ? 'Blocked'
     : 'Allowed';
@@ -222,21 +245,39 @@ export function OverviewPanel({
               </p>
             </div>
             <div>
-              <dt className="text-sm font-medium text-muted-foreground">Allowed AI Models</dt>
+              <dt className="text-sm font-medium text-muted-foreground">AI Access</dt>
               <dd className="mt-1 flex flex-wrap items-center gap-2 text-sm">
                 <BrainCircuit className="h-4 w-4 text-muted-foreground" />
-                {allowedLlmModels.map((model) => (
-                  <span key={model} className="rounded-md bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">
-                    {model}
+                {isAiEnabled ? 'Enabled' : 'Disabled'}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-sm font-medium text-muted-foreground">AI Model</dt>
+              <dd className="mt-1 flex items-center gap-2 text-sm">
+                <BrainCircuit className="h-4 w-4 text-muted-foreground" />
+                {isAiEnabled && allowedLlmModels.length ? (
+                  <span className="flex flex-wrap items-center gap-2">
+                    {aiProviderLabel && (
+                      <span className="rounded-md border border-border/70 bg-muted/40 px-2 py-0.5 text-xs text-muted-foreground">
+                        {aiProviderLabel}
+                      </span>
+                    )}
+                    {allowedLlmModels.map((model) => (
+                      <span key={model} className="rounded-md bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">
+                        {model}
+                      </span>
+                    ))}
                   </span>
-                ))}
+                ) : (
+                  <span>{isAiEnabled ? 'No model configured' : 'AI is off for this task'}</span>
+                )}
               </dd>
             </div>
             <div>
               <dt className="text-sm font-medium text-muted-foreground">AI Usage Limit</dt>
               <dd className="mt-1 flex items-center gap-2 text-sm">
                 <BrainCircuit className="h-4 w-4 text-muted-foreground" />
-                {aiUsageLimit.toLocaleString()} requests per user
+                {aiUsageLimitSummary}
               </dd>
             </div>
           </div>
