@@ -505,11 +505,16 @@ export function AIAssistantPanel({
 
           {/* Loading indicator */}
           {isStreaming && !streamingContent && !hasStreamingToolCalls && !hasStreamingThinking && (
-            <div className="flex items-center gap-2 text-muted-foreground px-1">
-              <div className="flex gap-1">
-                <span className="w-2 h-2 bg-muted-foreground/40 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                <span className="w-2 h-2 bg-muted-foreground/40 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                <span className="w-2 h-2 bg-muted-foreground/40 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+            <div className="flex min-w-0 w-full justify-start">
+              <div
+                className="max-w-[85%] rounded-lg rounded-bl-md bg-muted px-4 py-2.5 text-sm text-muted-foreground"
+                role="status"
+                aria-live="polite"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="humanly-thinking-shimmer font-medium">Thinking...</span>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                </div>
               </div>
             </div>
           )}

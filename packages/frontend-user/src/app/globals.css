@@ -108,9 +108,32 @@
     animation: humanly-cursor-blink 1s steps(1) infinite;
   }
 
+  .humanly-thinking-shimmer {
+    background: linear-gradient(
+      90deg,
+      hsl(var(--foreground)) 0%,
+      hsl(var(--muted-foreground)) 38%,
+      hsl(var(--foreground)) 76%
+    );
+    background-size: 220% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: humanly-thinking-shimmer 1.4s ease-in-out infinite;
+  }
+
   @keyframes humanly-cursor-blink {
     50% {
       opacity: 0;
+    }
+  }
+
+  @keyframes humanly-thinking-shimmer {
+    0% {
+      background-position: 120% 0;
+    }
+    100% {
+      background-position: -120% 0;
     }
   }
 
