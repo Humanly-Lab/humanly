@@ -408,7 +408,7 @@ export default function DocumentsPage() {
       <div className="mb-6 flex flex-col gap-2">
         <p className="humanly-eyebrow">Workspace</p>
         <h1 className="text-2xl font-semibold tracking-normal sm:text-3xl">
-          Writing dashboard
+          Writing Dashboard
         </h1>
         <p className="max-w-2xl text-sm text-muted-foreground sm:text-base">
           Start your own tracked writing or complete an assigned task from an instructor.
