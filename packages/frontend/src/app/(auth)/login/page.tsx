@@ -30,6 +30,9 @@ export default function LoginPage() {
   const [resendSuccess, setResendSuccess] = useState(false);
   const [userEmail, setUserEmail] = useState<string>('');
   const { login, resendVerificationEmail, isLoading } = useAuthStore();
+  const verificationHref = userEmail
+    ? `/verify-email?email=${encodeURIComponent(userEmail)}`
+    : '/verify-email';
 
   const {
     register,
@@ -67,6 +70,9 @@ export default function LoginPage() {
       setResendLoading(true);
       setResendSuccess(false);
       await resendVerificationEmail(userEmail);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('pendingVerificationEmail', userEmail);
+      }
       setResendSuccess(true);
       setError('Verification email sent! Please check your inbox.');
       setShowResendVerification(false);
@@ -106,7 +112,14 @@ export default function LoginPage() {
                 <AlertCircle className="h-4 w-4" />
               )}
               <AlertTitle>{resendSuccess ? "Success" : "Error"}</AlertTitle>
-              <AlertDescription>{error}</AlertDescription>
+              <AlertDescription>
+                {error}
+                {resendSuccess && (
+                  <Button asChild variant="outline" size="sm" className="mt-3 w-full">
+                    <Link href={verificationHref}>Enter verification code</Link>
+                  </Button>
+                )}
+              </AlertDescription>
             </Alert>
           )}
 

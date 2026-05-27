@@ -74,6 +74,7 @@ describe('user auth workflows', () => {
         },
       },
     });
+    window.localStorage.clear();
   });
 
   it('shows an error for invalid login and routes valid login to documents', async () => {
@@ -122,7 +123,28 @@ describe('user auth workflows', () => {
     expect(screen.getByRole('heading', { name: /welcome back/i })).toBeInTheDocument();
   });
 
-  it('blocks weak registration passwords and redirects valid registration to login', async () => {
+  it('lets unverified users resend verification and continue to the code page', async () => {
+    const user = userEvent.setup();
+    mockLogin.mockRejectedValueOnce(new Error('Please verify your email before logging in'));
+    mockResendVerificationEmail.mockResolvedValueOnce(undefined);
+
+    render(<LoginPage />);
+
+    await user.type(screen.getByLabelText(/email address/i), 'pending@example.com');
+    await user.type(screen.getByLabelText(/^password$/i), 'Password123!');
+    await user.click(screen.getByRole('button', { name: /^sign in$/i }));
+
+    expect(await screen.findByText(/email not verified/i)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /resend verification email/i }));
+
+    expect(await screen.findByRole('link', { name: /enter verification code/i })).toHaveAttribute(
+      'href',
+      '/verify-email?email=pending%40example.com'
+    );
+    expect(window.localStorage.getItem('pendingVerificationEmail')).toBe('pending@example.com');
+  });
+
+  it('blocks weak registration passwords and redirects valid registration to email verification', async () => {
     jest.useFakeTimers();
     const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
 
@@ -149,13 +171,14 @@ describe('user auth workflows', () => {
     await user.click(screen.getByRole('checkbox'));
     await user.click(screen.getByRole('button', { name: /^create account$/i }));
 
-    expect(await screen.findByText(/account created/i)).toBeInTheDocument();
+    expect(await screen.findByText(/check your email/i)).toBeInTheDocument();
     expect(mockRegister).toHaveBeenCalledWith('qa@example.com', 'Password123!', 'QA User', 'user');
+    expect(window.localStorage.getItem('pendingVerificationEmail')).toBe('qa@example.com');
 
     act(() => {
-      jest.advanceTimersByTime(2000);
+      jest.advanceTimersByTime(1200);
     });
 
-    expect(mockPush).toHaveBeenCalledWith('/login');
+    expect(mockPush).toHaveBeenCalledWith('/verify-email?email=qa%40example.com');
   });
 });
