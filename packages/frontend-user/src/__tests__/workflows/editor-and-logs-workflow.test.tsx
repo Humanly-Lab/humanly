@@ -844,6 +844,127 @@ describe('editor and logs workflows', () => {
     })).not.toBeInTheDocument();
   });
 
+  it('shows natural-language details for raw focus blur and select events', async () => {
+    mockTimelineSummary = {
+      rawEventTotal: 3,
+      timelineItemTotal: 3,
+      typingBursts: 0,
+      typedCharacters: 0,
+      typedWords: 0,
+      pasteCharacters: 0,
+      deletedCharacters: 0,
+    };
+    mockTimelineItems = [
+      {
+        id: 'raw-select-short',
+        kind: 'event',
+        label: 'Text selected',
+        timestamp: '2026-05-14T12:00:03.000Z',
+        startTimestamp: '2026-05-14T12:00:03.000Z',
+        endTimestamp: '2026-05-14T12:00:03.000Z',
+        text: '',
+        rawEventCount: 1,
+        rawEvents: [
+          {
+            id: 'raw-select-short-event',
+            eventType: 'select',
+            timestamp: '2026-05-14T12:00:03.000Z',
+            cursorPosition: 12,
+            metadata: { selectedText: 'selected phrase' },
+          },
+        ],
+      },
+      {
+        id: 'raw-blur',
+        kind: 'event',
+        label: 'Editor blurred',
+        timestamp: '2026-05-14T12:00:02.000Z',
+        startTimestamp: '2026-05-14T12:00:02.000Z',
+        endTimestamp: '2026-05-14T12:00:02.000Z',
+        text: '',
+        rawEventCount: 1,
+        rawEvents: [
+          {
+            id: 'raw-blur-event',
+            eventType: 'blur',
+            timestamp: '2026-05-14T12:00:02.000Z',
+            cursorPosition: 8,
+          },
+        ],
+      },
+      {
+        id: 'raw-focus',
+        kind: 'event',
+        label: 'Editor focused',
+        timestamp: '2026-05-14T12:00:01.000Z',
+        startTimestamp: '2026-05-14T12:00:01.000Z',
+        endTimestamp: '2026-05-14T12:00:01.000Z',
+        text: '',
+        rawEventCount: 1,
+        rawEvents: [
+          {
+            id: 'raw-focus-event',
+            eventType: 'focus',
+            timestamp: '2026-05-14T12:00:01.000Z',
+            cursorPosition: 0,
+          },
+        ],
+      },
+    ];
+
+    render(<DocumentLogsPage />);
+
+    expect(await screen.findByRole('row', { name: /focus editor focused cursor 0/i })).toBeInTheDocument();
+    expect(screen.getByRole('row', { name: /blur editor lost focus cursor 8/i })).toBeInTheDocument();
+    expect(screen.getByRole('row', { name: /select "selected phrase" selected cursor 12/i })).toBeInTheDocument();
+    expect(screen.queryByRole('row', { name: /focus —/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('row', { name: /blur —/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('row', { name: /select —/i })).not.toBeInTheDocument();
+  });
+
+  it('summarizes long raw selection text instead of rendering it inline', async () => {
+    mockTimelineSummary = {
+      rawEventTotal: 1,
+      timelineItemTotal: 1,
+      typingBursts: 0,
+      typedCharacters: 0,
+      typedWords: 0,
+      pasteCharacters: 0,
+      deletedCharacters: 0,
+    };
+    mockTimelineItems = [
+      {
+        id: 'raw-select-long',
+        kind: 'event',
+        label: 'Text selected',
+        timestamp: '2026-05-14T12:00:04.000Z',
+        startTimestamp: '2026-05-14T12:00:04.000Z',
+        endTimestamp: '2026-05-14T12:00:04.000Z',
+        text: '',
+        rawEventCount: 1,
+        rawEvents: [
+          {
+            id: 'raw-select-long-event',
+            eventType: 'select',
+            timestamp: '2026-05-14T12:00:04.000Z',
+            cursorPosition: 32,
+            metadata: {
+              selectedText: [
+                'This selected text is long enough that showing it inline would make the raw row noisy.',
+                'It should be summarized by line and character count instead.',
+              ].join('\n'),
+            },
+          },
+        ],
+      },
+    ];
+
+    render(<DocumentLogsPage />);
+
+    expect(await screen.findByRole('row', { name: /select 2 lines · \d+ chars selected cursor 32/i })).toBeInTheDocument();
+    expect(screen.queryByText(/showing it inline would make/)).not.toBeInTheDocument();
+  });
+
   it('expands long paste and delete text inline from a lightweight button', async () => {
     const longPastedText = [
       'This is a long pasted paragraph that should stay compact in the timeline row.',
@@ -908,6 +1029,49 @@ describe('editor and logs workflows', () => {
     expect(screen.getByText(/The expanded content preserves line breaks/)).toBeInTheDocument();
     expect(screen.getByText(/The reviewer can still open the full deleted text/)).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: /hide full text/i })).toHaveLength(2);
+  });
+
+  it('summarizes multiline paste previews without line break tokens', async () => {
+    const pastedText = [
+      'High-Performance Computing',
+      '',
+      'High-performance computing is the ability to process data at high speeds.',
+    ].join('\n');
+
+    mockTimelineSummary = {
+      rawEventTotal: 1,
+      timelineItemTotal: 1,
+      typingBursts: 0,
+      typedCharacters: 0,
+      typedWords: 0,
+      pasteCharacters: pastedText.length,
+      deletedCharacters: 0,
+    };
+    mockTimelineItems = [
+      {
+        id: 'paste-multiline-preview',
+        kind: 'paste',
+        label: 'Pasted text',
+        timestamp: '2026-05-14T12:00:01.000Z',
+        startTimestamp: '2026-05-14T12:00:01.000Z',
+        endTimestamp: '2026-05-14T12:00:01.000Z',
+        text: pastedText,
+        charCount: pastedText.length,
+        rawEventCount: 1,
+        rawEvents: [],
+      },
+    ];
+
+    render(<DocumentLogsPage />);
+
+    expect(await screen.findByText('Pasted')).toBeInTheDocument();
+    expect(screen.getByText(/3 lines pasted · "High-Performance Computing/)).toBeInTheDocument();
+    expect(screen.queryByText(/Line break/)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /view full text/i }));
+
+    expect(await screen.findByText('Pasted text')).toBeInTheDocument();
+    expect(screen.getAllByText(/High-performance computing is the ability/).length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders line breaks as standalone tokens in edit previews', async () => {
@@ -997,9 +1161,8 @@ describe('editor and logs workflows', () => {
     expect(screen.queryByText(/raw event/)).not.toBeInTheDocument();
   });
 
-  it('shows select-all delete as deleted all text with expandable full text', async () => {
-    const deletedText =
-      'This entire document was selected and deleted. It has enough content to stay compact in the timeline row while still being available for review.';
+  it('shows select-all delete as deleted all text with expandable all text', async () => {
+    const deletedText = 'Short deleted document.';
 
     mockTimelineItems = [
       {
@@ -1024,9 +1187,10 @@ describe('editor and logs workflows', () => {
     expect(await screen.findByText('Deleted all')).toBeInTheDocument();
     expect(screen.getByText('Deleted all text')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: /view full text/i }));
+    fireEvent.click(screen.getByRole('button', { name: /view all text/i }));
 
     expect(await screen.findByText(deletedText)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /hide all text/i })).toBeInTheDocument();
   });
 
   it('shows replacement edits as before and after text', async () => {
@@ -1237,6 +1401,9 @@ describe('editor and logs workflows', () => {
 
     expect(await screen.findByText('AI inserted')).toBeInTheDocument();
     expect(screen.getByText('Pasted')).toBeInTheDocument();
+    expect(screen.getByText(/9 lines inserted/)).toBeInTheDocument();
+    expect(screen.getByText(/9 lines pasted/)).toBeInTheDocument();
+    expect(screen.queryByText(/Line break/)).not.toBeInTheDocument();
 
     const viewButtons = screen.getAllByRole('button', { name: /view full text/i });
     expect(viewButtons).toHaveLength(2);

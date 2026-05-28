@@ -426,6 +426,8 @@ function canExpandTimelineText(item: DocumentEventTimelineItem) {
   }
 
   if (item.kind !== 'paste' && item.kind !== 'delete' && item.kind !== 'ai_insert') return false;
+  if (item.kind === 'delete' && item.metadata?.deleteScope === 'all_text' && item.text) return true;
+  if ((item.kind === 'paste' || item.kind === 'ai_insert') && isMultilineText(item.text)) return true;
   return normalizeVisibleText(item.text).length > LONG_TEXT_PREVIEW_THRESHOLD;
 }
 
@@ -438,6 +440,12 @@ function getTimelineTextPreview(item: DocumentEventTimelineItem) {
   }
   if (item.kind === 'delete' && !item.text) return 'Text deleted';
   if (item.kind === 'delete' && item.metadata?.deleteScope === 'all_text') return 'Deleted all text';
+  if (item.kind === 'paste' && isMultilineText(item.text)) {
+    return getMultilineContentSummary(item.text, 'pasted');
+  }
+  if (item.kind === 'ai_insert' && isMultilineText(item.text)) {
+    return getMultilineContentSummary(item.text, 'inserted');
+  }
   return renderTextPreview(item.text, '', LONG_TEXT_PREVIEW_THRESHOLD);
 }
 
@@ -463,6 +471,18 @@ function getMultilineReplaceSummary(item: DocumentEventTimelineItem) {
   return `${lineLabel(previousLineCount)} → ${lineLabel(newLineCount)}`;
 }
 
+function getMultilineContentSummary(
+  text: string | undefined,
+  action: 'pasted' | 'inserted',
+  maxTextCharacters = LONG_TEXT_PREVIEW_THRESHOLD
+) {
+  const lineCount = countTextLines(text);
+  const lineLabel = `${lineCount} line${lineCount === 1 ? '' : 's'} ${action}`;
+  const snippet = formatSnippet(text, '', maxTextCharacters);
+
+  return snippet ? `${lineLabel} · "${snippet}"` : lineLabel;
+}
+
 function getFullTextMeta(item: DocumentEventTimelineItem) {
   if (item.kind === 'replace') {
     return `${getReplacedText(item).length} chars replaced · ${item.text?.length || 0} chars inserted`;
@@ -484,6 +504,35 @@ function getFullTextMeta(item: DocumentEventTimelineItem) {
 }
 
 function renderRawDetail(event: DocumentEventTimelineRawEvent) {
+  if (event.eventType === 'focus') return 'Editor focused';
+  if (event.eventType === 'blur') return 'Editor lost focus';
+  if (event.eventType === 'select') {
+    const selectedText =
+      typeof event.metadata?.selectedText === 'string'
+        ? event.metadata.selectedText
+        : typeof event.metadata?.selection?.text === 'string'
+          ? event.metadata.selection.text
+          : '';
+    const selectedLineCount = countTextLines(selectedText);
+    const selectedCharCount = selectedText.length;
+    const shouldSummarizeSelection =
+      selectedLineCount > 1 || normalizeVisibleText(selectedText).length > LONG_TEXT_PREVIEW_THRESHOLD;
+
+    if (!selectedText) return 'Selection changed';
+    if (shouldSummarizeSelection) {
+      const summaryParts = [
+        selectedLineCount > 1
+          ? `${selectedLineCount} line${selectedLineCount === 1 ? '' : 's'}`
+          : null,
+        `${selectedCharCount} char${selectedCharCount === 1 ? '' : 's'}`,
+      ].filter(Boolean);
+
+      return `${summaryParts.join(' · ')} selected`;
+    }
+
+    return <>{renderTextPreview(selectedText, '')} selected</>;
+  }
+
   if (event.eventType === 'delete' && event.insertedText) {
     return (
       <>
@@ -928,6 +977,10 @@ export default function DocumentLogsPage() {
                     const icon = TIMELINE_ICONS[item.kind] || null;
                     const canExpandText = canExpandTimelineText(item);
                     const isExpanded = expandedIds.has(item.id);
+                    const expandButtonLabel =
+                      item.kind === 'delete' && item.metadata?.deleteScope === 'all_text'
+                        ? isExpanded ? 'Hide all text' : 'View all text'
+                        : isExpanded ? 'Hide full text' : 'View full text';
 
                     return (
                       <Fragment key={item.id}>
@@ -953,7 +1006,7 @@ export default function DocumentLogsPage() {
                                   onClick={() => toggleExpanded(item.id)}
                                   aria-expanded={isExpanded}
                                 >
-                                  {isExpanded ? 'Hide full text' : 'View full text'}
+                                  {expandButtonLabel}
                                 </button>
                               </div>
                             ) : (
