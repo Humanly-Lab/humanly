@@ -1,12 +1,13 @@
 import Link from 'next/link';
 import { HumanlyWordmark } from '@/components/brand/humanly-wordmark';
+import { marketingHref } from '@/lib/app-origin';
 
 export default function PrivacyPolicyPage() {
   return (
     <main className="min-h-screen bg-background py-12 px-4">
       <div className="max-w-2xl mx-auto">
         <div className="mb-8">
-          <Link href="/" className="flex items-center gap-2 text-xl font-bold mb-8">
+          <Link href={marketingHref('/')} className="flex items-center gap-2 text-xl font-bold mb-8">
             <HumanlyWordmark size="sm" cursor={false} />
           </Link>
           <h1 className="text-3xl font-bold">Privacy Policy</h1>

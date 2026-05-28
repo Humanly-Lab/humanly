@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { BookOpen, Check, MessageSquare, Sparkles, Wand2 } from 'lucide-react';
 import { AuthenticatedRedirect } from '@/components/auth/authenticated-redirect';
 import { HumanlyWordmark } from '@/components/brand/humanly-wordmark';
-import { productAppHref } from '@/lib/app-origin';
+import { marketingHref, productAppHref } from '@/lib/app-origin';
 
 const ink = '#1a1c20';
 const muted = '#6e7176';
@@ -132,7 +132,7 @@ export default function HomePage() {
 function NavBar() {
   return (
     <header className="grid grid-cols-[1fr_auto] items-center px-5 py-5 sm:px-8 lg:grid-cols-[1fr_auto_1fr] lg:px-14 lg:py-[26px]">
-      <Link href="/" className="justify-self-start">
+      <Link href={marketingHref('/')} className="justify-self-start">
         <HumanlyWordmark size="md" />
       </Link>
 
@@ -617,7 +617,7 @@ function Footer() {
   return (
     <footer className="border-t border-[rgba(20,22,26,0.10)] px-5 py-9 sm:px-8 lg:px-14">
       <div className="mx-auto flex max-w-[1168px] flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-        <Link href="/">
+        <Link href={marketingHref('/')}>
           <HumanlyWordmark size="sm" />
         </Link>
         <div className="flex flex-wrap gap-5 text-xs font-medium text-muted-foreground">

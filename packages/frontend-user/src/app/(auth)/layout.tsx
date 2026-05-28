@@ -4,6 +4,7 @@ import { Suspense } from 'react';
 import Link from 'next/link';
 import { Loader2 } from 'lucide-react';
 import { HumanlyWordmark } from '@/components/brand/humanly-wordmark';
+import { marketingHref } from '@/lib/app-origin';
 
 export default function AuthLayout({
   children,
@@ -15,7 +16,7 @@ export default function AuthLayout({
       <div className="mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-md flex-col justify-center">
         <div className="mb-8 text-center">
           <Link
-            href="/"
+            href={marketingHref('/')}
             className="inline-flex items-center justify-center transition-opacity hover:opacity-80"
           >
             <HumanlyWordmark size="lg" />

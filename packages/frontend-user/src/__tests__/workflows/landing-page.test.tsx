@@ -25,9 +25,16 @@ jest.mock('@/stores/auth-store', () => {
 });
 
 describe('landing page', () => {
+  const originalMarketingOrigin = process.env.NEXT_PUBLIC_MARKETING_ORIGIN;
   const originalProductAppOrigin = process.env.NEXT_PUBLIC_PRODUCT_APP_ORIGIN;
 
-  const restoreProductAppOrigin = () => {
+  const restoreOrigins = () => {
+    if (originalMarketingOrigin === undefined) {
+      delete process.env.NEXT_PUBLIC_MARKETING_ORIGIN;
+    } else {
+      process.env.NEXT_PUBLIC_MARKETING_ORIGIN = originalMarketingOrigin;
+    }
+
     if (originalProductAppOrigin === undefined) {
       delete process.env.NEXT_PUBLIC_PRODUCT_APP_ORIGIN;
     } else {
@@ -39,7 +46,7 @@ describe('landing page', () => {
     mockReplace.mockClear();
     mockCheckAuth.mockReset();
     mockCheckAuth.mockResolvedValue(undefined);
-    restoreProductAppOrigin();
+    restoreOrigins();
   });
 
   it('presents the approved human-AI collaboration and authorship proof copy', async () => {
@@ -69,10 +76,15 @@ describe('landing page', () => {
   });
 
   it('sends marketing-page auth actions to the configured product app origin', async () => {
+    process.env.NEXT_PUBLIC_MARKETING_ORIGIN = 'https://writehumanly.net';
     process.env.NEXT_PUBLIC_PRODUCT_APP_ORIGIN = 'https://app.writehumanly.net';
 
     render(<HomePage />);
 
+    expect(screen.getAllByRole('link', { name: 'Humanly' })[0]).toHaveAttribute(
+      'href',
+      'https://writehumanly.net/'
+    );
     expect(screen.getByRole('link', { name: 'Log in' })).toHaveAttribute(
       'href',
       'https://app.writehumanly.net/login'
