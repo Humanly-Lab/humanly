@@ -27,6 +27,7 @@ interface EnvConfig {
   corsOrigin: string;
 
   // Frontend URLs
+  frontendAdminUrl: string;
   frontendUserUrl: string;
   publicApiUrl: string;
 
@@ -109,6 +110,35 @@ function getEnvBoolean(key: string, defaultValue: boolean): boolean {
   return value.toLowerCase() === 'true';
 }
 
+function deriveFrontendAdminUrl(): string {
+  if (process.env.FRONTEND_ADMIN_URL) {
+    return process.env.FRONTEND_ADMIN_URL;
+  }
+
+  const corsAdminOrigin = (process.env.CORS_ORIGIN || '')
+    .split(',')
+    .map((origin) => origin.trim())
+    .find((origin) => origin.includes('admin.'));
+  if (corsAdminOrigin) {
+    return corsAdminOrigin;
+  }
+
+  const frontendUserUrl = process.env.FRONTEND_USER_URL;
+  if (frontendUserUrl) {
+    try {
+      const url = new URL(frontendUserUrl);
+      if (url.hostname.startsWith('app.')) {
+        url.hostname = url.hostname.replace(/^app\./, 'admin.');
+        return url.origin;
+      }
+    } catch {
+      // Fall through to local default.
+    }
+  }
+
+  return 'http://localhost:3000';
+}
+
 export const env: EnvConfig = {
   // Server
   nodeEnv: getEnv('NODE_ENV', 'development'),
@@ -132,6 +162,7 @@ export const env: EnvConfig = {
   corsOrigin: getEnv('CORS_ORIGIN', 'http://localhost:3000'),
 
   // Frontend URLs
+  frontendAdminUrl: deriveFrontendAdminUrl().replace(/\/$/, ''),
   frontendUserUrl: getEnv('FRONTEND_USER_URL', 'http://localhost:3002'),
   publicApiUrl: getEnv('PUBLIC_API_URL', 'http://localhost:3001/api/v1').replace(/\/$/, ''),
 

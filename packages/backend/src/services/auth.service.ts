@@ -160,7 +160,7 @@ export class AuthService {
 
     // Send welcome email (don't await to avoid blocking)
     emailService
-      .sendWelcomeEmail(user.email)
+      .sendWelcomeEmail(user.email, user.role || 'user')
       .catch((error) => {
         logger.error('Failed to send welcome email', { email: user.email, error });
       });

@@ -336,6 +336,10 @@ describe('AuthService.verifyEmail', () => {
 
     const result = await AuthService.verifyEmail('123456');
     expect(result.emailVerified).toBe(true);
+    expect(MockEmailService.sendWelcomeEmail).toHaveBeenCalledWith(
+      'alice@example.com',
+      'user'
+    );
   });
 
   it('throws 400 for invalid verification code', async () => {

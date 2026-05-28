@@ -1,5 +1,5 @@
 import nodemailer, { Transporter } from 'nodemailer';
-import { getBrandText } from '@humanly/shared';
+import { getBrandText, UserRole } from '@humanly/shared';
 import { env } from '../config/env';
 import { logger } from '../utils/logger';
 import { PASSWORD_RESET_TOKEN_TTL_MINUTES } from '../constants/auth';
@@ -51,6 +51,12 @@ export function buildPasswordResetUrl(token: string): string {
   return `${env.frontendUserUrl.replace(/\/$/, '')}/reset-password?token=${encodeURIComponent(token)}`;
 }
 
+export function buildWelcomeUrl(role: UserRole): string {
+  const baseUrl = role === 'admin' ? env.frontendAdminUrl : env.frontendUserUrl;
+  const path = role === 'admin' ? '/tasks' : '/documents';
+  return `${baseUrl.replace(/\/$/, '')}${path}`;
+}
+
 export function buildPasswordResetEmailHtml(resetUrl: string): string {
   return `
       <!DOCTYPE html>
@@ -89,6 +95,59 @@ export function buildPasswordResetEmailHtml(resetUrl: string): string {
           <div class="footer">
             <p>${getBrandText().copyright}</p>
             <p>This is an automated email. Please do not reply.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+}
+
+export function buildWelcomeEmailHtml(dashboardUrl: string): string {
+  return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background-color: #10B981; color: white; padding: 20px; text-align: center; }
+          .content { padding: 30px 20px; background-color: #f9fafb; }
+          .button { display: inline-block; padding: 12px 24px; background-color: #4F46E5; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+          .footer { padding: 20px; text-align: center; color: #6b7280; font-size: 14px; }
+          .feature { margin: 15px 0; padding-left: 20px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>${getBrandText().welcome}</h1>
+          </div>
+          <div class="content">
+            <h2>Your Account is Ready</h2>
+            <p>${getBrandText().welcomeVerified}</p>
+            <p>${getBrandText().description}</p>
+            <div class="feature">
+              <strong>• Create Tasks:</strong> Set up tracking for your forms and surveys
+            </div>
+            <div class="feature">
+              <strong>• Track User Input:</strong> Capture every keystroke, paste, and edit
+            </div>
+            <div class="feature">
+              <strong>• Live Preview:</strong> Watch real-time input activity as it happens
+            </div>
+            <div class="feature">
+              <strong>• Analytics:</strong> Analyze patterns and insights from your data
+            </div>
+            <div class="feature">
+              <strong>• Export Data:</strong> Download your data in JSON or CSV format
+            </div>
+            <p style="text-align: center;">
+              <a href="${dashboardUrl}" class="button">Open Humanly</a>
+            </p>
+            <p>If you have any questions or need help getting started, please don't hesitate to reach out to our support team.</p>
+          </div>
+          <div class="footer">
+            <p>${getBrandText().copyright}</p>
           </div>
         </div>
       </body>
@@ -269,59 +328,8 @@ class EmailService {
   /**
    * Send welcome email after verification
    */
-  async sendWelcomeEmail(email: string): Promise<void> {
-    const dashboardUrl = `${env.corsOrigin}/dashboard`;
-
-    const html = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <style>
-          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .header { background-color: #10B981; color: white; padding: 20px; text-align: center; }
-          .content { padding: 30px 20px; background-color: #f9fafb; }
-          .button { display: inline-block; padding: 12px 24px; background-color: #4F46E5; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }
-          .footer { padding: 20px; text-align: center; color: #6b7280; font-size: 14px; }
-          .feature { margin: 15px 0; padding-left: 20px; }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <div class="header">
-            <h1>${getBrandText().welcome}</h1>
-          </div>
-          <div class="content">
-            <h2>Your Account is Ready</h2>
-            <p>${getBrandText().welcomeVerified}</p>
-            <p>${getBrandText().description}</p>
-            <div class="feature">
-              <strong>• Create Tasks:</strong> Set up tracking for your forms and surveys
-            </div>
-            <div class="feature">
-              <strong>• Track User Input:</strong> Capture every keystroke, paste, and edit
-            </div>
-            <div class="feature">
-              <strong>• Live Preview:</strong> Watch real-time input activity as it happens
-            </div>
-            <div class="feature">
-              <strong>• Analytics:</strong> Analyze patterns and insights from your data
-            </div>
-            <div class="feature">
-              <strong>• Export Data:</strong> Download your data in JSON or CSV format
-            </div>
-            <p style="text-align: center;">
-              <a href="${dashboardUrl}" class="button">Go to Dashboard</a>
-            </p>
-            <p>If you have any questions or need help getting started, please don't hesitate to reach out to our support team.</p>
-          </div>
-          <div class="footer">
-            <p>${getBrandText().copyright}</p>
-          </div>
-        </div>
-      </body>
-      </html>
-    `;
+  async sendWelcomeEmail(email: string, role: UserRole): Promise<void> {
+    const html = buildWelcomeEmailHtml(buildWelcomeUrl(role));
 
     await this.send(email, getBrandText().emailSubjects.welcome, html);
   }
