@@ -31,6 +31,7 @@ describe('admin navbar', () => {
 
     const brandLink = screen.getByRole('link', { name: /humanly admin/i });
     expect(brandLink).toHaveAttribute('href', '/tasks');
+    expect(brandLink.querySelector('img[src="/brand/pencil-angled.png"]')).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /^tasks$/i })).not.toBeInTheDocument();
   });
 
