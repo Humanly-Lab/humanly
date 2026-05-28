@@ -44,39 +44,6 @@ const problemCards = [
   'Writers defend the work instead of doing it.',
 ];
 
-const trustCards = [
-  [
-    '01',
-    'Record while writing',
-    'Humanly captures typing, paste, focus, and AI-assist events as the draft is created.',
-  ],
-  [
-    '02',
-    'Verify after writing',
-    'The certificate connects the final text to the process record behind it.',
-  ],
-  [
-    '03',
-    'Avoid guessing',
-    'The goal is not to infer authorship from style, but to show how the work happened.',
-  ],
-] as const;
-
-const audienceCards = [
-  [
-    'For writers',
-    'Draft with AI in a tracked workspace, then share a clean certificate when your process matters.',
-  ],
-  [
-    'For instructors',
-    'Create assigned tasks with AI, paste, character, and time rules before students begin.',
-  ],
-  [
-    'For reviewers',
-    'Review the writing process and AI assistance trail instead of relying on detector scores alone.',
-  ],
-] as const;
-
 const steps = [
   [
     '01',
@@ -450,7 +417,7 @@ function ProblemCard({ n, illo, caption }: { n: string; illo: ReactNode; caption
 
 function TrustModelSection() {
   return (
-    <section className="px-5 py-[110px] sm:px-8 lg:px-14">
+    <section className="bg-[#f4f5f0] px-5 py-[110px] sm:px-8 lg:px-14">
       <div className="mx-auto max-w-[1080px]">
         <div className="mb-14 text-center">
           <Eyebrow className="mb-[22px]">Trust model</Eyebrow>
@@ -465,19 +432,24 @@ function TrustModelSection() {
         </div>
 
         <div className="grid gap-5 md:grid-cols-3">
-          {trustCards.map(([number, title, description]) => (
-            <div
-              key={title}
-              className="humanly-hover-pop rounded-[14px] border border-[rgba(20,22,26,0.10)] bg-white p-7 hover:shadow-[0_28px_70px_-42px_rgba(20,22,26,0.60)]"
-            >
-              <div className="mb-10 flex items-center justify-between">
-                <span className="text-[11px] text-muted-foreground">· {number}</span>
-                <span className="h-1 w-1 rounded-full bg-foreground" />
-              </div>
-              <h3 className="text-xl font-semibold leading-snug tracking-[-0.015em]">{title}</h3>
-              <p className="mt-4 text-[14.5px] leading-[1.65] text-muted-foreground">{description}</p>
-            </div>
-          ))}
+          <ConceptCard
+            n="01"
+            illo={<TrustIllo1 />}
+            title="Record while writing"
+            body="Humanly captures typing, paste, focus, and AI-assist events as the draft is created."
+          />
+          <ConceptCard
+            n="02"
+            illo={<TrustIllo2 />}
+            title="Verify after writing"
+            body="The certificate connects the final text to the process record behind it."
+          />
+          <ConceptCard
+            n="03"
+            illo={<TrustIllo3 />}
+            title="Avoid guessing"
+            body="The goal is not to infer authorship from style, but to show how the work happened."
+          />
         </div>
       </div>
     </section>
@@ -501,18 +473,43 @@ function AudienceSection() {
         </div>
 
         <div className="grid gap-5 md:grid-cols-3">
-          {audienceCards.map(([title, description]) => (
-            <div
-              key={title}
-              className="humanly-hover-pop rounded-[14px] border border-[rgba(20,22,26,0.10)] bg-white p-7 hover:shadow-[0_28px_70px_-42px_rgba(20,22,26,0.60)]"
-            >
-              <h3 className="text-xl font-semibold leading-snug tracking-[-0.015em]">{title}</h3>
-              <p className="mt-4 text-[14.5px] leading-[1.65] text-muted-foreground">{description}</p>
-            </div>
-          ))}
+          <ConceptCard
+            n="01"
+            illo={<UseIllo1 />}
+            title="For writers"
+            body="Draft with AI in a tracked workspace, then share a clean certificate when your process matters."
+          />
+          <ConceptCard
+            n="02"
+            illo={<UseIllo2 />}
+            title="For instructors"
+            body="Create assigned tasks with AI, paste, character, and time rules before students begin."
+          />
+          <ConceptCard
+            n="03"
+            illo={<UseIllo3 />}
+            title="For reviewers"
+            body="Review the writing process and AI assistance trail instead of relying on detector scores alone."
+          />
         </div>
       </div>
     </section>
+  );
+}
+
+function ConceptCard({ n, illo, title, body }: { n: string; illo: ReactNode; title: string; body: string }) {
+  return (
+    <div className="humanly-hover-pop flex min-h-[360px] flex-col gap-5 rounded-[14px] border border-[rgba(20,22,26,0.10)] bg-white p-7 hover:shadow-[0_28px_70px_-42px_rgba(20,22,26,0.60)]">
+      <div className="flex items-center justify-between">
+        <span className="text-[11px] text-muted-foreground">· {n}</span>
+        <span className="h-1 w-1 rounded-full bg-foreground" />
+      </div>
+      <div className="flex flex-1 items-center justify-center">{illo}</div>
+      <div>
+        <h3 className="text-xl font-semibold leading-snug tracking-[-0.015em]">{title}</h3>
+        <p className="mt-3 text-[14.5px] leading-[1.65] text-muted-foreground">{body}</p>
+      </div>
+    </div>
   );
 }
 
@@ -712,6 +709,135 @@ function ProblemIllo3() {
         <path d="M20 60 C40 30, 60 90, 80 60 S 120 30, 140 60 S 180 90, 195 60" />
         <path d="M20 60 C40 90, 60 30, 80 60 S 120 90, 140 60 S 180 30, 195 60" opacity="0.4" />
       </g>
+    </svg>
+  );
+}
+
+function TrustIllo1() {
+  return (
+    <svg width="200" height="120" viewBox="0 0 200 120" aria-hidden="true">
+      <g fill="none" stroke={ink} strokeWidth="1.4" strokeLinecap="round">
+        <path d="M28 46 C48 36, 68 56, 88 44 S128 34, 150 50" />
+        <path d="M146 46 L162 30 L170 38 L154 54 Z" fill="#fff" />
+      </g>
+      <g stroke={ink} strokeWidth="0.8" strokeDasharray="1.5 2" opacity="0.45">
+        {[40, 60, 80, 100, 120, 140].map((x) => (
+          <line key={x} x1={x} y1={x === 60 || x === 100 || x === 120 ? 42 : x === 80 ? 50 : 48} x2={x} y2="80" />
+        ))}
+      </g>
+      <line x1="24" y1="84" x2="172" y2="84" stroke={ink} strokeWidth="1" />
+      <g fill={ink}>
+        {[40, 60, 80, 100, 120, 140].map((x) => (
+          <circle key={x} cx={x} cy="84" r="2" />
+        ))}
+      </g>
+      <text x="172" y="86" fontFamily="var(--font-space-mono)" fontSize="6" fill={muted}>→t</text>
+    </svg>
+  );
+}
+
+function TrustIllo2() {
+  return (
+    <svg width="200" height="120" viewBox="0 0 200 120" aria-hidden="true">
+      <rect x="20" y="22" width="62" height="76" rx="3" fill="none" stroke={ink} strokeWidth="1.4" />
+      <rect x="30" y="36" width="42" height="3" fill={ink} />
+      <g fill={ink} opacity="0.5">
+        <rect x="30" y="46" width="46" height="3" />
+        <rect x="30" y="56" width="38" height="3" />
+        <rect x="30" y="66" width="44" height="3" />
+        <rect x="30" y="76" width="32" height="3" />
+      </g>
+      <line x1="86" y1="60" x2="118" y2="60" stroke={ink} strokeWidth="1.2" strokeDasharray="2.5 3" />
+      <g fill="none" stroke={ink} strokeWidth="1.4">
+        <circle cx="146" cy="60" r="26" />
+        <circle cx="146" cy="60" r="20" strokeWidth="1" strokeDasharray="1.6 2.2" />
+      </g>
+      <path d="M134 60 L143 70 L160 50" fill="none" stroke={ink} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function TrustIllo3() {
+  return (
+    <svg width="200" height="140" viewBox="0 0 200 140" aria-hidden="true">
+      <g fill="none" stroke={ink} strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round">
+        <path d="M52 44 L120 56 L120 128 L52 120 Z" />
+        <path d="M52 44 L82 22 L150 32 L120 56 Z" />
+        <path d="M120 56 L150 32 L150 104 L120 128 Z" />
+      </g>
+      <text x="86" y="100" fontFamily="var(--font-space-mono)" fontSize="36" fontWeight="700" textAnchor="middle" fill={ink}>?</text>
+    </svg>
+  );
+}
+
+function UseIllo1() {
+  return (
+    <svg width="200" height="120" viewBox="0 0 200 120" aria-hidden="true">
+      <rect x="44" y="14" width="104" height="84" rx="3" fill="none" stroke={ink} strokeWidth="1.4" />
+      <rect x="56" y="28" width="60" height="3" fill={ink} />
+      <g fill={ink} opacity="0.5">
+        <rect x="56" y="40" width="78" height="3" />
+        <rect x="56" y="50" width="64" height="3" />
+        <rect x="56" y="60" width="74" height="3" />
+      </g>
+      <path d="M56 80 C66 72, 76 88, 86 78 S104 70, 112 80" fill="none" stroke={ink} strokeWidth="1.4" strokeLinecap="round" />
+      <g fill="#fafaf6" stroke={ink} strokeWidth="1.4">
+        <circle cx="160" cy="92" r="18" />
+        <circle cx="160" cy="92" r="13" strokeWidth="1" strokeDasharray="1.5 2" fill="none" />
+      </g>
+      <path d="M152 92 L158 98 L168 86" fill="none" stroke={ink} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function UseIllo2() {
+  return (
+    <svg width="200" height="120" viewBox="0 0 200 120" aria-hidden="true">
+      <rect x="38" y="12" width="124" height="96" rx="4" fill="none" stroke={ink} strokeWidth="1.4" />
+      <line x1="38" y1="28" x2="162" y2="28" stroke={hairline} strokeWidth="1" />
+      <text x="46" y="24" fontFamily="var(--font-space-mono)" fontSize="6" fill={muted}>RULES</text>
+      <circle cx="156" cy="22" r="1.6" fill={ink} />
+
+      <text x="46" y="48" fontFamily="var(--font-space-mono)" fontSize="7" fill={muted}>AI</text>
+      <rect x="118" y="42" width="34" height="11" rx="5.5" fill={ink} />
+      <circle cx="146" cy="47.5" r="3.6" fill="#fff" />
+
+      <text x="46" y="70" fontFamily="var(--font-space-mono)" fontSize="7" fill={muted}>PASTE</text>
+      <rect x="118" y="64" width="34" height="11" rx="5.5" fill="none" stroke={ink} strokeWidth="1.2" />
+      <circle cx="124" cy="69.5" r="3.6" fill={ink} />
+
+      <text x="46" y="92" fontFamily="var(--font-space-mono)" fontSize="7" fill={muted}>TIME</text>
+      <rect x="118" y="86" width="34" height="11" rx="5.5" fill={ink} />
+      <circle cx="146" cy="91.5" r="3.6" fill="#fff" />
+    </svg>
+  );
+}
+
+function UseIllo3() {
+  return (
+    <svg width="200" height="120" viewBox="0 0 200 120" aria-hidden="true">
+      <line x1="18" y1="84" x2="182" y2="84" stroke={ink} strokeWidth="1" />
+      <g stroke={ink} strokeWidth="1">
+        {[30, 50, 70, 90, 110, 130, 150, 170].map((x) => (
+          <line key={x} x1={x} y1="78" x2={x} y2="90" />
+        ))}
+      </g>
+      <g fill={ink}>
+        {[30, 50, 70, 90, 110, 130, 150, 170].map((x) => (
+          <circle key={x} cx={x} cy="84" r="1.6" />
+        ))}
+      </g>
+      <circle cx="100" cy="46" r="28" fill="#fafaf6" stroke={ink} strokeWidth="1.8" />
+      <line x1="120" y1="64" x2="138" y2="84" stroke={ink} strokeWidth="2.4" strokeLinecap="round" />
+      <line x1="82" y1="46" x2="118" y2="46" stroke={ink} strokeWidth="1" />
+      <g fill={ink}>
+        <circle cx="88" cy="46" r="2.4" />
+        <circle cx="100" cy="46" r="2.4" />
+        <circle cx="112" cy="46" r="2.4" />
+      </g>
+      <text x="100" y="36" fontFamily="var(--font-space-mono)" fontSize="5" textAnchor="middle" fill={muted}>
+        paste · ai · type
+      </text>
     </svg>
   );
 }
