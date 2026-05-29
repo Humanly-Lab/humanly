@@ -70,9 +70,9 @@ function signState(encodedPayload: string): string {
     .digest('base64url');
 }
 
-function safeNextPath(next: unknown): string {
+function safeNextPath(next: unknown, fallback: string = '/documents'): string {
   if (typeof next !== 'string' || !next.startsWith('/') || next.startsWith('//')) {
-    return '/documents';
+    return fallback;
   }
   return next;
 }
@@ -121,7 +121,7 @@ export class OAuthService {
     const provider = assertProvider(rawProvider);
     const config = getProviderConfig(provider);
     const role = rawRole === 'admin' ? 'admin' : 'user';
-    const next = safeNextPath(rawNext);
+    const next = safeNextPath(rawNext, role === 'admin' ? '/tasks' : '/documents');
     const statePayload: OAuthStatePayload = {
       provider,
       role,
@@ -178,7 +178,7 @@ export class OAuthService {
     if (payload.expiresAt < Date.now()) {
       throw new AppError(400, 'OAuth state expired');
     }
-    payload.next = safeNextPath(payload.next);
+    payload.next = safeNextPath(payload.next, payload.role === 'admin' ? '/tasks' : '/documents');
     return payload;
   }
 

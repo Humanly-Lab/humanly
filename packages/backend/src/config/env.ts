@@ -22,6 +22,7 @@ interface EnvConfig {
   jwtSecret: string;
   jwtAccessExpires: string;
   jwtRefreshExpires: string;
+  authCookieDomain?: string;
 
   // CORS
   corsOrigin: string;
@@ -157,6 +158,7 @@ export const env: EnvConfig = {
   jwtSecret: getEnv('JWT_SECRET'),
   jwtAccessExpires: getEnv('JWT_ACCESS_EXPIRES', '1d'),
   jwtRefreshExpires: getEnv('JWT_REFRESH_EXPIRES', '7d'),
+  authCookieDomain: process.env.AUTH_COOKIE_DOMAIN || undefined,
 
   // CORS
   corsOrigin: getEnv('CORS_ORIGIN', 'http://localhost:3000'),

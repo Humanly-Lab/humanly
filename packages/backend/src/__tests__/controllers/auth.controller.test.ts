@@ -3,6 +3,8 @@ jest.mock('../../services/oauth.service', () => ({
   OAuthService: {
     getEnabledProviders: jest.fn(() => []),
     getAuthorizationUrl: jest.fn(),
+    parseState: jest.fn(),
+    exchangeCodeForProfile: jest.fn(),
   },
 }));
 jest.mock('../../utils/logger', () => ({
@@ -10,10 +12,12 @@ jest.mock('../../utils/logger', () => ({
 }));
 
 import { Request, Response, NextFunction } from 'express';
-import { login, logout } from '../../controllers/auth.controller';
+import { handleOAuthCallback, login, logout } from '../../controllers/auth.controller';
 import { AuthService } from '../../services/auth.service';
+import { OAuthService } from '../../services/oauth.service';
 
 const MockAuthService = AuthService as jest.Mocked<typeof AuthService>;
+const MockOAuthService = OAuthService as jest.Mocked<typeof OAuthService>;
 
 function makeReq(overrides: Partial<Request> = {}): Request {
   return {
@@ -30,6 +34,7 @@ function makeRes(): jest.Mocked<Response> {
   res.cookie = jest.fn().mockReturnValue(res);
   res.clearCookie = jest.fn().mockReturnValue(res);
   res.json = jest.fn().mockReturnValue(res);
+  res.redirect = jest.fn().mockReturnValue(res);
   return res;
 }
 
@@ -94,6 +99,101 @@ describe('auth controller cookies', () => {
         accessToken: 'access-token-1',
       }),
     }));
+  });
+
+  it('redirects admin OAuth callbacks to the admin portal callback', async () => {
+    MockOAuthService.parseState.mockReturnValue({
+      provider: 'google',
+      role: 'admin',
+      next: '/tasks',
+      expiresAt: Date.now() + 60000,
+      nonce: 'nonce-1',
+    } as any);
+    MockOAuthService.exchangeCodeForProfile.mockResolvedValue({
+      provider: 'google',
+      providerUserId: 'google-1',
+      email: 'admin@mail.com',
+    });
+    MockAuthService.loginWithOAuth.mockResolvedValue({
+      user: {
+        id: 'admin-1',
+        email: 'admin@mail.com',
+        role: 'admin',
+        emailVerified: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      accessToken: 'access-token-1',
+      refreshToken: 'refresh-token-1',
+    } as any);
+
+    const req = makeReq({
+      params: { provider: 'google' },
+      query: { state: 'state-1', code: 'code-1' },
+    } as any);
+    const res = makeRes();
+
+    await runController(handleOAuthCallback, req, res);
+
+    expect(MockAuthService.loginWithOAuth).toHaveBeenCalledWith(
+      expect.objectContaining({ provider: 'google', email: 'admin@mail.com' }),
+      'admin'
+    );
+    expect(res.cookie).toHaveBeenCalledWith('refreshToken', 'refresh-token-1', expect.any(Object));
+    expect(res.redirect).toHaveBeenCalledWith(
+      expect.stringMatching(/^http:\/\/localhost:3000\/auth\/callback#/)
+    );
+    const redirectTarget = new URL((res.redirect as jest.Mock).mock.calls[0][0]);
+    const hash = new URLSearchParams(redirectTarget.hash.slice(1));
+    expect(hash.get('accessToken')).toBe('access-token-1');
+    expect(hash.get('next')).toBe('/tasks');
+  });
+
+  it('redirects user OAuth callbacks to the user portal callback', async () => {
+    MockOAuthService.parseState.mockReturnValue({
+      provider: 'github',
+      role: 'user',
+      next: '/documents',
+      expiresAt: Date.now() + 60000,
+      nonce: 'nonce-2',
+    } as any);
+    MockOAuthService.exchangeCodeForProfile.mockResolvedValue({
+      provider: 'github',
+      providerUserId: 'github-1',
+      email: 'writer@mail.com',
+    });
+    MockAuthService.loginWithOAuth.mockResolvedValue({
+      user: {
+        id: 'user-1',
+        email: 'writer@mail.com',
+        role: 'user',
+        emailVerified: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      accessToken: 'access-token-2',
+      refreshToken: 'refresh-token-2',
+    } as any);
+
+    const req = makeReq({
+      params: { provider: 'github' },
+      query: { state: 'state-2', code: 'code-2' },
+    } as any);
+    const res = makeRes();
+
+    await runController(handleOAuthCallback, req, res);
+
+    expect(MockAuthService.loginWithOAuth).toHaveBeenCalledWith(
+      expect.objectContaining({ provider: 'github', email: 'writer@mail.com' }),
+      'user'
+    );
+    expect(res.redirect).toHaveBeenCalledWith(
+      expect.stringMatching(/^http:\/\/localhost:3002\/auth\/callback#/)
+    );
+    const redirectTarget = new URL((res.redirect as jest.Mock).mock.calls[0][0]);
+    const hash = new URLSearchParams(redirectTarget.hash.slice(1));
+    expect(hash.get('accessToken')).toBe('access-token-2');
+    expect(hash.get('next')).toBe('/documents');
   });
 
   it('clears auth cookies with the same base options on logout', async () => {

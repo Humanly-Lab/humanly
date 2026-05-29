@@ -18,7 +18,12 @@ const AUTH_COOKIE_BASE_OPTIONS = {
   secure: env.nodeEnv === 'production',
   sameSite: 'strict' as const,
   path: '/',
+  ...(env.authCookieDomain ? { domain: env.authCookieDomain } : {}),
 };
+
+function getOAuthCallbackFrontendUrl(role: 'admin' | 'user'): string {
+  return role === 'admin' ? env.frontendAdminUrl : env.frontendUserUrl;
+}
 
 function setAuthCookies(res: Response, accessToken: string, refreshToken: string): void {
   res.cookie('refreshToken', refreshToken, {
@@ -289,14 +294,16 @@ export const startOAuth = asyncHandler(async (req: Request, res: Response) => {
  * GET /api/v1/auth/oauth/:provider/callback
  */
 export const handleOAuthCallback = asyncHandler(async (req: Request, res: Response) => {
-  const redirectUrl = new URL('/auth/callback', env.frontendUserUrl);
+  let redirectUrl = new URL('/auth/callback', env.frontendUserUrl);
 
   try {
+    const state = OAuthService.parseState(req.query.state);
+    redirectUrl = new URL('/auth/callback', getOAuthCallbackFrontendUrl(state.role));
+
     if (req.query.error) {
       throw new Error(String(req.query.error_description || req.query.error));
     }
 
-    const state = OAuthService.parseState(req.query.state);
     const profile = await OAuthService.exchangeCodeForProfile(state.provider, req.query.code);
     const { accessToken, refreshToken } = await AuthService.loginWithOAuth(profile, state.role);
 

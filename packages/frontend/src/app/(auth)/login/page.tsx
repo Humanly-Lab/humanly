@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { OAuthButtons } from '@/components/auth/oauth-buttons';
 import { Mail, Lock, AlertCircle, Loader2, CheckCircle2 } from 'lucide-react';
 
 // Form validation schema
@@ -103,6 +104,11 @@ export default function LoginPage() {
       </CardHeader>
 
       <CardContent>
+        <OAuthButtons
+          className="mb-5"
+          separatorPosition="after"
+          separatorLabel="or use email"
+        />
         <form method="post" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           {error && (
             <Alert variant={resendSuccess ? "default" : "destructive"}>
