@@ -53,7 +53,7 @@ describe('user navbar', () => {
     await user.click(screen.getByRole('button', { name: /writer@mail\.com/i }));
 
     const switchLink = screen.getByRole('menuitem', { name: /switch to admin view/i });
-    expect(switchLink).toHaveAttribute('href', 'https://admin.writehumanly.net/tasks');
+    expect(switchLink).toHaveAttribute('href', 'https://admin.writehumanly.net/tasks?switchSession=1');
   });
 
   it('shows the admin portal switch for admin users', async () => {
@@ -69,7 +69,7 @@ describe('user navbar', () => {
     await user.click(screen.getByRole('button', { name: /admin@mail\.com/i }));
 
     const switchLink = screen.getByRole('menuitem', { name: /switch to admin view/i });
-    expect(switchLink).toHaveAttribute('href', 'https://admin.writehumanly.net/tasks');
+    expect(switchLink).toHaveAttribute('href', 'https://admin.writehumanly.net/tasks?switchSession=1');
   });
 
   it('shows the admin portal switch in the mobile menu for regular users', () => {
@@ -80,6 +80,6 @@ describe('user navbar', () => {
     fireEvent.click(screen.getByRole('button', { name: /open menu/i }));
 
     const switchLink = screen.getByRole('link', { name: /switch to admin view/i });
-    expect(switchLink).toHaveAttribute('href', 'http://localhost:3000/tasks');
+    expect(switchLink).toHaveAttribute('href', 'http://localhost:3000/tasks?switchSession=1');
   });
 });

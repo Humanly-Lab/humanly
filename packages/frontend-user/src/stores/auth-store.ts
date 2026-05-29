@@ -35,7 +35,7 @@ interface AuthState {
   forgotPassword: (email: string) => Promise<void>;
   validatePasswordResetToken: (token: string) => Promise<void>;
   resetPassword: (token: string, newPassword: string) => Promise<void>;
-  checkAuth: () => Promise<void>;
+  checkAuth: (options?: { forceRefresh?: boolean }) => Promise<void>;
   fetchUser: () => Promise<void>;
   updateUser: (data: Partial<User>) => Promise<void>;
   clearLocalSession: () => void;
@@ -258,10 +258,14 @@ export const useAuthStore = create<AuthState>()(
       /**
        * Check authentication status
        */
-      checkAuth: async () => {
+      checkAuth: async (options: { forceRefresh?: boolean } = {}) => {
         set({ isLoading: true });
 
-        const token = TokenManager.getAccessToken();
+        if (options.forceRefresh) {
+          TokenManager.clearTokens();
+        }
+
+        const token = options.forceRefresh ? null : TokenManager.getAccessToken();
         if (!token) {
           try {
             const refreshResponse = await api.post<{

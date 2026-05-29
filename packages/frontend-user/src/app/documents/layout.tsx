@@ -23,12 +23,18 @@ export default function DocumentsLayout({
 
   useEffect(() => {
     if (!hasChecked) {
-      checkAuth().finally(() => {
+      const shouldSwitchSession = typeof window !== 'undefined'
+        && new URLSearchParams(window.location.search).get('switchSession') === '1';
+
+      checkAuth({ forceRefresh: shouldSwitchSession }).finally(() => {
+        if (shouldSwitchSession) {
+          router.replace(pathname);
+        }
         setHasChecked(true);
         setIsCheckingAuth(false);
       });
     }
-  }, [hasChecked, checkAuth]);
+  }, [hasChecked, checkAuth, pathname, router]);
 
   useEffect(() => {
     // Only redirect after we've checked auth and user is not authenticated

@@ -80,7 +80,7 @@ describe('admin navbar', () => {
     });
 
     const switchLink = screen.getByRole('menuitem', { name: /switch to user view/i });
-    expect(switchLink).toHaveAttribute('href', 'https://app.writehumanly.net/documents');
+    expect(switchLink).toHaveAttribute('href', 'https://app.writehumanly.net/documents?switchSession=1');
   });
 
   it('links admins back to the user portal from the mobile menu', () => {
@@ -89,6 +89,6 @@ describe('admin navbar', () => {
     fireEvent.click(screen.getByRole('button', { name: /open menu/i }));
 
     const switchLink = screen.getByRole('link', { name: /switch to user view/i });
-    expect(switchLink).toHaveAttribute('href', 'https://app.writehumanly.net/documents');
+    expect(switchLink).toHaveAttribute('href', 'https://app.writehumanly.net/documents?switchSession=1');
   });
 });

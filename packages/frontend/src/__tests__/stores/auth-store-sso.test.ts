@@ -74,6 +74,34 @@ describe('admin auth store cross-portal session restore', () => {
     });
   });
 
+  it('forces shared-cookie refresh for portal switches even when a stale admin token exists', async () => {
+    mockGetAccessToken.mockReturnValue('stale-admin-access-token');
+    mockApiPost.mockResolvedValueOnce({
+      data: {
+        accessToken: 'fresh-switched-access-token',
+      },
+    });
+    mockApiGet.mockResolvedValueOnce({
+      data: {
+        user,
+      },
+    });
+
+    await useAuthStore.getState().fetchUser({ forceRefresh: true });
+
+    expect(mockClearTokens).toHaveBeenCalledTimes(1);
+    expect(mockGetAccessToken).not.toHaveBeenCalled();
+    expect(mockApiPost).toHaveBeenCalledWith('/api/v1/auth/refresh');
+    expect(mockSetAccessToken).toHaveBeenCalledWith('fresh-switched-access-token');
+    expect(mockApiGet).toHaveBeenCalledWith('/api/v1/auth/me');
+    expect(useAuthStore.getState()).toMatchObject({
+      user,
+      isAuthenticated: true,
+      isLoading: false,
+      error: null,
+    });
+  });
+
   it('clears admin session state if the shared refresh cookie is unavailable', async () => {
     mockGetAccessToken.mockReturnValue(null);
     mockApiPost.mockRejectedValueOnce(new Error('refresh failed'));
@@ -83,6 +111,27 @@ describe('admin auth store cross-portal session restore', () => {
     expect(mockApiGet).not.toHaveBeenCalled();
     expect(mockClearTokens).toHaveBeenCalled();
     expect(mockInitializeSocket).not.toHaveBeenCalled();
+    expect(useAuthStore.getState()).toMatchObject({
+      user: null,
+      isAuthenticated: false,
+      isLoading: false,
+      error: null,
+    });
+  });
+
+  it('clears the local admin session without calling the backend', () => {
+    useAuthStore.setState({
+      user,
+      isAuthenticated: true,
+      isLoading: true,
+      error: 'stale error',
+    });
+
+    useAuthStore.getState().clearLocalSession();
+
+    expect(mockClearTokens).toHaveBeenCalledTimes(1);
+    expect(mockDisconnectSocket).toHaveBeenCalledTimes(1);
+    expect(mockApiPost).not.toHaveBeenCalled();
     expect(useAuthStore.getState()).toMatchObject({
       user: null,
       isAuthenticated: false,

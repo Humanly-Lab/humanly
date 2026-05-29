@@ -41,6 +41,7 @@ describe('documents layout guest workspace guard', () => {
     jest.clearAllMocks();
     mockCheckAuth.mockResolvedValue(undefined);
     mockPathname = '/documents';
+    window.history.pushState({}, '', '/documents');
     mockAuthState = {
       user: {
         id: 'user-1',
@@ -49,6 +50,20 @@ describe('documents layout guest workspace guard', () => {
       isAuthenticated: true,
       isLoading: false,
     };
+  });
+
+  it('forces cookie session restore and removes the switch marker on portal switch', async () => {
+    window.history.pushState({}, '', '/documents?switchSession=1');
+
+    render(
+      <DocumentsLayout>
+        <main>Documents workspace</main>
+      </DocumentsLayout>
+    );
+
+    await waitFor(() => expect(mockCheckAuth).toHaveBeenCalledWith({ forceRefresh: true }));
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/documents'));
+    expect(await screen.findByText('Documents workspace')).toBeInTheDocument();
   });
 
   it('clears guest auth and redirects when a public task guest opens documents root', async () => {

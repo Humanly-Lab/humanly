@@ -29,7 +29,7 @@ export function Navbar() {
   const router = useRouter();
   const { user, logout } = useAuthStore();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const userDocumentsHref = `${getFrontendUserUrl()}/documents`;
+  const userDocumentsHref = `${getFrontendUserUrl()}/documents?switchSession=1`;
 
   const handleLogout = async () => {
     await logout();

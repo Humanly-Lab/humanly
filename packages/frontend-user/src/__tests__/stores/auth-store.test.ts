@@ -74,6 +74,34 @@ describe('user auth store session restore', () => {
     });
   });
 
+  it('forces cookie refresh for portal switches even when a stale local access token exists', async () => {
+    mockGetAccessToken.mockReturnValue('stale-user-access-token');
+    mockApiPost.mockResolvedValueOnce({
+      data: {
+        accessToken: 'fresh-switched-access-token',
+      },
+    });
+    mockApiGet.mockResolvedValueOnce({
+      data: {
+        user,
+      },
+    });
+
+    await useAuthStore.getState().checkAuth({ forceRefresh: true });
+
+    expect(mockClearTokens).toHaveBeenCalledTimes(1);
+    expect(mockGetAccessToken).not.toHaveBeenCalled();
+    expect(mockApiPost).toHaveBeenCalledWith('/auth/refresh', {}, { skipAuthRedirect: true });
+    expect(mockSetAccessToken).toHaveBeenCalledWith('fresh-switched-access-token');
+    expect(mockApiGet).toHaveBeenCalledWith('/auth/me', { skipAuthRedirect: true });
+    expect(useAuthStore.getState()).toMatchObject({
+      user,
+      isAuthenticated: true,
+      isLoading: false,
+      error: null,
+    });
+  });
+
   it('clears auth state when local token and refresh cookie are both unavailable', async () => {
     mockGetAccessToken.mockReturnValue(null);
     mockApiPost.mockRejectedValueOnce(new Error('refresh failed'));

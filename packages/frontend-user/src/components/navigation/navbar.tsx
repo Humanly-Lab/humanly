@@ -33,7 +33,7 @@ export function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const userDisplayLabel = getUserDisplayLabel(user?.email);
   const canUseAdminView = Boolean(user);
-  const adminTasksHref = adminAppHref('/tasks');
+  const adminTasksHref = adminAppHref('/tasks?switchSession=1');
 
   const handleLogout = async () => {
     await logout();

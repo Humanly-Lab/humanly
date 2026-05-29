@@ -17,8 +17,14 @@ export default function TasksLayout({
   useEffect(() => {
     // Always validate session on mount
     const validateSession = async () => {
+      const shouldSwitchSession = typeof window !== 'undefined'
+        && new URLSearchParams(window.location.search).get('switchSession') === '1';
+
       try {
-        await fetchUser();
+        await fetchUser({ forceRefresh: shouldSwitchSession });
+        if (shouldSwitchSession) {
+          router.replace('/tasks');
+        }
       } catch (error) {
         router.push('/login');
       } finally {

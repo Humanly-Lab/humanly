@@ -35,7 +35,8 @@ interface AuthState {
   forgotPassword: (email: string) => Promise<void>;
   validatePasswordResetToken: (token: string) => Promise<void>;
   resetPassword: (token: string, newPassword: string) => Promise<void>;
-  fetchUser: () => Promise<void>;
+  fetchUser: (options?: { forceRefresh?: boolean }) => Promise<void>;
+  clearLocalSession: () => void;
   updateUser: (data: Partial<User>) => Promise<void>;
   clearError: () => void;
   setLoading: (loading: boolean) => void;
@@ -256,12 +257,16 @@ export const useAuthStore = create<AuthState>()(
       /**
        * Fetch current user
        */
-      fetchUser: async () => {
+      fetchUser: async (options: { forceRefresh?: boolean } = {}) => {
         try {
           set({ isLoading: true, error: null });
 
+          if (options.forceRefresh) {
+            TokenManager.clearTokens();
+          }
+
           // Check if we have an access token
-          let token = TokenManager.getAccessToken();
+          let token = options.forceRefresh ? null : TokenManager.getAccessToken();
 
           // If no token, try to refresh it first
           if (!token) {
@@ -345,6 +350,20 @@ export const useAuthStore = create<AuthState>()(
           set({ isLoading: false, error: errorMessage });
           throw error;
         }
+      },
+
+      /**
+       * Clear local auth state without calling the backend.
+       */
+      clearLocalSession: () => {
+        TokenManager.clearTokens();
+        disconnectSocket();
+        set({
+          user: null,
+          isAuthenticated: false,
+          isLoading: false,
+          error: null,
+        });
       },
 
       /**
