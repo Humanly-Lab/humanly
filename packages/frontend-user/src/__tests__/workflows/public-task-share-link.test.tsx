@@ -21,7 +21,9 @@ jest.mock('@/lib/api-client', () => ({
     post: (...args: any[]) => mockApiPost(...args),
   },
   TokenManager: {
+    getAccessToken: jest.fn(),
     setAccessToken: jest.fn(),
+    setPublicDocumentAccessToken: jest.fn(),
   },
   ApiError: class ApiError extends Error {
     constructor(message: string, public statusCode?: number) {
@@ -35,7 +37,10 @@ describe('public task share link workflow', () => {
     localStorage.clear();
     mockApiPost.mockReset();
     mockRouterReplace.mockReset();
+    (TokenManager.getAccessToken as jest.Mock).mockReset();
     (TokenManager.setAccessToken as jest.Mock).mockReset();
+    (TokenManager.setPublicDocumentAccessToken as jest.Mock).mockReset();
+    (TokenManager.getAccessToken as jest.Mock).mockReturnValue(null);
 
     mockApiPost.mockResolvedValue({
       success: true,
@@ -69,7 +74,20 @@ describe('public task share link workflow', () => {
     });
 
     await waitFor(() => {
+      expect(TokenManager.setPublicDocumentAccessToken).toHaveBeenCalledWith('document-1', 'access-token-1');
       expect(TokenManager.setAccessToken).toHaveBeenCalledWith('access-token-1');
+      expect(mockRouterReplace).toHaveBeenCalledWith('/documents/document-1');
+    });
+  });
+
+  it('preserves an existing signed-in access token when opening a public task document', async () => {
+    (TokenManager.getAccessToken as jest.Mock).mockReturnValue('signed-in-access-token');
+
+    render(<PublicTaskDocumentStartPage />);
+
+    await waitFor(() => {
+      expect(TokenManager.setPublicDocumentAccessToken).toHaveBeenCalledWith('document-1', 'access-token-1');
+      expect(TokenManager.setAccessToken).not.toHaveBeenCalled();
       expect(mockRouterReplace).toHaveBeenCalledWith('/documents/document-1');
     });
   });

@@ -60,9 +60,14 @@ export default function PublicTaskDocumentStartPage() {
         { skipAuthRedirect: true }
       );
 
-      TokenManager.setAccessToken(response.data.accessToken);
+      const documentId = response.data.document.id;
+      const existingAccessToken = TokenManager.getAccessToken();
+      TokenManager.setPublicDocumentAccessToken(documentId, response.data.accessToken);
+      if (!existingAccessToken) {
+        TokenManager.setAccessToken(response.data.accessToken);
+      }
       setTaskName(response.data.task.name);
-      router.replace(`/documents/${response.data.document.id}`);
+      router.replace(`/documents/${documentId}`);
     } catch (err) {
       hasStartedRef.current = false;
       const apiError = err as ApiError;

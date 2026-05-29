@@ -27,6 +27,39 @@ export class ApiError extends Error {
   }
 }
 
+const PUBLIC_DOCUMENT_ACCESS_TOKENS_KEY = 'humanlyPublicDocumentAccessTokens';
+
+const readPublicDocumentAccessTokens = (): Record<string, string> => {
+  if (typeof window === 'undefined') return {};
+
+  try {
+    const raw = sessionStorage.getItem(PUBLIC_DOCUMENT_ACCESS_TOKENS_KEY);
+    if (!raw) return {};
+
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+
+    return Object.fromEntries(
+      Object.entries(parsed).filter((entry): entry is [string, string] => (
+        typeof entry[0] === 'string' && typeof entry[1] === 'string'
+      ))
+    );
+  } catch {
+    return {};
+  }
+};
+
+const writePublicDocumentAccessTokens = (tokens: Record<string, string>): void => {
+  if (typeof window === 'undefined') return;
+
+  try {
+    sessionStorage.setItem(PUBLIC_DOCUMENT_ACCESS_TOKENS_KEY, JSON.stringify(tokens));
+  } catch {
+    // Session storage can be unavailable in hardened browser contexts. In that
+    // case the anonymous fallback still works through the normal access token.
+  }
+};
+
 /**
  * Token management utilities
  */
@@ -39,6 +72,11 @@ export const TokenManager = {
   setAccessToken: (token: string): void => {
     if (typeof window === 'undefined') return;
     localStorage.setItem('accessToken', token);
+  },
+
+  clearAccessToken: (): void => {
+    if (typeof window === 'undefined') return;
+    localStorage.removeItem('accessToken');
   },
 
   getRefreshToken: (): string | null => {
@@ -55,6 +93,31 @@ export const TokenManager = {
     if (typeof window === 'undefined') return;
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
+    try {
+      sessionStorage.removeItem(PUBLIC_DOCUMENT_ACCESS_TOKENS_KEY);
+    } catch {
+      // Ignore storage failures during logout/session cleanup.
+    }
+  },
+
+  getPublicDocumentAccessToken: (documentId: string): string | null => {
+    if (!documentId) return null;
+    return readPublicDocumentAccessTokens()[documentId] || null;
+  },
+
+  setPublicDocumentAccessToken: (documentId: string, token: string): void => {
+    if (!documentId || !token) return;
+    writePublicDocumentAccessTokens({
+      ...readPublicDocumentAccessTokens(),
+      [documentId]: token,
+    });
+  },
+
+  clearPublicDocumentAccessToken: (documentId: string): void => {
+    if (!documentId) return;
+    const tokens = readPublicDocumentAccessTokens();
+    delete tokens[documentId];
+    writePublicDocumentAccessTokens(tokens);
   },
 };
 
