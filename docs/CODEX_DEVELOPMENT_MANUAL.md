@@ -51,7 +51,41 @@ Issue granularity:
   behavior, repro, likely failure path, scope, acceptance criteria, out of
   scope, file pointers, and references.
 
-## 3. Branch And Release Policy
+## 3. Subagent Delegation Policy
+
+Codex owns the main thread: issue triage, implementation plan, critical-path
+coding, final review, integration, verification choice, commit, push, and PR.
+Subagents are optional accelerators, not a replacement for main-thread
+engineering judgment.
+
+Before delegating, make a short plan and identify the immediate critical-path
+task that should stay local. Use subagents only when their work can run in
+parallel without blocking the next local step.
+
+Good subagent tasks:
+
+- `explorer`: locate code paths, prior issues, similar implementations, or
+  likely failure paths for a specific question.
+- `worker`: implement a bounded change with a clearly owned, disjoint write set.
+- `verifier`: run focused regression checks, browser/E2E probes, or edge-case
+  audits while the main thread continues non-overlapping work.
+- Sidecar docs, issue-body upgrades, test reports, or copy review.
+
+Avoid subagents for:
+
+- Tiny hotfixes where delegation overhead is slower than direct implementation.
+- Tightly coupled auth/session/security/AI-core changes where the main thread
+  needs continuous control.
+- Design work that requires live user feedback and visual iteration.
+- Any task whose result blocks the next immediate local action.
+
+When delegating code changes, explicitly tell the worker which files/modules it
+owns, that other edits may exist in the codebase, and that it must not revert
+unrelated work. Require the worker to list changed files and verification in its
+final response. The main thread must review returned changes before committing
+or opening a PR; never blindly merge subagent output.
+
+## 4. Branch And Release Policy
 
 Production deploys run from `main`. Avoid using `main` as the scratchpad for
 many small product PRs.
@@ -77,7 +111,7 @@ Integration train rules:
 Hotfixes can bypass a train. Do not batch unrelated high-risk fixes just to save
 a deploy.
 
-## 4. Commit And PR Rules
+## 5. Commit And PR Rules
 
 - Commit often, but keep commits logical.
 - Commit messages reference the issue, for example:
@@ -95,7 +129,7 @@ a deploy.
 - If one PR closes multiple issues, list each issue and explain why one PR is
   safer than several.
 
-## 5. Verification Ladder
+## 6. Verification Ladder
 
 Pick the lightest verification that proves the change:
 
@@ -117,7 +151,7 @@ Pick the lightest verification that proves the change:
 Always run `pnpm build:all` before release-style merges when product code or
 workflow gates changed. CI also runs it.
 
-## 6. Regression Handling
+## 7. Regression Handling
 
 When a test finds a bug:
 
@@ -132,7 +166,7 @@ The goal is not to claim "no bugs." The goal is to make every new bug genuinely
 new, keep old bugs from resurfacing silently, and record the reason a bug was
 missed.
 
-## 7. Local Development
+## 8. Local Development
 
 Use `pnpm`, not `npm`.
 
@@ -158,7 +192,7 @@ For local browser smoke:
 - Real DB/LLM path: `docs/LOCAL_DEV.md`
 - Production QA: `docs/PRODUCTION_QA_PLAYBOOK.md`
 
-## 8. Documentation Hygiene
+## 9. Documentation Hygiene
 
 Use this hierarchy:
 
@@ -174,7 +208,7 @@ instructions, update or remove it in the same PR that discovers the drift.
 
 Temporary progress belongs in GitHub issues and PRs, not new Markdown files.
 
-## 9. Production Deploy Notes
+## 10. Production Deploy Notes
 
 The deploy workflow ignores docs-only pushes to `main`. Product code, Docker,
 workflow, package, lockfile, migration, and script changes still deploy after
