@@ -7,6 +7,13 @@ import HomePage from '@/app/page';
 const mockReplace = jest.fn();
 const mockCheckAuth = jest.fn();
 
+jest.mock('qrcode', () => ({
+  __esModule: true,
+  default: {
+    toString: jest.fn().mockResolvedValue('<svg xmlns="http://www.w3.org/2000/svg"><path d="M0 0h1v1H0z"/></svg>'),
+  },
+}));
+
 jest.mock('next/navigation', () => ({
   useRouter: () => ({
     replace: mockReplace,
@@ -150,6 +157,9 @@ describe('landing page', () => {
 
     expect(await screen.findByText(/A verifiable snapshot of typing activity/i)).toBeInTheDocument();
     expect(screen.getByText(/demo identifiers/i)).toBeInTheDocument();
+    const qrCode = await screen.findByAltText(/demo certificate verification qr code/i);
+    expect(qrCode).toHaveAttribute('src', expect.stringContaining('data:image/svg+xml'));
+    expect(screen.getByText(/demo\/fast-writing#demo-certificate-local/i)).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: /share link/i }));
     await waitFor(() => expect(writeText).toHaveBeenCalledWith(expect.stringContaining('/demo/fast-writing#demo-certificate-local')));

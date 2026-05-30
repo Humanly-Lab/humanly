@@ -1,6 +1,7 @@
 'use client';
 
-import { ChangeEvent, ClipboardEvent, useMemo, useState } from 'react';
+import { ChangeEvent, ClipboardEvent, useEffect, useMemo, useState } from 'react';
+import QRCode from 'qrcode';
 import {
   ArrowLeft,
   Award,
@@ -16,7 +17,6 @@ import {
   RotateCcw,
   Settings2,
   Share2,
-  ShieldCheck,
   Upload,
   X,
 } from 'lucide-react';
@@ -134,6 +134,10 @@ function countWords(text: string) {
 function getDemoShareUrl(certificateId: string) {
   if (typeof window === 'undefined') return `demo://certificate/${certificateId}`;
   return `${window.location.origin}/demo/fast-writing#${certificateId}`;
+}
+
+function makeSvgDataUrl(svg: string) {
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 }
 
 async function copyTextToClipboard(text: string) {
@@ -876,10 +880,12 @@ function DemoCertificatePreview({
   onRestart: () => void;
 }) {
   const [actionStatus, setActionStatus] = useState<string | null>(null);
+  const [qrCodeDataUrl, setQrCodeDataUrl] = useState('');
   const editingMinutes = Math.max(1, Math.ceil(stats.logCount / 3));
   const latestLogs = logs.slice(0, 4);
   const generatedAt = useMemo(() => new Date().toISOString(), []);
   const shareUrl = useMemo(() => getDemoShareUrl('demo-certificate-local'), []);
+  const visibleShareUrl = shareUrl.replace(/^https?:\/\//, '');
   const certificatePayload = useMemo(
     () => makeDemoCertificatePayload({
       title,
@@ -892,6 +898,29 @@ function DemoCertificatePreview({
     }),
     [title, stats, logs, options, draft, generatedAt, shareUrl]
   );
+
+  useEffect(() => {
+    let isMounted = true;
+
+    QRCode.toString(shareUrl, {
+      type: 'svg',
+      margin: 2,
+      color: {
+        dark: '#1a1c20',
+        light: '#ffffff',
+      },
+    })
+      .then((svg) => {
+        if (isMounted) setQrCodeDataUrl(makeSvgDataUrl(svg));
+      })
+      .catch(() => {
+        if (isMounted) setQrCodeDataUrl('');
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [shareUrl]);
 
   const handleShareLink = async () => {
     const copied = await copyTextToClipboard(shareUrl);
@@ -998,8 +1027,25 @@ function DemoCertificatePreview({
                   <h4 className="text-sm font-medium">Verification</h4>
                   <p className="text-xs text-muted-foreground">Share or scan this link to verify the certificate.</p>
                 </div>
-                <div className="flex h-36 w-36 items-center justify-center rounded bg-white text-muted-foreground ring-1 ring-border/70">
-                  <ShieldCheck className="h-10 w-10" />
+                <div className="flex w-full max-w-56 flex-col items-center">
+                  <div className="flex h-36 w-36 items-center justify-center rounded bg-white p-2 ring-1 ring-border/70">
+                    {qrCodeDataUrl ? (
+                      <img
+                        src={qrCodeDataUrl}
+                        alt="Demo certificate verification QR code"
+                        className="h-full w-full"
+                      />
+                    ) : (
+                      <div
+                        className="h-full w-full animate-pulse rounded bg-muted"
+                        role="status"
+                        aria-label="Generating verification QR code"
+                      />
+                    )}
+                  </div>
+                  <p className="mt-2 max-w-full break-all text-center text-[11px] leading-4 text-muted-foreground">
+                    {visibleShareUrl}
+                  </p>
                 </div>
                 <Button type="button" variant="outline" size="sm" className="w-full max-w-56 bg-background" onClick={handleShareLink}>
                   <Share2 className="mr-2 h-4 w-4" />
