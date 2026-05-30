@@ -152,7 +152,7 @@ describe('documents layout guest workspace guard', () => {
 
     expect(await screen.findByRole('heading', { name: /finish your basic info/i })).toBeInTheDocument();
     await user.type(screen.getByLabelText(/display name/i), 'Dashboard Writer');
-    await user.click(screen.getByRole('button', { name: /save basic info/i }));
+    await user.click(screen.getByRole('button', { name: /^save$/i }));
 
     await waitFor(() => {
       expect(mockUpdateUser).toHaveBeenCalledWith({ name: 'Dashboard Writer' });

@@ -99,7 +99,7 @@ describe('user navbar', () => {
     const displayName = screen.getByLabelText(/display name/i);
     await user.clear(displayName);
     await user.type(displayName, 'Writer Two');
-    await user.click(screen.getByRole('button', { name: /save basic info/i }));
+    await user.click(screen.getByRole('button', { name: /^save$/i }));
 
     await waitFor(() => {
       expect(mockUpdateUser).toHaveBeenCalledWith({ name: 'Writer Two' });

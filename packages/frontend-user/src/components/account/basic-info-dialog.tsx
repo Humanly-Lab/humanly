@@ -75,7 +75,7 @@ export function BasicInfoDialog({ open, mode, onOpenChange }: BasicInfoDialogPro
       await updateUser({ name: trimmedName });
       onOpenChange(false);
     } catch (err: any) {
-      setError(err?.message || 'Failed to save basic info.');
+      setError(err?.message || 'Failed to save.');
     } finally {
       setIsSaving(false);
     }
@@ -199,7 +199,7 @@ export function BasicInfoDialog({ open, mode, onOpenChange }: BasicInfoDialogPro
                     Saving...
                   </>
                 ) : (
-                  'Save basic info'
+                  'Save'
                 )}
               </Button>
             </DialogFooter>
