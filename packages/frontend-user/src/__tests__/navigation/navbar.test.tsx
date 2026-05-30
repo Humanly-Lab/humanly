@@ -96,6 +96,9 @@ describe('user navbar', () => {
     await user.click(screen.getByRole('menuitem', { name: /settings/i }));
 
     expect(screen.getByRole('heading', { name: /my account/i })).toBeInTheDocument();
+    expect(screen.getByText('Email address')).toBeInTheDocument();
+    expect(screen.getByText('writer@mail.com')).toBeInTheDocument();
+    expect(screen.queryByDisplayValue('writer@mail.com')).not.toBeInTheDocument();
     const displayName = screen.getByLabelText(/display name/i);
     await user.clear(displayName);
     await user.type(displayName, 'Writer Two');

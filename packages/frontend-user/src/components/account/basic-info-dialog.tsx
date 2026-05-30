@@ -140,6 +140,15 @@ export function BasicInfoDialog({ open, mode, onOpenChange }: BasicInfoDialogPro
               </Alert>
             ) : null}
 
+            {!isCompletionMode ? (
+              <div className="space-y-1.5">
+                <p className="text-sm font-medium text-foreground">Email address</p>
+                <p className="rounded-[8px] border border-border/70 bg-muted/35 px-3 py-2.5 text-sm text-muted-foreground">
+                  {user?.email || 'No email available'}
+                </p>
+              </div>
+            ) : null}
+
             <div className="space-y-2">
               <Label htmlFor="basic-info-name">Display name</Label>
               <Input
