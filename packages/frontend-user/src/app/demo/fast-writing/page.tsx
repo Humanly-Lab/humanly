@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { FastWritingDemo } from '@/components/demo/fast-writing-demo';
 
 export const metadata: Metadata = {
-  title: 'Fast Writing Demo | Humanly',
+  title: 'Humanly Demo | Humanly',
   description: 'Try the Humanly task, writing, log, and certificate flow without signing in.',
 };
 

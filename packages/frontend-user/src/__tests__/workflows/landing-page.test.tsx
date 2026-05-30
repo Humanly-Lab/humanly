@@ -87,6 +87,8 @@ describe('landing page', () => {
   it('opens the fast writing demo in a separate tab instead of embedding it on the homepage', async () => {
     render(<HomePage />);
 
+    expect(screen.getByText('Humanly Demo')).toBeInTheDocument();
+    expect(screen.queryByText('Fast writing demo')).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /Try the real flow in a separate demo workspace/i })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: /New Task/i })).not.toBeInTheDocument();
     expect(screen.queryByText(/Task Configuration/i)).not.toBeInTheDocument();
@@ -105,6 +107,8 @@ describe('landing page', () => {
 
     render(<FastWritingDemoPage />);
 
+    expect(screen.getByText('Humanly Demo')).toBeInTheDocument();
+    expect(screen.queryByText('Fast writing demo')).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /Setup, write, certify/i })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: /Try the real writing-to-certificate flow/i })).not.toBeInTheDocument();
     expect(screen.getAllByText(/Personal writing/i).length).toBeGreaterThan(0);

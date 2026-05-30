@@ -376,7 +376,7 @@ export function FastWritingDemo() {
         <div className="mb-3 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div className="min-w-0">
             <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
-              Fast writing demo
+              Humanly Demo
             </p>
             <h2 className="mt-1 text-2xl font-semibold leading-tight tracking-normal sm:text-3xl">
               Setup, write, certify.
