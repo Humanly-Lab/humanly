@@ -105,7 +105,8 @@ describe('landing page', () => {
 
     render(<FastWritingDemoPage />);
 
-    expect(screen.getByRole('heading', { name: /Try the real writing-to-certificate flow/i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /Setup, write, certify/i })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /Try the real writing-to-certificate flow/i })).not.toBeInTheDocument();
     expect(screen.getAllByText(/Personal writing/i).length).toBeGreaterThan(0);
     expect(screen.getByRole('heading', { name: /Create Writing/i })).toBeInTheDocument();
     expect(screen.getByText(/Document setup/i)).toBeInTheDocument();
@@ -163,7 +164,7 @@ describe('landing page', () => {
     expect(within(certificateDialog).getByRole('heading', { name: /generate certificate/i })).toBeInTheDocument();
     await user.click(within(certificateDialog).getByRole('button', { name: /^generate certificate$/i }));
 
-    expect(await screen.findByText(/A verifiable snapshot of typing activity/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Verifiable writing process snapshot/i)).toBeInTheDocument();
     expect(screen.getByText(/demo identifiers/i)).toBeInTheDocument();
     const qrCode = await screen.findByAltText(/demo certificate verification qr code/i);
     expect(qrCode).toHaveAttribute('src', expect.stringContaining('data:image/svg+xml'));

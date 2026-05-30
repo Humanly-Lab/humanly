@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   CertificateGenerationDialog,
   type CertificateGenerationOptions,
@@ -371,22 +371,18 @@ export function FastWritingDemo() {
   };
 
   return (
-    <section id="demo" className="bg-[#f7f2e8] px-5 py-[110px] sm:px-8 lg:px-14">
+    <section id="demo" className="min-h-screen bg-[#f7f2e8] px-4 py-4 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-[1180px]">
-        <div className="mb-9 flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
-          <div className="max-w-[720px]">
-            <p className="mb-4 text-[11px] font-bold uppercase tracking-[0.22em] text-muted-foreground">
+        <div className="mb-3 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div className="min-w-0">
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
               Fast writing demo
             </p>
-            <h2 className="text-[28px] font-semibold leading-[1.08] tracking-normal sm:text-[36px]">
-              Try the real writing-to-certificate flow without signing in.
+            <h2 className="mt-1 text-2xl font-semibold leading-tight tracking-normal sm:text-3xl">
+              Setup, write, certify.
             </h2>
-            <p className="mt-5 text-[15px] leading-[1.7] text-muted-foreground sm:text-[17px]">
-              Configure a local personal writing document, write in a Humanly-style editor, inspect the activity log,
-              and generate a certificate preview. The demo resets when you are done.
-            </p>
           </div>
-          <div className="grid grid-cols-4 gap-2 text-[11px] text-muted-foreground sm:min-w-[430px]">
+          <div className="grid grid-cols-4 gap-2 text-[11px] text-muted-foreground sm:min-w-[420px]">
             <StepBadge active={step === 'setup'} complete={step !== 'setup'} Icon={Settings2} label="Setup" />
             <StepBadge active={step === 'writing'} complete={['log', 'certificate', 'done'].includes(step)} Icon={FileText} label="Writing" />
             <StepBadge active={step === 'log'} complete={['certificate', 'done'].includes(step)} Icon={History} label="Logs" />
@@ -456,7 +452,7 @@ function StepBadge({
 }) {
   return (
     <div
-      className={`flex min-h-[54px] flex-col items-center justify-center gap-1 rounded-[8px] border px-2 text-center ${
+      className={`flex min-h-10 flex-col items-center justify-center gap-0.5 rounded-[8px] border px-2 py-1 text-center ${
         active
           ? 'border-foreground bg-white text-foreground'
           : complete
@@ -470,11 +466,11 @@ function StepBadge({
   );
 }
 
-function SectionHeading({ title, description }: { title: string; description: string }) {
+function SectionHeading({ title, description }: { title: string; description?: string }) {
   return (
     <div>
       <h3 className="text-base font-semibold tracking-normal">{title}</h3>
-      <p className="mt-1 text-sm leading-6 text-muted-foreground">{description}</p>
+      {description ? <p className="mt-1 text-sm leading-6 text-muted-foreground">{description}</p> : null}
     </div>
   );
 }
@@ -490,33 +486,26 @@ function DemoTaskSetup({
 }) {
   return (
     <div className="mx-auto w-full max-w-6xl">
-      <div className="mb-6">
-        <Button asChild variant="ghost" className="mb-4 px-0 hover:bg-transparent">
+      <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="humanly-eyebrow">Personal writing</p>
+          <h3 className="mt-1 text-2xl font-semibold tracking-normal">Create Writing</h3>
+        </div>
+        <Button asChild variant="ghost" size="sm" className="w-fit px-0 hover:bg-transparent">
           <a href="/">
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to Home
           </a>
         </Button>
-        <p className="humanly-eyebrow">Personal writing</p>
-        <h3 className="mt-2 text-3xl font-bold tracking-normal">Create Writing</h3>
-        <p className="mt-2 text-muted-foreground">
-          Create a personal writing document and configure its writing environment.
-        </p>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Document setup</CardTitle>
-          <CardDescription>
-            Set up the document details, AI access, and writing controls before you start.
-          </CardDescription>
+      <Card className="overflow-hidden">
+        <CardHeader className="p-3 sm:p-4">
+          <CardTitle className="text-lg">Document setup</CardTitle>
         </CardHeader>
-        <CardContent className="grid gap-4 px-4 pb-4 pt-0 sm:px-5 sm:pb-5 sm:pt-0 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.2fr)] xl:items-stretch">
+        <CardContent className="grid gap-3 px-3 pb-3 pt-0 sm:px-4 sm:pb-4 sm:pt-0 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.2fr)] xl:items-stretch">
           <section className="h-full space-y-3 rounded-lg border border-border/70 bg-background p-3">
-            <SectionHeading
-              title="Basic Information"
-              description="Name the document and attach an optional source PDF for side-by-side writing."
-            />
+            <SectionHeading title="Basic Information" />
 
             <div className="humanly-field">
               <Label htmlFor="demo-document-name">Document Name</Label>
@@ -535,7 +524,8 @@ function DemoTaskSetup({
                 value={settings.description}
                 onChange={(event) => onSettingsChange({ description: event.target.value })}
                 placeholder="Optional context for this document..."
-                className="resize-none"
+                className="h-16 resize-none"
+                style={{ minHeight: '4rem' }}
               />
             </div>
 
@@ -544,24 +534,17 @@ function DemoTaskSetup({
                 <Upload className="h-4 w-4 text-accent" />
                 PDF
               </div>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Optional PDF source file for side-by-side writing.
-              </p>
-              <div className="mt-3 flex items-center gap-3 rounded-lg border border-border/70 bg-background p-3">
+              <div className="mt-2 flex items-center gap-3 rounded-lg border border-border/70 bg-background p-2">
                 <FileText className="h-5 w-5 shrink-0 text-accent" />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium">reflection-source.pdf</p>
-                  <p className="text-xs text-muted-foreground">Demo source PDF</p>
                 </div>
               </div>
             </div>
           </section>
 
-          <div className="h-full space-y-4 rounded-lg border border-border/70 bg-background p-3">
-            <SectionHeading
-              title="Environment"
-              description="Choose a default setup or customize the writing controls for this demo document."
-            />
+          <div className="h-full space-y-3 rounded-lg border border-border/70 bg-background p-3">
+            <SectionHeading title="Environment" />
 
             <div className="humanly-field">
               <Label>Environment</Label>
@@ -576,21 +559,8 @@ function DemoTaskSetup({
               </Select>
             </div>
 
-            <div className="rounded-lg border border-border/70 bg-muted/35 p-3">
-              <div className="flex items-start gap-3">
-                <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-[#6f8a78]" />
-                <div>
-                  <p className="font-medium">Custom Environment</p>
-                  <p className="text-sm text-muted-foreground">
-                    Configure AI, copy-paste, and character cap for this local writing run.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="grid gap-4 lg:grid-cols-2">
-              <div className="space-y-4 rounded-lg border border-border/70 bg-card p-4 lg:col-span-2">
-                <SectionHeading title="AI" description="Control whether this document can use assistant support." />
+            <div className="grid gap-3 lg:grid-cols-2">
+              <div className="space-y-3 rounded-lg border border-border/70 bg-card p-3">
                 <div className="humanly-field">
                   <Label>AI</Label>
                   <Select
@@ -608,8 +578,7 @@ function DemoTaskSetup({
                 </div>
               </div>
 
-              <div className="space-y-4 rounded-lg border border-border/70 bg-card p-4">
-                <SectionHeading title="Writing Control" description="Set rules for editing behavior during writing." />
+              <div className="space-y-3 rounded-lg border border-border/70 bg-card p-3">
                 <div className="humanly-field">
                   <Label>Copy & Paste</Label>
                   <Select
@@ -627,8 +596,7 @@ function DemoTaskSetup({
                 </div>
               </div>
 
-              <div className="space-y-4 rounded-lg border border-border/70 bg-card p-4">
-                <SectionHeading title="Writing Length" description="Set an optional cap for this personal writing." />
+              <div className="space-y-3 rounded-lg border border-border/70 bg-card p-3 lg:col-span-2">
                 <div className="humanly-field">
                   <Label htmlFor="demo-max-characters">Maximum Characters</Label>
                   <Input
@@ -640,14 +608,11 @@ function DemoTaskSetup({
                     placeholder="No maximum"
                   />
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  Leave blank in the real editor for no maximum length. The demo uses this cap for display only.
-                </p>
               </div>
             </div>
           </div>
         </CardContent>
-        <CardFooter className="mt-4 flex justify-end gap-3 border-t border-border/70 bg-muted/20 px-5 pb-5 pt-7 sm:pt-7">
+        <CardFooter className="flex justify-end gap-3 border-t border-border/70 bg-muted/20 px-3 py-3 sm:px-4">
           <Button asChild variant="outline">
             <a href="/">
               Cancel
@@ -707,9 +672,9 @@ function DemoWritingEditor({
   onOpenCertificateDialog: () => void;
 }) {
   return (
-    <div className="flex h-[760px] flex-col overflow-hidden rounded-lg border border-border/80 bg-background shadow-[0_34px_80px_-56px_rgba(20,22,26,0.75)]">
+    <div className="flex h-[calc(100vh-132px)] min-h-[420px] max-h-[620px] flex-col overflow-hidden rounded-lg border border-border/80 bg-background shadow-[0_34px_80px_-56px_rgba(20,22,26,0.75)]">
       <div className="shrink-0 border-b border-border/70 bg-card">
-        <div className="px-4 py-3">
+        <div className="px-3 py-2 sm:px-4">
           <div className="flex items-center justify-between gap-4">
             <div className="flex min-w-0 items-center gap-3">
               <Button
@@ -719,6 +684,7 @@ function DemoWritingEditor({
                 aria-label="Back to setup"
                 title="Back to setup"
                 onClick={onBackToSetup}
+                className="h-9 w-9"
               >
                 <ArrowLeft className="h-4 w-4" />
               </Button>
@@ -729,14 +695,13 @@ function DemoWritingEditor({
                   </h3>
                   <SaveStatusIndicator status={saveStatus} />
                 </div>
-                <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                <div className="mt-0.5 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
                   <span>Personal writing</span>
-                  <span>Local demo</span>
                 </div>
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
+            <div className="flex flex-wrap items-center justify-end gap-2">
               <Badge variant="secondary" className="rounded-md">
                 {stats.totalCharacters.toLocaleString()}/{settings.maxCharacters.toLocaleString()} characters
               </Badge>
@@ -766,27 +731,26 @@ function DemoWritingEditor({
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-hidden p-3">
+      <div className="min-h-0 flex-1 overflow-hidden p-2 sm:p-3">
         <div className="grid h-full overflow-hidden rounded-lg border border-border/80 bg-card lg:grid-cols-[38%_1fr]">
           <div className="hidden min-h-0 flex-col overflow-hidden border-r border-border/70 bg-card lg:flex">
             <div className="shrink-0 border-b border-border/70 bg-muted/30 px-3 py-2">
-              <div className="inline-flex max-w-[240px] items-center gap-2 truncate rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground">
+              <div className="inline-flex max-w-[240px] items-center gap-2 truncate rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground">
                 <FileText className="h-4 w-4 shrink-0" />
                 <span className="truncate">reflection-brief.pdf</span>
               </div>
             </div>
-            <div className="min-h-0 flex-1 overflow-auto bg-[#f8f8f6] p-5">
-              <div className="mx-auto min-h-[560px] max-w-[390px] rounded-sm bg-white p-6 shadow-sm ring-1 ring-border/70">
+            <div className="min-h-0 flex-1 overflow-auto bg-[#f8f8f6] p-3">
+              <div className="mx-auto min-h-full max-w-[390px] rounded-sm bg-white p-4 shadow-sm ring-1 ring-border/70">
                 <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
                   Assignment Brief
                 </p>
-                <h4 className="mt-4 text-lg font-semibold">Reflection Prompt</h4>
-                <p className="mt-3 text-sm leading-6 text-muted-foreground">
-                  Write a short reflection that explains your reasoning process. Humanly records typing,
-                  paste activity, timing, and AI assistance as provenance evidence.
+                <h4 className="mt-3 text-base font-semibold">Reflection Prompt</h4>
+                <p className="mt-2 text-sm leading-5 text-muted-foreground">
+                  Write a short reflection that explains your reasoning process.
                 </p>
-                <Separator className="my-5" />
-                <div className="space-y-3 text-sm leading-6">
+                <Separator className="my-4" />
+                <div className="space-y-2 text-sm leading-5">
                   <p><span className="font-medium">AI:</span> {aiAccessLabels[settings.aiAccess]}</p>
                   <p><span className="font-medium">Paste:</span> {pastePolicyLabels[settings.pastePolicy]}</p>
                   <p><span className="font-medium">Maximum:</span> {settings.maxCharacters.toLocaleString()} characters</p>
@@ -796,14 +760,14 @@ function DemoWritingEditor({
           </div>
 
           <div className="min-h-0 overflow-auto bg-background">
-            <div className="h-full px-4 py-4 sm:px-6 sm:py-6">
+            <div className="h-full px-3 py-3 sm:px-4 sm:py-4">
               <Textarea
                 aria-label="Demo writing editor"
                 value={draft}
                 onChange={onDraftChange}
                 onPaste={onPaste}
                 placeholder="Start writing with your instruction file open..."
-                className="h-full min-h-[580px] resize-none rounded-lg border-border/80 bg-card p-6 text-base leading-7 shadow-sm"
+                className="h-full min-h-0 resize-none rounded-lg border-border/80 bg-card p-4 text-base leading-7 shadow-sm"
               />
             </div>
           </div>
@@ -824,12 +788,9 @@ function DemoActivityLog({
 }) {
   return (
     <div className="mx-auto max-w-6xl rounded-lg border border-border/80 bg-card shadow-[0_34px_80px_-56px_rgba(20,22,26,0.75)]">
-      <div className="flex flex-col gap-3 border-b border-border/70 p-5 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 border-b border-border/70 p-3 sm:flex-row sm:items-center sm:justify-between sm:p-4">
         <div>
-          <h3 className="text-2xl font-semibold tracking-normal">Activity Logs</h3>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Local demo events are shown in the same audit-oriented shape as Humanly writing logs.
-          </p>
+          <h3 className="text-xl font-semibold tracking-normal">Activity Logs</h3>
         </div>
         <div className="flex gap-2">
           <Button type="button" variant="outline" onClick={onBackToWriting}>
@@ -843,18 +804,18 @@ function DemoActivityLog({
       </div>
 
       <div className="overflow-hidden">
-        <div className="grid grid-cols-[94px_150px_1fr_92px] bg-muted/35 px-5 py-3 text-xs font-bold uppercase tracking-[0.12em] text-muted-foreground">
+        <div className="grid grid-cols-[88px_128px_1fr_72px] bg-muted/35 px-4 py-2 text-xs font-bold uppercase tracking-[0.12em] text-muted-foreground">
           <span>Time</span>
           <span>Event</span>
           <span>Detail</span>
           <span className="text-right">Chars</span>
         </div>
-        <div className="max-h-[520px] overflow-auto">
+        <div className="max-h-[calc(100vh-190px)] overflow-auto">
           {logs.length ? (
             logs.map((entry) => (
               <div
                 key={entry.id}
-                className="grid grid-cols-[94px_150px_1fr_92px] border-t border-border/70 px-5 py-3 text-sm"
+                className="grid grid-cols-[88px_128px_1fr_72px] border-t border-border/70 px-4 py-2 text-sm"
               >
                 <span className="text-muted-foreground">{entry.time}</span>
                 <span>
@@ -967,68 +928,64 @@ function DemoCertificatePreview({
   };
 
   return (
-    <div className="mx-auto max-w-6xl rounded-lg border border-border/80 bg-background p-5 shadow-[0_34px_80px_-56px_rgba(20,22,26,0.75)] sm:p-6">
-      <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <Button type="button" variant="outline" size="sm" onClick={onEnd} className="w-fit">
-          End demo
-        </Button>
+    <div className="mx-auto max-w-6xl rounded-lg border border-border/80 bg-background p-3 shadow-[0_34px_80px_-56px_rgba(20,22,26,0.75)] sm:p-4">
+      <div className="mb-3 flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+        <div className="min-w-0">
+          <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
+            Certificate
+          </p>
+          <h3 className="truncate text-xl font-semibold tracking-normal">{title || 'Untitled Writing'}</h3>
+        </div>
 
-        <div className="grid grid-cols-3 gap-2 sm:w-auto">
-          <Button type="button" variant="outline" size="sm" className="w-full sm:w-36" onClick={handleShareLink}>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-5 lg:w-auto">
+          <Button type="button" variant="outline" size="sm" aria-label="End demo" onClick={onEnd}>
+            End
+          </Button>
+          <Button type="button" variant="outline" size="sm" aria-label="Share Link" onClick={handleShareLink}>
             <Share2 className="mr-2 h-4 w-4" />
-            Share Link
+            Share
           </Button>
-          <Button type="button" size="sm" className="w-full sm:w-36" onClick={handleOpenPdf}>
+          <Button type="button" size="sm" aria-label="Open PDF" onClick={handleOpenPdf}>
             <FileText className="mr-2 h-4 w-4" />
-            Open PDF
+            PDF
           </Button>
-          <Button type="button" variant="outline" size="sm" className="w-full sm:w-36" onClick={handleDownloadJson}>
+          <Button type="button" variant="outline" size="sm" aria-label="JSON Data" onClick={handleDownloadJson}>
             <FileJson className="mr-2 h-4 w-4" />
-            JSON Data
+            JSON
+          </Button>
+          <Button type="button" variant="outline" size="sm" aria-label="Do it again" onClick={onRestart}>
+            <RotateCcw className="mr-2 h-4 w-4" />
+            Again
           </Button>
         </div>
       </div>
       {actionStatus ? (
-        <p className="mb-4 rounded-md border border-border/70 bg-muted/35 px-3 py-2 text-sm text-muted-foreground" role="status">
+        <p className="mb-3 rounded-md border border-border/70 bg-muted/35 px-3 py-2 text-sm text-muted-foreground" role="status">
           {actionStatus}
         </p>
       ) : null}
 
-      <div className="space-y-4">
-        <Card>
-          <CardContent className="space-y-4 p-4 sm:p-5">
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-              <div className="min-w-0 flex-1">
-                <div className="flex items-start gap-3">
-                  <Award className="mt-1 h-6 w-6 shrink-0 text-accent" />
-                  <div className="min-w-0">
-                    <h3 className="break-words text-2xl font-semibold tracking-normal">{title || 'Untitled Writing'}</h3>
-                    <p className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
-                      <Calendar className="h-4 w-4" />
-                      Generated just now
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <p className="max-w-full text-sm text-muted-foreground lg:ml-6 lg:shrink-0 lg:whitespace-nowrap lg:text-right">
-                A verifiable snapshot of typing activity, pasted text, and AI assistance.
-              </p>
+      <Card>
+        <CardContent className="grid gap-3 p-3 lg:grid-cols-[minmax(0,1.4fr)_minmax(220px,0.75fr)_minmax(240px,0.85fr)]">
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Calendar className="h-4 w-4" />
+              Generated just now
             </div>
+            <p className="text-sm text-muted-foreground">Verifiable writing process snapshot.</p>
 
-            <Separator />
-
-            <div className="grid gap-2 sm:grid-cols-4">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-2">
               <StatTile label="Typed" value={`${stats.typedPercentage}%`} />
               <StatTile label="Pasted" value={`${stats.pastedPercentage}%`} />
               <StatTile label="Final Text" value={stats.totalCharacters.toLocaleString()} />
-              <StatTile label="Writing Time" value={`${editingMinutes} min`} />
+              <StatTile label="Time" value={`${editingMinutes} min`} />
             </div>
 
             <div className="space-y-2">
               <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Typed vs pasted composition</span>
+                <span className="text-muted-foreground">Composition</span>
                 <span className="font-medium">
-                  {stats.typedCharacters.toLocaleString()} typed · {stats.pastedCharacters.toLocaleString()} pasted
+                  {stats.typedCharacters.toLocaleString()} typed / {stats.pastedCharacters.toLocaleString()} pasted
                 </span>
               </div>
               <div className="flex h-3 overflow-hidden rounded-full bg-secondary">
@@ -1036,108 +993,87 @@ function DemoCertificatePreview({
                 <div className="bg-[#b9774f]" style={{ width: `${stats.pastedPercentage}%` }} />
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </div>
 
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg">More details</CardTitle>
-            <CardDescription>Verification, display, and recent proof events.</CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
-            <div className="grid gap-4 rounded-lg border border-border/70 bg-muted/20 p-4 lg:grid-cols-[minmax(190px,0.8fr)_minmax(280px,1.2fr)]">
-              <div className="space-y-3">
-                <div>
-                  <h4 className="text-sm font-medium">Verification</h4>
-                  <p className="text-xs text-muted-foreground">Share or scan this link to verify the certificate.</p>
-                </div>
-                <div className="flex w-full max-w-56 flex-col items-center">
-                  <div className="flex h-36 w-36 items-center justify-center rounded bg-white p-2 ring-1 ring-border/70">
-                    {qrCodeDataUrl ? (
-                      <img
-                        src={qrCodeDataUrl}
-                        alt="Demo certificate verification QR code"
-                        className="h-full w-full"
-                      />
-                    ) : (
-                      <div
-                        className="h-full w-full animate-pulse rounded bg-muted"
-                        role="status"
-                        aria-label="Generating verification QR code"
-                      />
-                    )}
-                  </div>
-                  <p className="mt-2 max-w-full break-all text-center text-[11px] leading-4 text-muted-foreground">
-                    {visibleShareUrl}
-                  </p>
-                </div>
-                <Button type="button" variant="outline" size="sm" className="w-full max-w-56 bg-background" onClick={handleShareLink}>
-                  <Share2 className="mr-2 h-4 w-4" />
-                  Copy Link
-                </Button>
+          <div className="rounded-lg border border-border/70 bg-muted/20 p-3">
+            <h4 className="text-sm font-medium">Verification</h4>
+            <div className="mt-2 flex flex-col items-center">
+              <div className="flex h-32 w-32 items-center justify-center rounded bg-white p-2 ring-1 ring-border/70">
+                {qrCodeDataUrl ? (
+                  <img
+                    src={qrCodeDataUrl}
+                    alt="Demo certificate verification QR code"
+                    className="h-full w-full"
+                  />
+                ) : (
+                  <div
+                    className="h-full w-full animate-pulse rounded bg-muted"
+                    role="status"
+                    aria-label="Generating verification QR code"
+                  />
+                )}
               </div>
+              <p className="mt-2 max-w-full break-all text-center text-[11px] leading-4 text-muted-foreground">
+                {visibleShareUrl}
+              </p>
+            </div>
+            <Button type="button" variant="outline" size="sm" className="mt-2 w-full bg-background" onClick={handleShareLink}>
+              <Share2 className="mr-2 h-4 w-4" />
+              Copy Link
+            </Button>
+          </div>
 
-              <div className="space-y-5">
-                <div className="space-y-2">
-                  <h4 className="text-sm font-medium">Public Display</h4>
-                  <div className="space-y-2 text-sm text-muted-foreground">
-                    <p className="flex items-center gap-2">
-                      <CheckCircle className="h-4 w-4 text-emerald-700" />
-                      {options.includeFullText ? 'Full text included' : 'Full text hidden'}
-                    </p>
-                    <p className="flex items-center gap-2">
-                      <CheckCircle className="h-4 w-4 text-emerald-700" />
-                      {options.includeEditHistory ? 'Edit history included' : 'Edit history hidden'}
-                    </p>
-                  </div>
-                </div>
-                <Separator />
-                <div className="space-y-2">
-                  <h4 className="text-sm font-medium">Recent proof events</h4>
-                  {latestLogs.length ? (
-                    <div className="space-y-2">
-                      {latestLogs.map((entry) => (
-                        <div key={entry.id} className="flex items-center justify-between gap-3 text-sm">
-                          <span className="min-w-0 truncate text-muted-foreground">{entry.detail}</span>
-                          <span className="shrink-0 font-medium">{entry.time}</span>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">No events were recorded before this certificate.</p>
-                  )}
-                </div>
+          <div className="space-y-3">
+            <div className="rounded-lg border border-border/70 bg-muted/20 p-3">
+              <h4 className="text-sm font-medium">Public Display</h4>
+              <div className="mt-2 space-y-1.5 text-sm text-muted-foreground">
+                <p className="flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4 text-emerald-700" />
+                  {options.includeFullText ? 'Full text included' : 'Full text hidden'}
+                </p>
+                <p className="flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4 text-emerald-700" />
+                  {options.includeEditHistory ? 'Edit history included' : 'Edit history hidden'}
+                </p>
               </div>
             </div>
 
-            <div className="space-y-3 rounded-lg border border-border/70 bg-muted/20 p-4 text-xs">
-              <div>
-                <h4 className="text-sm font-medium">Identifiers</h4>
-                <p className="text-xs text-muted-foreground">Demo identifiers for audit and support.</p>
+            <div className="rounded-lg border border-border/70 bg-muted/20 p-3">
+              <h4 className="text-sm font-medium">Recent proof events</h4>
+              {latestLogs.length ? (
+                <div className="mt-2 space-y-1.5">
+                  {latestLogs.map((entry) => (
+                    <div key={entry.id} className="flex items-center justify-between gap-3 text-sm">
+                      <span className="min-w-0 truncate text-muted-foreground">{entry.detail}</span>
+                      <span className="shrink-0 font-medium">{entry.time}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-2 text-sm text-muted-foreground">No events recorded.</p>
+              )}
+            </div>
+
+            <div className="rounded-lg border border-border/70 bg-muted/20 p-3 text-xs">
+              <h4 className="text-sm font-medium">Demo identifiers</h4>
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                <div>
+                  <p className="text-muted-foreground">Certificate ID</p>
+                  <p className="truncate">demo-certificate-local</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Document ID</p>
+                  <p className="truncate">demo-document-local</p>
+                </div>
               </div>
-              <div>
-                <p className="text-muted-foreground">Certificate ID</p>
-                <p className="truncate">demo-certificate-local</p>
-              </div>
-              <div>
-                <p className="text-muted-foreground">Document ID</p>
-                <p className="truncate">demo-document-local</p>
-              </div>
-              <Button type="button" variant="outline" size="sm" className="mt-2 w-full" onClick={handleCopyToken}>
+              <Button type="button" variant="outline" size="sm" className="mt-2 w-full bg-background" onClick={handleCopyToken}>
                 <Copy className="mr-2 h-4 w-4" />
                 Copy Token
               </Button>
             </div>
-          </CardContent>
-        </Card>
-
-        <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
-          <Button type="button" variant="outline" onClick={onRestart}>
-            <RotateCcw className="mr-2 h-4 w-4" />
-            Do it again
-          </Button>
-        </div>
-      </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
