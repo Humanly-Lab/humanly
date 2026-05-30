@@ -10,7 +10,8 @@ export interface User {
   id: string;
   email: string;
   role?: 'admin' | 'user';
-  name?: string;
+  name?: string | null;
+  profileCompleted?: boolean;
   emailVerified: boolean;
   avatar?: string;
   createdAt: string;
@@ -28,7 +29,7 @@ interface AuthState {
 
   // Actions
   login: (email: string, password: string, role?: 'admin' | 'user') => Promise<void>;
-  register: (email: string, password: string, name?: string, role?: 'admin' | 'user') => Promise<void>;
+  register: (email: string, password: string, role?: 'admin' | 'user') => Promise<void>;
   logout: () => Promise<void>;
   verifyEmail: (code: string) => Promise<void>;
   resendVerificationEmail: (email?: string) => Promise<void>;
@@ -93,7 +94,7 @@ export const useAuthStore = create<AuthState>()(
       /**
        * Register new user
        */
-      register: async (email: string, password: string, name?: string, role: 'admin' | 'user' = 'user') => {
+      register: async (email: string, password: string, role: 'admin' | 'user' = 'user') => {
         try {
           set({ isLoading: true, error: null });
 
@@ -103,7 +104,7 @@ export const useAuthStore = create<AuthState>()(
             data: {
               user: User;
             };
-          }>('/auth/register', { email, password, name, role });
+          }>('/auth/register', { email, password, role });
 
           // Registration successful - user needs to verify email before logging in
           // Don't set authenticated state or tokens
@@ -370,7 +371,7 @@ export const useAuthStore = create<AuthState>()(
        */
       updateUser: async (data: Partial<User>) => {
         try {
-          set({ isLoading: true, error: null });
+          set({ error: null });
 
           const response = await api.patch<{
             success: boolean;
@@ -381,12 +382,11 @@ export const useAuthStore = create<AuthState>()(
 
           set({
             user: response.data.user,
-            isLoading: false,
             error: null,
           });
         } catch (error) {
           const errorMessage = error instanceof ApiError ? error.message : 'Failed to update profile';
-          set({ isLoading: false, error: errorMessage });
+          set({ error: errorMessage });
           throw error;
         }
       },

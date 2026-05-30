@@ -9,6 +9,7 @@ import {
   forgotPasswordSchema,
   resetPasswordSchema,
   passwordResetTokenSchema,
+  updateUserProfileSchema,
 } from '@humanly/shared';
 import { logger } from '../utils/logger';
 import { env } from '../config/env';
@@ -256,6 +257,30 @@ export const getCurrentUser = asyncHandler(async (req: Request, res: Response) =
 
   // Get user
   const user = await AuthService.getUserById(userId);
+
+  res.json({
+    success: true,
+    data: { user },
+  });
+});
+
+/**
+ * Update current user profile
+ * PATCH /api/v1/auth/me
+ */
+export const updateCurrentUser = asyncHandler(async (req: Request, res: Response) => {
+  const userId = req.user?.userId;
+  if (!userId) {
+    res.status(401).json({
+      success: false,
+      error: 'Unauthorized',
+      message: 'Authentication required',
+    });
+    return;
+  }
+
+  const data = updateUserProfileSchema.parse(req.body);
+  const user = await AuthService.updateUserProfile(userId, data);
 
   res.json({
     success: true,

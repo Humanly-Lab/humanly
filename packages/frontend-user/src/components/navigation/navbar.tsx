@@ -3,8 +3,9 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { LayoutDashboard, LogOut, User, Menu } from 'lucide-react';
+import { LayoutDashboard, LogOut, User, Menu, UserCog } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { BasicInfoDialog } from '@/components/account/basic-info-dialog';
 import { HumanlyWordmark } from '@/components/brand/humanly-wordmark';
 import {
   DropdownMenu,
@@ -31,7 +32,8 @@ export function Navbar() {
   const router = useRouter();
   const { user, logout } = useAuthStore();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const userDisplayLabel = getUserDisplayLabel(user?.email);
+  const [accountDialogOpen, setAccountDialogOpen] = useState(false);
+  const userDisplayLabel = user?.name?.trim() || getUserDisplayLabel(user?.email);
   const canUseAdminView = Boolean(user);
   const adminTasksHref = adminAppHref('/tasks?switchSession=1');
 
@@ -47,100 +49,127 @@ export function Navbar() {
     : 'mx-auto max-w-7xl px-4 sm:px-6 lg:px-8';
 
   return (
-    <nav className="border-b border-border/70 bg-card">
-      <div className={containerClass}>
-        <div className="flex h-16 items-center justify-between">
-          <div className="flex items-center">
-            <Link href="/documents" className="flex items-center">
-              <HumanlyWordmark size="md" />
-            </Link>
-          </div>
-
-          <div className="flex items-center gap-2">
-            {/* Desktop User Menu */}
-            <div className="hidden sm:block">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="flex items-center gap-2">
-                    <User className="h-4 w-4" />
-                    <span className="hidden lg:inline">{userDisplayLabel}</span>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuLabel>My Account</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  {canUseAdminView ? (
-                    <>
-                      <DropdownMenuItem asChild>
-                        <a href={adminTasksHref}>
-                          <LayoutDashboard className="mr-2 h-4 w-4" />
-                          Admin portal
-                        </a>
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                    </>
-                  ) : null}
-                  <DropdownMenuItem onClick={handleLogout}>
-                    <LogOut className="mr-2 h-4 w-4" />
-                    Logout
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+    <>
+      <nav className="border-b border-border/70 bg-card">
+        <div className={containerClass}>
+          <div className="flex h-16 items-center justify-between">
+            <div className="flex items-center">
+              <Link href="/documents" className="flex items-center">
+                <HumanlyWordmark size="md" />
+              </Link>
             </div>
 
-            {/* Mobile Menu */}
-            <div className="md:hidden">
-              <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-                <SheetTrigger asChild>
-                  <Button variant="ghost" size="icon">
-                    <Menu className="h-6 w-6" />
-                    <span className="sr-only">Open menu</span>
-                  </Button>
-                </SheetTrigger>
-                <SheetContent side="right">
-                  <SheetHeader>
-                    <SheetTitle>Menu</SheetTitle>
-                    <SheetDescription className="sr-only">
-                      Account options
-                    </SheetDescription>
-                  </SheetHeader>
-                  <div className="mt-6 flex flex-col space-y-4">
-                    <div>
-                      <div className="px-3 py-2 text-sm text-muted-foreground">
-                        {userDisplayLabel}
-                      </div>
-                      {canUseAdminView ? (
-                        <Button
-                          variant="ghost"
-                          className="w-full justify-start"
-                          asChild
-                          onClick={() => setMobileMenuOpen(false)}
-                        >
+            <div className="flex items-center gap-2">
+              {/* Desktop User Menu */}
+              <div className="hidden sm:block">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className="flex items-center gap-2">
+                      <User className="h-4 w-4" />
+                      <span className="hidden lg:inline">{userDisplayLabel}</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onSelect={(event) => {
+                        event.preventDefault();
+                        setAccountDialogOpen(true);
+                      }}
+                    >
+                      <UserCog className="mr-2 h-4 w-4" />
+                      Edit profile
+                    </DropdownMenuItem>
+                    {canUseAdminView ? (
+                      <>
+                        <DropdownMenuItem asChild>
                           <a href={adminTasksHref}>
                             <LayoutDashboard className="mr-2 h-4 w-4" />
                             Admin portal
                           </a>
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                      </>
+                    ) : null}
+                    <DropdownMenuItem onClick={handleLogout}>
+                      <LogOut className="mr-2 h-4 w-4" />
+                      Logout
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+
+              {/* Mobile Menu */}
+              <div className="md:hidden">
+                <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+                  <SheetTrigger asChild>
+                    <Button variant="ghost" size="icon">
+                      <Menu className="h-6 w-6" />
+                      <span className="sr-only">Open menu</span>
+                    </Button>
+                  </SheetTrigger>
+                  <SheetContent side="right">
+                    <SheetHeader>
+                      <SheetTitle>Menu</SheetTitle>
+                      <SheetDescription className="sr-only">
+                        Account options
+                      </SheetDescription>
+                    </SheetHeader>
+                    <div className="mt-6 flex flex-col space-y-4">
+                      <div>
+                        <div className="px-3 py-2 text-sm text-muted-foreground">
+                          {userDisplayLabel}
+                        </div>
+                        <Button
+                          variant="ghost"
+                          className="w-full justify-start"
+                          onClick={() => {
+                            setMobileMenuOpen(false);
+                            setAccountDialogOpen(true);
+                          }}
+                        >
+                          <UserCog className="mr-2 h-4 w-4" />
+                          Edit profile
                         </Button>
-                      ) : null}
-                      <Button
-                        variant="ghost"
-                        className="w-full justify-start"
-                        onClick={() => {
-                          setMobileMenuOpen(false);
-                          handleLogout();
-                        }}
-                      >
-                        <LogOut className="mr-2 h-4 w-4" />
-                        Logout
-                      </Button>
+                        {canUseAdminView ? (
+                          <Button
+                            variant="ghost"
+                            className="w-full justify-start"
+                            asChild
+                            onClick={() => setMobileMenuOpen(false)}
+                          >
+                            <a href={adminTasksHref}>
+                              <LayoutDashboard className="mr-2 h-4 w-4" />
+                              Admin portal
+                            </a>
+                          </Button>
+                        ) : null}
+                        <Button
+                          variant="ghost"
+                          className="w-full justify-start"
+                          onClick={() => {
+                            setMobileMenuOpen(false);
+                            handleLogout();
+                          }}
+                        >
+                          <LogOut className="mr-2 h-4 w-4" />
+                          Logout
+                        </Button>
+                      </div>
                     </div>
-                  </div>
-                </SheetContent>
-              </Sheet>
+                  </SheetContent>
+                </Sheet>
+              </div>
             </div>
           </div>
         </div>
-      </div>
-    </nav>
+      </nav>
+      <BasicInfoDialog
+        open={accountDialogOpen}
+        mode="edit"
+        onOpenChange={setAccountDialogOpen}
+      />
+    </>
   );
 }

@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { BookOpen, Check, MessageSquare, Sparkles, Wand2 } from 'lucide-react';
 import { AuthenticatedRedirect } from '@/components/auth/authenticated-redirect';
 import { HumanlyWordmark } from '@/components/brand/humanly-wordmark';
+import { FastWritingDemo } from '@/components/demo/fast-writing-demo';
 import { marketingHref, productAppHref } from '@/lib/app-origin';
 
 const ink = '#1a1c20';
@@ -109,6 +110,9 @@ export default function HomePage() {
             then signs it with a certificate any reader can verify.
           </p>
           <div className="mt-7 flex flex-col items-center justify-center gap-3 sm:flex-row">
+            <a href="#demo" className="humanly-landing-btn bg-[#6f8a78] hover:bg-[#607869]">
+              Try the demo <Arrow />
+            </a>
             <Link href={productAppHref('/register')} className="humanly-landing-btn">
               Start writing <Arrow />
             </Link>
@@ -119,6 +123,7 @@ export default function HomePage() {
       </section>
 
       <ProblemSection />
+      <FastWritingDemo />
       <TrustModelSection />
       <AudienceSection />
       <HowItWorksSection />
@@ -138,6 +143,7 @@ function NavBar() {
 
       <nav className="hidden items-center gap-9 text-sm font-medium text-muted-foreground lg:flex">
         <a href="#product" className="hover:text-foreground">Product</a>
+        <a href="#demo" className="hover:text-foreground">Demo</a>
         <a href="#process" className="hover:text-foreground">How it works</a>
         <a href="#faq" className="hover:text-foreground">FAQ</a>
       </nav>

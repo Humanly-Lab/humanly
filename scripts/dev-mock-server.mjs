@@ -11,8 +11,10 @@
  *   REST
  *     GET  /health
  *     GET  /api/v1/auth/me
+ *     PATCH /api/v1/auth/me
  *     POST /api/v1/auth/login            (also returns the bypass token)
  *     GET  /api/v1/auth/oauth/providers
+ *     POST /api/v1/dev/mock-user        (local-only fixture override)
  *     GET  /api/v1/ai/settings
  *     GET  /api/v1/documents
  *     GET  /api/v1/documents/:id
@@ -67,9 +69,11 @@ const MOCK_USER = {
   id: 'mock-user',
   email: 'dev@local',
   name: 'Local Dev',
+  profileCompleted: true,
   role: 'user',
   emailVerified: true,
   createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
 };
 
 const MOCK_TOKEN = 'mock-access-token-for-local-dev';
@@ -227,6 +231,14 @@ const server = createServer(async (req, res) => {
   // Auth endpoints — frontend expects response.data.user / response.data.accessToken
   if (p === '/api/v1/auth/me') {
     if (!hasMockAuth(req)) return unauthorized(res);
+    if (method === 'PATCH') {
+      const body = await readBody(req);
+      if (typeof body?.name === 'string' && body.name.trim()) {
+        MOCK_USER.name = body.name.trim();
+        MOCK_USER.profileCompleted = true;
+        MOCK_USER.updatedAt = new Date().toISOString();
+      }
+    }
     return ok(res, { user: MOCK_USER });
   }
   if (p === '/api/v1/auth/login' && method === 'POST') {
@@ -242,6 +254,18 @@ const server = createServer(async (req, res) => {
   }
   if (p === '/api/v1/auth/oauth/providers' && method === 'GET') {
     return ok(res, { providers: { google: true, github: true } });
+  }
+
+  if (p === '/api/v1/dev/mock-user' && method === 'POST') {
+    const body = await readBody(req);
+    if (typeof body?.name === 'string') {
+      MOCK_USER.name = body.name.trim() || null;
+    }
+    if (typeof body?.profileCompleted === 'boolean') {
+      MOCK_USER.profileCompleted = body.profileCompleted;
+    }
+    MOCK_USER.updatedAt = new Date().toISOString();
+    return ok(res, { user: MOCK_USER });
   }
 
   if (p === '/api/v1/ai/settings') {

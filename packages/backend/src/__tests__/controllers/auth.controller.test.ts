@@ -12,7 +12,7 @@ jest.mock('../../utils/logger', () => ({
 }));
 
 import { Request, Response, NextFunction } from 'express';
-import { handleOAuthCallback, login, logout } from '../../controllers/auth.controller';
+import { handleOAuthCallback, login, logout, updateCurrentUser } from '../../controllers/auth.controller';
 import { AuthService } from '../../services/auth.service';
 import { OAuthService } from '../../services/oauth.service';
 
@@ -222,5 +222,35 @@ describe('auth controller cookies', () => {
       sameSite: 'strict',
       path: '/',
     }));
+  });
+
+  it('updates the current user profile through PATCH /auth/me', async () => {
+    const updatedUser = {
+      id: 'user-1',
+      email: 'writer@mail.com',
+      role: 'user',
+      name: 'Writer One',
+      profileCompleted: true,
+      emailVerified: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    MockAuthService.updateUserProfile.mockResolvedValue(updatedUser as any);
+
+    const req = makeReq({
+      user: { userId: 'user-1', email: 'writer@mail.com' },
+      body: { name: ' Writer One ' },
+    } as any);
+    const res = makeRes();
+
+    await runController(updateCurrentUser, req, res);
+
+    expect(MockAuthService.updateUserProfile).toHaveBeenCalledWith('user-1', {
+      name: 'Writer One',
+    });
+    expect(res.json).toHaveBeenCalledWith({
+      success: true,
+      data: { user: updatedUser },
+    });
   });
 });

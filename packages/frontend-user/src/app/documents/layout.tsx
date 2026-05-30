@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/auth-store';
+import { BasicInfoDialog } from '@/components/account/basic-info-dialog';
 import { Navbar } from '@/components/navigation/navbar';
 import { isGuestUserEmail } from '@/components/navigation/user-display';
 
@@ -16,10 +17,15 @@ export default function DocumentsLayout({
   const { user, isAuthenticated, isLoading, checkAuth, clearLocalSession } = useAuthStore();
   const [hasChecked, setHasChecked] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [isBasicInfoOpen, setIsBasicInfoOpen] = useState(false);
   const isGuestWorkspaceRoute =
     isAuthenticated &&
     isGuestUserEmail(user?.email) &&
     (pathname === '/documents' || pathname === '/documents/new');
+  const requiresBasicInfo =
+    isAuthenticated &&
+    user?.profileCompleted === false &&
+    !isGuestUserEmail(user?.email);
 
   useEffect(() => {
     if (!hasChecked) {
@@ -50,6 +56,12 @@ export default function DocumentsLayout({
     }
   }, [clearLocalSession, hasChecked, isCheckingAuth, isGuestWorkspaceRoute, isLoading, router]);
 
+  useEffect(() => {
+    if (hasChecked && !isCheckingAuth && !isLoading && requiresBasicInfo) {
+      setIsBasicInfoOpen(true);
+    }
+  }, [hasChecked, isCheckingAuth, isLoading, requiresBasicInfo]);
+
   if (isCheckingAuth || isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -68,6 +80,11 @@ export default function DocumentsLayout({
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
+      <BasicInfoDialog
+        open={isBasicInfoOpen}
+        mode="complete"
+        onOpenChange={setIsBasicInfoOpen}
+      />
       {children}
     </div>
   );

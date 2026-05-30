@@ -7,7 +7,6 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Eye, EyeOff, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
-import { getBrandText } from '@humanly/shared';
 
 import { useAuthStore } from '@/stores/auth-store';
 import { Button } from '@/components/ui/button';
@@ -35,10 +34,6 @@ import { OAuthButtons } from '@/components/auth/oauth-buttons';
 // Form validation schema
 const registerSchema = z
   .object({
-    name: z
-      .string()
-      .min(1, 'User name is required')
-      .max(100, 'User name must be less than 100 characters'),
     email: z
       .string()
       .min(1, 'Email is required')
@@ -109,7 +104,6 @@ export default function RegisterPage() {
   const form = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
-      name: '',
       email: '',
       password: '',
       confirmPassword: '',
@@ -123,7 +117,7 @@ export default function RegisterPage() {
   async function onSubmit(values: RegisterFormValues) {
     try {
       setError(null);
-      await register(values.email, values.password, values.name, 'user');
+      await register(values.email, values.password, 'user');
       setRegistrationSuccess(true);
 
       if (typeof window !== 'undefined') {
@@ -173,7 +167,7 @@ export default function RegisterPage() {
           Create an account
         </CardTitle>
         <CardDescription className="mx-auto max-w-sm text-sm leading-5">
-          Enter your information to {getBrandText().createAccount}
+          Create your account now. We will collect basic profile info the first time you open the dashboard.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -191,25 +185,6 @@ export default function RegisterPage() {
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
-
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>User name</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="John Doe"
-                      className="h-11 rounded-lg"
-                      {...field}
-                      disabled={isLoading}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
 
             <FormField
               control={form.control}

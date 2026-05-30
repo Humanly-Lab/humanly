@@ -1,5 +1,6 @@
 const mockApiGet = jest.fn();
 const mockApiPost = jest.fn();
+const mockApiPatch = jest.fn();
 const mockGetAccessToken = jest.fn();
 const mockSetAccessToken = jest.fn();
 const mockClearTokens = jest.fn();
@@ -11,6 +12,7 @@ jest.mock('@/lib/api-client', () => ({
   default: {
     get: (...args: any[]) => mockApiGet(...args),
     post: (...args: any[]) => mockApiPost(...args),
+    patch: (...args: any[]) => mockApiPatch(...args),
   },
   TokenManager: {
     getAccessToken: (...args: any[]) => mockGetAccessToken(...args),
@@ -159,6 +161,36 @@ describe('user auth store session restore', () => {
     expect(useAuthStore.getState()).toMatchObject({
       user: null,
       isAuthenticated: false,
+      isLoading: false,
+      error: null,
+    });
+  });
+
+  it('updates the user profile through /auth/me without dropping auth state', async () => {
+    useAuthStore.setState({
+      user,
+      isAuthenticated: true,
+      isLoading: false,
+      error: null,
+    });
+    const updatedUser = {
+      ...user,
+      name: 'QA Writer',
+      profileCompleted: true,
+      updatedAt: '2026-05-20T00:00:00.000Z',
+    };
+    mockApiPatch.mockResolvedValueOnce({
+      data: {
+        user: updatedUser,
+      },
+    });
+
+    await useAuthStore.getState().updateUser({ name: 'QA Writer' });
+
+    expect(mockApiPatch).toHaveBeenCalledWith('/auth/me', { name: 'QA Writer' });
+    expect(useAuthStore.getState()).toMatchObject({
+      user: updatedUser,
+      isAuthenticated: true,
       isLoading: false,
       error: null,
     });

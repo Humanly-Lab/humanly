@@ -4,6 +4,8 @@ export interface User {
   id: string;
   email: string;
   role: UserRole;
+  name?: string | null;
+  profileCompleted: boolean;
   emailVerified: boolean;
   createdAt: Date;
   updatedAt: Date;

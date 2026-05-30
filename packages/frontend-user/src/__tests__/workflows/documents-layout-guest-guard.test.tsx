@@ -1,4 +1,5 @@
 import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 
 import DocumentsLayout from '@/app/documents/layout';
 
@@ -6,8 +7,18 @@ const mockPush = jest.fn();
 const mockReplace = jest.fn();
 const mockCheckAuth = jest.fn();
 const mockClearLocalSession = jest.fn();
+const mockUpdateUser = jest.fn();
 let mockPathname = '/documents';
-let mockAuthState = {
+let mockAuthState: {
+  user: {
+    id: string;
+    email: string;
+    name?: string | null;
+    profileCompleted?: boolean;
+  };
+  isAuthenticated: boolean;
+  isLoading: boolean;
+} = {
   user: {
     id: 'user-1',
     email: 'writer@example.com',
@@ -29,6 +40,7 @@ jest.mock('@/stores/auth-store', () => ({
     ...mockAuthState,
     checkAuth: mockCheckAuth,
     clearLocalSession: mockClearLocalSession,
+    updateUser: mockUpdateUser,
   }),
 }));
 
@@ -40,6 +52,7 @@ describe('documents layout guest workspace guard', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockCheckAuth.mockResolvedValue(undefined);
+    mockUpdateUser.mockResolvedValue(undefined);
     mockPathname = '/documents';
     window.history.pushState({}, '', '/documents');
     mockAuthState = {
@@ -121,5 +134,28 @@ describe('documents layout guest workspace guard', () => {
     expect(await screen.findByText('Documents workspace')).toBeInTheDocument();
     expect(mockClearLocalSession).not.toHaveBeenCalled();
     expect(mockReplace).not.toHaveBeenCalled();
+  });
+
+  it('prompts profile-incomplete users for basic info on dashboard entry', async () => {
+    const user = userEvent.setup();
+    mockAuthState.user = {
+      id: 'user-1',
+      email: 'writer@example.com',
+      profileCompleted: false,
+    };
+
+    render(
+      <DocumentsLayout>
+        <main>Documents workspace</main>
+      </DocumentsLayout>
+    );
+
+    expect(await screen.findByRole('heading', { name: /finish your basic info/i })).toBeInTheDocument();
+    await user.type(screen.getByLabelText(/display name/i), 'Dashboard Writer');
+    await user.click(screen.getByRole('button', { name: /save basic info/i }));
+
+    await waitFor(() => {
+      expect(mockUpdateUser).toHaveBeenCalledWith({ name: 'Dashboard Writer' });
+    });
   });
 });

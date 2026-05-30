@@ -45,6 +45,8 @@ async function makeUserWithPassword(overrides: Partial<any> = {}) {
     email: 'alice@example.com',
     passwordHash,
     role: 'user',
+    name: null,
+    profileCompleted: true,
     emailVerified: true,
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -57,6 +59,8 @@ function makeUser(overrides: Partial<any> = {}) {
     id: 'user-1',
     email: 'alice@example.com',
     role: 'user',
+    name: null,
+    profileCompleted: true,
     emailVerified: true,
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -130,6 +134,36 @@ describe('AuthService.register', () => {
     MockUserAISettingsModel.upsert.mockRejectedValue(new Error('db error'));
 
     await expect(AuthService.register('alice@example.com', 'password123')).resolves.toEqual(user);
+  });
+});
+
+// ── updateUserProfile ───────────────────────────────────────────────────────
+
+describe('AuthService.updateUserProfile', () => {
+  it('persists basic info and marks the profile complete', async () => {
+    const updatedUser = makeUser({
+      name: 'Alice Writer',
+      profileCompleted: true,
+    });
+    MockUserModel.updateProfile.mockResolvedValue(updatedUser as any);
+
+    await expect(
+      AuthService.updateUserProfile('user-1', { name: 'Alice Writer' })
+    ).resolves.toEqual(updatedUser);
+
+    expect(MockUserModel.updateProfile).toHaveBeenCalledWith('user-1', {
+      name: 'Alice Writer',
+    });
+  });
+
+  it('throws 404 when the user cannot be found', async () => {
+    MockUserModel.updateProfile.mockResolvedValue(null);
+
+    await expect(
+      AuthService.updateUserProfile('missing-user', { name: 'Alice Writer' })
+    ).rejects.toMatchObject({
+      statusCode: 404,
+    });
   });
 });
 

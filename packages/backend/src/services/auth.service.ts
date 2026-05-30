@@ -100,6 +100,8 @@ export class AuthService {
     id: string;
     email: string;
     role?: UserRole;
+    name?: string | null;
+    profileCompleted: boolean;
     emailVerified: boolean;
     createdAt: Date;
     updatedAt: Date;
@@ -108,6 +110,8 @@ export class AuthService {
       id: userWithPassword.id,
       email: userWithPassword.email,
       role: userWithPassword.role || 'user',
+      name: userWithPassword.name || null,
+      profileCompleted: userWithPassword.profileCompleted,
       emailVerified: userWithPassword.emailVerified,
       createdAt: userWithPassword.createdAt,
       updatedAt: userWithPassword.updatedAt,
@@ -467,6 +471,19 @@ export class AuthService {
    */
   static async getUserById(userId: string): Promise<User> {
     const user = await UserModel.findById(userId);
+    if (!user) {
+      throw new AppError(404, 'User not found');
+    }
+    return user;
+  }
+
+  /**
+   * Update current user's basic profile.
+   */
+  static async updateUserProfile(userId: string, data: { name: string }): Promise<User> {
+    const user = await UserModel.updateProfile(userId, {
+      name: data.name,
+    });
     if (!user) {
       throw new AppError(404, 'User not found');
     }

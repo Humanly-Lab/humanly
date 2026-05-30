@@ -16,15 +16,20 @@ export interface OAuthAccountData {
   email: string;
 }
 
+export interface UpdateUserProfileData {
+  name: string;
+}
+
 export class UserModel {
   /**
    * Create a new user
    */
   static async create(data: CreateUserData): Promise<User> {
     const sql = `
-      INSERT INTO users (email, password_hash, role, email_verification_token, email_verification_expires)
-      VALUES ($1, $2, $3, $4, $5)
-      RETURNING id, email, role, email_verified as "emailVerified", created_at as "createdAt", updated_at as "updatedAt"
+      INSERT INTO users (email, password_hash, role, email_verification_token, email_verification_expires, profile_completed)
+      VALUES ($1, $2, $3, $4, $5, FALSE)
+      RETURNING id, email, role, name, profile_completed as "profileCompleted",
+                email_verified as "emailVerified", created_at as "createdAt", updated_at as "updatedAt"
     `;
     const user = await queryOne<User>(sql, [
       data.email,
@@ -46,9 +51,10 @@ export class UserModel {
     role?: UserRole;
   }): Promise<User> {
     const sql = `
-      INSERT INTO users (email, password_hash, role, email_verified)
-      VALUES ($1, $2, $3, TRUE)
-      RETURNING id, email, role, email_verified as "emailVerified", created_at as "createdAt", updated_at as "updatedAt"
+      INSERT INTO users (email, password_hash, role, email_verified, profile_completed)
+      VALUES ($1, $2, $3, TRUE, FALSE)
+      RETURNING id, email, role, name, profile_completed as "profileCompleted",
+                email_verified as "emailVerified", created_at as "createdAt", updated_at as "updatedAt"
     `;
     const user = await queryOne<User>(sql, [
       data.email,
@@ -65,6 +71,7 @@ export class UserModel {
   static async findByEmail(email: string): Promise<UserWithPassword | null> {
     const sql = `
       SELECT id, email, role, password_hash, email_verified,
+             name, profile_completed,
              email_verification_token, email_verification_expires,
              password_reset_token, password_reset_expires, password_reset_requested_at,
              created_at, updated_at
@@ -78,6 +85,8 @@ export class UserModel {
       id: user.id,
       email: user.email,
       role: user.role,
+      name: user.name,
+      profileCompleted: user.profile_completed,
       passwordHash: user.password_hash,
       emailVerified: user.email_verified,
       emailVerificationToken: user.email_verification_token,
@@ -95,7 +104,8 @@ export class UserModel {
    */
   static async findById(id: string): Promise<User | null> {
     const sql = `
-      SELECT id, email, role, email_verified as "emailVerified", created_at as "createdAt", updated_at as "updatedAt"
+      SELECT id, email, role, name, profile_completed as "profileCompleted",
+             email_verified as "emailVerified", created_at as "createdAt", updated_at as "updatedAt"
       FROM users
       WHERE id = $1
     `;
@@ -111,6 +121,7 @@ export class UserModel {
   ): Promise<UserWithPassword | null> {
     const sql = `
       SELECT u.id, u.email, u.role, u.password_hash, u.email_verified,
+             u.name, u.profile_completed,
              u.email_verification_token, u.email_verification_expires,
              u.password_reset_token, u.password_reset_expires, u.password_reset_requested_at,
              u.created_at, u.updated_at
@@ -126,6 +137,8 @@ export class UserModel {
       id: user.id,
       email: user.email,
       role: user.role,
+      name: user.name,
+      profileCompleted: user.profile_completed,
       passwordHash: user.password_hash,
       emailVerified: user.email_verified,
       emailVerificationToken: user.email_verification_token,
@@ -159,6 +172,7 @@ export class UserModel {
   static async findByVerificationToken(token: string): Promise<UserWithPassword | null> {
     const sql = `
       SELECT id, email, role, password_hash, email_verified,
+             name, profile_completed,
              email_verification_token, email_verification_expires,
              created_at, updated_at
       FROM users
@@ -172,6 +186,8 @@ export class UserModel {
       id: user.id,
       email: user.email,
       role: user.role,
+      name: user.name,
+      profileCompleted: user.profile_completed,
       passwordHash: user.password_hash,
       emailVerified: user.email_verified,
       emailVerificationToken: user.email_verification_token,
@@ -187,6 +203,7 @@ export class UserModel {
   static async findByResetToken(token: string): Promise<UserWithPassword | null> {
     const sql = `
       SELECT id, email, role, password_hash, email_verified,
+             name, profile_completed,
              password_reset_token, password_reset_expires, password_reset_requested_at,
              created_at, updated_at
       FROM users
@@ -202,6 +219,8 @@ export class UserModel {
       id: user.id,
       email: user.email,
       role: user.role,
+      name: user.name,
+      profileCompleted: user.profile_completed,
       passwordHash: user.password_hash,
       emailVerified: user.email_verified,
       passwordResetToken: user.password_reset_token,
@@ -286,6 +305,21 @@ export class UserModel {
       WHERE id = $3
     `;
     await query(sql, [token, expires, id]);
+  }
+
+  /**
+   * Update editable user profile fields.
+   */
+  static async updateProfile(id: string, data: UpdateUserProfileData): Promise<User | null> {
+    const sql = `
+      UPDATE users
+      SET name = $1,
+          profile_completed = TRUE
+      WHERE id = $2
+      RETURNING id, email, role, name, profile_completed as "profileCompleted",
+                email_verified as "emailVerified", created_at as "createdAt", updated_at as "updatedAt"
+    `;
+    return queryOne<User>(sql, [data.name, id]);
   }
 
   /**

@@ -167,6 +167,8 @@ export class TaskService {
       id: user.id,
       email: user.email,
       role: user.role,
+      name: user.name || null,
+      profileCompleted: user.profileCompleted,
       emailVerified: user.emailVerified,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,

@@ -1,4 +1,5 @@
 import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 
 import HomePage from '@/app/page';
 
@@ -72,6 +73,35 @@ describe('landing page', () => {
     expect(screen.getByText('For instructors')).toBeInTheDocument();
     expect(screen.queryByText('What it proves,')).not.toBeInTheDocument();
     expect(screen.queryByText('It does not claim')).not.toBeInTheDocument();
+    await waitFor(() => expect(mockCheckAuth).toHaveBeenCalled());
+  });
+
+  it('lets visitors run the fast writing demo without auth', async () => {
+    const user = userEvent.setup();
+
+    render(<HomePage />);
+
+    expect(screen.getByRole('heading', { name: /Try the provenance loop/i })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /start demo/i }));
+    await user.type(
+      screen.getByRole('textbox', { name: /demo writing editor/i }),
+      'This draft records process evidence.'
+    );
+    await user.click(screen.getByRole('button', { name: /view log/i }));
+
+    expect(screen.getByRole('heading', { name: /demo event log/i })).toBeInTheDocument();
+    expect(screen.getAllByText('input')[0]).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /^generate certificate$/i }));
+
+    expect(screen.getByText('Demo certificate')).toBeInTheDocument();
+    expect(screen.getByText(/local preview/i)).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /end demo/i }));
+    expect(screen.getByText(/local session has ended/i)).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /do it again/i }));
+    expect(screen.getByRole('button', { name: /start demo/i })).toBeInTheDocument();
     await waitFor(() => expect(mockCheckAuth).toHaveBeenCalled());
   });
 
