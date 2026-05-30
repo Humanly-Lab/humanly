@@ -111,8 +111,9 @@ describe('landing page', () => {
     expect(screen.queryByText('Fast writing demo')).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /Setup, write, certify/i })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: /Try the real writing-to-certificate flow/i })).not.toBeInTheDocument();
-    expect(screen.getAllByText(/Personal writing/i).length).toBeGreaterThan(0);
-    expect(screen.getByRole('heading', { name: /Create Writing/i })).toBeInTheDocument();
+    expect(screen.queryByText('Personal writing')).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /Create Writing/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Create Writing/i })).toBeInTheDocument();
     expect(screen.getByText(/Document setup/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/Document Name/i)).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: /New Task/i })).not.toBeInTheDocument();

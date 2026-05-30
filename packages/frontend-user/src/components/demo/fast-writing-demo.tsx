@@ -486,11 +486,7 @@ function DemoTaskSetup({
 }) {
   return (
     <div className="mx-auto w-full max-w-6xl">
-      <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="humanly-eyebrow">Personal writing</p>
-          <h3 className="mt-1 text-2xl font-semibold tracking-normal">Create Writing</h3>
-        </div>
+      <div className="mb-3 flex justify-end">
         <Button asChild variant="ghost" size="sm" className="w-fit px-0 hover:bg-transparent">
           <a href="/">
             <ArrowLeft className="mr-2 h-4 w-4" />
