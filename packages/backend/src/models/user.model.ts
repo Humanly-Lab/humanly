@@ -327,6 +327,15 @@ export class UserModel {
    */
   static async deleteAccount(id: string): Promise<boolean> {
     return transaction(async (client) => {
+      const ownedTasks = 'SELECT id FROM tasks WHERE user_id = $1';
+      const ownedDocuments = 'SELECT id FROM documents WHERE user_id = $1';
+      const affectedSubmissions = `
+        SELECT id FROM submissions
+        WHERE user_id = $1
+           OR task_id IN (${ownedTasks})
+           OR document_id IN (${ownedDocuments})
+      `;
+
       await client.query('DELETE FROM paper_access_logs WHERE reviewer_id = $1', [id]);
       await client.query('DELETE FROM review_recordings WHERE reviewer_id = $1', [id]);
       await client.query('DELETE FROM review_ai_interaction_logs WHERE reviewer_id = $1', [id]);
@@ -336,6 +345,53 @@ export class UserModel {
       await client.query('DELETE FROM reviews WHERE reviewer_id = $1', [id]);
       await client.query('DELETE FROM paper_reviewers WHERE reviewer_id = $1 OR assigned_by = $1', [id]);
       await client.query('DELETE FROM papers WHERE uploaded_by = $1', [id]);
+
+      await client.query(`
+        UPDATE submissions
+        SET certificate_id = NULL
+        WHERE id IN (${affectedSubmissions})
+      `, [id]);
+      await client.query(`
+        UPDATE certificates
+        SET submission_id = NULL
+        WHERE user_id = $1
+           OR document_id IN (${ownedDocuments})
+           OR submission_id IN (${affectedSubmissions})
+      `, [id]);
+      await client.query(`
+        DELETE FROM certificates
+        WHERE user_id = $1
+           OR document_id IN (${ownedDocuments})
+           OR submission_id IN (${affectedSubmissions})
+      `, [id]);
+      await client.query(`
+        DELETE FROM submissions
+        WHERE id IN (${affectedSubmissions})
+      `, [id]);
+      await client.query(`
+        DELETE FROM task_enrollments
+        WHERE user_id = $1
+           OR task_id IN (${ownedTasks})
+      `, [id]);
+      await client.query('DELETE FROM ai_chat_attachments WHERE user_id = $1', [id]);
+      await client.query('DELETE FROM ai_interaction_logs WHERE user_id = $1', [id]);
+      await client.query('DELETE FROM ai_chat_sessions WHERE user_id = $1', [id]);
+      await client.query('DELETE FROM ai_selection_actions WHERE user_id = $1', [id]);
+      await client.query('DELETE FROM user_ai_settings WHERE user_id = $1', [id]);
+      await client.query('DELETE FROM user_oauth_accounts WHERE user_id = $1', [id]);
+      await client.query(`
+        DELETE FROM document_events
+        WHERE user_id = $1
+           OR document_id IN (${ownedDocuments})
+      `, [id]);
+      await client.query(`
+        DELETE FROM files
+        WHERE owner_user_id = $1
+           OR document_id IN (${ownedDocuments})
+           OR task_id IN (${ownedTasks})
+      `, [id]);
+      await client.query('DELETE FROM documents WHERE user_id = $1', [id]);
+      await client.query('DELETE FROM tasks WHERE user_id = $1', [id]);
 
       const result = await client.query('DELETE FROM users WHERE id = $1', [id]);
       return result.rowCount > 0;
