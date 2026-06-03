@@ -66,6 +66,8 @@ const QUICK_ACTION_HISTORY_LABEL_PREFIXES = [
   'Make formal:',
 ];
 
+const MAX_CHAT_IMAGE_ATTACHMENTS = 5;
+
 function isQuickActionHistoryLog(log: AIInteractionLog): boolean {
   const query = log.query.trim();
 
@@ -85,6 +87,31 @@ function formatModelOptionLabel(baseUrl: string, modelId: string): string {
   return `${modelId} (${modality})`;
 }
 
+function getImageInputUnsupportedMessage(modelId: string): string {
+  return `Model "${modelId || 'Current model'}" doesn't accept image input. Switch to a vision-capable model to attach images.`;
+}
+
+function dataTransferHasFiles(dataTransfer: DataTransfer): boolean {
+  return Array.from(dataTransfer.types || []).includes('Files');
+}
+
+function filesFromList(fileList: FileList | File[] | null | undefined): File[] {
+  return fileList ? Array.from(fileList) : [];
+}
+
+function getImageFilesFromDataTransfer(dataTransfer: DataTransfer): File[] {
+  const filesFromItems = Array.from(dataTransfer.items || [])
+    .filter((item) => item.kind === 'file' && item.type.startsWith('image/'))
+    .map((item) => item.getAsFile())
+    .filter((file): file is File => Boolean(file));
+
+  if (filesFromItems.length > 0) {
+    return filesFromItems;
+  }
+
+  return filesFromList(dataTransfer.files).filter((file) => file.type.startsWith('image/'));
+}
+
 export function AIAssistantPanel({
   documentId,
   onClose,
@@ -102,6 +129,7 @@ export function AIAssistantPanel({
   const [pendingAttachments, setPendingAttachments] = useState<ChatImageAttachment[]>([]);
   const [attachmentUploading, setAttachmentUploading] = useState(false);
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
+  const [imageDragActive, setImageDragActive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [historyPopoverOpen, setHistoryPopoverOpen] = useState(false);
   const [sessionPendingDelete, setSessionPendingDelete] = useState<string | null>(null);
@@ -210,6 +238,42 @@ export function AIAssistantPanel({
     () => modelSupportsImage(currentBaseUrl, currentModel),
     [currentBaseUrl, currentModel],
   );
+
+  const stageImageFiles = useCallback(async (files: File[]) => {
+    if (files.length === 0) return;
+
+    setAttachmentError(null);
+
+    if (!currentSupportsImage) {
+      setAttachmentError(getImageInputUnsupportedMessage(currentModel));
+      return;
+    }
+
+    const remainingSlots = MAX_CHAT_IMAGE_ATTACHMENTS - pendingAttachments.length;
+    if (files.length > remainingSlots) {
+      setAttachmentError(`At most ${MAX_CHAT_IMAGE_ATTACHMENTS} images can be attached per message.`);
+      return;
+    }
+
+    for (const file of files) {
+      const validation = validateChatImage(file);
+      if (!validation.ok) {
+        setAttachmentError(validation.reason);
+        return;
+      }
+    }
+
+    setAttachmentUploading(true);
+    try {
+      const descriptors = await Promise.all(files.map((file) => uploadChatImage(file)));
+      setPendingAttachments((prev) => [...prev, ...descriptors]);
+    } catch (err: any) {
+      setAttachmentError(err?.message || 'Failed to upload image');
+    } finally {
+      setAttachmentUploading(false);
+    }
+  }, [currentModel, currentSupportsImage, pendingAttachments.length]);
+
   const handlePickAttachment = () => {
     setAttachmentError(null);
     fileInputRef.current?.click();
@@ -222,21 +286,7 @@ export function AIAssistantPanel({
     // Reset the input so picking the same file twice still fires `change`.
     e.target.value = '';
     if (!file) return;
-    const validation = validateChatImage(file);
-    if (!validation.ok) {
-      setAttachmentError(validation.reason);
-      return;
-    }
-    setAttachmentUploading(true);
-    setAttachmentError(null);
-    try {
-      const descriptor = await uploadChatImage(file);
-      setPendingAttachments((prev) => [...prev, descriptor]);
-    } catch (err: any) {
-      setAttachmentError(err?.message || 'Failed to upload image');
-    } finally {
-      setAttachmentUploading(false);
-    }
+    await stageImageFiles([file]);
   };
 
   const handleRemoveAttachment = (storageKey: string) => {
@@ -251,9 +301,7 @@ export function AIAssistantPanel({
 
     // Hard refuse if a text-only model is selected with images staged.
     if (hasAttachments && !currentSupportsImage) {
-      setAttachmentError(
-        `Model "${currentModel}" doesn't accept image input. Switch to a vision-capable model or remove the attachment.`,
-      );
+      setAttachmentError(getImageInputUnsupportedMessage(currentModel));
       return;
     }
 
@@ -296,6 +344,47 @@ export function AIAssistantPanel({
       e.preventDefault();
       handleSubmit();
     }
+  };
+
+  const handlePasteImage = (event: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const imageFiles = getImageFilesFromDataTransfer(event.clipboardData);
+    if (imageFiles.length === 0) return;
+
+    event.preventDefault();
+    void stageImageFiles(imageFiles);
+  };
+
+  const handleAttachmentDragOver = (event: React.DragEvent<HTMLDivElement>) => {
+    if (!dataTransferHasFiles(event.dataTransfer)) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    event.dataTransfer.dropEffect = currentSupportsImage ? 'copy' : 'none';
+    setImageDragActive(true);
+  };
+
+  const handleAttachmentDragLeave = (event: React.DragEvent<HTMLDivElement>) => {
+    const relatedTarget = event.relatedTarget;
+    if (relatedTarget instanceof Node && event.currentTarget.contains(relatedTarget)) {
+      return;
+    }
+    setImageDragActive(false);
+  };
+
+  const handleAttachmentDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    if (!dataTransferHasFiles(event.dataTransfer)) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    setImageDragActive(false);
+
+    const imageFiles = getImageFilesFromDataTransfer(event.dataTransfer);
+    if (imageFiles.length === 0) {
+      setAttachmentError('Drop an image file to attach it to chat.');
+      return;
+    }
+
+    void stageImageFiles(imageFiles);
   };
 
   const handleApplySuggestion = (suggestion: AISuggestion) => {
@@ -576,7 +665,19 @@ export function AIAssistantPanel({
       )}
 
       {/* Input Area - Fixed (sticky) at bottom */}
-      <div className="border-t p-4 bg-background shrink-0 w-full min-w-0">
+      <div
+        className={cn(
+          'border-t p-4 bg-background shrink-0 w-full min-w-0',
+          imageDragActive && (
+            currentSupportsImage
+              ? 'ring-2 ring-primary/25 bg-muted/20'
+              : 'ring-2 ring-destructive/25'
+          ),
+        )}
+        onDragOver={handleAttachmentDragOver}
+        onDragLeave={handleAttachmentDragLeave}
+        onDrop={handleAttachmentDrop}
+      >
         {/* PDF context indicator */}
         {pdfTextData && !pdfTextData.error && !pdfTextData.isExtracting && (
           <div className="mb-2 flex min-w-0 items-center gap-2 rounded-lg border border-[#c8d4c8] bg-[#eef3ed] p-2">
@@ -658,6 +759,7 @@ export function AIAssistantPanel({
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
+              onPaste={handlePasteImage}
               placeholder={quotedText ? "Ask a question about the selected text..." : "Type your message..."}
               className="min-h-[80px] max-h-[160px] resize-none text-sm w-full"
               disabled={isStreaming}
