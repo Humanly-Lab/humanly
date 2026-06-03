@@ -24,3 +24,4 @@ CREATE INDEX IF NOT EXISTS idx_task_enrollments_task_user
 
 CREATE INDEX IF NOT EXISTS idx_submissions_task_submitted_at
   ON submissions(task_id, submitted_at DESC, created_at DESC);
+
