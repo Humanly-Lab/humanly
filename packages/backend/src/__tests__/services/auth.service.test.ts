@@ -113,7 +113,7 @@ describe('AuthService.register', () => {
 
   it('initializes default AI settings for new users when a default key is configured', async () => {
     process.env.DEFAULT_AI_API_KEY = 'prof-key';
-    process.env.DEFAULT_AI_MODEL = 'gpt-4o-mini';
+    process.env.DEFAULT_AI_MODEL = 'gpt-5.5';
     process.env.DEFAULT_AI_BASE_URL = 'https://api.openai.com/v1';
 
     MockUserModel.findByEmail.mockResolvedValue(null);
@@ -127,7 +127,7 @@ describe('AuthService.register', () => {
       user.id,
       'prof-key',
       'https://api.openai.com/v1',
-      'gpt-4o-mini'
+      'gpt-5.5'
     );
   });
 

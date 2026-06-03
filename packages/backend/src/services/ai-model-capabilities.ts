@@ -18,11 +18,10 @@ const TEXT_AND_IMAGE: ModelCapabilities = { inputs: ['text', 'image'] };
 
 const MATRIX: Record<string, Record<string, ModelCapabilities>> = {
   'api.openai.com': {
-    'gpt-4.1': TEXT_AND_IMAGE,
-    'gpt-4o': TEXT_AND_IMAGE,
-    'gpt-4o-mini': TEXT_AND_IMAGE,
-    'gpt-4.1-nano': TEXT_AND_IMAGE,
-    o3: TEXT_AND_IMAGE,
+    'gpt-5.5': TEXT_AND_IMAGE,
+    'gpt-5.4': TEXT_AND_IMAGE,
+    'gpt-5.4-mini': TEXT_AND_IMAGE,
+    'gpt-5.4-nano': TEXT_AND_IMAGE,
   },
   'api.deepseek.com': {
     'deepseek-reasoner': TEXT_ONLY,
@@ -30,10 +29,9 @@ const MATRIX: Record<string, Record<string, ModelCapabilities>> = {
     'deepseek-coder': TEXT_ONLY,
   },
   'api.anthropic.com': {
-    'claude-opus-4-5': TEXT_AND_IMAGE,
-    'claude-sonnet-4-5': TEXT_AND_IMAGE,
-    'claude-3-7-sonnet-20250219': TEXT_AND_IMAGE,
-    'claude-3-haiku-20240307': TEXT_AND_IMAGE,
+    'claude-opus-4-8': TEXT_AND_IMAGE,
+    'claude-sonnet-4-6': TEXT_AND_IMAGE,
+    'claude-haiku-4-5-20251001': TEXT_AND_IMAGE,
   },
   'generativelanguage.googleapis.com': {
     'gemini-2.5-pro': TEXT_AND_IMAGE,

@@ -4,6 +4,27 @@ import {
 } from '../../lib/ai-models';
 
 describe('admin AI model whitelist', () => {
+  it('uses the current OpenAI GPT model set', () => {
+    expect(getWhitelist('https://api.openai.com/v1')).toEqual([
+      'gpt-5.5',
+      'gpt-5.4',
+      'gpt-5.4-mini',
+      'gpt-5.4-nano',
+    ]);
+    expect(modelSupportsImage('https://api.openai.com/v1', 'gpt-5.5')).toBe(true);
+    expect(modelSupportsImage('https://api.openai.com/v1', 'gpt-4o')).toBe(false);
+  });
+
+  it('uses the current Claude model set', () => {
+    expect(getWhitelist('https://api.anthropic.com/v1')).toEqual([
+      'claude-opus-4-8',
+      'claude-sonnet-4-6',
+      'claude-haiku-4-5-20251001',
+    ]);
+    expect(modelSupportsImage('https://api.anthropic.com/v1', 'claude-sonnet-4-6')).toBe(true);
+    expect(modelSupportsImage('https://api.anthropic.com/v1', 'claude-sonnet-4-5')).toBe(false);
+  });
+
   it('uses the deployed Together stable model set', () => {
     expect(getWhitelist('https://api.together.xyz/v1')).toEqual([
       'moonshotai/Kimi-K2.6',

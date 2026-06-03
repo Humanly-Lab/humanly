@@ -7,8 +7,10 @@
 
 import {
   AI_PROVIDER_OPTIONS,
+  CLAUDE_BASE_URL,
   CUSTOM_AI_PROVIDER_VALUE,
   MODEL_WHITELIST,
+  OPENAI_BASE_URL,
   OPENROUTER_BASE_URL,
   TOGETHER_AI_BASE_URL,
   getProviderValueForBaseUrl,
@@ -41,16 +43,16 @@ describe('vision capability matrix (locked per provider docs)', () => {
     expect(modelSupportsImage(`https://${host}`, id)).toBe(false);
 
   it('OpenAI: all whitelisted chat models accept image', () => {
-    vision('api.openai.com', 'gpt-4o');
-    vision('api.openai.com', 'gpt-4o-mini');
-    vision('api.openai.com', 'gpt-4.1');
-    vision('api.openai.com', 'o3');
+    vision('api.openai.com', 'gpt-5.5');
+    vision('api.openai.com', 'gpt-5.4');
+    vision('api.openai.com', 'gpt-5.4-mini');
+    vision('api.openai.com', 'gpt-5.4-nano');
   });
 
   it('Anthropic: all whitelisted chat models accept image', () => {
-    vision('api.anthropic.com', 'claude-opus-4-5');
-    vision('api.anthropic.com', 'claude-sonnet-4-5');
-    vision('api.anthropic.com', 'claude-3-haiku-20240307');
+    vision('api.anthropic.com', 'claude-opus-4-8');
+    vision('api.anthropic.com', 'claude-sonnet-4-6');
+    vision('api.anthropic.com', 'claude-haiku-4-5-20251001');
   });
 
   it('Gemini: all whitelisted chat models accept image', () => {
@@ -88,8 +90,9 @@ describe('vision capability matrix (locked per provider docs)', () => {
 describe('whitelist accessors', () => {
   it('getWhitelist returns plain id strings (backwards compatible)', () => {
     const ids = getWhitelist('https://api.openai.com/v1');
-    expect(ids).toContain('gpt-4o');
-    expect(ids).toContain('o3');
+    expect(ids).toContain('gpt-5.5');
+    expect(ids).toContain('gpt-5.4-nano');
+    expect(ids).not.toContain('gpt-4o');
     expect(ids?.every(id => typeof id === 'string')).toBe(true);
   });
 
@@ -117,15 +120,19 @@ describe('whitelist accessors', () => {
 });
 
 describe('provider options', () => {
-  it('offers Together AI, OpenRouter, and Custom provider choices', () => {
+  it('offers the four first-party API URL choices plus Custom', () => {
     expect(AI_PROVIDER_OPTIONS.map(option => option.label)).toEqual([
       'Together AI',
       'OpenRouter',
+      'OpenAI',
+      'Claude',
       'Custom',
     ]);
     expect(AI_PROVIDER_OPTIONS.map(option => option.baseUrl)).toEqual([
       TOGETHER_AI_BASE_URL,
       OPENROUTER_BASE_URL,
+      OPENAI_BASE_URL,
+      CLAUDE_BASE_URL,
       null,
     ]);
   });
@@ -133,6 +140,8 @@ describe('provider options', () => {
   it('maps canonical provider URLs back to provider values', () => {
     expect(getProviderValueForBaseUrl(`${TOGETHER_AI_BASE_URL}/`)).toBe('together');
     expect(getProviderValueForBaseUrl(OPENROUTER_BASE_URL)).toBe('openrouter');
+    expect(getProviderValueForBaseUrl(OPENAI_BASE_URL)).toBe('openai');
+    expect(getProviderValueForBaseUrl(CLAUDE_BASE_URL)).toBe('claude');
     expect(getProviderValueForBaseUrl('https://example.com/v1')).toBe(CUSTOM_AI_PROVIDER_VALUE);
   });
 });

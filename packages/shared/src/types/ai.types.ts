@@ -44,7 +44,7 @@ export interface ModelCapabilities {
  * to the provider.
  */
 export interface AIModelDescriptor {
-  /** Raw model id passed to the provider (e.g. `gpt-4o`, `moonshotai/Kimi-K2.6`). */
+  /** Raw model id passed to the provider (e.g. `gpt-5.5`, `moonshotai/Kimi-K2.6`). */
   id: string;
   capabilities: ModelCapabilities;
 }
@@ -126,7 +126,7 @@ export interface AIChatSession {
   updatedAt: Date | string;
   status: 'active' | 'closed';
   /**
-   * Provider model id (e.g. `gpt-4o`, `moonshotai/Kimi-K2.6`) captured at
+   * Provider model id (e.g. `gpt-5.5`, `moonshotai/Kimi-K2.6`) captured at
    * session creation. Used by capability gating (#93) to detect mid-session
    * model switches that drop a modality already used in the conversation
    * history.

@@ -5,6 +5,8 @@ const TEXT_AND_IMAGE: ModelCapabilities = { inputs: ['text', 'image'] };
 
 export const TOGETHER_AI_BASE_URL = 'https://api.together.xyz/v1';
 export const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
+export const OPENAI_BASE_URL = 'https://api.openai.com/v1';
+export const CLAUDE_BASE_URL = 'https://api.anthropic.com/v1';
 
 export const CUSTOM_AI_PROVIDER_VALUE = 'custom';
 
@@ -18,6 +20,16 @@ export const AI_PROVIDER_OPTIONS = [
     value: 'openrouter',
     label: 'OpenRouter',
     baseUrl: OPENROUTER_BASE_URL,
+  },
+  {
+    value: 'openai',
+    label: 'OpenAI',
+    baseUrl: OPENAI_BASE_URL,
+  },
+  {
+    value: 'claude',
+    label: 'Claude',
+    baseUrl: CLAUDE_BASE_URL,
   },
   {
     value: CUSTOM_AI_PROVIDER_VALUE,
@@ -49,11 +61,10 @@ export function getProviderValueForBaseUrl(baseUrl: string): AIProviderOptionVal
  */
 export const MODEL_WHITELIST: Record<string, AIModelDescriptor[]> = {
   'api.openai.com': [
-    { id: 'gpt-4.1', capabilities: TEXT_AND_IMAGE },
-    { id: 'gpt-4o', capabilities: TEXT_AND_IMAGE },
-    { id: 'gpt-4o-mini', capabilities: TEXT_AND_IMAGE },
-    { id: 'gpt-4.1-nano', capabilities: TEXT_AND_IMAGE },
-    { id: 'o3', capabilities: TEXT_AND_IMAGE },
+    { id: 'gpt-5.5', capabilities: TEXT_AND_IMAGE },
+    { id: 'gpt-5.4', capabilities: TEXT_AND_IMAGE },
+    { id: 'gpt-5.4-mini', capabilities: TEXT_AND_IMAGE },
+    { id: 'gpt-5.4-nano', capabilities: TEXT_AND_IMAGE },
   ],
   'api.deepseek.com': [
     { id: 'deepseek-reasoner', capabilities: TEXT_ONLY },
@@ -61,10 +72,9 @@ export const MODEL_WHITELIST: Record<string, AIModelDescriptor[]> = {
     { id: 'deepseek-coder', capabilities: TEXT_ONLY },
   ],
   'api.anthropic.com': [
-    { id: 'claude-opus-4-5', capabilities: TEXT_AND_IMAGE },
-    { id: 'claude-sonnet-4-5', capabilities: TEXT_AND_IMAGE },
-    { id: 'claude-3-7-sonnet-20250219', capabilities: TEXT_AND_IMAGE },
-    { id: 'claude-3-haiku-20240307', capabilities: TEXT_AND_IMAGE },
+    { id: 'claude-opus-4-8', capabilities: TEXT_AND_IMAGE },
+    { id: 'claude-sonnet-4-6', capabilities: TEXT_AND_IMAGE },
+    { id: 'claude-haiku-4-5-20251001', capabilities: TEXT_AND_IMAGE },
   ],
   'generativelanguage.googleapis.com': [
     { id: 'gemini-2.5-pro', capabilities: TEXT_AND_IMAGE },

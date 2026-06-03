@@ -20,9 +20,10 @@ describe('backend ai-model-capabilities', () => {
     expect(modelSupportsImage(`https://${host}`, id)).toBe(false);
 
   it('mirrors the frontend OpenAI/Anthropic/Gemini vision flags', () => {
-    vision('api.openai.com', 'gpt-4o');
-    vision('api.openai.com', 'o3');
-    vision('api.anthropic.com', 'claude-opus-4-5');
+    vision('api.openai.com', 'gpt-5.5');
+    vision('api.openai.com', 'gpt-5.4-nano');
+    vision('api.anthropic.com', 'claude-opus-4-8');
+    vision('api.anthropic.com', 'claude-haiku-4-5-20251001');
     vision('generativelanguage.googleapis.com', 'gemini-2.5-flash');
   });
 
@@ -47,6 +48,17 @@ describe('backend ai-model-capabilities', () => {
   });
 
   it('exposes curated ids for known providers and null for unknown providers', () => {
+    expect(getModelWhitelist('https://api.openai.com/v1')).toEqual([
+      'gpt-5.5',
+      'gpt-5.4',
+      'gpt-5.4-mini',
+      'gpt-5.4-nano',
+    ]);
+    expect(getModelWhitelist('https://api.anthropic.com/v1')).toEqual([
+      'claude-opus-4-8',
+      'claude-sonnet-4-6',
+      'claude-haiku-4-5-20251001',
+    ]);
     expect(getModelWhitelist('https://openrouter.ai/api/v1')).toEqual([
       'qwen/qwen3.5-397b-a17b',
       'qwen/qwen3.5-9b',

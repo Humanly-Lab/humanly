@@ -113,7 +113,11 @@ const taskFormSchema = z.object({
 type TaskFormValues = z.infer<typeof taskFormSchema>;
 
 const DEFAULT_AI_BASE_URL = 'https://api.together.xyz/v1';
+const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
+const OPENAI_BASE_URL = 'https://api.openai.com/v1';
+const CLAUDE_BASE_URL = 'https://api.anthropic.com/v1';
 const CUSTOM_MODEL_VALUE = '__custom_model__';
+const CUSTOM_PROVIDER_VALUE = '__custom_provider__';
 const USE_EXISTING_AI_KEY = '__use_existing__';
 const IMPORT_ENVIRONMENT_VALUE = 'import_environment';
 const DEFAULT_TASK_WINDOW_DAYS = 14;
@@ -132,15 +136,26 @@ const modelBelongsToOptions = (model: string, options: string[]) => (
 );
 
 const KNOWN_AI_PROVIDER_BASE_URLS: Record<string, string> = {
-  'api.together.xyz': 'https://api.together.xyz/v1',
-  'openrouter.ai': 'https://openrouter.ai/api/v1',
+  'api.together.xyz': DEFAULT_AI_BASE_URL,
+  'openrouter.ai': OPENROUTER_BASE_URL,
+  'api.openai.com': OPENAI_BASE_URL,
+  'api.anthropic.com': CLAUDE_BASE_URL,
 };
+
+const AI_PROVIDER_OPTIONS = [
+  { label: 'Together AI', value: DEFAULT_AI_BASE_URL },
+  { label: 'OpenRouter', value: OPENROUTER_BASE_URL },
+  { label: 'OpenAI', value: OPENAI_BASE_URL },
+  { label: 'Claude', value: CLAUDE_BASE_URL },
+] as const;
 
 const getAiProviderForBaseUrl = (baseUrl: string): WritingAiProvider => {
   try {
     const host = new URL(baseUrl).hostname;
     if (host === 'api.together.xyz') return 'together';
     if (host === 'openrouter.ai') return 'openrouter';
+    if (host === 'api.openai.com') return 'openai';
+    if (host === 'api.anthropic.com') return 'claude';
   } catch {
     return 'custom';
   }
@@ -398,6 +413,9 @@ export default function NewTaskPage() {
   }, [aiBaseUrl, aiModel, testedAiModels]);
 
   const selectedAiModel = aiModel === CUSTOM_MODEL_VALUE ? customAiModel.trim() : aiModel.trim();
+  const selectedAiProvider = AI_PROVIDER_OPTIONS.some((option) => option.value === aiBaseUrl)
+    ? aiBaseUrl
+    : CUSTOM_PROVIDER_VALUE;
 
   const markCustom = (updater: (current: WritingEnvironmentConfig) => WritingEnvironmentConfig) => {
     setEnvironmentSelection('custom');
@@ -595,7 +613,7 @@ export default function NewTaskPage() {
   const setAiAccess = (nextAccess: WritingAiAccess) => {
     const defaultModel = modelBelongsToOptions(aiModel, aiModelOptions)
       ? aiModel
-      : aiModelOptions[0] || 'gpt-4.1';
+      : aiModelOptions[0] || 'gpt-5.5';
 
     setAiAccessState(nextAccess);
     if (nextAccess !== 'off' && !modelBelongsToOptions(aiModel, aiModelOptions)) {
@@ -1172,19 +1190,53 @@ export default function NewTaskPage() {
                             </div>
 
                             <div className="grid gap-2">
-                              <FormLabel htmlFor="ai-base-url">Base URL</FormLabel>
-                              <Input
-                                id="ai-base-url"
-                                value={aiBaseUrl}
-                                disabled={isSubmitting}
-                                onChange={(event) => {
-                                  setAiBaseUrl(event.target.value);
+                              <FormLabel>Provider</FormLabel>
+                              <Select
+                                value={selectedAiProvider}
+                                onValueChange={(value) => {
+                                  const nextBaseUrl = value === CUSTOM_PROVIDER_VALUE ? '' : value;
+                                  setAiBaseUrl(nextBaseUrl);
+                                  if (value !== CUSTOM_PROVIDER_VALUE) {
+                                    const nextModel = getWhitelist(nextBaseUrl)?.[0] || '';
+                                    setAiModel(nextModel);
+                                    setCustomAiModel('');
+                                    setEnvironmentAiModel(nextModel);
+                                  }
                                   setAiConnectionResult(null);
                                   setTestedAiModels([]);
                                 }}
-                                placeholder={DEFAULT_AI_BASE_URL}
-                              />
+                                disabled={isSubmitting}
+                              >
+                                <SelectTrigger aria-label="AI provider">
+                                  <SelectValue placeholder="Select provider" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {AI_PROVIDER_OPTIONS.map((option) => (
+                                    <SelectItem key={option.value} value={option.value}>
+                                      {option.label}
+                                    </SelectItem>
+                                  ))}
+                                  <SelectItem value={CUSTOM_PROVIDER_VALUE}>Custom provider</SelectItem>
+                                </SelectContent>
+                              </Select>
                             </div>
+
+                            {selectedAiProvider === CUSTOM_PROVIDER_VALUE && (
+                              <div className="grid gap-2 sm:col-span-2">
+                                <FormLabel htmlFor="ai-base-url">Base URL</FormLabel>
+                                <Input
+                                  id="ai-base-url"
+                                  value={aiBaseUrl}
+                                  disabled={isSubmitting}
+                                  onChange={(event) => {
+                                    setAiBaseUrl(event.target.value);
+                                    setAiConnectionResult(null);
+                                    setTestedAiModels([]);
+                                  }}
+                                  placeholder={DEFAULT_AI_BASE_URL}
+                                />
+                              </div>
+                            )}
                           </div>
 
                           {aiModel === CUSTOM_MODEL_VALUE && (

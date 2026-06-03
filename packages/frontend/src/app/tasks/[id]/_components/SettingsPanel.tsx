@@ -106,6 +106,9 @@ const taskSettingsSchema = z.object({
 type TaskSettingsFormData = z.infer<typeof taskSettingsSchema>;
 
 const DEFAULT_AI_BASE_URL = 'https://api.together.xyz/v1';
+const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
+const OPENAI_BASE_URL = 'https://api.openai.com/v1';
+const CLAUDE_BASE_URL = 'https://api.anthropic.com/v1';
 const CUSTOM_MODEL_VALUE = '__custom_model__';
 const CUSTOM_PROVIDER_VALUE = '__custom_provider__';
 const USE_EXISTING_AI_KEY = '__use_existing__';
@@ -144,13 +147,17 @@ const modelBelongsToOptions = (model: string, options: string[]) => (
 );
 
 const KNOWN_AI_PROVIDER_BASE_URLS: Record<string, string> = {
-  'api.together.xyz': 'https://api.together.xyz/v1',
-  'openrouter.ai': 'https://openrouter.ai/api/v1',
+  'api.together.xyz': DEFAULT_AI_BASE_URL,
+  'openrouter.ai': OPENROUTER_BASE_URL,
+  'api.openai.com': OPENAI_BASE_URL,
+  'api.anthropic.com': CLAUDE_BASE_URL,
 };
 
 const AI_PROVIDER_OPTIONS = [
-  { label: 'Together AI', value: 'https://api.together.xyz/v1' },
-  { label: 'OpenRouter', value: 'https://openrouter.ai/api/v1' },
+  { label: 'Together AI', value: DEFAULT_AI_BASE_URL },
+  { label: 'OpenRouter', value: OPENROUTER_BASE_URL },
+  { label: 'OpenAI', value: OPENAI_BASE_URL },
+  { label: 'Claude', value: CLAUDE_BASE_URL },
 ] as const;
 
 const getAiProviderForBaseUrl = (baseUrl: string): WritingAiProvider => {
@@ -158,6 +165,8 @@ const getAiProviderForBaseUrl = (baseUrl: string): WritingAiProvider => {
     const host = new URL(baseUrl).hostname;
     if (host === 'api.together.xyz') return 'together';
     if (host === 'openrouter.ai') return 'openrouter';
+    if (host === 'api.openai.com') return 'openai';
+    if (host === 'api.anthropic.com') return 'claude';
   } catch {
     return 'custom';
   }
@@ -718,7 +727,7 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
   const setAiAccess = (nextAccess: WritingAiAccess) => {
     const defaultModel = modelBelongsToOptions(aiModel, aiModelOptions)
       ? aiModel
-      : aiModelOptions[0] || 'gpt-4.1';
+      : aiModelOptions[0] || 'gpt-5.5';
 
     setAiAccessState(nextAccess);
     if (nextAccess !== 'off' && !modelBelongsToOptions(aiModel, aiModelOptions)) {

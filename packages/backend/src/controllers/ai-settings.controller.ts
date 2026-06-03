@@ -47,8 +47,36 @@ type ProviderBaseUrlGuard = {
 };
 
 const TOGETHER_AI_BASE_URL = 'https://api.together.xyz/v1';
+const OPENAI_BASE_URL = 'https://api.openai.com/v1';
+const CLAUDE_BASE_URL = 'https://api.anthropic.com/v1';
 
 const PROVIDER_CREDENTIAL_RULES: Record<string, ProviderCredentialRule> = {
+  'api.openai.com': {
+    label: 'OpenAI',
+    validate: async (normalizedUrl, apiKey) => {
+      const modelsResult = await fetchProviderModelsCatalog(`${normalizedUrl}/models`, apiKey);
+      if (!modelsResult.ok) {
+        return {
+          ok: false,
+          message: modelsResult.message,
+        };
+      }
+      return { ok: true, modelsResponse: modelsResult.data };
+    },
+  },
+  'api.anthropic.com': {
+    label: 'Claude',
+    validate: async (normalizedUrl, apiKey) => {
+      const modelsResult = await fetchProviderModelsCatalog(`${normalizedUrl}/models`, apiKey);
+      if (!modelsResult.ok) {
+        return {
+          ok: false,
+          message: modelsResult.message,
+        };
+      }
+      return { ok: true, modelsResponse: modelsResult.data };
+    },
+  },
   'openrouter.ai': {
     label: 'OpenRouter',
     validate: async (normalizedUrl, apiKey) => {
@@ -91,6 +119,26 @@ const PROVIDER_CREDENTIAL_RULES: Record<string, ProviderCredentialRule> = {
 };
 
 const PROVIDER_BASE_URL_GUARDS: ProviderBaseUrlGuard[] = [
+  {
+    matches: (url) => url.hostname === 'api.openai.com' && !url.pathname.includes('/v1'),
+    message: `OpenAI base URL should include /v1: ${OPENAI_BASE_URL}`,
+  },
+  {
+    matches: (url) => url.hostname.endsWith('openai.com') && url.hostname !== 'api.openai.com',
+    message: `OpenAI uses the OpenAI-compatible API base URL ${OPENAI_BASE_URL}. The openai.com website URL returns HTML, not model JSON.`,
+  },
+  {
+    matches: (url) => url.hostname === 'api.anthropic.com' && !url.pathname.includes('/v1'),
+    message: `Claude base URL should include /v1: ${CLAUDE_BASE_URL}`,
+  },
+  {
+    matches: (url) => url.hostname.endsWith('anthropic.com') && url.hostname !== 'api.anthropic.com',
+    message: `Claude uses the OpenAI-compatible API base URL ${CLAUDE_BASE_URL}. The anthropic.com website URL returns HTML, not model JSON.`,
+  },
+  {
+    matches: (url) => url.hostname.endsWith('claude.ai'),
+    message: `Claude uses the OpenAI-compatible API base URL ${CLAUDE_BASE_URL}. The claude.ai website URL returns HTML, not model JSON.`,
+  },
   {
     matches: (url) => url.hostname.endsWith('together.ai'),
     message: `Together AI uses the OpenAI-compatible API base URL ${TOGETHER_AI_BASE_URL}. The together.ai website URL returns HTML, not model JSON.`,
@@ -439,7 +487,7 @@ export async function testConnection(req: Request, res: Response): Promise<void>
     }
 
     // Extract model IDs from response. OpenAI-compatible providers usually
-    // return { data: [{ id: "gpt-4o", ... }] }, while Together currently
+    // return { data: [{ id: "gpt-5.5", ... }] }, while Together currently
     // returns a top-level array from /v1/models.
     let models: string[] = [];
     const modelList = Array.isArray(modelsResult.data)

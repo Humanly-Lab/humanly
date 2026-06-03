@@ -44,8 +44,8 @@ describe('testConnection', () => {
   it('returns curated model ids for known OpenAI-compatible providers', async () => {
     mockFetchJson({
       data: [
-        { id: 'gpt-4o' },
-        { id: 'gpt-4.1' },
+        { id: 'gpt-5.5' },
+        { id: 'gpt-5.4' },
         { id: 'untested-provider-model' },
       ],
     });
@@ -59,8 +59,39 @@ describe('testConnection', () => {
 
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
       success: true,
-      message: 'Connection successful. Found 5 supported models.',
-      models: ['gpt-4.1', 'gpt-4o', 'gpt-4o-mini', 'gpt-4.1-nano', 'o3'],
+      message: 'Connection successful. Found 4 supported models.',
+      models: ['gpt-5.5', 'gpt-5.4', 'gpt-5.4-mini', 'gpt-5.4-nano'],
+    }));
+  });
+
+  it('returns curated Claude model ids through the OpenAI-compatible Anthropic endpoint', async () => {
+    mockFetchJson({
+      data: [
+        { id: 'claude-opus-4-8' },
+        { id: 'legacy-claude' },
+      ],
+    });
+
+    const req = makeReq({
+      body: { apiKey: 'sk-ant-test', baseUrl: 'https://api.anthropic.com/v1' },
+    });
+    const res = makeRes();
+
+    await testConnection(req, res);
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      'https://api.anthropic.com/v1/models',
+      expect.objectContaining({
+        method: 'GET',
+        headers: expect.objectContaining({
+          Authorization: 'Bearer sk-ant-test',
+        }),
+      }),
+    );
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      success: true,
+      message: 'Connection successful. Found 3 supported models.',
+      models: ['claude-opus-4-8', 'claude-sonnet-4-6', 'claude-haiku-4-5-20251001'],
     }));
   });
 
@@ -219,18 +250,28 @@ describe('testConnection', () => {
   });
 
   it('rejects known provider website URLs before probing the network', async () => {
-    const req = makeReq({
-      body: { apiKey: 'tgp_v1_test', baseUrl: 'https://www.together.ai' },
-    });
-    const res = makeRes();
+    const cases = [
+      ['https://www.together.ai', 'https://api.together.xyz/v1'],
+      ['https://platform.openai.com', 'https://api.openai.com/v1'],
+      ['https://www.anthropic.com', 'https://api.anthropic.com/v1'],
+      ['https://claude.ai', 'https://api.anthropic.com/v1'],
+    ];
 
-    await testConnection(req, res);
+    for (const [baseUrl, expectedHint] of cases) {
+      jest.mocked(global.fetch).mockClear();
+      const req = makeReq({
+        body: { apiKey: 'provider-key', baseUrl },
+      });
+      const res = makeRes();
 
-    expect(global.fetch).not.toHaveBeenCalled();
-    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
-      success: false,
-      message: expect.stringContaining('https://api.together.xyz/v1'),
-    }));
+      await testConnection(req, res);
+
+      expect(global.fetch).not.toHaveBeenCalled();
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+        success: false,
+        message: expect.stringContaining(expectedHint),
+      }));
+    }
   });
 
   it('uses raw provider models only for unknown OpenAI-compatible providers', async () => {

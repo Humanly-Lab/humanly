@@ -402,6 +402,84 @@ describe('admin new task page', () => {
     });
   });
 
+  it('creates AI-enabled tasks with the selected OpenAI provider and model whitelist', async () => {
+    mockApiPost.mockImplementation(async (url: string, payload: any) => {
+      if (url === '/api/v1/ai/settings/test') {
+        expect(payload).toEqual(expect.objectContaining({
+          apiKey: 'sk-openai-test',
+          baseUrl: 'https://api.openai.com/v1',
+        }));
+        return {
+          success: true,
+          message: 'Connection successful.',
+          models: ['gpt-5.5', 'gpt-5.4', 'gpt-5.4-mini', 'gpt-5.4-nano'],
+        };
+      }
+      if (url === '/api/v1/tasks') {
+        return {
+          success: true,
+          data: { id: 'created-openai-task' },
+          message: 'Task created',
+        };
+      }
+      throw new Error(`Unexpected POST ${url}`);
+    });
+    mockApiPut.mockResolvedValue({ success: true });
+
+    render(<NewTaskPage />);
+
+    expect(await screen.findByRole('heading', { name: 'New Task' })).toBeInTheDocument();
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText(/Task Name/i), {
+        target: { value: 'OpenAI Task' },
+      });
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('option', { name: 'Custom' }));
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('option', { name: 'AI On' }));
+    });
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText(/AI API Key/i), {
+        target: { value: 'sk-openai-test' },
+      });
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('option', { name: 'OpenAI' }));
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole('option', { name: 'gpt-5.5' })).toHaveAttribute('aria-selected', 'true');
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /^Create Task$/i }));
+    });
+
+    await waitFor(() => {
+      expect(mockApiPut).toHaveBeenCalledWith('/api/v1/ai/settings', expect.objectContaining({
+        apiKey: 'sk-openai-test',
+        baseUrl: 'https://api.openai.com/v1',
+        model: 'gpt-5.5',
+      }));
+      expect(mockApiPost).toHaveBeenCalledWith(
+        '/api/v1/tasks',
+        expect.objectContaining({
+          name: 'OpenAI Task',
+          environmentConfig: expect.objectContaining({
+            aiAccess: 'full',
+            aiProvider: {
+              provider: 'openai',
+              baseUrl: 'https://api.openai.com/v1',
+            },
+            allowedModels: ['gpt-5.5'],
+          }),
+        })
+      );
+    });
+  });
+
   it('imports AI-on environment JSON and preserves the explicit provider', async () => {
     mockApiGet.mockResolvedValue({
       data: {

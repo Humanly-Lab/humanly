@@ -10,11 +10,10 @@ const TEXT_AND_IMAGE: ModelCapabilities = { inputs: ['text', 'image'] };
  */
 export const MODEL_WHITELIST: Record<string, AIModelDescriptor[]> = {
   'api.openai.com': [
-    { id: 'gpt-4.1', capabilities: TEXT_AND_IMAGE },
-    { id: 'gpt-4o', capabilities: TEXT_AND_IMAGE },
-    { id: 'gpt-4o-mini', capabilities: TEXT_AND_IMAGE },
-    { id: 'gpt-4.1-nano', capabilities: TEXT_AND_IMAGE },
-    { id: 'o3', capabilities: TEXT_AND_IMAGE },
+    { id: 'gpt-5.5', capabilities: TEXT_AND_IMAGE },
+    { id: 'gpt-5.4', capabilities: TEXT_AND_IMAGE },
+    { id: 'gpt-5.4-mini', capabilities: TEXT_AND_IMAGE },
+    { id: 'gpt-5.4-nano', capabilities: TEXT_AND_IMAGE },
   ],
   'api.deepseek.com': [
     { id: 'deepseek-reasoner', capabilities: TEXT_ONLY },
@@ -22,10 +21,9 @@ export const MODEL_WHITELIST: Record<string, AIModelDescriptor[]> = {
     { id: 'deepseek-coder', capabilities: TEXT_ONLY },
   ],
   'api.anthropic.com': [
-    { id: 'claude-opus-4-5', capabilities: TEXT_AND_IMAGE },
-    { id: 'claude-sonnet-4-5', capabilities: TEXT_AND_IMAGE },
-    { id: 'claude-3-7-sonnet-20250219', capabilities: TEXT_AND_IMAGE },
-    { id: 'claude-3-haiku-20240307', capabilities: TEXT_AND_IMAGE },
+    { id: 'claude-opus-4-8', capabilities: TEXT_AND_IMAGE },
+    { id: 'claude-sonnet-4-6', capabilities: TEXT_AND_IMAGE },
+    { id: 'claude-haiku-4-5-20251001', capabilities: TEXT_AND_IMAGE },
   ],
   'generativelanguage.googleapis.com': [
     { id: 'gemini-2.5-pro', capabilities: TEXT_AND_IMAGE },

@@ -52,7 +52,7 @@ export const writingEnvironmentConfigSchema = z.object({
   }),
   aiAccess: z.enum(['off', 'readonly', 'full']),
   aiProvider: z.object({
-    provider: z.enum(['together', 'openrouter', 'custom']),
+    provider: z.enum(['together', 'openrouter', 'openai', 'claude', 'custom']),
     baseUrl: z.string().url(),
   }).optional(),
   allowedModels: z.array(z.string().min(1).max(100)).max(20),

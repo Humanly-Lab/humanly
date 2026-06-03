@@ -52,6 +52,8 @@ const formatAiProvider = (provider?: NonNullable<Task['environmentConfig']>['aiP
 
   if (provider.provider === 'together') return 'Together AI';
   if (provider.provider === 'openrouter') return 'OpenRouter';
+  if (provider.provider === 'openai') return 'OpenAI';
+  if (provider.provider === 'claude') return 'Claude';
 
   try {
     return new URL(provider.baseUrl).hostname;

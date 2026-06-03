@@ -376,6 +376,16 @@ describe('document creation workflow', () => {
     expect(screen.queryByRole('button', { name: /test connection/i })).not.toBeInTheDocument();
     expect(screen.getByText('qwen/qwen3.5-397b-a17b')).toBeInTheDocument();
     expect(screen.queryByText('qwen/qwen-plus-2025-07-28')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('combobox', { name: /ai provider/i }));
+    await user.click(await screen.findByRole('option', { name: 'OpenAI' }));
+    expect(screen.getByText('gpt-5.5')).toBeInTheDocument();
+    expect(screen.queryByText('gpt-4o')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('combobox', { name: /ai provider/i }));
+    await user.click(await screen.findByRole('option', { name: 'Claude' }));
+    expect(screen.getByText('claude-opus-4-8')).toBeInTheDocument();
+    expect(screen.queryByText('claude-sonnet-4-5')).not.toBeInTheDocument();
   });
 
   it('persists the selected provider with the environment JSON config', async () => {
