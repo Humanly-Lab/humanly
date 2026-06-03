@@ -126,7 +126,7 @@ describe('provider options', () => {
       'Together AI',
       'OpenRouter',
       'OpenAI',
-      'Claude',
+      'Anthropic',
     ]);
     expect(AI_PROVIDER_OPTIONS.map(option => option.baseUrl)).toEqual([
       TOGETHER_AI_BASE_URL,

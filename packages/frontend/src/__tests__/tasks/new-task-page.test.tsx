@@ -499,6 +499,8 @@ describe('admin new task page', () => {
     await act(async () => {
       fireEvent.click(screen.getByRole('option', { name: 'Full' }));
     });
+    expect(screen.getByRole('option', { name: 'Anthropic' })).toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: 'Claude' })).not.toBeInTheDocument();
     await act(async () => {
       fireEvent.change(screen.getByLabelText(/AI API Key/i), {
         target: { value: 'sk-openai-test' },

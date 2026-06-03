@@ -158,7 +158,7 @@ const AI_PROVIDER_OPTIONS = [
   { label: 'Together AI', value: DEFAULT_AI_BASE_URL },
   { label: 'OpenRouter', value: OPENROUTER_BASE_URL },
   { label: 'OpenAI', value: OPENAI_BASE_URL },
-  { label: 'Claude', value: CLAUDE_BASE_URL },
+  { label: 'Anthropic', value: CLAUDE_BASE_URL },
 ] as const;
 
 const getAiProviderForBaseUrl = (baseUrl: string): WritingAiProvider => {

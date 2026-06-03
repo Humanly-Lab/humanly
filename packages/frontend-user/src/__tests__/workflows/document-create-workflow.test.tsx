@@ -386,7 +386,7 @@ describe('document creation workflow', () => {
     expect(screen.queryByText('Custom model')).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('combobox', { name: /ai provider/i }));
-    await user.click(await screen.findByRole('option', { name: 'Claude' }));
+    await user.click(await screen.findByRole('option', { name: 'Anthropic' }));
     expect(screen.getByText('claude-sonnet-4-6')).toBeInTheDocument();
     expect(screen.queryByText('claude-sonnet-4-5')).not.toBeInTheDocument();
     expect(screen.queryByText('Custom model')).not.toBeInTheDocument();

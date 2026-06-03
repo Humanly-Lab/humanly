@@ -65,7 +65,7 @@ const PROVIDER_CREDENTIAL_RULES: Record<string, ProviderCredentialRule> = {
     },
   },
   'api.anthropic.com': {
-    label: 'Claude',
+    label: 'Anthropic',
     validate: async (normalizedUrl, apiKey) => {
       const modelsResult = await fetchProviderModelsCatalog(`${normalizedUrl}/models`, apiKey);
       if (!modelsResult.ok) {

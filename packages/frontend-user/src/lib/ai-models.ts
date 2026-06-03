@@ -28,7 +28,7 @@ export const AI_PROVIDER_OPTIONS = [
   },
   {
     value: 'claude',
-    label: 'Claude',
+    label: 'Anthropic',
     baseUrl: CLAUDE_BASE_URL,
   },
 ] as const;

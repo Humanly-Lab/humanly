@@ -699,6 +699,8 @@ describe('admin task overview invite code copy button', () => {
     expect(within(dialog).getByRole('combobox', { name: /^AI$/i })).toHaveValue('full');
     expect(within(dialog).getByLabelText(/AI API Key/i)).toBeInTheDocument();
     expect(within(dialog).getByRole('combobox', { name: /Provider/i })).toHaveValue('https://api.together.xyz/v1');
+    expect(within(dialog).getByRole('option', { name: 'Anthropic' })).toBeInTheDocument();
+    expect(within(dialog).queryByRole('option', { name: 'Claude' })).not.toBeInTheDocument();
     expect(within(dialog).getByRole('combobox', { name: /Model/i })).toHaveValue('moonshotai/Kimi-K2.6');
     expect(within(dialog).getByRole('option', { name: 'moonshotai/Kimi-K2.6' })).toBeInTheDocument();
     expect(within(dialog).getByRole('combobox', { name: /^Time$/i })).toHaveValue('time_limited');
