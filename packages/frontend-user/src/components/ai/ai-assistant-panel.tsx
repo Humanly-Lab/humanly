@@ -666,8 +666,9 @@ export function AIAssistantPanel({
 
       {/* Input Area - Fixed (sticky) at bottom */}
       <div
+        data-testid="ai-chat-input-stack"
         className={cn(
-          'border-t p-4 bg-background shrink-0 w-full min-w-0',
+          'flex flex-col gap-2.5 border-t p-4 bg-background shrink-0 w-full min-w-0',
           imageDragActive && (
             currentSupportsImage
               ? 'ring-2 ring-primary/25 bg-muted/20'
@@ -680,7 +681,7 @@ export function AIAssistantPanel({
       >
         {/* PDF context indicator */}
         {pdfTextData && !pdfTextData.error && !pdfTextData.isExtracting && (
-          <div className="mb-2 flex min-w-0 items-center gap-2 rounded-lg border border-[#c8d4c8] bg-[#eef3ed] p-2">
+          <div className="flex min-w-0 items-center gap-2 rounded-lg border border-[#c8d4c8] bg-[#eef3ed] p-2">
             <CheckCircle className="h-3 w-3 shrink-0 text-[#58715f]" />
             <p className="text-[10px] text-[#58715f]">
               PDF context available ({pdfTextData.numPages} pages)
@@ -690,7 +691,7 @@ export function AIAssistantPanel({
 
         {/* Quoted text block */}
         {quotedText && (
-          <div className="relative mb-2 min-w-0 rounded-lg border border-border/70 bg-muted/35 p-2.5">
+          <div className="relative min-w-0 rounded-lg border border-border/70 bg-muted/35 p-2.5">
             <div className="flex items-start gap-2 min-w-0">
               <div className="flex-1 min-w-0 overflow-hidden">
                 <p className="mb-1 humanly-eyebrow text-[10px]">
@@ -713,7 +714,7 @@ export function AIAssistantPanel({
         )}
         {/* Quick model selector */}
         {currentModel && (
-          <div className="mb-2 rounded-lg border bg-muted/40 px-2 py-1.5 text-[11px] text-muted-foreground">
+          <div className="rounded-lg border bg-muted/40 px-2 py-1.5 text-[11px] text-muted-foreground">
             AI model: {formatModelOptionLabel(currentBaseUrl, currentModel)}
           </div>
         )}
@@ -721,7 +722,10 @@ export function AIAssistantPanel({
             before sending; image bytes are already uploaded by the time
             they appear here. */}
         {(pendingAttachments.length > 0 || attachmentError || attachmentUploading) && (
-          <div className="flex flex-wrap items-center gap-1.5 text-xs">
+          <div
+            data-testid="ai-chat-attachment-row"
+            className="flex flex-wrap items-center gap-1.5 text-xs"
+          >
             {pendingAttachments.map((a) => (
               <div
                 key={a.storageKey}
@@ -752,7 +756,11 @@ export function AIAssistantPanel({
             )}
           </div>
         )}
-        <form onSubmit={handleSubmit} className="flex gap-2 min-w-0">
+        <form
+          data-testid="ai-chat-input-form"
+          onSubmit={handleSubmit}
+          className="flex gap-2 min-w-0"
+        >
           <div className="flex-1 relative min-w-0">
             <Textarea
               ref={textareaRef}

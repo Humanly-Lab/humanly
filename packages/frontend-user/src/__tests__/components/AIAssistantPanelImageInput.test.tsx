@@ -129,6 +129,17 @@ describe('AIAssistantPanel image paste and drag-drop', () => {
 
     await waitFor(() => expect(mockUploadChatImage).toHaveBeenCalledWith(file));
     expect(await screen.findByText('paste.png')).toBeInTheDocument();
+
+    const inputStack = screen.getByTestId('ai-chat-input-stack');
+    const attachmentRow = screen.getByTestId('ai-chat-attachment-row');
+    const inputForm = screen.getByTestId('ai-chat-input-form');
+    const stackChildren = Array.from(inputStack.children);
+
+    expect(inputStack).toHaveClass('flex', 'flex-col', 'gap-2.5');
+    expect(attachmentRow.parentElement).toBe(inputStack);
+    expect(inputForm.parentElement).toBe(inputStack);
+    expect(inputForm).not.toContainElement(attachmentRow);
+    expect(stackChildren.indexOf(attachmentRow)).toBeLessThan(stackChildren.indexOf(inputForm));
   });
 
   it('stages a dropped image when the locked model accepts image input', async () => {
