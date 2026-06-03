@@ -39,7 +39,6 @@ import {
 } from '@humanly/shared';
 import {
   AI_PROVIDER_OPTIONS,
-  CUSTOM_AI_PROVIDER_VALUE,
   TOGETHER_AI_BASE_URL,
   getProviderValueForBaseUrl,
   getWhitelist,
@@ -269,21 +268,9 @@ export function AISettingsDialog({ onSettingsChanged }: AISettingsDialogProps) {
                   </SelectContent>
                 </Select>
                 <p className="text-[11px] leading-relaxed text-muted-foreground">
-                  Choose a supported provider, or use Custom for any OpenAI-compatible API with tool calling.
+                  Choose a supported provider. Model choices are limited to Humanly&apos;s curated allowlist.
                 </p>
               </div>
-
-              {getProviderValueForBaseUrl(baseUrl) === CUSTOM_AI_PROVIDER_VALUE && (
-                <div className="space-y-2">
-                  <Label className="text-xs font-medium">Custom Base URL</Label>
-                  <Input
-                    value={baseUrl}
-                    onChange={(e) => updateBaseUrl(e.target.value, true)}
-                    placeholder={TOGETHER_AI_BASE_URL}
-                    className="text-sm"
-                  />
-                </div>
-              )}
 
               {/* API Key */}
               <div className="space-y-2">

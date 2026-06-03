@@ -85,6 +85,22 @@ export const writingEnvironmentConfigSchema = z.object({
     trackFocusBlur: z.boolean(),
   }),
   copyPastePolicy: z.enum(['allowed', 'blocked']),
+}).superRefine((config, ctx) => {
+  if (config.aiProvider?.provider === 'custom') {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['aiProvider', 'provider'],
+      message: 'Custom AI providers are temporarily disabled.',
+    });
+  }
+
+  if ((config.customModels || []).length > 0) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['customModels'],
+      message: 'Custom AI models are temporarily disabled.',
+    });
+  }
 });
 
 const hasOwn = (value: Record<string, unknown>, key: string) => (

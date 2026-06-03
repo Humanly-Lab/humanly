@@ -511,6 +511,8 @@ describe('admin new task page', () => {
     await waitFor(() => {
       expect(screen.getByRole('option', { name: 'gpt-5.4-mini' })).toHaveAttribute('aria-selected', 'true');
     });
+    expect(screen.queryByRole('option', { name: 'Custom model' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: 'Custom provider' })).not.toBeInTheDocument();
 
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: /^Create Task$/i }));
@@ -533,6 +535,7 @@ describe('admin new task page', () => {
               baseUrl: 'https://api.openai.com/v1',
             },
             allowedModels: ['gpt-5.4-mini'],
+            customModels: [],
           }),
         })
       );

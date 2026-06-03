@@ -121,20 +121,18 @@ describe('whitelist accessors', () => {
 });
 
 describe('provider options', () => {
-  it('offers the four first-party API URL choices plus Custom', () => {
+  it('offers only the four curated provider choices', () => {
     expect(AI_PROVIDER_OPTIONS.map(option => option.label)).toEqual([
       'Together AI',
       'OpenRouter',
       'OpenAI',
       'Claude',
-      'Custom',
     ]);
     expect(AI_PROVIDER_OPTIONS.map(option => option.baseUrl)).toEqual([
       TOGETHER_AI_BASE_URL,
       OPENROUTER_BASE_URL,
       OPENAI_BASE_URL,
       CLAUDE_BASE_URL,
-      null,
     ]);
   });
 

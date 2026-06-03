@@ -118,8 +118,6 @@ const DEFAULT_AI_BASE_URL = 'https://api.together.xyz/v1';
 const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
 const OPENAI_BASE_URL = 'https://api.openai.com/v1';
 const CLAUDE_BASE_URL = 'https://api.anthropic.com/v1';
-const CUSTOM_MODEL_VALUE = '__custom_model__';
-const CUSTOM_PROVIDER_VALUE = '__custom_provider__';
 const USE_EXISTING_AI_KEY = '__use_existing__';
 const IMPORT_ENVIRONMENT_VALUE = 'import_environment';
 const DEFAULT_TASK_WINDOW_DAYS = 14;
@@ -134,7 +132,7 @@ const fallbackWritingModels = () => (
 );
 
 const modelBelongsToOptions = (model: string, options: string[]) => (
-  !!model && model !== CUSTOM_MODEL_VALUE && options.includes(model)
+  !!model && options.includes(model)
 );
 
 const KNOWN_AI_PROVIDER_BASE_URLS: Record<string, string> = {
@@ -296,7 +294,6 @@ export default function NewTaskPage() {
   const [aiBaseUrl, setAiBaseUrl] = useState(DEFAULT_AI_BASE_URL);
   const [aiApiKey, setAiApiKey] = useState('');
   const [aiModel, setAiModel] = useState('');
-  const [customAiModel, setCustomAiModel] = useState('');
   const [hasExistingAiKey, setHasExistingAiKey] = useState(false);
   const [maskedAiKey, setMaskedAiKey] = useState('');
   const [isTestingAiConnection, setIsTestingAiConnection] = useState(false);
@@ -409,15 +406,15 @@ export default function NewTaskPage() {
       options = fallbackWritingModels();
     }
 
-    return aiModel && aiModel !== CUSTOM_MODEL_VALUE && !options.includes(aiModel)
+    return !whitelist?.length && aiModel && !options.includes(aiModel)
       ? [aiModel, ...options]
       : options;
   }, [aiBaseUrl, aiModel, testedAiModels]);
 
-  const selectedAiModel = aiModel === CUSTOM_MODEL_VALUE ? customAiModel.trim() : aiModel.trim();
+  const selectedAiModel = aiModel.trim();
   const selectedAiProvider = AI_PROVIDER_OPTIONS.some((option) => option.value === aiBaseUrl)
     ? aiBaseUrl
-    : CUSTOM_PROVIDER_VALUE;
+    : DEFAULT_AI_BASE_URL;
 
   const markCustom = (updater: (current: WritingEnvironmentConfig) => WritingEnvironmentConfig) => {
     setEnvironmentSelection('custom');
@@ -434,25 +431,22 @@ export default function NewTaskPage() {
     }));
   };
 
-  const setEnvironmentAiModel = (model: string, isCustomModel = false) => {
+  const setEnvironmentAiModel = (model: string) => {
     markCustom((current) => ({
       ...current,
       allowedModels: model ? [model] : [],
-      customModels: isCustomModel && model ? [model] : [],
+      customModels: [],
     }));
   };
 
   const syncAiModelFromEnvironment = (config: WritingEnvironmentConfig) => {
     if (config.aiAccess === 'off') {
       setAiModel('');
-      setCustomAiModel('');
       return;
     }
 
-    const customModel = config.customModels?.[0] || '';
     const firstAllowedModel = config.allowedModels[0] || '';
-    setAiModel(firstAllowedModel || (customModel ? CUSTOM_MODEL_VALUE : ''));
-    setCustomAiModel(customModel);
+    setAiModel(firstAllowedModel);
   };
 
   const applyEnvironmentPreset = (preset: Extract<EnvironmentSelection, WritingEnvironmentPreset>) => {
@@ -779,7 +773,7 @@ export default function NewTaskPage() {
           aiAccess,
           aiProvider: resolvedAiProvider,
           allowedModels,
-          customModels: aiModel === CUSTOM_MODEL_VALUE && selectedAiModel ? [selectedAiModel] : [],
+          customModels: [],
           instructions: {
             ...environmentConfig.instructions,
             hasInstructionPdf: instructionFiles.length > 0,
@@ -1172,12 +1166,7 @@ export default function NewTaskPage() {
                                 value={aiModel}
                                 onValueChange={(value) => {
                                   setAiModel(value);
-                                  if (value !== CUSTOM_MODEL_VALUE) {
-                                    setCustomAiModel('');
-                                    setEnvironmentAiModel(value);
-                                  } else {
-                                    setEnvironmentAiModel(customAiModel.trim(), true);
-                                  }
+                                  setEnvironmentAiModel(value);
                                 }}
                               >
                                 <SelectTrigger>
@@ -1189,7 +1178,6 @@ export default function NewTaskPage() {
                                       {model}
                                     </SelectItem>
                                   ))}
-                                  <SelectItem value={CUSTOM_MODEL_VALUE}>Custom model</SelectItem>
                                 </SelectContent>
                               </Select>
                             </div>
@@ -1199,14 +1187,10 @@ export default function NewTaskPage() {
                               <Select
                                 value={selectedAiProvider}
                                 onValueChange={(value) => {
-                                  const nextBaseUrl = value === CUSTOM_PROVIDER_VALUE ? '' : value;
-                                  setAiBaseUrl(nextBaseUrl);
-                                  if (value !== CUSTOM_PROVIDER_VALUE) {
-                                    const nextModel = getWhitelist(nextBaseUrl)?.[0] || '';
-                                    setAiModel(nextModel);
-                                    setCustomAiModel('');
-                                    setEnvironmentAiModel(nextModel);
-                                  }
+                                  setAiBaseUrl(value);
+                                  const nextModel = getWhitelist(value)?.[0] || '';
+                                  setAiModel(nextModel);
+                                  setEnvironmentAiModel(nextModel);
                                   setAiConnectionResult(null);
                                   setTestedAiModels([]);
                                 }}
@@ -1221,44 +1205,10 @@ export default function NewTaskPage() {
                                       {option.label}
                                     </SelectItem>
                                   ))}
-                                  <SelectItem value={CUSTOM_PROVIDER_VALUE}>Custom provider</SelectItem>
                                 </SelectContent>
                               </Select>
                             </div>
-
-                            {selectedAiProvider === CUSTOM_PROVIDER_VALUE && (
-                              <div className="grid gap-2 sm:col-span-2">
-                                <FormLabel htmlFor="ai-base-url">Base URL</FormLabel>
-                                <Input
-                                  id="ai-base-url"
-                                  value={aiBaseUrl}
-                                  disabled={isSubmitting}
-                                  onChange={(event) => {
-                                    setAiBaseUrl(event.target.value);
-                                    setAiConnectionResult(null);
-                                    setTestedAiModels([]);
-                                  }}
-                                  placeholder={DEFAULT_AI_BASE_URL}
-                                />
-                              </div>
-                            )}
                           </div>
-
-                          {aiModel === CUSTOM_MODEL_VALUE && (
-                            <div className="grid gap-2">
-                              <FormLabel htmlFor="custom-ai-model">Custom Model</FormLabel>
-                              <Input
-                                id="custom-ai-model"
-                                value={customAiModel}
-                                disabled={isSubmitting}
-                                onChange={(event) => {
-                                  setCustomAiModel(event.target.value);
-                                  setEnvironmentAiModel(event.target.value.trim(), true);
-                                }}
-                                placeholder="provider/model-name"
-                              />
-                            </div>
-                          )}
 
                           <div className="grid gap-4 sm:grid-cols-2">
                             <div className="grid gap-2">

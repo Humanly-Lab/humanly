@@ -73,6 +73,47 @@ describe('writing environment validators', () => {
       },
     })).toThrow('Maximum characters must be greater than or equal to minimum characters');
   });
+
+  it('rejects custom AI providers while the custom-provider UI is disabled', () => {
+    expect(() => createTaskSchema.parse({
+      ...baseTaskPayload,
+      environmentConfig: {
+        ...DEFAULT_WRITING_ENVIRONMENT_CONFIG,
+        taskType: 'admin_assigned',
+        aiAccess: 'full',
+        aiProvider: {
+          provider: 'custom',
+          baseUrl: 'https://example.com/v1',
+        },
+        allowedModels: ['example-model'],
+        traceability: {
+          ...DEFAULT_WRITING_ENVIRONMENT_CONFIG.traceability,
+          trackAiUsage: true,
+        },
+      },
+    })).toThrow('Custom AI providers are temporarily disabled.');
+  });
+
+  it('rejects custom AI models for provider-bound environments', () => {
+    expect(() => createTaskSchema.parse({
+      ...baseTaskPayload,
+      environmentConfig: {
+        ...DEFAULT_WRITING_ENVIRONMENT_CONFIG,
+        taskType: 'admin_assigned',
+        aiAccess: 'full',
+        aiProvider: {
+          provider: 'openai',
+          baseUrl: 'https://api.openai.com/v1',
+        },
+        allowedModels: ['gpt-5.4-mini'],
+        customModels: ['gpt-anything'],
+        traceability: {
+          ...DEFAULT_WRITING_ENVIRONMENT_CONFIG.traceability,
+          trackAiUsage: true,
+        },
+      },
+    })).toThrow('Custom AI models are temporarily disabled.');
+  });
 });
 
 describe('task time window validators', () => {

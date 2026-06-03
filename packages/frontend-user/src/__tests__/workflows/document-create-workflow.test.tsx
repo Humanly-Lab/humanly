@@ -376,16 +376,20 @@ describe('document creation workflow', () => {
     expect(screen.queryByRole('button', { name: /test connection/i })).not.toBeInTheDocument();
     expect(screen.getByText('qwen/qwen3.5-397b-a17b')).toBeInTheDocument();
     expect(screen.queryByText('qwen/qwen-plus-2025-07-28')).not.toBeInTheDocument();
+    expect(screen.queryByText('Custom model')).not.toBeInTheDocument();
+    expect(screen.queryByText('Custom Base URL')).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('combobox', { name: /ai provider/i }));
     await user.click(await screen.findByRole('option', { name: 'OpenAI' }));
     expect(screen.getByText('gpt-5.4-mini')).toBeInTheDocument();
     expect(screen.queryByText('gpt-4o')).not.toBeInTheDocument();
+    expect(screen.queryByText('Custom model')).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('combobox', { name: /ai provider/i }));
     await user.click(await screen.findByRole('option', { name: 'Claude' }));
     expect(screen.getByText('claude-sonnet-4-6')).toBeInTheDocument();
     expect(screen.queryByText('claude-sonnet-4-5')).not.toBeInTheDocument();
+    expect(screen.queryByText('Custom model')).not.toBeInTheDocument();
   });
 
   it('persists the selected provider with the environment JSON config', async () => {
@@ -422,6 +426,7 @@ describe('document creation workflow', () => {
             baseUrl: 'https://openrouter.ai/api/v1',
           },
           allowedModels: ['qwen/qwen3.5-397b-a17b'],
+          customModels: [],
         }),
         '',
       );

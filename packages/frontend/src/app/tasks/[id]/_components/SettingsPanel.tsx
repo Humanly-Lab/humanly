@@ -112,8 +112,6 @@ const DEFAULT_AI_BASE_URL = 'https://api.together.xyz/v1';
 const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
 const OPENAI_BASE_URL = 'https://api.openai.com/v1';
 const CLAUDE_BASE_URL = 'https://api.anthropic.com/v1';
-const CUSTOM_MODEL_VALUE = '__custom_model__';
-const CUSTOM_PROVIDER_VALUE = '__custom_provider__';
 const USE_EXISTING_AI_KEY = '__use_existing__';
 const UNLIMITED_TASK_WINDOW_YEARS = 100;
 
@@ -146,7 +144,7 @@ const parseTimeLimitMinutes = (value: string, fallback = 1): number => {
 };
 
 const modelBelongsToOptions = (model: string, options: string[]) => (
-  !!model && model !== CUSTOM_MODEL_VALUE && options.includes(model)
+  !!model && options.includes(model)
 );
 
 const KNOWN_AI_PROVIDER_BASE_URLS: Record<string, string> = {
@@ -411,7 +409,6 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
   const [aiBaseUrl, setAiBaseUrl] = useState(DEFAULT_AI_BASE_URL);
   const [aiApiKey, setAiApiKey] = useState('');
   const [aiModel, setAiModel] = useState('');
-  const [customAiModel, setCustomAiModel] = useState('');
   const [hasExistingAiKey, setHasExistingAiKey] = useState(false);
   const [maskedAiKey, setMaskedAiKey] = useState('');
   const [isTestingAiConnection, setIsTestingAiConnection] = useState(false);
@@ -434,10 +431,10 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
   });
 
   const currentInstructionFiles = files.filter((file) => file.purpose === 'task_instruction_pdf');
-  const selectedAiModel = aiModel === CUSTOM_MODEL_VALUE ? customAiModel.trim() : aiModel.trim();
+  const selectedAiModel = aiModel.trim();
   const selectedAiProvider = AI_PROVIDER_OPTIONS.some((option) => option.value === aiBaseUrl)
     ? aiBaseUrl
-    : CUSTOM_PROVIDER_VALUE;
+    : DEFAULT_AI_BASE_URL;
 
   const validateStartDateWithinEditWindow = (startDate?: string): boolean => {
     if (!timeLimitEnabled || !startDate) {
@@ -474,7 +471,7 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
       options = fallbackWritingModels();
     }
 
-    return !whitelist?.length && aiModel && aiModel !== CUSTOM_MODEL_VALUE && !options.includes(aiModel)
+    return !whitelist?.length && aiModel && !options.includes(aiModel)
       ? [aiModel, ...options]
       : options;
   }, [aiBaseUrl, aiModel, testedAiModels]);
@@ -618,11 +615,11 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
     }));
   };
 
-  const setEnvironmentAiModel = (model: string, isCustomModel = false) => {
+  const setEnvironmentAiModel = (model: string) => {
     setEnvironmentConfig((current) => ({
       ...current,
       allowedModels: model ? [model] : [],
-      customModels: isCustomModel && model ? [model] : [],
+      customModels: [],
     }));
   };
 
@@ -631,7 +628,6 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
     if (
       aiAccess !== 'off' &&
       whitelist?.length &&
-      aiModel !== CUSTOM_MODEL_VALUE &&
       !whitelist.includes(aiModel)
     ) {
       setAiModel(whitelist[0]);
@@ -898,7 +894,7 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
       aiAccess,
       aiProvider: resolvedAiProvider,
       allowedModels,
-      customModels: aiModel === CUSTOM_MODEL_VALUE && selectedAiModel ? [selectedAiModel] : [],
+      customModels: [],
       instructions: {
         ...environmentConfig.instructions,
         hasInstructionPdf,
@@ -1389,11 +1385,11 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
                             value={selectedAiProvider}
                             disabled={isSubmitting}
                             onChange={(event) => {
-                              if (event.target.value === CUSTOM_PROVIDER_VALUE) {
-                                setAiBaseUrl('');
-                              } else {
-                                setAiBaseUrl(event.target.value);
-                              }
+                              const nextBaseUrl = event.target.value;
+                              setAiBaseUrl(nextBaseUrl);
+                              const nextModel = getWhitelist(nextBaseUrl)?.[0] || '';
+                              setAiModel(nextModel);
+                              setEnvironmentAiModel(nextModel);
                               setAiConnectionResult(null);
                               setTestedAiModels([]);
                             }}
@@ -1403,26 +1399,8 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
                                 {option.label}
                               </option>
                             ))}
-                            <option value={CUSTOM_PROVIDER_VALUE}>Custom provider</option>
                           </select>
                         </div>
-
-                        {selectedAiProvider === CUSTOM_PROVIDER_VALUE && (
-                          <div className="space-y-2 md:col-span-2">
-                            <FormLabel htmlFor="ai-base-url">Base URL</FormLabel>
-                            <Input
-                              id="ai-base-url"
-                              value={aiBaseUrl}
-                              disabled={isSubmitting}
-                              onChange={(event) => {
-                                setAiBaseUrl(event.target.value);
-                                setAiConnectionResult(null);
-                                setTestedAiModels([]);
-                              }}
-                              placeholder={DEFAULT_AI_BASE_URL}
-                            />
-                          </div>
-                        )}
 
                         <div className="space-y-2">
                           <FormLabel htmlFor="ai-model">Model</FormLabel>
@@ -1434,12 +1412,7 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
                             onChange={(event) => {
                               const value = event.target.value;
                               setAiModel(value);
-                              if (value !== CUSTOM_MODEL_VALUE) {
-                                setCustomAiModel('');
-                                setEnvironmentAiModel(value);
-                              } else {
-                                setEnvironmentAiModel(customAiModel.trim(), true);
-                              }
+                              setEnvironmentAiModel(value);
                             }}
                           >
                             {aiModelOptions.map((model) => (
@@ -1447,7 +1420,6 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
                                 {model}
                               </option>
                             ))}
-                            <option value={CUSTOM_MODEL_VALUE}>Custom model</option>
                           </select>
                         </div>
 
@@ -1470,22 +1442,6 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
                             </FormItem>
                           )}
                         />
-
-                        {aiModel === CUSTOM_MODEL_VALUE && (
-                          <div className="space-y-2 md:col-span-2">
-                            <FormLabel htmlFor="custom-ai-model">Custom Model</FormLabel>
-                            <Input
-                              id="custom-ai-model"
-                              value={customAiModel}
-                              disabled={isSubmitting}
-                              onChange={(event) => {
-                                setCustomAiModel(event.target.value);
-                                setEnvironmentAiModel(event.target.value.trim(), true);
-                              }}
-                              placeholder="provider/model-name"
-                            />
-                          </div>
-                        )}
                       </div>
 
                       <Button

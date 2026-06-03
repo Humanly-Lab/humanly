@@ -31,14 +31,11 @@ export const AI_PROVIDER_OPTIONS = [
     label: 'Claude',
     baseUrl: CLAUDE_BASE_URL,
   },
-  {
-    value: CUSTOM_AI_PROVIDER_VALUE,
-    label: 'Custom',
-    baseUrl: null,
-  },
 ] as const;
 
-export type AIProviderOptionValue = typeof AI_PROVIDER_OPTIONS[number]['value'];
+export type AIProviderOptionValue =
+  | typeof AI_PROVIDER_OPTIONS[number]['value']
+  | typeof CUSTOM_AI_PROVIDER_VALUE;
 
 export function getProviderValueForBaseUrl(baseUrl: string): AIProviderOptionValue {
   const normalized = baseUrl.trim().replace(/\/+$/, '');

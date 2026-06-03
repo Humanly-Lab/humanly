@@ -62,14 +62,12 @@ import { useDocuments } from '@/hooks/use-documents';
 import { apiClient } from '@/lib/api-client';
 import {
   AI_PROVIDER_OPTIONS,
-  CUSTOM_AI_PROVIDER_VALUE,
   TOGETHER_AI_BASE_URL,
   getProviderValueForBaseUrl,
   getWhitelist,
 } from '@/lib/ai-models';
 
 const DEFAULT_AI_BASE_URL = TOGETHER_AI_BASE_URL;
-const CUSTOM_MODEL_VALUE = '__custom_model__';
 const USE_EXISTING_AI_KEY = '__use_existing__';
 const IMPORT_ENVIRONMENT_VALUE = 'import_environment';
 
@@ -167,7 +165,6 @@ export default function NewDocumentPage() {
   const [aiBaseUrl, setAiBaseUrl] = useState(DEFAULT_AI_BASE_URL);
   const [aiApiKey, setAiApiKey] = useState('');
   const [aiModel, setAiModel] = useState('');
-  const [customAiModel, setCustomAiModel] = useState('');
   const [hasExistingAiKey, setHasExistingAiKey] = useState(false);
   const [maskedAiKey, setMaskedAiKey] = useState('');
   const [testedAiModels, setTestedAiModels] = useState<string[]>([]);
@@ -229,12 +226,12 @@ export default function NewDocumentPage() {
       options = WRITING_AI_MODELS.filter((model) => model !== 'Custom models');
     }
 
-    return aiModel && aiModel !== CUSTOM_MODEL_VALUE && !options.includes(aiModel)
+    return !whitelist?.length && aiModel && !options.includes(aiModel)
       ? [aiModel, ...options]
       : options;
   }, [aiBaseUrl, aiModel, testedAiModels]);
 
-  const selectedAiModel = aiModel === CUSTOM_MODEL_VALUE ? customAiModel.trim() : aiModel.trim();
+  const selectedAiModel = aiModel.trim();
   const timeMode = environmentConfig.aiUsageLimit.mode === 'time_restricted' ? 'time_restricted' : 'unlimited';
 
   useEffect(() => {
@@ -254,14 +251,11 @@ export default function NewDocumentPage() {
   const syncAiModelFromEnvironment = (config: WritingEnvironmentConfig) => {
     if (config.aiAccess === 'off') {
       setAiModel('');
-      setCustomAiModel('');
       return;
     }
 
-    const customModel = config.customModels?.[0] || '';
     const firstAllowedModel = config.allowedModels[0] || '';
-    setAiModel(firstAllowedModel || (customModel ? CUSTOM_MODEL_VALUE : ''));
-    setCustomAiModel(customModel);
+    setAiModel(firstAllowedModel);
   };
 
   const applyEnvironmentPreset = (preset: WritingEnvironmentPreset) => {
@@ -323,11 +317,11 @@ export default function NewDocumentPage() {
     }
   };
 
-  const setEnvironmentAiModel = (model: string, isCustomModel = false) => {
+  const setEnvironmentAiModel = (model: string) => {
     markCustom((current) => ({
       ...current,
       allowedModels: model ? [model] : [],
-      customModels: isCustomModel && model ? [model] : [],
+      customModels: [],
     }));
   };
 
@@ -342,7 +336,6 @@ export default function NewDocumentPage() {
     if (resetModel) {
       const nextModel = getWhitelist(nextBaseUrl)?.[0] || '';
       setAiModel(nextModel);
-      setCustomAiModel('');
       setEnvironmentAiModel(nextModel);
     }
   };
@@ -517,7 +510,7 @@ export default function NewDocumentPage() {
           ...configToCreate,
           aiProvider: getAiProviderConfigForBaseUrl(baseUrlToSave),
           allowedModels: [selectedAiModel],
-          customModels: aiModel === CUSTOM_MODEL_VALUE ? [selectedAiModel] : configToCreate.customModels,
+          customModels: [],
           traceability: {
             ...configToCreate.traceability,
             trackAiUsage: true,
@@ -554,7 +547,6 @@ export default function NewDocumentPage() {
     timeLimitMinutesInput,
     aiApiKey,
     aiBaseUrl,
-    aiModel,
     hasExistingAiKey,
     selectedAiModel,
     createDocument,
@@ -614,12 +606,7 @@ export default function NewDocumentPage() {
                   value={aiModel}
                   onValueChange={(value) => {
                     setAiModel(value);
-                    if (value !== CUSTOM_MODEL_VALUE) {
-                      setCustomAiModel('');
-                      setEnvironmentAiModel(value);
-                    } else {
-                      setEnvironmentAiModel(customAiModel.trim(), true);
-                    }
+                    setEnvironmentAiModel(value);
                   }}
                 >
                   <SelectTrigger>
@@ -631,7 +618,6 @@ export default function NewDocumentPage() {
                         {model}
                       </SelectItem>
                     ))}
-                    <SelectItem value={CUSTOM_MODEL_VALUE}>Custom model</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -659,35 +645,7 @@ export default function NewDocumentPage() {
                 </Select>
               </div>
 
-              {getProviderValueForBaseUrl(aiBaseUrl) === CUSTOM_AI_PROVIDER_VALUE && (
-                <div className="humanly-field sm:col-span-2">
-                  <Label htmlFor="ai-base-url">Custom Base URL</Label>
-                  <Input
-                    id="ai-base-url"
-                    value={aiBaseUrl}
-                    onChange={(event) => updateAiBaseUrl(event.target.value, true)}
-                    placeholder={DEFAULT_AI_BASE_URL}
-                    disabled={isCreating}
-                  />
-                </div>
-              )}
             </div>
-
-            {aiModel === CUSTOM_MODEL_VALUE && (
-              <div className="humanly-field">
-                <Label htmlFor="custom-ai-model">Custom Model</Label>
-                <Input
-                  id="custom-ai-model"
-                  value={customAiModel}
-                  onChange={(event) => {
-                    setCustomAiModel(event.target.value);
-                    setEnvironmentAiModel(event.target.value.trim(), true);
-                  }}
-                  placeholder="provider/model-name"
-                  disabled={isCreating}
-                />
-              </div>
-            )}
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="humanly-field">
