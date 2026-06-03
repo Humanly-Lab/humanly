@@ -37,6 +37,25 @@ describe('landing page', () => {
   const originalMarketingOrigin = process.env.NEXT_PUBLIC_MARKETING_ORIGIN;
   const originalProductAppOrigin = process.env.NEXT_PUBLIC_PRODUCT_APP_ORIGIN;
 
+  beforeAll(() => {
+    Object.defineProperty(HTMLElement.prototype, 'hasPointerCapture', {
+      configurable: true,
+      value: jest.fn(() => false),
+    });
+    Object.defineProperty(HTMLElement.prototype, 'setPointerCapture', {
+      configurable: true,
+      value: jest.fn(),
+    });
+    Object.defineProperty(HTMLElement.prototype, 'releasePointerCapture', {
+      configurable: true,
+      value: jest.fn(),
+    });
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+      configurable: true,
+      value: jest.fn(),
+    });
+  });
+
   const restoreOrigins = () => {
     if (originalMarketingOrigin === undefined) {
       delete process.env.NEXT_PUBLIC_MARKETING_ORIGIN;
@@ -167,6 +186,17 @@ describe('landing page', () => {
     expect(screen.getByRole('link', { name: /back to home/i })).toHaveAttribute('href', '/');
     expect(screen.getByRole('link', { name: /^cancel$/i })).toHaveAttribute('href', '/');
     expect(screen.queryByRole('button', { name: '' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /open reflection-source\.pdf/i }));
+    expect(screen.getByRole('status')).toHaveTextContent(/opened local reference preview/i);
+    await user.click(screen.getByRole('combobox', { name: /^environment$/i }));
+    await user.click(await screen.findByRole('option', { name: /default environment/i }));
+    expect(screen.queryByRole('combobox', { name: /ai access/i })).not.toBeInTheDocument();
+    expect(screen.getByText('AI Off')).toBeInTheDocument();
+    await user.click(screen.getByRole('combobox', { name: /^environment$/i }));
+    await user.click(await screen.findByRole('option', { name: /^custom$/i }));
+    await user.click(screen.getByRole('combobox', { name: /ai access/i }));
+    await user.click(await screen.findByRole('option', { name: /ai on/i }));
+    expect(screen.getByLabelText(/ai guidelines/i)).toBeInTheDocument();
 
     const writeText = jest.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, 'clipboard', {
@@ -202,9 +232,13 @@ describe('landing page', () => {
       screen.getByRole('textbox', { name: /demo writing editor/i }),
       'This draft records process evidence.'
     );
+    await user.type(screen.getByRole('textbox', { name: /demo ai prompt/i }), 'How should I organize this?');
+    await user.click(screen.getByRole('button', { name: /ask ai assistant/i }));
+    expect(screen.getByRole('status')).toHaveTextContent(/allowed use/i);
     await user.click(screen.getByRole('button', { name: /view log/i }));
 
     expect(screen.getByRole('heading', { name: /activity logs/i })).toBeInTheDocument();
+    expect(screen.getAllByText('ai')[0]).toBeInTheDocument();
     expect(screen.getAllByText('input')[0]).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: /^generate certificate$/i }));

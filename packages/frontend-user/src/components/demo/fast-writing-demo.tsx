@@ -10,6 +10,7 @@ import {
   CheckCircle,
   CheckCircle2,
   Copy,
+  ExternalLink,
   FileJson,
   FileText,
   History,
@@ -17,6 +18,7 @@ import {
   RotateCcw,
   Settings2,
   Share2,
+  Sparkles,
   Upload,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -39,15 +41,18 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 
 type DemoStep = 'setup' | 'writing' | 'log' | 'certificate' | 'done';
+type DemoEnvironment = 'default_writing' | 'custom';
 type AiAccess = 'off' | 'full';
 type PastePolicy = 'allowed' | 'blocked';
-type LogKind = 'setting' | 'input' | 'paste' | 'blocked-paste' | 'certificate';
+type LogKind = 'setting' | 'input' | 'paste' | 'blocked-paste' | 'ai' | 'certificate';
 type SaveStatus = 'saved' | 'saving';
 
 interface DemoSettings {
   documentName: string;
   description: string;
+  environment: DemoEnvironment;
   aiAccess: AiAccess;
+  aiGuidelines: string;
   pastePolicy: PastePolicy;
   maxCharacters: number;
 }
@@ -93,7 +98,25 @@ interface DemoCertificatePayload {
 const initialSettings: DemoSettings = {
   documentName: 'Research Reflection',
   description: 'Personal writing demo with a local process certificate.',
+  environment: 'custom',
   aiAccess: 'off',
+  aiGuidelines: 'Brainstorming and feedback only; do not write the final draft.',
+  pastePolicy: 'allowed',
+  maxCharacters: 1200,
+};
+
+const defaultEnvironmentPreset: Pick<DemoSettings, 'environment' | 'aiAccess' | 'aiGuidelines' | 'pastePolicy' | 'maxCharacters'> = {
+  environment: 'default_writing',
+  aiAccess: 'off',
+  aiGuidelines: '',
+  pastePolicy: 'allowed',
+  maxCharacters: 1200,
+};
+
+const customEnvironmentDefaults: Pick<DemoSettings, 'environment' | 'aiAccess' | 'aiGuidelines' | 'pastePolicy' | 'maxCharacters'> = {
+  environment: 'custom',
+  aiAccess: 'off',
+  aiGuidelines: 'Brainstorming and feedback only; do not write the final draft.',
   pastePolicy: 'allowed',
   maxCharacters: 1200,
 };
@@ -273,6 +296,8 @@ export function FastWritingDemo() {
   const [step, setStep] = useState<DemoStep>('setup');
   const [settings, setSettings] = useState<DemoSettings>(initialSettings);
   const [draft, setDraft] = useState('');
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [aiResponse, setAiResponse] = useState('');
   const [logs, setLogs] = useState<DemoLogEntry[]>([]);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('saved');
   const [certificateDialogOpen, setCertificateDialogOpen] = useState(false);
@@ -313,10 +338,15 @@ export function FastWritingDemo() {
   const handleCreateTask = () => {
     setStep('writing');
     setSaveStatus('saved');
+    const environmentLabel = settings.environment === 'default_writing' ? 'Default Environment' : 'Custom Environment';
+    const aiGuidelineLabel =
+      settings.aiAccess === 'full' && settings.aiGuidelines.trim()
+        ? `, AI rule: ${settings.aiGuidelines.trim()}`
+        : '';
     appendLog(
       makeEntry(
         'setting',
-        `${aiAccessLabels[settings.aiAccess]}, ${pastePolicyLabels[settings.pastePolicy]}, ${settings.maxCharacters.toLocaleString()} character cap`
+        `${environmentLabel}, ${aiAccessLabels[settings.aiAccess]}, ${pastePolicyLabels[settings.pastePolicy]}, ${settings.maxCharacters.toLocaleString()} character cap${aiGuidelineLabel}`
       )
     );
   };
@@ -345,6 +375,24 @@ export function FastWritingDemo() {
     appendLog(makeEntry('paste', 'Pasted text into the Humanly editor', pastedText.length));
   };
 
+  const handleAskAi = () => {
+    if (settings.aiAccess !== 'full') return;
+
+    const prompt = aiPrompt.trim();
+    const guideline = settings.aiGuidelines.trim();
+    const draftContext = draft.trim()
+      ? 'Focus on structure, clarity, and places where the existing draft needs evidence.'
+      : 'Start with a short outline before drafting sentences.';
+
+    setAiResponse(
+      guideline
+        ? `Allowed use: ${guideline} ${draftContext}`
+        : `Use the assistant for planning and feedback. ${draftContext}`
+    );
+    appendLog(makeEntry('ai', prompt ? `Asked AI: ${prompt}` : 'Asked AI for writing feedback', prompt.length));
+    setAiPrompt('');
+  };
+
   const handleGenerateCertificate = (options: CertificateGenerationOptions) => {
     setIsGeneratingCertificate(true);
     setCertificateOptions(options);
@@ -360,6 +408,8 @@ export function FastWritingDemo() {
     setStep('setup');
     setSettings(initialSettings);
     setDraft('');
+    setAiPrompt('');
+    setAiResponse('');
     setLogs([]);
     setSaveStatus('saved');
     setCertificateOptions({
@@ -400,10 +450,14 @@ export function FastWritingDemo() {
           <DemoWritingEditor
             settings={settings}
             draft={draft}
+            aiPrompt={aiPrompt}
+            aiResponse={aiResponse}
             stats={stats}
             saveStatus={saveStatus}
             onDraftChange={handleDraftChange}
             onPaste={handlePaste}
+            onAiPromptChange={(event) => setAiPrompt(event.target.value)}
+            onAskAi={handleAskAi}
             onBackToSetup={handleRestart}
             onViewLogs={() => setStep('log')}
             onOpenCertificateDialog={() => setCertificateDialogOpen(true)}
@@ -484,6 +538,12 @@ function DemoTaskSetup({
   onSettingsChange: (patch: Partial<DemoSettings>) => void;
   onCreateTask: () => void;
 }) {
+  const [referenceStatus, setReferenceStatus] = useState<string | null>(null);
+
+  const handleEnvironmentChange = (value: DemoEnvironment) => {
+    onSettingsChange(value === 'default_writing' ? defaultEnvironmentPreset : customEnvironmentDefaults);
+  };
+
   return (
     <div className="mx-auto w-full max-w-6xl">
       <div className="mb-3 flex justify-end">
@@ -530,12 +590,23 @@ function DemoTaskSetup({
                 <Upload className="h-4 w-4 text-accent" />
                 PDF
               </div>
-              <div className="mt-2 flex items-center gap-3 rounded-lg border border-border/70 bg-background p-2">
+              <button
+                type="button"
+                aria-label="Open reflection-source.pdf"
+                onClick={() => setReferenceStatus('Opened local reference preview.')}
+                className="mt-2 flex w-full items-center gap-3 rounded-lg border border-border/70 bg-background p-2 text-left transition-colors hover:border-foreground/50 hover:bg-muted/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
                 <FileText className="h-5 w-5 shrink-0 text-accent" />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium">reflection-source.pdf</p>
                 </div>
-              </div>
+                <ExternalLink className="h-4 w-4 shrink-0 text-muted-foreground" />
+              </button>
+              {referenceStatus ? (
+                <p className="mt-2 text-xs text-muted-foreground" role="status">
+                  {referenceStatus}
+                </p>
+              ) : null}
             </div>
           </section>
 
@@ -544,7 +615,7 @@ function DemoTaskSetup({
 
             <div className="humanly-field">
               <Label>Environment</Label>
-              <Select value="custom">
+              <Select value={settings.environment} onValueChange={(value) => handleEnvironmentChange(value as DemoEnvironment)}>
                 <SelectTrigger aria-label="Environment">
                   <SelectValue placeholder="Select environment" />
                 </SelectTrigger>
@@ -555,57 +626,91 @@ function DemoTaskSetup({
               </Select>
             </div>
 
-            <div className="grid gap-3 lg:grid-cols-2">
-              <div className="space-y-3 rounded-lg border border-border/70 bg-card p-3">
-                <div className="humanly-field">
-                  <Label>AI</Label>
-                  <Select
-                    value={settings.aiAccess}
-                    onValueChange={(value) => onSettingsChange({ aiAccess: value as AiAccess })}
-                  >
-                    <SelectTrigger aria-label="AI access">
-                      <SelectValue placeholder="AI access" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="off">AI Off</SelectItem>
-                      <SelectItem value="full">AI On</SelectItem>
-                    </SelectContent>
-                  </Select>
+            {settings.environment === 'default_writing' ? (
+              <div className="rounded-lg border border-border/70 bg-card p-3">
+                <div className="grid gap-3 text-sm text-muted-foreground sm:grid-cols-3">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-[0.12em]">AI</p>
+                    <p className="mt-1 text-foreground">{aiAccessLabels[settings.aiAccess]}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-[0.12em]">Paste</p>
+                    <p className="mt-1 text-foreground">{pastePolicyLabels[settings.pastePolicy]}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-[0.12em]">Maximum</p>
+                    <p className="mt-1 text-foreground">{settings.maxCharacters.toLocaleString()} characters</p>
+                  </div>
                 </div>
               </div>
+            ) : (
+              <div className="grid gap-3 lg:grid-cols-2">
+                <div className="space-y-3 rounded-lg border border-border/70 bg-card p-3">
+                  <div className="humanly-field">
+                    <Label>AI</Label>
+                    <Select
+                      value={settings.aiAccess}
+                      onValueChange={(value) => onSettingsChange({ aiAccess: value as AiAccess })}
+                    >
+                      <SelectTrigger aria-label="AI access">
+                        <SelectValue placeholder="AI access" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="off">AI Off</SelectItem>
+                        <SelectItem value="full">AI On</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
 
-              <div className="space-y-3 rounded-lg border border-border/70 bg-card p-3">
-                <div className="humanly-field">
-                  <Label>Copy & Paste</Label>
-                  <Select
-                    value={settings.pastePolicy}
-                    onValueChange={(value) => onSettingsChange({ pastePolicy: value as PastePolicy })}
-                  >
-                    <SelectTrigger aria-label="Copy-paste policy">
-                      <SelectValue placeholder="Copy-paste policy" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="allowed">Allowed</SelectItem>
-                      <SelectItem value="blocked">Blocked</SelectItem>
-                    </SelectContent>
-                  </Select>
+                <div className="space-y-3 rounded-lg border border-border/70 bg-card p-3">
+                  <div className="humanly-field">
+                    <Label>Copy & Paste</Label>
+                    <Select
+                      value={settings.pastePolicy}
+                      onValueChange={(value) => onSettingsChange({ pastePolicy: value as PastePolicy })}
+                    >
+                      <SelectTrigger aria-label="Copy-paste policy">
+                        <SelectValue placeholder="Copy-paste policy" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="allowed">Allowed</SelectItem>
+                        <SelectItem value="blocked">Blocked</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
-              </div>
 
-              <div className="space-y-3 rounded-lg border border-border/70 bg-card p-3 lg:col-span-2">
-                <div className="humanly-field">
-                  <Label htmlFor="demo-max-characters">Maximum Characters</Label>
-                  <Input
-                    id="demo-max-characters"
-                    type="number"
-                    min={1}
-                    value={settings.maxCharacters}
-                    onChange={(event) => onSettingsChange({ maxCharacters: Number(event.target.value) || 1 })}
-                    placeholder="No maximum"
-                  />
+                {settings.aiAccess === 'full' ? (
+                  <div className="space-y-3 rounded-lg border border-border/70 bg-card p-3 lg:col-span-2">
+                    <div className="humanly-field">
+                      <Label htmlFor="demo-ai-guidelines">AI Guidelines</Label>
+                      <Textarea
+                        id="demo-ai-guidelines"
+                        value={settings.aiGuidelines}
+                        onChange={(event) => onSettingsChange({ aiGuidelines: event.target.value })}
+                        className="h-16 resize-none"
+                        style={{ minHeight: '4rem' }}
+                      />
+                    </div>
+                  </div>
+                ) : null}
+
+                <div className="space-y-3 rounded-lg border border-border/70 bg-card p-3 lg:col-span-2">
+                  <div className="humanly-field">
+                    <Label htmlFor="demo-max-characters">Maximum Characters</Label>
+                    <Input
+                      id="demo-max-characters"
+                      type="number"
+                      min={1}
+                      value={settings.maxCharacters}
+                      onChange={(event) => onSettingsChange({ maxCharacters: Number(event.target.value) || 1 })}
+                      placeholder="No maximum"
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
           </div>
         </CardContent>
         <CardFooter className="flex justify-end gap-3 border-t border-border/70 bg-muted/20 px-3 py-3 sm:px-4">
@@ -649,20 +754,28 @@ function SaveStatusIndicator({ status }: { status: SaveStatus }) {
 function DemoWritingEditor({
   settings,
   draft,
+  aiPrompt,
+  aiResponse,
   stats,
   saveStatus,
   onDraftChange,
   onPaste,
+  onAiPromptChange,
+  onAskAi,
   onBackToSetup,
   onViewLogs,
   onOpenCertificateDialog,
 }: {
   settings: DemoSettings;
   draft: string;
+  aiPrompt: string;
+  aiResponse: string;
   stats: DemoStats;
   saveStatus: SaveStatus;
   onDraftChange: (event: ChangeEvent<HTMLTextAreaElement>) => void;
   onPaste: (event: ClipboardEvent<HTMLTextAreaElement>) => void;
+  onAiPromptChange: (event: ChangeEvent<HTMLInputElement>) => void;
+  onAskAi: () => void;
   onBackToSetup: () => void;
   onViewLogs: () => void;
   onOpenCertificateDialog: () => void;
@@ -748,6 +861,9 @@ function DemoWritingEditor({
                 <Separator className="my-4" />
                 <div className="space-y-2 text-sm leading-5">
                   <p><span className="font-medium">AI:</span> {aiAccessLabels[settings.aiAccess]}</p>
+                  {settings.aiAccess === 'full' && settings.aiGuidelines.trim() ? (
+                    <p><span className="font-medium">AI rule:</span> {settings.aiGuidelines}</p>
+                  ) : null}
                   <p><span className="font-medium">Paste:</span> {pastePolicyLabels[settings.pastePolicy]}</p>
                   <p><span className="font-medium">Maximum:</span> {settings.maxCharacters.toLocaleString()} characters</p>
                 </div>
@@ -756,15 +872,50 @@ function DemoWritingEditor({
           </div>
 
           <div className="min-h-0 overflow-auto bg-background">
-            <div className="h-full px-3 py-3 sm:px-4 sm:py-4">
+            <div className="flex h-full min-h-0 flex-col gap-3 px-3 py-3 sm:px-4 sm:py-4">
               <Textarea
                 aria-label="Demo writing editor"
                 value={draft}
                 onChange={onDraftChange}
                 onPaste={onPaste}
                 placeholder="Start writing with your instruction file open..."
-                className="h-full min-h-0 resize-none rounded-lg border-border/80 bg-card p-4 text-base leading-7 shadow-sm"
+                className="min-h-0 flex-1 resize-none rounded-lg border-border/80 bg-card p-4 text-base leading-7 shadow-sm"
               />
+              {settings.aiAccess === 'full' ? (
+                <div className="shrink-0 rounded-lg border border-border/80 bg-card p-3 shadow-sm">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex min-w-0 items-center gap-2 text-sm font-medium">
+                      <Sparkles className="h-4 w-4 shrink-0 text-accent" />
+                      <span className="truncate">AI Assistant</span>
+                    </div>
+                    <Badge variant="secondary" className="rounded-md">
+                      Guided
+                    </Badge>
+                  </div>
+                  <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_auto]">
+                    <Input
+                      aria-label="Demo AI prompt"
+                      value={aiPrompt}
+                      onChange={onAiPromptChange}
+                      placeholder="Ask for feedback or an outline..."
+                    />
+                    <Button
+                      type="button"
+                      aria-label="Ask AI assistant"
+                      onClick={onAskAi}
+                      disabled={!aiPrompt.trim() && !draft.trim()}
+                    >
+                      <Sparkles className="mr-2 h-4 w-4" />
+                      Ask
+                    </Button>
+                  </div>
+                  {aiResponse ? (
+                    <p className="mt-2 rounded-md bg-muted/35 px-3 py-2 text-sm leading-5 text-muted-foreground" role="status">
+                      {aiResponse}
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
           </div>
         </div>
