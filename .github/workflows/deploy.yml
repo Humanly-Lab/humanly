@@ -234,11 +234,12 @@ jobs:
           FRONTEND_CHANGED: ${{ steps.changes.outputs.frontend }}
           VM_DEPLOY_PATH: ${{ env.VM_DEPLOY_PATH }}
           GITHUB_SHA: ${{ github.sha }}
+          GH_REPO_TOKEN: ${{ github.token }}
         with:
           host: ${{ env.VM_HOST }}
           username: ${{ env.VM_USER }}
           key: ${{ secrets.VM_SSH_KEY }}
-          envs: BACKEND_IMAGE,FRONTEND_USER_IMAGE,FRONTEND_IMAGE,BACKEND_CHANGED,FRONTEND_USER_CHANGED,FRONTEND_CHANGED,VM_DEPLOY_PATH,GITHUB_SHA
+          envs: BACKEND_IMAGE,FRONTEND_USER_IMAGE,FRONTEND_IMAGE,BACKEND_CHANGED,FRONTEND_USER_CHANGED,FRONTEND_CHANGED,VM_DEPLOY_PATH,GITHUB_SHA,GH_REPO_TOKEN
           script: |
             set -euo pipefail
 
@@ -251,10 +252,17 @@ jobs:
             df -h "$VM_DEPLOY_PATH" || true
 
             cd "$VM_DEPLOY_PATH"
+            export GIT_TERMINAL_PROMPT=0
+            git_auth_header="$(printf 'x-access-token:%s' "$GH_REPO_TOKEN" | base64 | tr -d '\n')"
+            git_with_auth() {
+              git -c "http.https://github.com/.extraheader=AUTHORIZATION: Basic ${git_auth_header}" "$@"
+            }
+
             git gc --prune=now || true
-            git fetch --prune origin main
+            git_with_auth fetch --prune origin main
             git checkout main
-            git pull --ff-only origin main
+            git_with_auth pull --ff-only origin main
+            unset git_auth_header
             test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
             BACKEND_IMAGE="$BACKEND_IMAGE" FRONTEND_USER_IMAGE="$FRONTEND_USER_IMAGE" FRONTEND_IMAGE="$FRONTEND_IMAGE" BACKEND_CHANGED="$BACKEND_CHANGED" FRONTEND_USER_CHANGED="$FRONTEND_USER_CHANGED" FRONTEND_CHANGED="$FRONTEND_CHANGED" VM_DEPLOY_PATH="$VM_DEPLOY_PATH" bash scripts/deploy.sh
           script_stop: true
