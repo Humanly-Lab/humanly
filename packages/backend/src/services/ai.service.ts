@@ -481,10 +481,24 @@ export function buildProviderTimeoutFallback(timeoutMs: number): string {
   return `The AI request took longer than ${Math.round(timeoutMs / 1000)} seconds and was stopped before it could finish. Please try again with a narrower question.`;
 }
 
-const NO_REFERENCE_FILES_CHAT_RESPONSE = [
-  'This document does not have any linked reference files yet.',
-  'I can answer from text you paste into this chat, and I can help rewrite selected editor text through the selection quick actions, but I cannot inspect your editor draft or cite a PDF until a reference file is uploaded or linked.',
-].join(' ');
+function buildEditorContentFallbackMessage(allowPolishActions = true): string {
+  if (!allowPolishActions) {
+    return "I can only read reference files you've uploaded. For your own writing, paste it into chat so I can respond to it directly.";
+  }
+
+  return "I can only read reference files you've uploaded. For your own writing, paste it into chat or use the selection-menu Quick Actions (Fix grammar / Improve / Simplify / Make formal).";
+}
+
+function buildNoReferenceFilesChatResponse(allowPolishActions = true): string {
+  const chatCapability = allowPolishActions
+    ? 'I can answer from text you paste into this chat, and I can help rewrite selected editor text through the selection quick actions,'
+    : 'I can answer from text you paste into this chat,';
+
+  return [
+    'This document does not have any linked reference files yet.',
+    `${chatCapability} but I cannot inspect your editor draft or cite a PDF until a reference file is uploaded or linked.`,
+  ].join(' ');
+}
 
 const REFERENCE_AVAILABILITY_TERMS = [
   'reference',
@@ -592,6 +606,7 @@ interface AgentChatOptions {
   documentId: string;
   maxTokens?: number;
   disableThinking?: boolean;
+  allowPolishActions?: boolean;
   onAgentEvent?: AgentEventSink;
 }
 
@@ -631,6 +646,7 @@ interface AIExecutionSettings {
   modelVersion: string;
   shortcutMaxTokens: number;
   chatMaxTokens: number;
+  allowPolishActions: boolean;
   /**
    * Raw provider base URL. Used by capability gating (#93) to look up the
    * resolved model's input modalities so the websocket layer can refuse
@@ -798,7 +814,9 @@ class OpenAIProvider implements AIProvider {
         this.client.responses.create({
           model: this.model,
           input,
-          instructions: buildRetrievalInstructions(options.documentId),
+          instructions: buildRetrievalInstructions(options.documentId, {
+            allowPolishActions: options.allowPolishActions,
+          }),
           tools: AIRetrievalService.tools,
           max_output_tokens: options.maxTokens || 2048,
           parallel_tool_calls: true,
@@ -952,7 +970,7 @@ class OpenAIProvider implements AIProvider {
 
   private buildChatCompletionMessages(
     messages: { role: string; content: string }[],
-    documentId: string
+    options: AgentChatOptions
   ): any[] {
     const systemMessages = messages
       .filter(message => message.role === 'system')
@@ -969,7 +987,9 @@ class OpenAIProvider implements AIProvider {
       {
         role: 'system',
         content: [
-          buildRetrievalInstructions(documentId),
+          buildRetrievalInstructions(options.documentId, {
+            allowPolishActions: options.allowPolishActions,
+          }),
           ...systemMessages,
         ].join('\n\n'),
       },
@@ -1033,7 +1053,7 @@ class OpenAIProvider implements AIProvider {
     options: AgentChatOptions
   ): Promise<{ content: string; tokensUsed?: { input: number; output: number } }> {
     const chatTools = this.buildChatCompletionTools();
-    const chatMessages = this.buildChatCompletionMessages(messages, options.documentId);
+    const chatMessages = this.buildChatCompletionMessages(messages, options);
 
     let lastUsage: { input: number; output: number } | undefined;
     let emptyToolCallRepairAttempts = 0;
@@ -1241,7 +1261,7 @@ class OpenAIProvider implements AIProvider {
     options: AgentChatOptions
   ): Promise<{ content: string; tokensUsed?: { input: number; output: number } }> {
     const chatTools = this.buildChatCompletionTools();
-    const chatMessages = this.buildChatCompletionMessages(messages, options.documentId);
+    const chatMessages = this.buildChatCompletionMessages(messages, options);
     let lastUsage: { input: number; output: number } | undefined;
     let emptyToolCallRepairAttempts = 0;
     let toolCallsUsed = 0;
@@ -1940,7 +1960,12 @@ Guidelines:
   return prompt;
 }
 
-export function buildRetrievalInstructions(_documentId: string): string {
+export function buildRetrievalInstructions(
+  _documentId: string,
+  options?: { allowPolishActions?: boolean }
+): string {
+  const editorContentFallback = buildEditorContentFallbackMessage(options?.allowPolishActions !== false);
+
   return `You are an AI writing assistant. You answer questions about uploaded reference files using exactly three structured tools. The backend already scopes every call to the current document; do not pass documentId.
 
 TOOL CONTRACTS:
@@ -1962,7 +1987,7 @@ TOOL CONTRACTS:
 PRIVACY BOUNDARY (hard rule):
 You can only see files returned by ls({}). You CANNOT read the user's editor draft, their current writing, selected text, or anything not listed by ls({}). The schema does not even expose such a tool. If the user asks for editor content ("summarize my draft", "find a typo in what I wrote", "what's in my essay"), refuse honestly:
 
-  "I can only read reference files you've uploaded. For your own writing, paste it into chat or use the selection-menu Quick Actions (Fix grammar / Improve / Simplify / Make formal)."
+  "${editorContentFallback}"
 
 STRATEGY HINTS — adapt to the file size and the question, do not follow a fixed workflow:
 - If this answer has not already listed attached files, call ls({}) once to discover file ids and sizeHint metadata.
@@ -2063,6 +2088,9 @@ export class AIService {
         modelVersion: model,
         shortcutMaxTokens: tokenBudget.shortcutMaxTokens,
         chatMaxTokens: tokenBudget.chatMaxTokens,
+        allowPolishActions: document.environmentConfig
+          ? isWritingAiPolishEnabled(document.environmentConfig.aiAccess)
+          : true,
         baseUrl,
       };
     }
@@ -2099,6 +2127,7 @@ export class AIService {
       modelVersion: model,
       shortcutMaxTokens: tokenBudget.shortcutMaxTokens,
       chatMaxTokens: tokenBudget.chatMaxTokens,
+      allowPolishActions: isWritingAiPolishEnabled(taskConfig.aiAccess),
       baseUrl,
     };
   }
@@ -2109,6 +2138,7 @@ export class AIService {
     message: string,
     queryType: AIQueryType,
     questionCategory: AIQuestionCategory,
+    allowPolishActions: boolean,
   ): Promise<string | null> {
     if (!shouldPreflightReferenceAvailability(message, queryType, questionCategory)) {
       return null;
@@ -2119,7 +2149,7 @@ export class AIService {
       return null;
     }
 
-    return NO_REFERENCE_FILES_CHAT_RESPONSE;
+    return buildNoReferenceFilesChatResponse(allowPolishActions);
   }
 
   /**
@@ -2676,6 +2706,7 @@ export class AIService {
       baseUrl: baseUrlForChat,
       shortcutMaxTokens: shortcutMaxTokensForChat,
       chatMaxTokens: chatMaxTokensForChat,
+      allowPolishActions: allowPolishActionsForChat,
     } =
       await this.getExecutionSettingsForDocument(userId, request.documentId, 'chat');
     const capabilitiesForChat = resolveCapabilitiesOrSafeDefault(
@@ -2771,6 +2802,7 @@ export class AIService {
         request.message,
         queryType,
         questionCategory,
+        allowPolishActionsForChat,
       );
       if (noReferenceAnswer) {
         const responseTimeMs = Date.now() - startTime;
@@ -2814,6 +2846,7 @@ export class AIService {
           userId,
           documentId: request.documentId,
           maxTokens: chatMaxTokensForChat,
+          allowPolishActions: allowPolishActionsForChat,
           onAgentEvent: (event) => {
             if (!ignoreLateProviderEvents) {
               toolCallCollector.observe(event);
@@ -2836,6 +2869,7 @@ export class AIService {
             userId,
             documentId: request.documentId,
             maxTokens: shortcutMaxTokensForChat,
+            allowPolishActions: allowPolishActionsForChat,
           },
           providerTimeoutMs,
         );
@@ -2935,7 +2969,7 @@ export class AIService {
       // Resolve provider + model first so the session snapshot can be
       // captured at creation and capability gating (#93) runs before any
       // DB writes or provider calls.
-      const { provider, modelVersion, baseUrl, shortcutMaxTokens, chatMaxTokens } =
+      const { provider, modelVersion, baseUrl, shortcutMaxTokens, chatMaxTokens, allowPolishActions } =
         await this.getExecutionSettingsForDocument(userId, request.documentId, 'chat');
       const capabilities = resolveCapabilitiesOrSafeDefault(baseUrl, modelVersion);
 
@@ -3017,6 +3051,7 @@ export class AIService {
         request.message,
         queryType,
         questionCategory,
+        allowPolishActions,
       );
       if (noReferenceAnswer) {
         onChunk(noReferenceAnswer);
@@ -3077,6 +3112,7 @@ export class AIService {
           userId,
           documentId: request.documentId,
           maxTokens: chatMaxTokens,
+          allowPolishActions,
           onAgentEvent: wrappedAgentEvent,
         }),
         providerTimeoutMs,
@@ -3098,6 +3134,7 @@ export class AIService {
             userId,
             documentId: request.documentId,
             maxTokens: shortcutMaxTokens,
+            allowPolishActions,
             onAgentEvent: wrappedAgentEvent,
           },
           providerTimeoutMs,

@@ -420,7 +420,7 @@ describe('buildRetrievalInstructions (#70 prompt)', () => {
   // Fallback: just smoke-test the imported AIService prompt path by
   // pulling the function via TypeScript-private workaround.
   const aiServiceModule = require('../../services/ai.service');
-  const buildRetrievalInstructions: (id: string) => string =
+  const buildRetrievalInstructions: (id: string, options?: { allowPolishActions?: boolean }) => string =
     aiServiceModule.buildRetrievalInstructions
       || aiServiceModule.default?.buildRetrievalInstructions
       || (() => '');
@@ -451,6 +451,18 @@ describe('buildRetrievalInstructions (#70 prompt)', () => {
     expect(prompt).toContain('PRIVACY BOUNDARY');
     expect(prompt).toContain("CANNOT read the user's editor draft");
     expect(prompt).toContain('Quick Actions');
+  });
+
+  it('omits disabled polish actions from the chat-only privacy boundary', () => {
+    const prompt = buildRetrievalInstructions('doc-1', { allowPolishActions: false });
+    if (!prompt) return;
+    expect(prompt).toContain('PRIVACY BOUNDARY');
+    expect(prompt).toContain('paste it into chat so I can respond to it directly');
+    expect(prompt).not.toContain('Quick Actions');
+    expect(prompt).not.toContain('Fix grammar');
+    expect(prompt).not.toContain('Improve');
+    expect(prompt).not.toContain('Simplify');
+    expect(prompt).not.toContain('Make formal');
   });
 
   it('includes the strategy hints by file size', () => {
@@ -1018,6 +1030,33 @@ describe('AIService.chat', () => {
     expect(mockFetch.mock.calls.length).toBe(fetchCallsBefore);
   });
 
+  it('does not send disabled polish-action copy in chat-only provider prompts', async () => {
+    MockDocumentModel.findByIdAndUserId.mockResolvedValue({
+      id: 'doc-1',
+      userId: 'user-1',
+      environmentConfig: { aiAccess: 'chat' },
+    } as any);
+    MockUserAISettings.getByUserId.mockResolvedValue(makeSettings({
+      model: 'Qwen/Qwen3.5-397B-A17B',
+      baseUrl: 'https://api.together.xyz/v1',
+    }));
+    mockFetch.mockResolvedValueOnce(mockChatCompletionResponse('Chat-only answer.'));
+
+    await AIService.chat('user-1', {
+      ...request,
+      message: 'Hello there',
+    } as any);
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const systemContent = JSON.stringify(body.messages);
+    expect(systemContent).toContain('paste it into chat so I can respond to it directly');
+    expect(systemContent).not.toContain('Quick Actions');
+    expect(systemContent).not.toContain('Fix grammar');
+    expect(systemContent).not.toContain('Improve writing');
+    expect(systemContent).not.toContain('Simplify');
+    expect(systemContent).not.toContain('Make formal');
+  });
+
   it('answers no-reference context questions without dispatching to the provider', async () => {
     const listSpy = jest.spyOn(AIRetrievalService, 'listReferenceFiles')
       .mockResolvedValueOnce({ files: [] });
@@ -1040,6 +1079,37 @@ describe('AIService.chat', () => {
           response: expect.stringContaining('does not have any linked reference files'),
         })
       );
+    } finally {
+      listSpy.mockRestore();
+    }
+  });
+
+  it('keeps no-reference preflight copy chat-only when polish actions are disabled', async () => {
+    MockDocumentModel.findByIdAndUserId.mockResolvedValue({
+      id: 'doc-1',
+      userId: 'user-1',
+      environmentConfig: { aiAccess: 'chat' },
+    } as any);
+    const listSpy = jest.spyOn(AIRetrievalService, 'listReferenceFiles')
+      .mockResolvedValueOnce({ files: [] });
+    const fetchCallsBefore = mockFetch.mock.calls.length;
+    const messageCallsBefore = MockAIModel.addMessage.mock.calls.length;
+
+    try {
+      await AIService.chat('user-1', {
+        ...request,
+        message: 'This task has no linked PDF. What can you use as context?',
+      } as any);
+
+      expect(mockFetch.mock.calls.length).toBe(fetchCallsBefore);
+      const assistantContent = MockAIModel.addMessage.mock.calls[messageCallsBefore + 1][2];
+      expect(assistantContent).toContain('does not have any linked reference files');
+      expect(assistantContent).toContain('text you paste into this chat');
+      expect(assistantContent).not.toContain('selection quick actions');
+      expect(assistantContent).not.toContain('Fix grammar');
+      expect(assistantContent).not.toContain('Improve');
+      expect(assistantContent).not.toContain('Simplify');
+      expect(assistantContent).not.toContain('Make formal');
     } finally {
       listSpy.mockRestore();
     }
