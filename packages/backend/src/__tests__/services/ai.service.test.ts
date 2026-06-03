@@ -1605,6 +1605,36 @@ describe('AIService.chat', () => {
       ).resolves.toMatchObject({ sessionId: 'session-1' });
     });
 
+    it('converts image attachments to OpenAI Responses input parts', async () => {
+      MockUserAISettings.getByUserId.mockResolvedValue(
+        makeSettings({ model: 'gpt-5.4-mini', baseUrl: 'https://api.openai.com/v1' }),
+      );
+      MockAIModel.getOrCreateSession.mockResolvedValue(makeSession());
+      const requestWithImage = {
+        ...request,
+        message: 'Improve writing',
+        attachments: [
+          { type: 'image', storageKey: 'k', mimeType: 'image/png' },
+        ],
+      };
+
+      await expect(
+        AIService.chat('user-1', requestWithImage as any),
+      ).resolves.toMatchObject({ sessionId: 'session-1' });
+
+      const lastFetchCall = mockFetch.mock.calls[mockFetch.mock.calls.length - 1];
+      const body = JSON.parse(lastFetchCall[1].body);
+      const userInput = body.input.find((item: any) => item.role === 'user' && Array.isArray(item.content));
+      expect(userInput.content).toEqual([
+        { type: 'input_text', text: 'Improve writing' },
+        {
+          type: 'input_image',
+          image_url: `data:image/png;base64,${mockValidPngBase64}`,
+        },
+      ]);
+      expect(JSON.stringify(userInput.content)).not.toContain('"image_url":{"url"');
+    });
+
     it('loads image attachments with the recorded storage provider locator', async () => {
       const { AIChatAttachmentModel } = jest.requireMock('../../models/ai-chat-attachment.model');
       const { FileStorageService } = jest.requireMock('../../services/file-storage.service');

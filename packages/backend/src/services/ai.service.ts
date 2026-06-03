@@ -734,6 +734,44 @@ class OpenAIProvider implements AIProvider {
     };
   }
 
+  private static toOpenAIResponsesContent(content: any): any {
+    if (!Array.isArray(content)) {
+      return content;
+    }
+
+    return content.map((part) => {
+      if (!part || typeof part !== 'object') {
+        return part;
+      }
+
+      if ((part as any).type === 'text') {
+        return {
+          type: 'input_text',
+          text: typeof (part as any).text === 'string' ? (part as any).text : '',
+        };
+      }
+
+      if ((part as any).type === 'image_url') {
+        const imageUrl = (part as any).image_url?.url;
+        if (typeof imageUrl !== 'string') {
+          return part;
+        }
+
+        const inputImage: Record<string, unknown> = {
+          type: 'input_image',
+          image_url: imageUrl,
+        };
+        const detail = (part as any).image_url?.detail;
+        if (typeof detail === 'string') {
+          inputImage.detail = detail;
+        }
+        return inputImage;
+      }
+
+      return part;
+    });
+  }
+
   private supportsOpenRouterReasoningToggle(): boolean {
     return this.baseUrl.includes('openrouter.ai');
   }
@@ -802,7 +840,7 @@ class OpenAIProvider implements AIProvider {
 
     const input: any[] = messages.map(message => ({
       role: message.role === 'system' ? 'developer' : message.role,
-      content: message.content,
+      content: OpenAIProvider.toOpenAIResponsesContent(message.content),
     }));
 
     let response: any;
@@ -2432,12 +2470,13 @@ export class AIService {
   }
 
   /**
-   * Build the OpenAI-compatible message content for a user turn. With no
+   * Build the OpenAI-compatible chat message content for a user turn. With no
    * attachments this stays a plain string (existing wire shape). With image
    * attachments it becomes the structured `[ {type:'text'}, {type:'image_url'} ]`
-   * array OpenAI / Together / OpenRouter all accept. Image bytes are looked
-   * up from the file-storage adapter and inlined as `data:` URLs so the
-   * provider call is self-contained.
+   * array used by chat-completions-compatible providers. The OpenAI Responses
+   * path converts these parts to `input_text` / `input_image` just before
+   * dispatch. Image bytes are looked up from the file-storage adapter and
+   * inlined as `data:` URLs so the provider call is self-contained.
    */
   private static buildUserContent(
     message: string,
