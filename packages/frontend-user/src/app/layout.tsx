@@ -1,9 +1,12 @@
 import type { Metadata } from 'next';
 import { Courier_Prime, Inter } from 'next/font/google';
+import Script from 'next/script';
 import { BRAND, getBrandText } from '@humanly/shared';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { PolyfillProvider } from '@/components/polyfill-provider';
+
+const GOOGLE_ANALYTICS_MEASUREMENT_ID = 'G-3NKG61B682';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -47,6 +50,18 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${inter.variable} ${courierPrime.variable}`}>
+        <Script
+          src={`https://www.googletagmanager.com/gtag/js?id=${GOOGLE_ANALYTICS_MEASUREMENT_ID}`}
+          strategy="afterInteractive"
+        />
+        <Script id="google-analytics" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', '${GOOGLE_ANALYTICS_MEASUREMENT_ID}');
+          `}
+        </Script>
         <PolyfillProvider>
           {children}
           <Toaster />
