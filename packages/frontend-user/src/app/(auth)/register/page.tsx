@@ -1,13 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Eye, EyeOff, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
-import { getBrandText } from '@humanly/shared';
 
 import { useAuthStore } from '@/stores/auth-store';
 import { Button } from '@/components/ui/button';
@@ -30,6 +29,7 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
+import { OAuthButtons } from '@/components/auth/oauth-buttons';
 
 // Form validation schema
 const registerSchema = z
@@ -68,6 +68,10 @@ const registerSchema = z
 
 type RegisterFormValues = z.infer<typeof registerSchema>;
 
+const getSafeNextPath = (value: string | null) => (
+  value && value.startsWith('/') && !value.startsWith('//') ? value : '/documents'
+);
+
 // Password strength indicator
 function getPasswordStrength(password: string): {
   strength: number;
@@ -92,7 +96,7 @@ function getPasswordStrength(password: string): {
   const normalizedStrength = Math.min(Math.floor(strength / 2), 3);
 
   const labels = ['', 'Weak', 'Medium', 'Strong'];
-  const colors = ['', 'bg-red-500', 'bg-yellow-500', 'bg-green-500'];
+  const colors = ['', 'bg-destructive/70', 'bg-[#d6bba8]', 'bg-[#6f8a78]'];
 
   return {
     strength: normalizedStrength,
@@ -103,6 +107,7 @@ function getPasswordStrength(password: string): {
 
 export default function RegisterPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const register = useAuthStore((state) => state.register);
   const isLoading = useAuthStore((state) => state.isLoading);
 
@@ -125,6 +130,15 @@ export default function RegisterPage() {
 
   const watchPassword = form.watch('password');
   const passwordStrength = getPasswordStrength(watchPassword);
+  const safeNext = getSafeNextPath(searchParams.get('next'));
+  const loginHref = safeNext === '/documents'
+    ? '/login'
+    : `/login?next=${encodeURIComponent(safeNext)}`;
+  const verifyEmailHref = (email: string) => (
+    safeNext === '/documents'
+      ? `/verify-email?email=${encodeURIComponent(email)}`
+      : `/verify-email?email=${encodeURIComponent(email)}&next=${encodeURIComponent(safeNext)}`
+  );
 
   async function onSubmit(values: RegisterFormValues) {
     try {
@@ -132,20 +146,13 @@ export default function RegisterPage() {
       await register(values.email, values.password, values.firstName, values.lastName, 'user');
       setRegistrationSuccess(true);
 
-      // TODO: Uncomment when email service is configured
-      // // Store email for verification page
-      // if (typeof window !== 'undefined') {
-      //   localStorage.setItem('pendingVerificationEmail', values.email);
-      // }
-      // // Redirect to verification info page after 3 seconds
-      // setTimeout(() => {
-      //   router.push(`/verify-email?email=${encodeURIComponent(values.email)}`);
-      // }, 3000);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('pendingVerificationEmail', values.email);
+      }
 
-      // Redirect to login page after 2 seconds (email verification disabled)
       setTimeout(() => {
-        router.push('/login');
-      }, 2000);
+        router.push(verifyEmailHref(values.email));
+      }, 1200);
     } catch (err: any) {
       setError(err?.message || 'Registration failed. Please try again.');
     }
@@ -153,15 +160,16 @@ export default function RegisterPage() {
 
   if (registrationSuccess) {
     return (
-      <Card>
+      <Card className="border-border bg-white shadow-none humanly-panel-shadow">
         <CardHeader>
-          <CardTitle className="text-center">Registration Successful!</CardTitle>
+          <CardTitle className="text-center text-2xl font-bold tracking-normal">
+            Registration Successful!
+          </CardTitle>
           <CardDescription className="text-center">
-            Certify Authentic Human Authorship with Behavioral Proof
+            Write with AI. Prove your process.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* TODO: Uncomment when email service is configured
           <Alert variant="success">
             <CheckCircle2 className="h-4 w-4" />
             <AlertTitle>Check your email</AlertTitle>
@@ -173,30 +181,30 @@ export default function RegisterPage() {
           <p className="text-sm text-center text-muted-foreground">
             Redirecting you to enter your verification code...
           </p>
-          */}
-          <Alert variant="success">
-            <CheckCircle2 className="h-4 w-4" />
-            <AlertTitle>Account created</AlertTitle>
-            <AlertDescription>
-              Your account has been created successfully. Redirecting you to sign in...
-            </AlertDescription>
-          </Alert>
         </CardContent>
       </Card>
     );
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Create an account</CardTitle>
-        <CardDescription>
-          Enter your information to {getBrandText().createAccount}
+    <Card className="border-border bg-white shadow-none humanly-panel-shadow">
+      <CardHeader className="space-y-2 pb-2 text-center">
+        <CardTitle className="text-2xl font-bold tracking-normal">
+          Create an account
+        </CardTitle>
+        <CardDescription className="mx-auto max-w-sm text-sm leading-5">
+          Create your account with the name shown in your Humanly workspace.
         </CardDescription>
       </CardHeader>
       <CardContent>
+        <OAuthButtons
+          next={safeNext}
+          className="mb-5"
+          separatorPosition="after"
+          separatorLabel="or use email"
+        />
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <form method="post" onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             {error && (
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
@@ -215,6 +223,7 @@ export default function RegisterPage() {
                     <FormControl>
                       <Input
                         placeholder="Jane"
+                        className="h-11 rounded-lg"
                         {...field}
                         disabled={isLoading}
                       />
@@ -233,6 +242,7 @@ export default function RegisterPage() {
                     <FormControl>
                       <Input
                         placeholder="Doe"
+                        className="h-11 rounded-lg"
                         {...field}
                         disabled={isLoading}
                       />
@@ -253,6 +263,7 @@ export default function RegisterPage() {
                     <Input
                       type="email"
                       placeholder="name@example.com"
+                      className="h-11 rounded-lg"
                       {...field}
                       disabled={isLoading}
                     />
@@ -273,6 +284,7 @@ export default function RegisterPage() {
                       <Input
                         type={showPassword ? 'text' : 'password'}
                         placeholder="Enter your password"
+                        className="h-11 rounded-lg pr-10"
                         {...field}
                         disabled={isLoading}
                       />
@@ -327,6 +339,7 @@ export default function RegisterPage() {
                       <Input
                         type={showConfirmPassword ? 'text' : 'password'}
                         placeholder="Confirm your password"
+                        className="h-11 rounded-lg pr-10"
                         {...field}
                         disabled={isLoading}
                       />
@@ -388,7 +401,11 @@ export default function RegisterPage() {
               )}
             />
 
-            <Button type="submit" className="w-full" disabled={isLoading}>
+            <Button
+              type="submit"
+              className="h-11 w-full rounded-full font-bold"
+              disabled={isLoading}
+            >
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -404,7 +421,7 @@ export default function RegisterPage() {
       <CardFooter className="flex flex-col space-y-4">
         <div className="text-sm text-center text-muted-foreground">
           Already have an account?{' '}
-          <Link href="/login" className="text-primary hover:underline">
+          <Link href={loginHref} className="text-primary hover:underline">
             Sign in
           </Link>
         </div>

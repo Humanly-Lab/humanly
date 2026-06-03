@@ -19,6 +19,13 @@ export function errorHandler(
   res: Response,
   next: NextFunction
 ): void {
+  const errorWithMeta = error as Error & {
+    code?: string;
+    status?: number;
+    statusCode?: number;
+    type?: string;
+  };
+
   // Log error
   logger.error('Error occurred', {
     error: error.message,
@@ -37,6 +44,19 @@ export function errorHandler(
         field: err.path.join('.'),
         message: err.message,
       })),
+    });
+    return;
+  }
+
+  // Handle malformed JSON bodies produced by express.json/body-parser.
+  if (
+    errorWithMeta.type === 'entity.parse.failed' ||
+    (error instanceof SyntaxError && errorWithMeta.status === 400)
+  ) {
+    res.status(400).json({
+      success: false,
+      error: 'Invalid JSON',
+      message: 'Request body contains malformed JSON',
     });
     return;
   }
@@ -66,6 +86,16 @@ export function errorHandler(
       success: false,
       error: 'Token expired',
       message: 'Authentication token has expired',
+    });
+    return;
+  }
+
+  // Handle PostgreSQL invalid_text_representation, commonly raised by invalid UUID params.
+  if (errorWithMeta.code === '22P02') {
+    res.status(400).json({
+      success: false,
+      error: 'Invalid identifier format',
+      message: 'One or more identifiers are malformed',
     });
     return;
   }

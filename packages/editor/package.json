@@ -30,6 +30,8 @@
     "@lexical/list": "^0.12.6",
     "@lexical/link": "^0.12.6",
     "@lexical/code": "^0.12.6",
+    "@lexical/markdown": "^0.12.6",
+    "@lexical/table": "^0.12.6",
     "lucide-react": "^0.303.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"

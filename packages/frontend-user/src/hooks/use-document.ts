@@ -1,7 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
-import { apiClient } from '@/lib/api-client';
+import { apiClient, type HumanlyAxiosRequestConfig } from '@/lib/api-client';
 import { uploadPdfForDocument } from '@/lib/document-pdf';
 import type { AppFile, Document, DocumentEvent } from '@humanly/shared';
+
+interface TrackEventsOptions {
+  throwOnError?: boolean;
+}
 
 export function useDocument(documentId: string) {
   const [document, setDocument] = useState<Document | null>(null);
@@ -61,14 +65,35 @@ export function useDocument(documentId: string) {
     }
   }, [documentId]);
 
-  const trackEvents = useCallback(async (events: Partial<DocumentEvent>[], sessionId?: string | null) => {
+  const startWritingSession = useCallback(async () => {
     try {
+      const response = await apiClient.post(`/documents/${documentId}/writing-session/start`);
+      const doc = response.data.data?.document || null;
+      setDocument(doc);
+      return doc;
+    } catch (err: any) {
+      console.error('Error starting writing session:', err);
+      throw new Error(err.response?.data?.message || 'Failed to start writing session');
+    }
+  }, [documentId]);
+
+  const trackEvents = useCallback(async (
+    events: Partial<DocumentEvent>[],
+    sessionId?: string | null,
+    options: TrackEventsOptions = {}
+  ) => {
+    try {
+      const backgroundRequestConfig: HumanlyAxiosRequestConfig = { skipAuthRedirect: true };
+
       await apiClient.post(`/documents/${documentId}/events`, {
         events,
         ...(sessionId ? { sessionId } : {}),
-      });
+      }, backgroundRequestConfig);
     } catch (err: any) {
       console.error('Error tracking events:', err);
+      if (options.throwOnError) {
+        throw err;
+      }
     }
   }, [documentId]);
 
@@ -86,6 +111,7 @@ export function useDocument(documentId: string) {
     error,
     isSaving,
     updateDocument,
+    startWritingSession,
     trackEvents,
     uploadPdf,
     refetch: fetchDocument,

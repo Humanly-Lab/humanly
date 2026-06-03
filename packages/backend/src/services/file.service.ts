@@ -159,6 +159,7 @@ export class FileService {
     if (input.file.mimetype !== 'application/pdf') {
       throw new AppError(400, 'PDF file is required');
     }
+    this.assertValidPdfPayload(input.file);
 
     const fileId = crypto.randomUUID();
     const stored = await FileStorageService.store(input.file.buffer, fileId);
@@ -182,6 +183,17 @@ export class FileService {
       pageCount: null,
       uploadStatus: stored.uploadStatus,
     });
+  }
+
+  private static assertValidPdfPayload(file: Express.Multer.File): void {
+    if (!file.buffer || file.buffer.length === 0 || file.size === 0) {
+      throw new AppError(400, 'PDF file is empty');
+    }
+
+    const headerWindow = file.buffer.subarray(0, Math.min(file.buffer.length, 1024));
+    if (headerWindow.indexOf(Buffer.from('%PDF-')) === -1) {
+      throw new AppError(400, 'Invalid PDF file');
+    }
   }
 
   private static async assertCanRead(appFile: AppFile, userId: string): Promise<void> {

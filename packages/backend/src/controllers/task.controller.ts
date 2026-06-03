@@ -1,12 +1,43 @@
 import { Request, Response } from 'express';
+import { z } from 'zod';
 import { TaskService } from '../services/task.service';
 import { AppError } from '../middleware/error-handler';
 import { logger } from '../utils/logger';
+import { env } from '../config/env';
 import {
   createTaskSchema,
   updateTaskSchema,
   validate,
 } from '@humanly/shared';
+import type { Task } from '@humanly/shared';
+
+const publicTaskStartSchema = z.object({
+  sessionId: z.string().max(128).optional().or(z.literal('')),
+  mode: z.enum(['guest', 'signed-in']).optional(),
+});
+
+type PublicTaskAvailabilityStatus = 'scheduled' | 'open' | 'ended';
+
+function getPublicTaskAvailabilityStatus(task: Task): PublicTaskAvailabilityStatus {
+  const now = Date.now();
+  const startMs = new Date(task.startDate).getTime();
+  const endMs = new Date(task.endDate).getTime();
+
+  if (Number.isFinite(startMs) && now < startMs) return 'scheduled';
+  if (Number.isFinite(endMs) && now > endMs) return 'ended';
+  return 'open';
+}
+
+function serializePublicTaskPreview(task: Task) {
+  return {
+    name: task.name,
+    description: task.description,
+    startDate: task.startDate,
+    endDate: task.endDate,
+    allowGuestSubmissions: task.allowGuestSubmissions,
+    availabilityStatus: getPublicTaskAvailabilityStatus(task),
+  };
+}
 
 /**
  * Create a new task
@@ -42,6 +73,94 @@ export async function getTask(req: Request, res: Response): Promise<void> {
   res.json({
     success: true,
     data: task,
+  });
+}
+
+/**
+ * Get a task by public share token without requiring registration.
+ */
+export async function getPublicTask(req: Request, res: Response): Promise<void> {
+  const taskToken = req.params.token;
+
+  if (!taskToken) {
+    throw new AppError(400, 'Task token is required');
+  }
+
+  const task = await TaskService.getPublicTask(taskToken);
+
+  res.json({
+    success: true,
+    data: {
+      task: serializePublicTaskPreview(task),
+    },
+  });
+}
+
+/**
+ * Start a public task document in the normal authenticated editor flow.
+ */
+export async function startPublicTaskDocument(req: Request, res: Response): Promise<void> {
+  const taskToken = req.params.token;
+
+  if (!taskToken) {
+    throw new AppError(400, 'Task token is required');
+  }
+
+  const data = validate(publicTaskStartSchema, req.body || {});
+  const result = await TaskService.startPublicTaskDocument(
+    taskToken,
+    data,
+    req.user ? { userId: req.user.userId } : undefined
+  );
+
+  const shouldSetAuthCookies = result.mode === 'guest' && !req.user;
+
+  if (shouldSetAuthCookies && result.refreshToken) {
+    res.cookie('refreshToken', result.refreshToken, {
+      httpOnly: true,
+      secure: env.nodeEnv === 'production',
+      sameSite: 'strict',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+  }
+
+  if (shouldSetAuthCookies && result.accessToken) {
+    res.cookie('accessToken', result.accessToken, {
+      httpOnly: true,
+      secure: env.nodeEnv === 'production',
+      sameSite: 'strict',
+      maxAge: 24 * 60 * 60 * 1000,
+    });
+  }
+
+  res.status(201).json({
+    success: true,
+    data: {
+      user: result.user,
+      ...(result.accessToken ? { accessToken: result.accessToken } : {}),
+      task: result.task,
+      document: result.document,
+      publicSessionId: result.publicSessionId,
+      mode: result.mode,
+    },
+    message: 'Task document started successfully',
+  });
+}
+
+/**
+ * Direct public submissions are disabled; public writers must start a document first.
+ */
+export async function submitPublicTaskDocument(req: Request, res: Response): Promise<void> {
+  const taskToken = req.params.token;
+
+  if (!taskToken) {
+    throw new AppError(400, 'Task token is required');
+  }
+
+  res.status(410).json({
+    success: false,
+    error: 'Direct public submissions are no longer supported. Start the task document first.',
+    message: 'Direct public submissions are no longer supported. Start the task document first.',
   });
 }
 
@@ -251,9 +370,9 @@ export async function endSubmissionSession(req: Request, res: Response): Promise
  * Submit current user's task document and generate a certificate.
  */
 export async function submitTaskDocument(req: Request, res: Response): Promise<void> {
-  const userId = req.user!.userId;
+  const { userId, email } = req.user!;
   const taskId = req.params.taskId;
-  const { documentId } = req.body;
+  const { documentId, automatic } = req.body;
 
   if (!taskId) {
     throw new AppError(400, 'Task ID is required');
@@ -263,7 +382,12 @@ export async function submitTaskDocument(req: Request, res: Response): Promise<v
     throw new AppError(400, 'Document ID is required');
   }
 
-  const result = await TaskService.submitTaskDocument(taskId, userId, documentId);
+  const result = await TaskService.submitTaskDocument(taskId, userId, documentId, email, {
+    allowAfterDeadline: automatic === true,
+    bypassCharacterBounds: automatic === true,
+    skipIfAlreadySubmitted: automatic === true,
+    source: automatic === true ? 'time_limit_auto' : 'manual',
+  });
 
   res.status(201).json({
     success: true,

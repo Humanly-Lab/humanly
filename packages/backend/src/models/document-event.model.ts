@@ -72,10 +72,10 @@ export class DocumentEventModel {
       params.push(event.keyChar || null);
 
       valueGroup.push(`$${++paramCount}`); // text_before
-      params.push(event.textBefore || null);
+      params.push(event.textBefore ?? null);
 
       valueGroup.push(`$${++paramCount}`); // text_after
-      params.push(event.textAfter || null);
+      params.push(event.textAfter ?? null);
 
       valueGroup.push(`$${++paramCount}`); // cursor_position
       params.push(event.cursorPosition ?? null);
@@ -180,7 +180,7 @@ export class DocumentEventModel {
         created_at as "createdAt"
       FROM document_events
       WHERE ${whereClause}
-      ORDER BY timestamp DESC
+      ORDER BY timestamp DESC, created_at DESC, id DESC
       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
     `;
 

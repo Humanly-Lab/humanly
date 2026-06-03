@@ -5,9 +5,49 @@ import {
   EXTERNAL_SERVICE_TYPES,
   EVENT_TYPES,
   PAGINATION,
+  SUBMISSION_MAX_CHARACTERS_MAX,
+  SUBMISSION_MIN_CHARACTERS_MAX,
 } from './constants';
+import type {
+  WritingAiAccess,
+  WritingEnvironmentConfig,
+  WritingTaskType,
+} from '../types/environment.types';
+import { normalizeWritingAiAccess } from '../types/environment.types';
 
-const writingEnvironmentConfigSchema = z.object({
+export const TASK_START_DATE_PAST_GRACE_MS = 2 * 60 * 1000;
+export const TASK_START_DATE_PAST_ERROR_MESSAGE = 'Task start date cannot be in the past.';
+
+export const isTaskStartDateTooFarInPast = (
+  startDate: Date | string | number,
+  now: Date | string | number = new Date()
+): boolean => {
+  const startMs = new Date(startDate).getTime();
+  const nowMs = new Date(now).getTime();
+
+  if (!Number.isFinite(startMs) || !Number.isFinite(nowMs)) {
+    return false;
+  }
+
+  return startMs < nowMs - TASK_START_DATE_PAST_GRACE_MS;
+};
+
+const writingSubmissionConfigSchema = z.object({
+  mode: z.enum(['single', 'multiple']),
+  minCharacters: z.number().int().min(1).max(SUBMISSION_MIN_CHARACTERS_MAX).optional(),
+  maxCharacters: z.number().int().min(1).max(SUBMISSION_MAX_CHARACTERS_MAX).optional(),
+}).refine((submission) => {
+  if (!submission.minCharacters || !submission.maxCharacters) return true;
+  return submission.minCharacters <= submission.maxCharacters;
+}, {
+  message: 'Maximum characters must be greater than or equal to minimum characters',
+  path: ['maxCharacters'],
+});
+
+const writingAiAccessSchema = z.enum(['off', 'polish', 'chat', 'full', 'readonly', 'on'])
+  .transform((value): WritingAiAccess => normalizeWritingAiAccess(value)) as z.ZodType<WritingAiAccess>;
+
+export const writingEnvironmentConfigSchema = z.object({
   preset: z.enum(['default_writing', 'no_ai', 'ai_assisted', 'timed_writing', 'custom']).optional(),
   taskType: z.enum(['personal', 'admin_assigned']),
   description: z.string().max(1000).optional(),
@@ -15,9 +55,17 @@ const writingEnvironmentConfigSchema = z.object({
     hasInstructionPdf: z.boolean().optional(),
     editableAfterSubmission: z.boolean(),
   }),
-  aiAccess: z.enum(['off', 'readonly', 'full']),
+  aiAccess: writingAiAccessSchema,
+  aiProvider: z.object({
+    provider: z.enum(['together', 'openrouter', 'openai', 'claude', 'custom']),
+    baseUrl: z.string().url(),
+  }).optional(),
   allowedModels: z.array(z.string().min(1).max(100)).max(20),
   customModels: z.array(z.string().min(1).max(100)).max(20).optional(),
+  aiTokenBudget: z.object({
+    shortcutMaxTokens: z.number().int().min(256).max(16384).optional(),
+    chatMaxTokens: z.number().int().min(256).max(16384).optional(),
+  }).optional(),
   aiUsageLimit: z.object({
     mode: z.enum(['unlimited', 'max_requests', 'max_tokens', 'time_restricted']),
     maxRequests: z.number().int().positive().max(1000000).optional(),
@@ -29,9 +77,7 @@ const writingEnvironmentConfigSchema = z.object({
     timeLimitSeconds: z.number().int().positive().max(31536000).optional(),
     lateSubmission: z.enum(['allowed', 'not_allowed']),
   }),
-  submission: z.object({
-    mode: z.enum(['single', 'multiple']),
-  }),
+  submission: writingSubmissionConfigSchema,
   traceability: z.object({
     trackAiUsage: z.boolean(),
     trackTyping: z.boolean(),
@@ -40,6 +86,142 @@ const writingEnvironmentConfigSchema = z.object({
   }),
   copyPastePolicy: z.enum(['allowed', 'blocked']),
 });
+
+const hasOwn = (value: Record<string, unknown>, key: string) => (
+  Object.prototype.hasOwnProperty.call(value, key)
+);
+
+const assertImportRecord = (value: unknown, path: string): Record<string, unknown> => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error(`${path} must be an object.`);
+  }
+  return value as Record<string, unknown>;
+};
+
+const assertRequiredImportKeys = (
+  value: Record<string, unknown>,
+  path: string,
+  keys: string[],
+) => {
+  const missing = keys.filter((key) => !hasOwn(value, key));
+  if (missing.length) {
+    throw new Error(`${path} is incomplete. Missing: ${missing.join(', ')}.`);
+  }
+};
+
+export const validateWritingEnvironmentImportTemplate = (
+  value: unknown,
+  expectedTaskType?: WritingTaskType,
+): WritingEnvironmentConfig => {
+  const root = assertImportRecord(value, 'Environment configuration');
+
+  assertRequiredImportKeys(root, 'Environment configuration', [
+    'taskType',
+    'instructions',
+    'aiAccess',
+    'allowedModels',
+    'customModels',
+    'aiTokenBudget',
+    'aiUsageLimit',
+    'time',
+    'submission',
+    'traceability',
+    'copyPastePolicy',
+  ]);
+
+  const instructions = assertImportRecord(root.instructions, 'instructions');
+  assertRequiredImportKeys(instructions, 'instructions', [
+    'hasInstructionPdf',
+    'editableAfterSubmission',
+  ]);
+
+  const aiTokenBudget = assertImportRecord(root.aiTokenBudget, 'aiTokenBudget');
+  assertRequiredImportKeys(aiTokenBudget, 'aiTokenBudget', [
+    'shortcutMaxTokens',
+    'chatMaxTokens',
+  ]);
+
+  const aiUsageLimit = assertImportRecord(root.aiUsageLimit, 'aiUsageLimit');
+  assertRequiredImportKeys(aiUsageLimit, 'aiUsageLimit', ['mode']);
+  if (aiUsageLimit.mode === 'max_requests') {
+    assertRequiredImportKeys(aiUsageLimit, 'aiUsageLimit', ['maxRequests']);
+  }
+  if (aiUsageLimit.mode === 'max_tokens') {
+    assertRequiredImportKeys(aiUsageLimit, 'aiUsageLimit', ['maxTokens']);
+  }
+
+  const time = assertImportRecord(root.time, 'time');
+  assertRequiredImportKeys(time, 'time', ['lateSubmission']);
+  if (aiUsageLimit.mode === 'time_restricted') {
+    assertRequiredImportKeys(time, 'time', ['timeLimitSeconds']);
+  }
+
+  const submission = assertImportRecord(root.submission, 'submission');
+  assertRequiredImportKeys(submission, 'submission', ['mode']);
+
+  const traceability = assertImportRecord(root.traceability, 'traceability');
+  assertRequiredImportKeys(traceability, 'traceability', [
+    'trackAiUsage',
+    'trackTyping',
+    'trackCopyPaste',
+    'trackFocusBlur',
+  ]);
+
+  const parsed = writingEnvironmentConfigSchema.parse(value);
+
+  if (expectedTaskType && parsed.taskType !== expectedTaskType) {
+    throw new Error(`Environment configuration taskType must be ${expectedTaskType}.`);
+  }
+  if (
+    expectedTaskType === 'personal'
+    && parsed.aiUsageLimit.mode !== 'unlimited'
+    && parsed.aiUsageLimit.mode !== 'time_restricted'
+  ) {
+    throw new Error('Personal environment JSON must use aiUsageLimit.mode "unlimited" or "time_restricted".');
+  }
+  if (
+    expectedTaskType === 'admin_assigned'
+    && parsed.aiUsageLimit.mode !== 'max_requests'
+  ) {
+    throw new Error('Admin task environment JSON must use aiUsageLimit.mode "max_requests".');
+  }
+
+  const customModels = parsed.customModels || [];
+  const hasModels = parsed.allowedModels.length > 0 || customModels.length > 0;
+
+  if (parsed.aiAccess === 'off') {
+    if (hasOwn(root, 'aiProvider')) {
+      throw new Error('AI-off environment JSON must not include aiProvider.');
+    }
+    if (hasModels) {
+      throw new Error('AI-off environment JSON must not include allowedModels or customModels.');
+    }
+    if (parsed.traceability.trackAiUsage) {
+      throw new Error('AI-off environment JSON must set traceability.trackAiUsage to false.');
+    }
+  } else {
+    const aiProvider = assertImportRecord(root.aiProvider, 'aiProvider');
+    assertRequiredImportKeys(aiProvider, 'aiProvider', ['provider', 'baseUrl']);
+    if (!hasModels) {
+      throw new Error('AI-enabled environment JSON must include at least one allowed model.');
+    }
+    if (!parsed.traceability.trackAiUsage) {
+      throw new Error('AI-enabled environment JSON must set traceability.trackAiUsage to true.');
+    }
+  }
+
+  const expectedTrackCopyPaste = parsed.copyPastePolicy === 'allowed';
+  if (parsed.traceability.trackCopyPaste !== expectedTrackCopyPaste) {
+    throw new Error(
+      `traceability.trackCopyPaste must be ${String(expectedTrackCopyPaste)} when copyPastePolicy is ${parsed.copyPastePolicy}.`
+    );
+  }
+
+  return {
+    ...parsed,
+    customModels,
+  };
+};
 
 // User validators
 export const emailSchema = z.string().email('Invalid email address');
@@ -81,6 +263,10 @@ export const resetPasswordSchema = z.object({
   newPassword: passwordSchema,
 });
 
+export const passwordResetTokenSchema = z.object({
+  token: z.string().min(1, 'Token is required'),
+});
+
 // Task validators
 export const createTaskSchema = z.object({
   name: z.string().min(1, 'Task name is required').max(255),
@@ -93,6 +279,10 @@ export const createTaskSchema = z.object({
   startDate: z.coerce.date(),
   endDate: z.coerce.date(),
   environmentConfig: writingEnvironmentConfigSchema.optional(),
+  allowGuestSubmissions: z.boolean().optional(),
+}).refine((data) => !isTaskStartDateTooFarInPast(data.startDate), {
+  message: TASK_START_DATE_PAST_ERROR_MESSAGE,
+  path: ['startDate'],
 }).refine((data) => data.endDate > data.startDate, {
   message: 'Task end date must be after start date',
   path: ['endDate'],
@@ -109,6 +299,7 @@ export const updateTaskSchema = z.object({
   startDate: z.coerce.date().optional(),
   endDate: z.coerce.date().optional(),
   environmentConfig: writingEnvironmentConfigSchema.optional(),
+  allowGuestSubmissions: z.boolean().optional(),
   isActive: z.boolean().optional(),
 }).refine((data) => {
   if (!data.startDate || !data.endDate) return true;

@@ -124,7 +124,7 @@ export function AccessCodeManagementDialog({
 
             {isProtected && (
               <div className="text-xs text-muted-foreground bg-muted p-3 rounded-md">
-                <strong>Note:</strong> Leave fields empty and click "Remove Access Code" to make this certificate publicly viewable without a code.
+                <strong>Note:</strong> Leave fields empty and click &quot;Remove Access Code&quot; to make this certificate publicly viewable without a code.
               </div>
             )}
           </div>

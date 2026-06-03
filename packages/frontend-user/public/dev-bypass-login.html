@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Humanly dev bypass</title>
+    <meta name="robots" content="noindex" />
+    <style>
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        max-width: 540px;
+        margin: 4rem auto;
+        padding: 0 1rem;
+        color: #1f2937;
+      }
+      code { background: #f3f4f6; padding: 1px 6px; border-radius: 4px; font-size: 0.9em; }
+      .panel { border: 1px solid #e5e7eb; border-radius: 8px; padding: 1rem 1.25rem; background: #fafafa; }
+      h1 { margin-top: 0; font-size: 1.25rem; }
+      p { line-height: 1.5; }
+    </style>
+  </head>
+  <body>
+    <div class="panel">
+      <h1>Humanly local dev bypass</h1>
+      <p>Writes a mock access token to <code>localStorage</code> and jumps to a seeded document. Use this only against the mock backend (<code>pnpm dev:mock</code>) — never against a real backend.</p>
+      <p>Redirecting in a moment…</p>
+    </div>
+    <script>
+      (function () {
+        try {
+          localStorage.setItem('accessToken', 'mock-access-token-for-local-dev');
+          localStorage.setItem('refreshToken', 'mock-refresh-token-for-local-dev');
+          localStorage.setItem(
+            'auth-storage',
+            JSON.stringify({
+              state: {
+                user: { id: 'mock-user', email: 'dev@local', name: 'Local Dev', role: 'user' },
+                isAuthenticated: true,
+              },
+              version: 0,
+            }),
+          );
+        } catch (err) {
+          document.body.innerHTML += '<p>Failed to write localStorage: ' + String(err) + '</p>';
+          return;
+        }
+        var docId = new URLSearchParams(location.search).get('doc') || 'doc-1';
+        location.replace('/documents/' + encodeURIComponent(docId));
+      })();
+    </script>
+  </body>
+</html>

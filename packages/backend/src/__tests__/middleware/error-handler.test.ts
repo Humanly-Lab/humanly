@@ -91,6 +91,29 @@ describe('errorHandler', () => {
     expect(res.status).toHaveBeenCalledWith(409);
   });
 
+  it('responds 400 for malformed JSON body-parser errors', () => {
+    const err = Object.assign(new SyntaxError('Unexpected token b in JSON'), {
+      status: 400,
+      type: 'entity.parse.failed',
+    });
+    const res = mockRes();
+    errorHandler(err, mockReq({ method: 'POST' }), res, next);
+    expect(res.status).toHaveBeenCalledWith(400);
+    const body = (res.json as jest.Mock).mock.calls[0][0];
+    expect(body.error).toBe('Invalid JSON');
+  });
+
+  it('responds 400 for invalid PostgreSQL UUID input', () => {
+    const err = Object.assign(new Error('invalid input syntax for type uuid'), {
+      code: '22P02',
+    });
+    const res = mockRes();
+    errorHandler(err, mockReq(), res, next);
+    expect(res.status).toHaveBeenCalledWith(400);
+    const body = (res.json as jest.Mock).mock.calls[0][0];
+    expect(body.error).toBe('Invalid identifier format');
+  });
+
   it('responds 500 for unknown errors', () => {
     const err = new Error('something unexpected');
     const res = mockRes();

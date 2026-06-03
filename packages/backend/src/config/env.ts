@@ -22,12 +22,15 @@ interface EnvConfig {
   jwtSecret: string;
   jwtAccessExpires: string;
   jwtRefreshExpires: string;
+  authCookieDomain?: string;
 
   // CORS
   corsOrigin: string;
 
   // Frontend URLs
+  frontendAdminUrl: string;
   frontendUserUrl: string;
+  publicApiUrl: string;
 
   // Email
   emailService: 'console' | 'sendgrid' | 'ses' | 'smtp';
@@ -37,9 +40,21 @@ interface EnvConfig {
   emailPort?: number;
   emailUser?: string;
   emailPassword?: string;
+  emailStrictDelivery: boolean;
+
+  // OAuth
+  googleOAuthClientId?: string;
+  googleOAuthClientSecret?: string;
+  githubOAuthClientId?: string;
+  githubOAuthClientSecret?: string;
 
   // Rate Limiting
   rateLimitEnabled: boolean;
+
+  // Background jobs
+  taskAutoSubmitEnabled: boolean;
+  taskAutoSubmitIntervalMs: number;
+  taskAutoSubmitBatchSize: number;
 
   // AWS
   awsRegion?: string;
@@ -53,6 +68,8 @@ interface EnvConfig {
   aiBaseUrl?: string;
   aiMaxTokens: number;
   aiTemperature: number;
+  aiAgentMaxToolCalls: number;
+  aiProviderTimeoutMs: number;
   aiRateLimitRequests: number;
   aiRateLimitWindowMs: number;
 
@@ -94,6 +111,102 @@ function getEnvBoolean(key: string, defaultValue: boolean): boolean {
   return value.toLowerCase() === 'true';
 }
 
+function deriveFrontendAdminUrl(): string {
+  if (process.env.FRONTEND_ADMIN_URL) {
+    return process.env.FRONTEND_ADMIN_URL;
+  }
+
+  const corsAdminOrigin = (process.env.CORS_ORIGIN || '')
+    .split(',')
+    .map((origin) => origin.trim())
+    .find((origin) => origin.includes('admin.'));
+  if (corsAdminOrigin) {
+    return corsAdminOrigin;
+  }
+
+  const frontendUserUrl = process.env.FRONTEND_USER_URL;
+  if (frontendUserUrl) {
+    try {
+      const url = new URL(frontendUserUrl);
+      if (url.hostname.startsWith('app.')) {
+        url.hostname = url.hostname.replace(/^app\./, 'admin.');
+        return url.origin;
+      }
+    } catch {
+      // Fall through to local default.
+    }
+  }
+
+  return 'http://localhost:3000';
+}
+
+function hostnameFromOrigin(origin?: string): string | undefined {
+  if (!origin) {
+    return undefined;
+  }
+
+  try {
+    return new URL(origin).hostname.toLowerCase();
+  } catch {
+    return undefined;
+  }
+}
+
+function isLocalCookieHost(hostname: string): boolean {
+  return hostname === 'localhost'
+    || hostname.endsWith('.localhost')
+    || hostname === '127.0.0.1'
+    || hostname === '::1'
+    || hostname.startsWith('[')
+    || hostname.includes(':');
+}
+
+export function deriveSharedCookieDomain(
+  frontendUserUrl?: string,
+  frontendAdminUrl?: string
+): string | undefined {
+  const userHost = hostnameFromOrigin(frontendUserUrl);
+  const adminHost = hostnameFromOrigin(frontendAdminUrl);
+
+  if (!userHost || !adminHost || userHost === adminHost) {
+    return undefined;
+  }
+
+  if (isLocalCookieHost(userHost) || isLocalCookieHost(adminHost)) {
+    return undefined;
+  }
+
+  const userLabels = userHost.split('.');
+  const adminLabels = adminHost.split('.');
+  if (userLabels.length < 2 || adminLabels.length < 2) {
+    return undefined;
+  }
+
+  const userRoot = userLabels.slice(-2).join('.');
+  const adminRoot = adminLabels.slice(-2).join('.');
+  if (userRoot !== adminRoot) {
+    return undefined;
+  }
+
+  return `.${userRoot}`;
+}
+
+export function resolveAuthCookieDomain(): string | undefined {
+  const configuredDomain = process.env.AUTH_COOKIE_DOMAIN?.trim();
+  if (configuredDomain) {
+    return configuredDomain;
+  }
+
+  if ((process.env.NODE_ENV || 'development') !== 'production') {
+    return undefined;
+  }
+
+  return deriveSharedCookieDomain(
+    process.env.FRONTEND_USER_URL,
+    deriveFrontendAdminUrl()
+  );
+}
+
 export const env: EnvConfig = {
   // Server
   nodeEnv: getEnv('NODE_ENV', 'development'),
@@ -112,12 +225,15 @@ export const env: EnvConfig = {
   jwtSecret: getEnv('JWT_SECRET'),
   jwtAccessExpires: getEnv('JWT_ACCESS_EXPIRES', '1d'),
   jwtRefreshExpires: getEnv('JWT_REFRESH_EXPIRES', '7d'),
+  authCookieDomain: resolveAuthCookieDomain(),
 
   // CORS
   corsOrigin: getEnv('CORS_ORIGIN', 'http://localhost:3000'),
 
   // Frontend URLs
+  frontendAdminUrl: deriveFrontendAdminUrl().replace(/\/$/, ''),
   frontendUserUrl: getEnv('FRONTEND_USER_URL', 'http://localhost:3002'),
+  publicApiUrl: getEnv('PUBLIC_API_URL', 'http://localhost:3001/api/v1').replace(/\/$/, ''),
 
   // Email
   emailService: getEnv('EMAIL_SERVICE', 'console') as any,
@@ -127,9 +243,21 @@ export const env: EnvConfig = {
   emailPort: process.env.EMAIL_PORT ? getEnvNumber('EMAIL_PORT') : undefined,
   emailUser: process.env.EMAIL_USER,
   emailPassword: process.env.EMAIL_PASSWORD,
+  emailStrictDelivery: getEnvBoolean('EMAIL_STRICT_DELIVERY', false),
+
+  // OAuth
+  googleOAuthClientId: process.env.GOOGLE_OAUTH_CLIENT_ID,
+  googleOAuthClientSecret: process.env.GOOGLE_OAUTH_CLIENT_SECRET,
+  githubOAuthClientId: process.env.GITHUB_OAUTH_CLIENT_ID,
+  githubOAuthClientSecret: process.env.GITHUB_OAUTH_CLIENT_SECRET,
 
   // Rate Limiting
   rateLimitEnabled: getEnvBoolean('RATE_LIMIT_ENABLED', true),
+
+  // Background jobs
+  taskAutoSubmitEnabled: getEnvBoolean('TASK_AUTO_SUBMIT_ENABLED', true),
+  taskAutoSubmitIntervalMs: getEnvNumber('TASK_AUTO_SUBMIT_INTERVAL_MS', 30000),
+  taskAutoSubmitBatchSize: getEnvNumber('TASK_AUTO_SUBMIT_BATCH_SIZE', 25),
 
   // AWS
   awsRegion: process.env.AWS_REGION,
@@ -143,6 +271,8 @@ export const env: EnvConfig = {
   aiBaseUrl: process.env.AI_BASE_URL,
   aiMaxTokens: getEnvNumber('AI_MAX_TOKENS', 2048),
   aiTemperature: parseFloat(getEnv('AI_TEMPERATURE', '0.7')),
+  aiAgentMaxToolCalls: getEnvNumber('AI_AGENT_MAX_TOOL_CALLS', 60),
+  aiProviderTimeoutMs: getEnvNumber('AI_PROVIDER_TIMEOUT_MS', 180000),
   aiRateLimitRequests: getEnvNumber('AI_RATE_LIMIT_REQUESTS', 20),
   aiRateLimitWindowMs: getEnvNumber('AI_RATE_LIMIT_WINDOW_MS', 60000),
 

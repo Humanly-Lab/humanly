@@ -1,11 +1,20 @@
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
+import { Courier_Prime, Inter } from 'next/font/google';
 import { BRAND, getBrandText } from '@humanly/shared';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { PolyfillProvider } from '@/components/polyfill-provider';
 
-const inter = Inter({ subsets: ['latin'] });
+const inter = Inter({
+  subsets: ['latin'],
+  variable: '--font-humanly-sans',
+});
+
+const courierPrime = Courier_Prime({
+  subsets: ['latin'],
+  weight: ['400', '700'],
+  variable: '--font-humanly-brand',
+});
 
 export const metadata: Metadata = {
   metadataBase: new URL('http://localhost:3002'),
@@ -14,7 +23,14 @@ export const metadata: Metadata = {
   description: 'Verify and certify human-written content through behavioral keystroke tracking...',
   keywords: ['human authorship', 'authorship verification', 'keystroke tracking'],
   authors: [{ name: `${BRAND.name} Team` }],
-  icons: { icon: '/icon.svg' },
+  icons: {
+    icon: [
+      { url: '/favicon.ico', sizes: 'any' },
+      { url: '/favicon.png', type: 'image/png' },
+      { url: '/icon.svg', type: 'image/svg+xml' },
+    ],
+    shortcut: '/favicon.ico',
+  },
 
   openGraph: {
     title: getBrandText().pageTitles.user,
@@ -30,7 +46,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={inter.className}>
+      <body className={`${inter.variable} ${courierPrime.variable}`}>
         <PolyfillProvider>
           {children}
           <Toaster />

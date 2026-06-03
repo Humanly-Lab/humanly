@@ -25,6 +25,8 @@ out/
 
 # ── SSL certificates and private keys ─────────────────────────────────────────
 nginx/ssl/
+nginx/letsencrypt/
+nginx/certbot/
 *.pem
 *.key
 *.crt
@@ -69,9 +71,12 @@ temp/
 *.swo
 *~
 
-# ── Claude Code ───────────────────────────────────────────────────────────────
+# ── Local assistant state ─────────────────────────────────────────────────────
 .claude/
 .AGENTS/
+!.agents/
+!.agents/skills/
+!.agents/skills/**
 /CLAUDE.md
 /AGENTS.md
 /DEPLOY.md
@@ -95,3 +100,5 @@ DEV_LOG.md
 
 # ── Uploads (VM local storage, not in git) ───────────────────────────────────
 uploads/
+tmp/
+Design.md

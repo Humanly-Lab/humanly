@@ -1,9 +1,18 @@
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
+import { Courier_Prime, Inter } from 'next/font/google';
 import { BRAND, getBrandText } from '@humanly/shared';
 import './globals.css';
 
-const inter = Inter({ subsets: ['latin'] });
+const inter = Inter({
+  subsets: ['latin'],
+  variable: '--font-humanly-sans',
+});
+
+const courierPrime = Courier_Prime({
+  subsets: ['latin'],
+  weight: ['400', '700'],
+  variable: '--font-humanly-brand',
+});
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'),
@@ -26,7 +35,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={inter.className}>
+      <body className={`${inter.variable} ${courierPrime.variable}`}>
         {children}
       </body>
     </html>

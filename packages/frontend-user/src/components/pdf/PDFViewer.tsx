@@ -28,6 +28,19 @@ interface SearchMatch {
   text: string
 }
 
+function isRenderCancelledError(err: unknown) {
+  return Boolean(
+    err &&
+    typeof err === 'object' &&
+    'name' in err &&
+    err.name === 'RenderingCancelledException'
+  )
+}
+
+function toCssPixelValue(value: number) {
+  return `${Number(value.toFixed(3))}px`
+}
+
 function getTextItemHighlightRect(item: any, matchStart: number, matchLength: number, viewport: any) {
   const transform = window.pdfjsLib.Util.transform(viewport.transform, item.transform)
   const textLength = Math.max(item.str.length, 1)
@@ -67,6 +80,8 @@ export default function PDFViewer({ fileId, documentId }: PDFViewerProps) {
   const pageContainerRefs = useRef<(HTMLDivElement | null)[]>([])
   const searchInputRef = useRef<HTMLInputElement>(null)
   const scaleRef = useRef<number>(1.0)
+  const renderTasksRef = useRef<Map<number, any>>(new Map())
+  const renderGenerationRef = useRef<number>(0)
 
   // Keep scaleRef in sync
   useEffect(() => {
@@ -94,6 +109,39 @@ export default function PDFViewer({ fileId, documentId }: PDFViewerProps) {
     }
   }, [setPDFText, setExtracting, setPDFError])
 
+  const cancelActiveRenderTasks = useCallback(() => {
+    renderTasksRef.current.forEach((task) => {
+      try {
+        task?.cancel?.()
+      } catch {
+        // PDF.js render cancellation can race with normal teardown.
+      }
+    })
+    renderTasksRef.current.clear()
+  }, [])
+
+  const cancelCurrentRenderGeneration = useCallback(() => {
+    renderGenerationRef.current += 1
+    cancelActiveRenderTasks()
+  }, [cancelActiveRenderTasks])
+
+  const startRenderGeneration = useCallback(() => {
+    renderGenerationRef.current += 1
+    cancelActiveRenderTasks()
+    return renderGenerationRef.current
+  }, [cancelActiveRenderTasks])
+
+  const cancelPageRenderTask = useCallback((pageNum: number) => {
+    const task = renderTasksRef.current.get(pageNum)
+    if (!task) return
+    try {
+      task.cancel?.()
+    } catch {
+      // Ignore cancellation races; the superseding render owns the canvas.
+    }
+    renderTasksRef.current.delete(pageNum)
+  }, [])
+
   // Load PDF.js from CDN
   useEffect(() => {
     const script = document.createElement('script')
@@ -113,41 +161,57 @@ export default function PDFViewer({ fileId, documentId }: PDFViewerProps) {
   }, [])
 
   // Render a single page to its canvas
-  const renderPage = useCallback(async (pageNum: number, currentScale: number) => {
-    if (!pdfDocRef.current) return
+  const renderPage = useCallback(async (pageNum: number, currentScale: number, generation: number) => {
+    if (!pdfDocRef.current || generation !== renderGenerationRef.current) return
     const canvas = canvasRefs.current[pageNum - 1]
     if (!canvas) return
+    let renderTask: any = null
     try {
+      cancelPageRenderTask(pageNum)
       const page = await pdfDocRef.current.getPage(pageNum)
+      if (generation !== renderGenerationRef.current) return
       const context = canvas.getContext('2d')
       if (!context) return
-      const pixelRatio = window.devicePixelRatio || 1
-      const viewport = page.getViewport({ scale: currentScale * pixelRatio, rotation: 0 })
-      canvas.height = viewport.height
-      canvas.width = viewport.width
-      canvas.style.height = `${viewport.height / pixelRatio}px`
-      canvas.style.width = `${viewport.width / pixelRatio}px`
+      const outputScale = Math.max(window.devicePixelRatio || 1, 1)
+      const viewport = page.getViewport({ scale: currentScale, rotation: 0 })
+      canvas.height = Math.floor(viewport.height * outputScale)
+      canvas.width = Math.floor(viewport.width * outputScale)
+      canvas.style.height = toCssPixelValue(viewport.height)
+      canvas.style.width = toCssPixelValue(viewport.width)
       const hl = highlightRefs.current[pageNum - 1]
       if (hl) {
         hl.style.width = canvas.style.width
         hl.style.height = canvas.style.height
       }
-      context.clearRect(0, 0, canvas.width, canvas.height)
       context.setTransform(1, 0, 0, 1, 0, 0)
-      await page.render({ canvasContext: context, viewport }).promise
+      context.clearRect(0, 0, canvas.width, canvas.height)
+      renderTask = page.render({
+        canvasContext: context,
+        viewport,
+        transform: outputScale === 1 ? undefined : [outputScale, 0, 0, outputScale, 0, 0],
+      })
+      renderTasksRef.current.set(pageNum, renderTask)
+      await renderTask.promise
     } catch (err) {
+      if (isRenderCancelledError(err)) return
       console.error(`Error rendering page ${pageNum}:`, err)
+    } finally {
+      if (renderTask && renderTasksRef.current.get(pageNum) === renderTask) {
+        renderTasksRef.current.delete(pageNum)
+      }
     }
-  }, [])
+  }, [cancelPageRenderTask])
 
   // Render all pages
   const renderAllPages = useCallback(async (currentScale: number) => {
     if (!pdfDocRef.current) return
+    const generation = startRenderGeneration()
     const total = pdfDocRef.current.numPages
     for (let i = 1; i <= total; i++) {
-      await renderPage(i, currentScale)
+      if (generation !== renderGenerationRef.current) return
+      await renderPage(i, currentScale, generation)
     }
-  }, [renderPage])
+  }, [renderPage, startRenderGeneration])
 
   // Load PDF document
   useEffect(() => {
@@ -156,6 +220,7 @@ export default function PDFViewer({ fileId, documentId }: PDFViewerProps) {
 
     const loadPDF = async () => {
       try {
+        cancelCurrentRenderGeneration()
         pdfDocRef.current = null
         textContentCache.current.clear()
         canvasRefs.current = []
@@ -203,6 +268,7 @@ export default function PDFViewer({ fileId, documentId }: PDFViewerProps) {
     loadPDF()
     return () => {
       cancelled = true
+      cancelCurrentRenderGeneration()
       if (blobUrl) URL.revokeObjectURL(blobUrl)
       if (pdfDocRef.current) {
         try {
@@ -213,20 +279,13 @@ export default function PDFViewer({ fileId, documentId }: PDFViewerProps) {
       }
       pdfDocRef.current = null
     }
-  }, [fileId, documentId, extractPDFTextInBackground])
-
-  // Render all pages after numPages is set (small delay to let React mount canvases)
-  useEffect(() => {
-    if (numPages === 0) return
-    const timeout = setTimeout(() => renderAllPages(scaleRef.current), 50)
-    return () => clearTimeout(timeout)
-  }, [numPages, renderAllPages])
+  }, [fileId, documentId, extractPDFTextInBackground, cancelCurrentRenderGeneration])
 
   // Re-render all pages on scale change
   useEffect(() => {
     if (numPages === 0) return
-    renderAllPages(scale)
-  }, [scale]) // eslint-disable-line react-hooks/exhaustive-deps
+    void renderAllPages(scale)
+  }, [scale, numPages, renderAllPages])
 
   // IntersectionObserver to track current visible page
   useEffect(() => {
@@ -258,11 +317,17 @@ export default function PDFViewer({ fileId, documentId }: PDFViewerProps) {
       const page = await pdfDocRef.current.getPage(1)
       const containerWidth = containerRef.current.offsetWidth - 32
       const viewport = page.getViewport({ scale: 1.0, rotation: 0 })
-      setScale(containerWidth / viewport.width)
+      if (containerWidth <= 0 || viewport.width <= 0) return
+      const nextScale = Math.max(0.5, Math.min(3.0, containerWidth / viewport.width))
+      if (Math.abs(scaleRef.current - nextScale) < 0.001) {
+        void renderAllPages(nextScale)
+        return
+      }
+      setScale(nextScale)
     } catch (err) {
       console.error('Error calculating fit-to-width:', err)
     }
-  }, [])
+  }, [renderAllPages])
 
   useEffect(() => {
     if (!fitToWidth || numPages === 0 || !containerRef.current) return

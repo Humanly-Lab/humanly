@@ -9,12 +9,26 @@ jest.mock('../../utils/logger', () => ({
 
 import request from 'supertest';
 import { createApp } from '../../app';
+import { generateAccessToken } from '../../utils/jwt';
 
 describe('createApp integration', () => {
   const app = createApp();
 
   it('returns health status', async () => {
     const response = await request(app).get('/health');
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual(
+      expect.objectContaining({
+        status: 'ok',
+        timestamp: expect.any(String),
+        uptime: expect.any(Number),
+      })
+    );
+  });
+
+  it('returns versioned API health status', async () => {
+    const response = await request(app).get('/api/v1/health');
 
     expect(response.status).toBe(200);
     expect(response.body).toEqual(
@@ -36,6 +50,21 @@ describe('createApp integration', () => {
         version: '1.0.0',
       })
     );
+  });
+
+  it('mounts task exports at the documented /api/v1/tasks/:taskId path', async () => {
+    const canonical = await request(app).get('/api/v1/tasks/task-1/export/json');
+    expect(canonical.status).toBe(401);
+
+    const token = generateAccessToken({
+      userId: 'user-1',
+      email: 'owner@example.com',
+      role: 'admin',
+    });
+    const legacy = await request(app)
+      .get('/api/v1/task-1/export/json')
+      .set('Authorization', `Bearer ${token}`);
+    expect(legacy.status).toBe(404);
   });
 
   it('returns 404 payload for unknown routes', async () => {

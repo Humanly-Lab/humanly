@@ -18,7 +18,7 @@ Lightweight JavaScript tracking library for capturing user input events in web f
 First, install dependencies:
 
 ```bash
-npm install
+pnpm install
 ```
 
 ## Building
@@ -26,7 +26,7 @@ npm install
 Build the library:
 
 ```bash
-npm run build
+pnpm build:tracker
 ```
 
 This creates three files in the `dist/` directory:
@@ -268,14 +268,14 @@ Requires ES2015 support (all modern browsers).
 ### Watch Mode
 
 ```bash
-npm run build:watch
+pnpm dev:tracker
 ```
 
 ### Clean Build
 
 ```bash
-npm run clean
-npm run build
+pnpm --filter @humanly/tracker clean
+pnpm build:tracker
 ```
 
 ## Security Considerations

@@ -56,7 +56,11 @@ export type EventType =
   | 'ai_logs_viewed'
   | 'ai_logs_exported'
   // AI Selection Menu events (inline quick actions)
-  | 'ai_selection_action';
+  | 'ai_selection_action'
+  // AI chat insert events
+  | 'ai_insert_from_chat';
+
+export type TextRenderMode = 'plain' | 'markdown';
 
 export interface TrackerEvent {
   eventType: EventType;

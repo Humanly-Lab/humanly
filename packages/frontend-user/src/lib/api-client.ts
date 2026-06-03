@@ -1,8 +1,18 @@
 import axios, { AxiosError, AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 
-const API_URL =
+export type HumanlyAxiosRequestConfig = AxiosRequestConfig & {
+  skipAuthRedirect?: boolean;
+  skipAuthRefresh?: boolean;
+};
+
+export const API_URL =
   process.env.NEXT_PUBLIC_API_URL ||
   (process.env.NODE_ENV === 'production' ? '/api/v1' : 'http://localhost:3001/api/v1');
+
+export function getApiUrl(path: string): string {
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  return `${API_URL}${normalizedPath}`;
+}
 
 /**
  * Custom error class for API errors
@@ -18,6 +28,49 @@ export class ApiError extends Error {
   }
 }
 
+const PUBLIC_DOCUMENT_ACCESS_TOKENS_KEY = 'humanlyPublicDocumentAccessTokens';
+const PUBLIC_CERTIFICATE_ACCESS_TOKENS_KEY = 'humanlyPublicCertificateAccessTokens';
+
+const readScopedAccessTokens = (storageKey: string): Record<string, string> => {
+  if (typeof window === 'undefined') return {};
+
+  try {
+    const raw = sessionStorage.getItem(storageKey);
+    if (!raw) return {};
+
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+
+    return Object.fromEntries(
+      Object.entries(parsed).filter((entry): entry is [string, string] => (
+        typeof entry[0] === 'string' && typeof entry[1] === 'string'
+      ))
+    );
+  } catch {
+    return {};
+  }
+};
+
+const writeScopedAccessTokens = (storageKey: string, tokens: Record<string, string>): void => {
+  if (typeof window === 'undefined') return;
+
+  try {
+    sessionStorage.setItem(storageKey, JSON.stringify(tokens));
+  } catch {
+    // Session storage can be unavailable in hardened browser contexts. In that
+    // case the anonymous fallback still works through the normal access token.
+  }
+};
+
+const readPublicDocumentAccessTokens = () => readScopedAccessTokens(PUBLIC_DOCUMENT_ACCESS_TOKENS_KEY);
+const writePublicDocumentAccessTokens = (tokens: Record<string, string>) => (
+  writeScopedAccessTokens(PUBLIC_DOCUMENT_ACCESS_TOKENS_KEY, tokens)
+);
+const readPublicCertificateAccessTokens = () => readScopedAccessTokens(PUBLIC_CERTIFICATE_ACCESS_TOKENS_KEY);
+const writePublicCertificateAccessTokens = (tokens: Record<string, string>) => (
+  writeScopedAccessTokens(PUBLIC_CERTIFICATE_ACCESS_TOKENS_KEY, tokens)
+);
+
 /**
  * Token management utilities
  */
@@ -30,6 +83,11 @@ export const TokenManager = {
   setAccessToken: (token: string): void => {
     if (typeof window === 'undefined') return;
     localStorage.setItem('accessToken', token);
+  },
+
+  clearAccessToken: (): void => {
+    if (typeof window === 'undefined') return;
+    localStorage.removeItem('accessToken');
   },
 
   getRefreshToken: (): string | null => {
@@ -46,6 +104,52 @@ export const TokenManager = {
     if (typeof window === 'undefined') return;
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
+    try {
+      sessionStorage.removeItem(PUBLIC_DOCUMENT_ACCESS_TOKENS_KEY);
+      sessionStorage.removeItem(PUBLIC_CERTIFICATE_ACCESS_TOKENS_KEY);
+    } catch {
+      // Ignore storage failures during logout/session cleanup.
+    }
+  },
+
+  getPublicDocumentAccessToken: (documentId: string): string | null => {
+    if (!documentId) return null;
+    return readPublicDocumentAccessTokens()[documentId] || null;
+  },
+
+  setPublicDocumentAccessToken: (documentId: string, token: string): void => {
+    if (!documentId || !token) return;
+    writePublicDocumentAccessTokens({
+      ...readPublicDocumentAccessTokens(),
+      [documentId]: token,
+    });
+  },
+
+  clearPublicDocumentAccessToken: (documentId: string): void => {
+    if (!documentId) return;
+    const tokens = readPublicDocumentAccessTokens();
+    delete tokens[documentId];
+    writePublicDocumentAccessTokens(tokens);
+  },
+
+  getPublicCertificateAccessToken: (certificateId: string): string | null => {
+    if (!certificateId) return null;
+    return readPublicCertificateAccessTokens()[certificateId] || null;
+  },
+
+  setPublicCertificateAccessToken: (certificateId: string, token: string): void => {
+    if (!certificateId || !token) return;
+    writePublicCertificateAccessTokens({
+      ...readPublicCertificateAccessTokens(),
+      [certificateId]: token,
+    });
+  },
+
+  clearPublicCertificateAccessToken: (certificateId: string): void => {
+    if (!certificateId) return;
+    const tokens = readPublicCertificateAccessTokens();
+    delete tokens[certificateId];
+    writePublicCertificateAccessTokens(tokens);
   },
 };
 
@@ -88,14 +192,22 @@ const createApiClient = (): AxiosInstance => {
   client.interceptors.response.use(
     (response: AxiosResponse) => response,
     async (error: AxiosError) => {
-      const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean };
+      const originalRequest = error.config as HumanlyAxiosRequestConfig & { _retry?: boolean };
 
       // Handle 401 errors (unauthorized) — but skip token refresh for AI endpoints
       // because a 401 from /ai/chat means invalid AI API key, not expired JWT
       const requestUrl = originalRequest.url || '';
       const isAIEndpoint = requestUrl.includes('/ai/chat') || requestUrl.includes('/ai/stream');
-      const isAuthEndpoint = requestUrl.includes('/auth/login') || requestUrl.includes('/auth/register');
-      if (error.response?.status === 401 && !originalRequest._retry && !isAIEndpoint && !isAuthEndpoint) {
+      const isAuthEndpoint = requestUrl.includes('/auth/login')
+        || requestUrl.includes('/auth/register')
+        || requestUrl.includes('/auth/refresh');
+      if (
+        error.response?.status === 401
+        && !originalRequest._retry
+        && !originalRequest.skipAuthRefresh
+        && !isAIEndpoint
+        && !isAuthEndpoint
+      ) {
         originalRequest._retry = true;
 
         try {
@@ -115,9 +227,12 @@ const createApiClient = (): AxiosInstance => {
           }
           return client(originalRequest);
         } catch (refreshError) {
-          // Refresh failed, clear tokens and redirect to login
-          TokenManager.clearTokens();
-          if (typeof window !== 'undefined') {
+          // Refresh failed. Best-effort background calls such as editor event
+          // tracking should fail quietly instead of ejecting an active writer.
+          if (!originalRequest.skipAuthRedirect) {
+            TokenManager.clearTokens();
+          }
+          if (!originalRequest.skipAuthRedirect && typeof window !== 'undefined') {
             window.location.href = '/login';
           }
           return Promise.reject(refreshError);
@@ -155,35 +270,35 @@ export const api = {
   /**
    * GET request
    */
-  get: <T = any>(url: string, config?: AxiosRequestConfig): Promise<T> => {
+  get: <T = any>(url: string, config?: HumanlyAxiosRequestConfig): Promise<T> => {
     return apiClient.get<T>(url, config).then((res) => res.data);
   },
 
   /**
    * POST request
    */
-  post: <T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> => {
+  post: <T = any>(url: string, data?: any, config?: HumanlyAxiosRequestConfig): Promise<T> => {
     return apiClient.post<T>(url, data, config).then((res) => res.data);
   },
 
   /**
    * PUT request
    */
-  put: <T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> => {
+  put: <T = any>(url: string, data?: any, config?: HumanlyAxiosRequestConfig): Promise<T> => {
     return apiClient.put<T>(url, data, config).then((res) => res.data);
   },
 
   /**
    * PATCH request
    */
-  patch: <T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> => {
+  patch: <T = any>(url: string, data?: any, config?: HumanlyAxiosRequestConfig): Promise<T> => {
     return apiClient.patch<T>(url, data, config).then((res) => res.data);
   },
 
   /**
    * DELETE request
    */
-  delete: <T = any>(url: string, config?: AxiosRequestConfig): Promise<T> => {
+  delete: <T = any>(url: string, config?: HumanlyAxiosRequestConfig): Promise<T> => {
     return apiClient.delete<T>(url, config).then((res) => res.data);
   },
 };

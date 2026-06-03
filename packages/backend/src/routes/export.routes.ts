@@ -3,7 +3,7 @@ import { authenticate } from '../middleware/auth.middleware';
 import { asyncHandler } from '../middleware/error-handler';
 import { exportJSON, exportCSV } from '../controllers/export.controller';
 
-const router = Router();
+const router: Router = Router();
 
 // All export routes require authentication
 router.use(authenticate);

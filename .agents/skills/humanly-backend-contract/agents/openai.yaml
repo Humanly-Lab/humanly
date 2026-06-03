@@ -1,0 +1,6 @@
+interface:
+  display_name: "Humanly Backend Contract"
+  short_description: "Run API/auth/document/file/AI-settings contract checks."
+  default_prompt: "Run the Humanly backend contract skill for the requested target and summarize the report."
+policy:
+  allow_implicit_invocation: true

@@ -3,14 +3,20 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
+  Award,
   BookOpen,
   CalendarClock,
+  ArrowDownAZ,
+  Check,
   FileText,
   KeyRound,
+  LayoutGrid,
+  List,
   Plus,
   Trash2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -24,12 +30,17 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from '@/components/ui/tabs';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
   Dialog,
   DialogContent,
@@ -46,9 +57,23 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { apiClient } from '@/lib/api-client';
 import { formatDateTime } from '@/lib/utils';
-import type { WritingEnvironmentConfig } from '@humanly/shared';
+import type { Document, WritingEnvironmentConfig } from '@humanly/shared';
 
-type SortOption = 'lastEdited' | 'title' | 'wordCount';
+type SortOption = 'lastEdited' | 'title' | 'characterCount';
+type WorkspaceTab = 'documents' | 'tasks';
+type DocumentViewMode = 'cards' | 'list';
+
+const DOCUMENT_VIEW_MODE_STORAGE_KEY = 'humanly:documents:view-mode';
+
+const SORT_LABELS: Record<SortOption, string> = {
+  lastEdited: 'Last edited',
+  title: 'Title',
+  characterCount: 'Character count',
+};
+
+const isDocumentViewMode = (value: string | null): value is DocumentViewMode => (
+  value === 'cards' || value === 'list'
+);
 
 interface TaskEnrollment {
   id: string;
@@ -57,11 +82,24 @@ interface TaskEnrollment {
   name: string;
   inviteCode: string;
   documentId: string | null;
+  writingStartedAt?: string | Date | null;
   joinedAt: string;
   description?: string;
   startDate?: string;
   endDate?: string;
   environmentConfig?: WritingEnvironmentConfig | null;
+}
+
+interface TimedWritingSource {
+  environmentConfig?: WritingEnvironmentConfig | null;
+  writingStartedAt?: string | Date | null;
+}
+
+interface WritingTimerCardState {
+  expired: boolean;
+  label: string;
+  value: string;
+  detail: string;
 }
 
 const getDisplayTaskName = (task: TaskEnrollment) => {
@@ -70,11 +108,71 @@ const getDisplayTaskName = (task: TaskEnrollment) => {
   return name;
 };
 
+const getTimestampMs = (value?: string | Date | null): number | null => {
+  if (!value) return null;
+  const timestamp = new Date(value).getTime();
+  return Number.isFinite(timestamp) ? timestamp : null;
+};
+
+const formatTaskCountdown = (totalSeconds: number): string => {
+  const safeSeconds = Math.max(0, Math.floor(totalSeconds));
+  const hours = Math.floor(safeSeconds / 3600);
+  const minutes = Math.floor((safeSeconds % 3600) / 60);
+  const seconds = safeSeconds % 60;
+
+  if (hours > 0) {
+    return `${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  }
+
+  return `${minutes}:${String(seconds).padStart(2, '0')}`;
+};
+
+const getWritingTimeLimitSeconds = (source: TimedWritingSource): number | null => {
+  const configuredSeconds = source.environmentConfig?.time?.timeLimitSeconds;
+  if (!configuredSeconds) return null;
+
+  return Math.max(1, Math.floor(configuredSeconds));
+};
+
+const getWritingTimerState = (
+  source: TimedWritingSource,
+  nowMs: number,
+  options: { expiredDetail?: string } = {}
+): WritingTimerCardState | null => {
+  const timeLimitSeconds = getWritingTimeLimitSeconds(source);
+  if (timeLimitSeconds === null) return null;
+
+  const startedAtMs = getTimestampMs(source.writingStartedAt);
+  if (startedAtMs === null) {
+    return {
+      expired: false,
+      label: 'Writing time limit',
+      value: formatTaskCountdown(timeLimitSeconds),
+      detail: 'Timer starts when opened.',
+    };
+  }
+
+  const elapsedSeconds = Math.max(0, Math.floor((nowMs - startedAtMs) / 1000));
+  const remainingSeconds = Math.max(0, timeLimitSeconds - elapsedSeconds);
+  const expired = remainingSeconds === 0;
+
+  return {
+    expired,
+    label: expired ? 'Writing time limit reached' : 'Writing time left',
+    value: expired ? 'Read-only' : formatTaskCountdown(remainingSeconds),
+    detail: expired
+      ? options.expiredDetail || 'Opens in read-only mode.'
+      : 'Continues while you are away.',
+  };
+};
+
 export default function DocumentsPage() {
   const router = useRouter();
   const { documents, isLoading, error, createDocument, deleteDocument } = useDocuments();
   const { toast } = useToast();
   const [sortBy, setSortBy] = useState<SortOption>('lastEdited');
+  const [documentViewMode, setDocumentViewMode] = useState<DocumentViewMode>('list');
+  const [activeWorkspaceTab, setActiveWorkspaceTab] = useState<WorkspaceTab>('documents');
   const [showJoinDialog, setShowJoinDialog] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState<TaskEnrollment | null>(null);
   const [inviteCode, setInviteCode] = useState('');
@@ -82,6 +180,19 @@ export default function DocumentsPage() {
   const [taskEnrollments, setTaskEnrollments] = useState<TaskEnrollment[]>([]);
   const [isLoadingTaskEnrollments, setIsLoadingTaskEnrollments] = useState(true);
   const [taskEnrollmentsError, setTaskEnrollmentsError] = useState<string | null>(null);
+  const [dashboardNowMs, setDashboardNowMs] = useState(() => Date.now());
+
+  useEffect(() => {
+    const storedViewMode = window.localStorage.getItem(DOCUMENT_VIEW_MODE_STORAGE_KEY);
+    if (isDocumentViewMode(storedViewMode)) {
+      setDocumentViewMode(storedViewMode);
+    }
+  }, []);
+
+  const handleDocumentViewModeChange = useCallback((nextViewMode: DocumentViewMode) => {
+    setDocumentViewMode(nextViewMode);
+    window.localStorage.setItem(DOCUMENT_VIEW_MODE_STORAGE_KEY, nextViewMode);
+  }, []);
 
   const fetchTaskEnrollments = useCallback(async () => {
     try {
@@ -200,6 +311,7 @@ export default function DocumentsPage() {
       await fetchTaskEnrollments();
       setShowJoinDialog(false);
       setInviteCode('');
+      setActiveWorkspaceTab('tasks');
 
       toast({
         title: 'Task joined',
@@ -227,19 +339,31 @@ export default function DocumentsPage() {
       if (sortBy === 'title') {
         return (a.title || '').localeCompare(b.title || '');
       }
-      if (sortBy === 'wordCount') {
-        return (b.wordCount || 0) - (a.wordCount || 0);
+      if (sortBy === 'characterCount') {
+        return (b.characterCount ?? (b.plainText || '').length) - (a.characterCount ?? (a.plainText || '').length);
       }
       return new Date(b.updatedAt || b.createdAt).getTime() - new Date(a.updatedAt || a.createdAt).getTime();
     });
+  const hasStartedWritingTimer = [
+    ...validTaskEnrollments,
+    ...personalDocuments,
+  ].some((source) => (
+    getWritingTimeLimitSeconds(source) !== null && getTimestampMs(source.writingStartedAt) !== null
+  ));
 
-  // Container classes for centered content with max-width
-  const containerClass = "mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8";
+  const containerClass = 'humanly-page';
+
+  useEffect(() => {
+    if (!hasStartedWritingTimer) return;
+
+    const intervalId = window.setInterval(() => setDashboardNowMs(Date.now()), 1000);
+    return () => window.clearInterval(intervalId);
+  }, [hasStartedWritingTimer]);
 
   if (isLoading || isLoadingTaskEnrollments) {
     return (
       <main className={containerClass}>
-        <div className="mb-8">
+        <div className="mb-8 space-y-3">
           <Skeleton className="h-8 w-64 mb-2" />
           <Skeleton className="h-4 w-96" />
         </div>
@@ -281,187 +405,287 @@ export default function DocumentsPage() {
 
   return (
     <main className={containerClass}>
-      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">My Documents</h1>
-          <p className="text-sm sm:text-base text-muted-foreground mt-1">
-            Create and manage your documents with authorship tracking
-          </p>
-        </div>
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <Dialog open={showJoinDialog} onOpenChange={setShowJoinDialog}>
-            <DialogTrigger asChild>
-              <Button variant="outline" className="w-full sm:w-auto">
-                <KeyRound className="mr-2 h-4 w-4" />
-                Join Task
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-md">
-              <DialogHeader>
-                <DialogTitle>Join Task</DialogTitle>
-                <DialogDescription>
-                  Enter the 6-character invite code from your instructor or admin.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-2 py-4">
-                <Label htmlFor="invite-code">Invite Code</Label>
-                <Input
-                  id="invite-code"
-                  value={inviteCode}
-                  maxLength={6}
-                  placeholder="A7K2QX"
-                  className="font-mono uppercase tracking-widest"
-                  onChange={(event) => setInviteCode(event.target.value.toUpperCase())}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter') {
-                      handleJoinTask();
-                    }
-                  }}
-                />
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setShowJoinDialog(false)} disabled={isJoiningTask}>
-                  Cancel
-                </Button>
-                <Button onClick={handleJoinTask} disabled={isJoiningTask}>
-                  {isJoiningTask ? 'Joining...' : 'Join Task'}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-
-          <Button className="w-full sm:w-auto" onClick={() => router.push('/documents/new')}>
-            <Plus className="mr-2 h-4 w-4" />
-            New Document
-          </Button>
-        </div>
+      <div className="mb-6 flex flex-col gap-2">
+        <p className="humanly-eyebrow">Workspace</p>
+        <h1 className="text-2xl font-semibold tracking-normal sm:text-3xl">
+          Writing Dashboard
+        </h1>
+        <p className="max-w-2xl text-sm text-muted-foreground sm:text-base">
+          Start your own tracked writing or complete an assigned task from an instructor.
+        </p>
       </div>
 
-      {validTaskEnrollments.length > 0 && (
-        <section className="mb-10">
-          <div className="mb-4 flex items-center justify-between gap-3">
+      <Tabs value={activeWorkspaceTab} onValueChange={(value) => setActiveWorkspaceTab(value as WorkspaceTab)}>
+        <TabsList className="mb-6 grid w-full grid-cols-2 border border-border/70 bg-muted/60 sm:w-[470px]">
+          <TabsTrigger value="documents">Personal Writing</TabsTrigger>
+          <TabsTrigger value="tasks">Task Submissions</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="documents" className="mt-0 space-y-6">
+          <section className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <h2 className="text-xl font-semibold tracking-tight">Enrolled Task Documents</h2>
-              <p className="text-sm text-muted-foreground">
-                {validTaskEnrollments.length} task-scoped {validTaskEnrollments.length === 1 ? 'submission' : 'submissions'}
+              <h2 className="text-xl font-semibold tracking-normal">Personal Writing</h2>
+              <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+                Create personal writing projects, track your process, and generate verifiable authorship certificates.
               </p>
             </div>
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {validTaskEnrollments.map((task) => {
-              const taskName = getDisplayTaskName(task);
-              return (
-              <Card key={`${task.id}-${task.documentId}`} className="transition-shadow hover:shadow-md">
-                <CardContent className="flex h-full flex-col gap-3 p-5">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                        Task Name
-                      </p>
-                      <h3 className="truncate text-lg font-semibold" title={taskName}>
-                        {taskName}
-                      </h3>
-                    </div>
-                    <BookOpen className="h-5 w-5 shrink-0 text-muted-foreground" />
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Button variant="outline" className="w-full sm:w-auto" onClick={() => router.push('/certificates')}>
+                <Award className="mr-2 h-4 w-4" />
+                View Certificates
+              </Button>
+              <Button className="w-full sm:w-auto" onClick={() => router.push('/documents/new')}>
+                <Plus className="mr-2 h-4 w-4" />
+                Create Writing
+              </Button>
+            </div>
+          </section>
+
+          {personalDocuments.length === 0 ? (
+            <div className="humanly-surface flex min-h-[360px] flex-col items-center justify-center bg-card px-6 text-center">
+              <FileText className="h-10 w-10 text-accent" />
+              <h3 className="mt-4 text-lg font-semibold">No personal documents yet</h3>
+              <p className="mt-2 max-w-sm text-center text-sm text-muted-foreground">
+                Start a personal writing document when you want authorship tracking and certificate generation.
+              </p>
+              <Button className="mt-4" onClick={() => router.push('/documents/new')}>
+                <Plus className="mr-2 h-4 w-4" />
+                Create Writing
+              </Button>
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center justify-end gap-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-10 w-10 text-muted-foreground hover:text-foreground"
+                  aria-label={documentViewMode === 'cards' ? 'List view' : 'Card view'}
+                  onClick={() => handleDocumentViewModeChange(documentViewMode === 'cards' ? 'list' : 'cards')}
+                >
+                  {documentViewMode === 'cards' ? (
+                    <List className="h-6 w-6" />
+                  ) : (
+                    <LayoutGrid className="h-6 w-6" />
+                  )}
+                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-10 w-10 text-muted-foreground hover:text-foreground"
+                      aria-label={`Sort by ${SORT_LABELS[sortBy]}`}
+                    >
+                      <ArrowDownAZ className="h-6 w-6" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    {(Object.keys(SORT_LABELS) as SortOption[]).map((option) => (
+                      <DropdownMenuItem key={option} onClick={() => setSortBy(option)}>
+                        <Check className={sortBy === option ? 'mr-2 h-4 w-4 opacity-100' : 'mr-2 h-4 w-4 opacity-0'} />
+                        {SORT_LABELS[option]}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+
+              {documentViewMode === 'cards' ? (
+                <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                  {personalDocuments.map((document: Document) => (
+                    <DocumentCard
+                      key={document.id}
+                      document={document}
+                      timerState={getWritingTimerState(document, dashboardNowMs)}
+                      onDelete={handleDeleteDocument}
+                      variant="card"
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div>
+                  <div className="hidden grid-cols-[minmax(0,1fr)_8.5rem_10rem_2.75rem] border-b border-border/70 px-2 pb-2 text-xs font-medium uppercase tracking-normal text-muted-foreground md:grid">
+                    <span>Name</span>
+                    <span>Characters</span>
+                    <span>Last edited</span>
+                    <span />
                   </div>
                   <div>
-                    <p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                      Code
-                    </p>
-                    <div className="rounded-md border bg-muted/30 px-3 py-2 font-mono text-sm font-semibold tracking-wider">
-                      {task.inviteCode}
-                    </div>
+                    {personalDocuments.map((document: Document) => (
+                      <DocumentCard
+                        key={document.id}
+                        document={document}
+                        timerState={getWritingTimerState(document, dashboardNowMs)}
+                        onDelete={handleDeleteDocument}
+                        variant="list"
+                      />
+                    ))}
                   </div>
-                  {(task.startDate || task.endDate) && (
-                    <div className="grid gap-2 rounded-md border bg-muted/20 p-3 text-sm">
-                      {task.startDate && (
-                        <div className="flex items-start gap-2">
-                          <CalendarClock className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-                          <div className="min-w-0">
-                            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                              Starts
-                            </p>
-                            <p className="break-words">{formatDateTime(task.startDate)}</p>
-                          </div>
+                </div>
+              )}
+            </>
+          )}
+        </TabsContent>
+
+        <TabsContent value="tasks" className="mt-0 space-y-6">
+          <section className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h2 className="text-xl font-semibold tracking-normal">Task Submissions</h2>
+              <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+                Join tasks from an instructor or organization and complete the assigned submission workflow.
+              </p>
+            </div>
+            <Dialog open={showJoinDialog} onOpenChange={setShowJoinDialog}>
+              <DialogTrigger asChild>
+                <Button className="w-full sm:w-auto">
+                  <KeyRound className="mr-2 h-4 w-4" />
+                  Join Task
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Join Task</DialogTitle>
+                  <DialogDescription>
+                    Enter the 6-character invite code from your instructor or admin.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-2 py-4">
+                  <Label htmlFor="invite-code">Invite Code</Label>
+                  <Input
+                    id="invite-code"
+                    value={inviteCode}
+                    maxLength={6}
+                    placeholder="A7K2QX"
+                    className=" uppercase tracking-normal"
+                    onChange={(event) => setInviteCode(event.target.value.toUpperCase())}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') {
+                        handleJoinTask();
+                      }
+                    }}
+                  />
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setShowJoinDialog(false)} disabled={isJoiningTask}>
+                    Cancel
+                  </Button>
+                  <Button onClick={handleJoinTask} disabled={isJoiningTask}>
+                    {isJoiningTask ? 'Joining...' : 'Join Task'}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </section>
+
+          {validTaskEnrollments.length === 0 ? (
+            <div className="humanly-surface flex min-h-[360px] flex-col items-center justify-center bg-card px-6 text-center">
+              <BookOpen className="h-10 w-10 text-accent" />
+              <h3 className="mt-4 text-lg font-semibold">No assigned tasks yet</h3>
+              <p className="mt-2 max-w-sm text-center text-sm text-muted-foreground">
+                Use an invite code when an instructor or organization asks you to complete a Humanly task.
+              </p>
+            </div>
+          ) : (
+            <div className="grid min-w-0 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {validTaskEnrollments.map((task) => {
+                const taskName = getDisplayTaskName(task);
+                const timerState = getWritingTimerState(task, dashboardNowMs, {
+                  expiredDetail: 'Submission opens in read-only mode.',
+                });
+                return (
+                  <Card
+                    key={`${task.id}-${task.documentId}`}
+                    data-testid="task-submission-card"
+                    className="flex h-full min-h-[18rem] min-w-0 overflow-hidden p-5 transition-colors hover:border-foreground/30"
+                  >
+                    <CardContent className="flex h-full min-w-0 flex-1 flex-col gap-4 p-0">
+                    <div className="flex min-w-0 items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <p className="humanly-eyebrow">
+                          Task
+                        </p>
+                        <h3 className="max-w-full truncate text-lg font-semibold" title={taskName}>
+                          {taskName}
+                        </h3>
+                      </div>
+                        {timerState?.expired ? (
+                          <Badge variant="secondary" className="shrink-0 rounded-md">Read-only</Badge>
+                        ) : (
+                          <BookOpen className="h-5 w-5 shrink-0 text-muted-foreground" />
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="mb-1 humanly-eyebrow">
+                          Invite Code
+                        </p>
+                        <div className="w-full max-w-full truncate rounded-lg border border-border/70 bg-muted/35 px-3 py-2 text-sm font-semibold tracking-normal">
+                          {task.inviteCode}
+                        </div>
+                      </div>
+                      {(timerState || task.startDate || task.endDate) && (
+                        <div className="grid w-full min-w-0 gap-2 rounded-lg border border-border/70 bg-muted/35 p-3 text-sm">
+                          {timerState && (
+                            <div className="flex min-w-0 items-start gap-2">
+                              <CalendarClock className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
+                              <div className="min-w-0 flex-1">
+                                <p className="humanly-eyebrow">
+                                  {timerState.label}
+                                </p>
+                                <p className="font-semibold">{timerState.value}</p>
+                                <p className="text-xs text-muted-foreground">{timerState.detail}</p>
+                              </div>
+                            </div>
+                          )}
+                          {task.startDate && (
+                            <div className="flex min-w-0 items-start gap-2">
+                              <CalendarClock className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
+                              <div className="min-w-0 flex-1">
+                                <p className="humanly-eyebrow">
+                                  Starts
+                                </p>
+                                <p className="break-words">{formatDateTime(task.startDate)}</p>
+                              </div>
+                            </div>
+                          )}
+                          {task.endDate && (
+                            <div className="flex min-w-0 items-start gap-2">
+                              <CalendarClock className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
+                              <div className="min-w-0 flex-1">
+                                <p className="humanly-eyebrow">
+                                  Deadline
+                                </p>
+                                <p className="break-words">{formatDateTime(task.endDate)}</p>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       )}
-                      {task.endDate && (
-                        <div className="flex items-start gap-2">
-                          <CalendarClock className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-                          <div className="min-w-0">
-                            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                              Deadline
-                            </p>
-                            <p className="break-words">{formatDateTime(task.endDate)}</p>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  <div className="flex-1" />
-                  <div className="flex gap-2">
-                    <Button className="flex-1" onClick={() => router.push(`/documents/${task.documentId}`)}>
-                      Open Submission
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      title="Delete task submission"
-                      onClick={() => setTaskToDelete(task)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-            })}
-          </div>
-        </section>
-      )}
-
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <div>
-          <h2 className="text-xl font-semibold tracking-tight">My Documents</h2>
-          <p className="text-sm text-muted-foreground">
-            {personalDocuments.length} personal/private {personalDocuments.length === 1 ? 'document' : 'documents'}
-          </p>
-        </div>
-        <Select value={sortBy} onValueChange={(value) => setSortBy(value as SortOption)}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Sort by" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="lastEdited">Last edited</SelectItem>
-            <SelectItem value="title">Title</SelectItem>
-            <SelectItem value="wordCount">Word count</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      {personalDocuments.length === 0 ? (
-        <div className="flex min-h-[400px] flex-col items-center justify-center rounded-lg border-2 border-dashed">
-          <FileText className="h-12 w-12 text-muted-foreground" />
-          <h3 className="mt-4 text-lg font-semibold">No documents yet</h3>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Get started by creating your first document
-          </p>
-          <Button className="mt-4" onClick={() => router.push('/documents/new')}>
-            <Plus className="mr-2 h-4 w-4" />
-            Create Document
-          </Button>
-        </div>
-      ) : (
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {personalDocuments.map((document) => (
-            <DocumentCard
-              key={document.id}
-              document={document}
-              onDelete={handleDeleteDocument}
-            />
-          ))}
-        </div>
-      )}
+                      <div className="flex-1" />
+                      <div className="flex w-full min-w-0 gap-2">
+                        <Button className="min-w-0 flex-1" onClick={() => router.push(`/documents/${task.documentId}`)}>
+                          {timerState?.expired ? 'Open Read-only' : 'Open Submission'}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="shrink-0"
+                          title="Delete task submission"
+                          onClick={() => setTaskToDelete(task)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
 
       <AlertDialog open={!!taskToDelete} onOpenChange={(open) => !open && setTaskToDelete(null)}>
         <AlertDialogContent>

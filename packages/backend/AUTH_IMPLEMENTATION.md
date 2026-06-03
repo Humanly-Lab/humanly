@@ -247,6 +247,57 @@ Authorization: Bearer <access-token>
 }
 ```
 
+### PATCH /me
+Update the current user's basic profile.
+
+**Headers:**
+```
+Authorization: Bearer <access-token>
+```
+
+**Request Body:**
+```json
+{
+  "name": "Alice Writer"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "user": {
+      "id": "uuid",
+      "email": "user@example.com",
+      "name": "Alice Writer",
+      "profileCompleted": true,
+      "emailVerified": true,
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "updatedAt": "2024-01-01T00:00:00.000Z"
+    }
+  }
+}
+```
+
+### DELETE /me
+Delete the current authenticated user account.
+
+**Headers:**
+```
+Authorization: Bearer <access-token>
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Account deleted successfully"
+}
+```
+
+**Side Effects:** All refresh tokens are revoked, auth cookies are cleared, physical file objects owned by the account are removed best-effort, and the user row is deleted with current account-owned data using existing cascades plus explicit cleanup for non-cascading peer-review references.
+
 ## Security Features
 
 ### Password Security
@@ -590,9 +641,8 @@ Potential improvements for the authentication system:
 5. **Password Strength Meter**: Client-side password strength indicator
 6. **Remember Me**: Longer-lived refresh tokens for trusted devices
 7. **Email Change Flow**: Verify new email before updating
-8. **Account Deletion**: Self-service account deletion
-9. **Audit Logs**: Track all authentication events
-10. **Suspicious Activity Detection**: Alert on unusual login patterns
+8. **Audit Logs**: Track all authentication events
+9. **Suspicious Activity Detection**: Alert on unusual login patterns
 
 ## Troubleshooting
 

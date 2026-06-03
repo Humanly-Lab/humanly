@@ -8,7 +8,7 @@ import {
   validateExternalUserId,
 } from '../middleware/tracking.middleware';
 
-const router = Router();
+const router: Router = Router();
 
 /**
  * Public tracking endpoints

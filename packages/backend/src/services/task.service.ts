@@ -10,16 +10,237 @@ import { SessionModel } from '../models/session.model';
 import { SubmissionModel } from '../models/submission.model';
 import { CertificateModel } from '../models/certificate.model';
 import { DocumentEventModel } from '../models/document-event.model';
+import { AIModel } from '../models/ai.model';
+import { FileModel } from '../models/file.model';
+import { UserModel } from '../models/user.model';
+import { RefreshTokenModel } from '../models/refresh-token.model';
 import { CertificateService } from './certificate.service';
-import { Task, TaskWithSnippets, BRAND, getTrackerComment, getIframeComment } from '@humanly/shared';
+import type { AppFile, Document, Task, TaskWithSnippets, User } from '@humanly/shared';
+import {
+  BRAND,
+  TASK_START_DATE_PAST_ERROR_MESSAGE,
+  getIframeComment,
+  getTrackerComment,
+  isTaskStartDateTooFarInPast,
+} from '@humanly/shared';
 import { AppError } from '../middleware/error-handler';
 import { logger } from '../utils/logger';
 import { env } from '../config/env';
 import { cacheDelPattern } from '../config/redis';
+import { FileStorageService } from './file-storage.service';
+import { buildDocumentEventTimeline } from './document-event-timeline.service';
+import { generateToken, hashPassword, hashToken } from '../utils/crypto';
+import { generateAccessToken, generateRefreshToken, TokenPayload } from '../utils/jwt';
+
+const TASK_END_DATE_ERROR_MESSAGE = 'Task end date must be after start date';
+
+const getDateMs = (value: Date | string | number): number => new Date(value).getTime();
+
+const areDatesInSameMinute = (
+  left: Date | string | number,
+  right: Date | string | number
+): boolean => {
+  const leftMs = getDateMs(left);
+  const rightMs = getDateMs(right);
+
+  if (!Number.isFinite(leftMs) || !Number.isFinite(rightMs)) {
+    return false;
+  }
+
+  return Math.floor(leftMs / 60_000) === Math.floor(rightMs / 60_000);
+};
+
+const assertTaskStartDateNotInPast = (startDate: Date | string | number): void => {
+  if (isTaskStartDateTooFarInPast(startDate)) {
+    throw new AppError(400, TASK_START_DATE_PAST_ERROR_MESSAGE);
+  }
+};
+
+const assertTaskEndDateAfterStartDate = (
+  startDate: Date | string | number,
+  endDate: Date | string | number
+): void => {
+  const startMs = getDateMs(startDate);
+  const endMs = getDateMs(endDate);
+
+  if (Number.isFinite(startMs) && Number.isFinite(endMs) && endMs <= startMs) {
+    throw new AppError(400, TASK_END_DATE_ERROR_MESSAGE);
+  }
+};
+
+const getMinimumSubmissionCharacters = (task: Task): number | null => {
+  const configuredMinimum = (task.environmentConfig?.submission as { minCharacters?: number } | undefined)?.minCharacters;
+  if (!Number.isFinite(configuredMinimum) || !configuredMinimum) return null;
+
+  return Math.max(1, Math.floor(configuredMinimum));
+};
+
+const getMaximumSubmissionCharacters = (task: Task): number | null => {
+  const configuredMaximum = (task.environmentConfig?.submission as { maxCharacters?: number } | undefined)?.maxCharacters;
+  if (!Number.isFinite(configuredMaximum) || !configuredMaximum) return null;
+
+  return Math.max(1, Math.floor(configuredMaximum));
+};
+
+const getDocumentCharacterCount = (document: Document): number => {
+  if (Number.isFinite(document.characterCount) && document.characterCount >= 0) {
+    return document.characterCount;
+  }
+
+  return (document.plainText || '').length;
+};
+
+const assertSubmissionCharacterBounds = (task: Task, actualCharacters: number): void => {
+  const minimumCharacters = getMinimumSubmissionCharacters(task);
+  if (minimumCharacters && actualCharacters < minimumCharacters) {
+    throw new AppError(
+      400,
+      `Submission must be at least ${minimumCharacters.toLocaleString()} characters. Current length is ${actualCharacters.toLocaleString()} characters.`
+    );
+  }
+
+  const maximumCharacters = getMaximumSubmissionCharacters(task);
+  if (maximumCharacters && actualCharacters > maximumCharacters) {
+    throw new AppError(
+      400,
+      `Submission must be at most ${maximumCharacters.toLocaleString()} characters. Current length is ${actualCharacters.toLocaleString()} characters.`
+    );
+  }
+};
+
+const normalizePublicSessionId = (value?: string): string => {
+  const normalized = (value || '').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
+  return normalized.slice(0, 64) || generateToken(16);
+};
+
+const sanitizeDocumentTitlePart = (value?: string): string => {
+  return (value || '').trim().replace(/\s+/g, ' ').slice(0, 80);
+};
+
+const createLexicalContentFromPlainText = (plainText: string) => {
+  const paragraphs = plainText
+    .replace(/\r\n/g, '\n')
+    .split(/\n{2,}/)
+    .map((paragraph) => paragraph.trim())
+    .filter(Boolean);
+
+  const paragraphNodes = (paragraphs.length ? paragraphs : ['']).map((paragraph) => ({
+    children: [
+      {
+        detail: 0,
+        format: 0,
+        mode: 'normal',
+        style: '',
+        text: paragraph,
+        type: 'text',
+        version: 1,
+      },
+    ],
+    direction: 'ltr',
+    format: '',
+    indent: 0,
+    type: 'paragraph',
+    version: 1,
+  }));
+
+  return {
+    root: {
+      children: paragraphNodes,
+      direction: 'ltr',
+      format: '',
+      indent: 0,
+      type: 'root',
+      version: 1,
+    },
+  };
+};
+
+export interface PublicTaskStartData {
+  sessionId?: string;
+  mode?: 'guest' | 'signed-in';
+}
+
+export interface PublicTaskAuthenticatedUser {
+  userId: string;
+}
+
+export interface SubmitTaskDocumentOptions {
+  allowAfterDeadline?: boolean;
+  bypassCharacterBounds?: boolean;
+  skipIfAlreadySubmitted?: boolean;
+  source?: 'manual' | 'time_limit_auto';
+}
 
 export class TaskService {
   private static async invalidateAnalytics(taskId: string): Promise<void> {
     await cacheDelPattern(`analytics:${taskId}:*`);
+  }
+
+  private static assertTaskAcceptsPublicWriters(task: Task): void {
+    const now = new Date();
+    const startDate = new Date(task.startDate);
+    const endDate = new Date(task.endDate);
+
+    if (now < startDate) {
+      throw new AppError(400, 'This task is not open for submissions yet');
+    }
+    if (now > endDate) {
+      throw new AppError(400, 'The submission deadline has passed');
+    }
+  }
+
+	  private static toPublicUser(user: User | (User & { passwordHash?: string })): User {
+	    return {
+	      id: user.id,
+	      email: user.email,
+	      role: user.role,
+	      name: user.name || null,
+	      firstName: user.firstName || null,
+	      lastName: user.lastName || null,
+	      profileCompleted: user.profileCompleted,
+	      emailVerified: user.emailVerified,
+	      createdAt: user.createdAt,
+	      updatedAt: user.updatedAt,
+    };
+  }
+
+  private static async getOrCreatePublicGuestUser(task: Task, publicSessionId: string): Promise<User> {
+    const guestEmail = `public-${task.id.slice(0, 8)}-${publicSessionId}@guest.humanly.local`;
+    const existingGuest = await UserModel.findByEmail(guestEmail);
+
+    if (existingGuest) {
+      return this.toPublicUser(existingGuest);
+    }
+
+	    return UserModel.create({
+	      email: guestEmail,
+	      passwordHash: await hashPassword(generateToken(32)),
+	      firstName: 'guest',
+	      lastName: 'user',
+	      role: 'user',
+	      emailVerificationToken: generateToken(16),
+	      emailVerificationExpires: new Date(Date.now() + 24 * 60 * 60 * 1000),
+	    });
+  }
+
+  private static async issuePublicGuestTokens(user: User): Promise<{
+    accessToken: string;
+    refreshToken: string;
+  }> {
+    const payload: TokenPayload = {
+      userId: user.id,
+      email: user.email,
+      role: user.role,
+    };
+
+    const accessToken = generateAccessToken(payload);
+    const refreshToken = generateRefreshToken(payload);
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+    await RefreshTokenModel.create(user.id, hashToken(refreshToken), expiresAt);
+    await RefreshTokenModel.deleteExpired();
+
+    return { accessToken, refreshToken };
   }
 
   /**
@@ -31,6 +252,9 @@ export class TaskService {
   ): Promise<TaskWithSnippets> {
     try {
       logger.info('Creating task', { userId, taskName: data.name });
+
+      assertTaskStartDateNotInPast(data.startDate);
+      assertTaskEndDateAfterStartDate(data.startDate, data.endDate);
 
       const task = await TaskModel.create(userId, data);
 
@@ -92,6 +316,20 @@ export class TaskService {
       trackingSnippet,
       iframeSnippet,
     };
+  }
+
+  /**
+   * Get a public task by full share token without requiring an account.
+   */
+  static async getPublicTask(taskToken: string): Promise<Task> {
+    const token = taskToken.trim();
+    const task = await TaskModel.findByToken(token);
+
+    if (!task) {
+      throw new AppError(404, 'Task link not found or inactive');
+    }
+
+    return task;
   }
 
   /**
@@ -291,7 +529,9 @@ export class TaskService {
   static async submitTaskDocument(
     taskIdOrInviteCode: string,
     userId: string,
-    documentId: string
+    documentId: string,
+    userEmail?: string,
+    options: SubmitTaskDocumentOptions = {}
   ) {
     const normalizedIdentifier = taskIdOrInviteCode.trim();
     const task = /^[A-Z0-9]{6}$/i.test(normalizedIdentifier)
@@ -308,7 +548,7 @@ export class TaskService {
     if (now < startDate) {
       throw new AppError(400, 'This task is not open for submissions yet');
     }
-    if (now > endDate) {
+    if (now > endDate && !options.allowAfterDeadline) {
       throw new AppError(400, 'The submission deadline has passed');
     }
 
@@ -317,9 +557,25 @@ export class TaskService {
       throw new AppError(403, 'Access denied to this task');
     }
 
+    if (options.skipIfAlreadySubmitted) {
+      const activeSubmission = await SubmissionModel.findActiveForUserTask(task.id, userId);
+      if (activeSubmission) {
+        return {
+          submission: activeSubmission,
+          certificate: null,
+          skipped: true as const,
+          reason: 'already_submitted',
+        };
+      }
+    }
+
     const document = await DocumentModel.findByIdAndUserId(documentId, userId);
     if (!document) {
       throw new AppError(404, 'Document not found or unauthorized');
+    }
+
+    if (!options.bypassCharacterBounds) {
+      assertSubmissionCharacterBounds(task, getDocumentCharacterCount(document));
     }
 
     await TaskModel.linkSubmissionDocument(task.id, userId, documentId);
@@ -346,11 +602,171 @@ export class TaskService {
     });
 
     const submissionWithCertificate = await SubmissionModel.attachCertificate(submission.id, certificate.id);
+
+    if (userEmail) {
+      await SessionModel.markLatestSubmittedForTaskUser(task.id, userEmail);
+    }
+
     await this.invalidateAnalytics(task.id);
 
     return {
       submission: submissionWithCertificate || submission,
       certificate,
+      skipped: false as const,
+    };
+  }
+
+  /**
+   * Server-side timed task auto-submission.
+   *
+   * This is the durable GCP path: timers are derived from persisted
+   * documents.writing_started_at and task environment_config, so browser exit
+   * or refresh cannot reset or cancel the countdown.
+   */
+  static async autoSubmitExpiredTimedTaskEnrollments(limit = 25) {
+    const claimedEnrollments = await TaskModel.claimExpiredTimedEnrollments(limit);
+    let submitted = 0;
+    let skipped = 0;
+    let failed = 0;
+
+    for (const enrollment of claimedEnrollments) {
+      try {
+        const result = await this.submitTaskDocument(
+          enrollment.taskId,
+          enrollment.userId,
+          enrollment.documentId,
+          enrollment.userEmail,
+          {
+            allowAfterDeadline: true,
+            bypassCharacterBounds: true,
+            skipIfAlreadySubmitted: true,
+            source: 'time_limit_auto',
+          }
+        );
+
+        await TaskModel.markTimedEnrollmentAutoSubmitComplete(enrollment.enrollmentId);
+
+        if (result.skipped) {
+          skipped += 1;
+        } else {
+          submitted += 1;
+        }
+      } catch (error: any) {
+        failed += 1;
+        const message = error?.message || 'Failed to auto-submit timed task';
+        await TaskModel.markTimedEnrollmentAutoSubmitFailed(enrollment.enrollmentId, message);
+        logger.warn('Timed task auto-submit failed', {
+          enrollmentId: enrollment.enrollmentId,
+          taskId: enrollment.taskId,
+          userId: enrollment.userId,
+          documentId: enrollment.documentId,
+          error: message,
+        });
+      }
+    }
+
+    return {
+      claimed: claimedEnrollments.length,
+      submitted,
+      skipped,
+      failed,
+    };
+  }
+
+  /**
+   * Start a public share-link writing session in the normal Humanly editor.
+   *
+   * Signed-in users are enrolled directly so their normal certificate route
+   * keeps working. Anonymous browser sessions still map to synthetic guest users
+   * and receive standard auth tokens so the existing editor flow can run
+   * unchanged.
+   */
+  static async startPublicTaskDocument(
+    taskToken: string,
+    data: PublicTaskStartData = {},
+    authenticatedUser?: PublicTaskAuthenticatedUser
+  ) {
+    const task = await this.getPublicTask(taskToken);
+    this.assertTaskAcceptsPublicWriters(task);
+
+    const publicSessionId = normalizePublicSessionId(data.sessionId);
+    const requestedMode = data.mode || (authenticatedUser ? 'signed-in' : 'guest');
+    const signedInUser = requestedMode === 'signed-in' && authenticatedUser
+      ? await UserModel.findById(authenticatedUser.userId)
+      : null;
+
+    if (requestedMode === 'signed-in' && !authenticatedUser) {
+      throw new AppError(401, 'Sign in is required to start this task link');
+    }
+
+    if (requestedMode === 'signed-in' && authenticatedUser && !signedInUser) {
+      throw new AppError(401, 'Authentication required');
+    }
+
+    const isGuestMode = requestedMode === 'guest';
+    if (isGuestMode && task.allowGuestSubmissions === false) {
+      throw new AppError(403, 'Guest submissions are not enabled for this task link');
+    }
+
+    const participantUser = signedInUser || (await this.getOrCreatePublicGuestUser(task, publicSessionId));
+
+    await TaskModel.enrollUser(task.id, participantUser.id);
+
+    const enrollment = await TaskModel.findEnrollmentForUserTask(task.id, participantUser.id);
+    if (!enrollment) {
+      throw new AppError(500, 'Failed to create task enrollment');
+    }
+
+    let document = enrollment.documentId
+      ? await DocumentModel.findByIdAndUserId(enrollment.documentId, participantUser.id)
+      : null;
+
+    if (!document) {
+      const titleSuffix = isGuestMode
+        ? `Guest ${publicSessionId.slice(0, 8)}`
+        : sanitizeDocumentTitlePart(participantUser.email) || 'Signed-in writer';
+      const content = createLexicalContentFromPlainText('');
+
+      document = await DocumentModel.create({
+        userId: participantUser.id,
+        title: `${task.name} Submission - ${titleSuffix}`,
+        description: isGuestMode
+          ? 'Public task share-link document.'
+          : 'Public task share-link document opened by a signed-in user.',
+        content,
+        plainText: '',
+        status: 'draft',
+        wordCount: 0,
+        characterCount: 0,
+        environmentConfig: task.environmentConfig || null,
+      });
+
+      await TaskModel.linkSubmissionDocument(task.id, participantUser.id, document.id);
+    }
+
+    const tokens = isGuestMode
+      ? await this.issuePublicGuestTokens(participantUser)
+      : null;
+    await this.invalidateAnalytics(task.id);
+
+    return {
+      user: participantUser,
+      mode: isGuestMode ? 'guest' as const : 'signed-in' as const,
+      accessToken: tokens?.accessToken,
+      refreshToken: tokens?.refreshToken,
+      task: {
+        id: task.id,
+        name: task.name,
+        description: task.description,
+        startDate: task.startDate,
+        endDate: task.endDate,
+        environmentConfig: task.environmentConfig,
+      },
+      document: {
+        id: document.id,
+        title: document.title,
+      },
+      publicSessionId,
     };
   }
 
@@ -388,16 +804,32 @@ export class TaskService {
       throw new AppError(404, 'Submission not found');
     }
 
-    const events = await DocumentEventModel.findByDocumentId(submission.documentId, {
+    const eventFilters = {
       endDate: new Date(submission.submittedAt),
       limit: 5000,
       offset: 0,
-    });
+    };
+
+    const [events, totalEvents, aiLogsResult] = await Promise.all([
+      DocumentEventModel.findByDocumentId(submission.documentId, eventFilters),
+      DocumentEventModel.countByDocumentIdWithFilters(submission.documentId, eventFilters),
+      AIModel.getLogs({
+        documentId: submission.documentId,
+        userId: submission.userId,
+        endDate: new Date(submission.submittedAt),
+        limit: 50,
+        offset: 0,
+      }),
+    ]);
+
+    const timeline = buildDocumentEventTimeline(events, totalEvents);
 
     return {
       submission,
       events: events.reverse(),
-      totalEvents: events.length,
+      totalEvents,
+      timeline,
+      aiLogs: aiLogsResult.logs,
     };
   }
 
@@ -418,6 +850,14 @@ export class TaskService {
     if (task.userId !== userId) {
       throw new AppError(403, 'Access denied to this task');
     }
+
+    const nextStartDate = data.startDate ?? task.startDate;
+    const nextEndDate = data.endDate ?? task.endDate;
+
+    if (data.startDate && !areDatesInSameMinute(data.startDate, task.startDate)) {
+      assertTaskStartDateNotInPast(data.startDate);
+    }
+    assertTaskEndDateAfterStartDate(nextStartDate, nextEndDate);
 
     logger.info('Updating task', { taskId, userId });
 
@@ -448,10 +888,39 @@ export class TaskService {
 
     logger.info('Deleting task', { taskId, userId });
 
+    const files = await FileModel.findByTask(taskId);
+
     await this.invalidateAnalytics(taskId);
     await TaskModel.delete(taskId);
+    await this.deleteTaskFileStorage(taskId, userId, files);
 
     logger.info('Task deleted successfully', { taskId, userId });
+  }
+
+  private static async deleteTaskFileStorage(
+    taskId: string,
+    userId: string,
+    files: AppFile[]
+  ): Promise<void> {
+    await Promise.all(
+      files
+        .filter((file) => !file.legacySourceId)
+        .map(async (file) => {
+          try {
+            await FileStorageService.delete(file);
+          } catch (error) {
+            logger.error('Failed to delete task file storage object', {
+              error,
+              taskId,
+              userId,
+              fileId: file.id,
+              storageProvider: file.storageProvider,
+              storageBucket: file.storageBucket,
+              storageKey: file.storageKey,
+            });
+          }
+        })
+    );
   }
 
   /**

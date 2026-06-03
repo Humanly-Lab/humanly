@@ -31,12 +31,25 @@ psql_scalar() {
   psql_exec -At "$@"
 }
 
+legacy_review_tables_retired() {
+  psql_scalar -c "SELECT EXISTS (SELECT 1 FROM schema_migrations WHERE filename = '022_drop_legacy_review_tables.sql') OR (
+    to_regclass('public.papers') IS NULL
+    AND to_regclass('public.reviews') IS NULL
+    AND to_regclass('public.paper_pages') IS NULL
+    AND to_regclass('public.paper_text_chunks') IS NULL
+  );"
+}
+
 migration_presence() {
   local filename="$1"
 
   case "$filename" in
     006-paper-document-link.sql)
-      psql_scalar -c "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'papers' AND column_name = 'document_id');"
+      if [[ "$(legacy_review_tables_retired)" == "t" ]]; then
+        echo "t"
+      else
+        psql_scalar -c "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'papers' AND column_name = 'document_id');"
+      fi
       ;;
     007_ai_authorship_statistics.sql)
       psql_scalar -c "SELECT to_regclass('public.ai_selection_actions') IS NOT NULL AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'ai_interaction_logs' AND column_name = 'question_category');"
@@ -45,7 +58,11 @@ migration_presence() {
       psql_scalar -c "SELECT to_regclass('public.user_ai_settings') IS NOT NULL;"
       ;;
     010_paper_text_retrieval.sql)
-      psql_scalar -c "SELECT to_regclass('public.paper_pages') IS NOT NULL AND to_regclass('public.paper_sections') IS NOT NULL AND to_regclass('public.paper_text_chunks') IS NOT NULL;"
+      if [[ "$(legacy_review_tables_retired)" == "t" ]]; then
+        echo "t"
+      else
+        psql_scalar -c "SELECT to_regclass('public.paper_pages') IS NOT NULL AND to_regclass('public.paper_sections') IS NOT NULL AND to_regclass('public.paper_text_chunks') IS NOT NULL;"
+      fi
       ;;
     011_user_roles.sql)
       psql_scalar -c "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'users' AND column_name = 'role');"
@@ -80,6 +97,42 @@ migration_presence() {
     021_gcs_file_storage.sql)
       psql_scalar -c "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'files' AND column_name = 'storage_bucket') AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'files' AND column_name = 'storage_etag') AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'files' AND column_name = 'upload_status');"
       ;;
+    022_drop_legacy_review_tables.sql)
+      legacy_review_tables_retired
+      ;;
+    023_ai_chat_session_capabilities.sql)
+      psql_scalar -c "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'ai_chat_sessions' AND column_name = 'model_version') AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'ai_chat_sessions' AND column_name = 'model_capabilities');"
+      ;;
+    024_chat_image_attachments_ownership.sql)
+      psql_scalar -c "SELECT to_regclass('public.ai_chat_attachments') IS NOT NULL;"
+      ;;
+    025_chat_image_attachment_storage_locator.sql)
+      psql_scalar -c "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'ai_chat_attachments' AND column_name = 'storage_provider') AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'ai_chat_attachments' AND column_name = 'storage_bucket');"
+      ;;
+    026_chat_image_attachment_db_fallback.sql)
+      psql_scalar -c "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'ai_chat_attachments' AND column_name = 'image_bytes');"
+      ;;
+    027_analytics_query_indexes.sql)
+      psql_scalar -c "SELECT to_regclass('public.idx_sessions_task_user_start') IS NOT NULL AND to_regclass('public.idx_sessions_task_start') IS NOT NULL AND to_regclass('public.idx_document_events_session_timestamp') IS NOT NULL AND to_regclass('public.idx_document_events_unlinked_doc_user_created') IS NOT NULL AND to_regclass('public.idx_task_enrollments_task_user') IS NOT NULL AND to_regclass('public.idx_submissions_task_submitted_at') IS NOT NULL;"
+      ;;
+    028_user_ai_token_budget.sql)
+      psql_scalar -c "SELECT (
+        EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'user_ai_settings' AND column_name = 'response_max_tokens')
+        AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'user_ai_settings' AND column_name = 'agent_max_tokens')
+      ) OR (
+        EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'user_ai_settings' AND column_name = 'shortcut_max_tokens')
+        AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'user_ai_settings' AND column_name = 'chat_max_tokens')
+      );"
+      ;;
+    029_rename_ai_token_budget_columns.sql)
+      psql_scalar -c "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'user_ai_settings' AND column_name = 'shortcut_max_tokens') AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'user_ai_settings' AND column_name = 'chat_max_tokens');"
+      ;;
+    030_document_writing_timer.sql)
+      psql_scalar -c "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'documents' AND column_name = 'writing_started_at');"
+      ;;
+    031_task_auto_submit_tracking.sql)
+      psql_scalar -c "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'task_enrollments' AND column_name = 'auto_submit_claimed_at') AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'task_enrollments' AND column_name = 'auto_submit_completed_at') AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'task_enrollments' AND column_name = 'auto_submit_error');"
+      ;;
     *)
       echo "unknown"
       ;;
@@ -105,7 +158,10 @@ CREATE TABLE IF NOT EXISTS schema_migrations (
 );
 SQL
 
-mapfile -t migration_files < <(find "$MIGRATIONS_DIR" -maxdepth 1 -type f -name '*.sql' | sort)
+migration_files=()
+while IFS= read -r file; do
+  migration_files+=("$file")
+done < <(find "$MIGRATIONS_DIR" -maxdepth 1 -type f -name '*.sql' | sort)
 
 if [[ "${#migration_files[@]}" -eq 0 ]]; then
   echo "==> No migration files found"

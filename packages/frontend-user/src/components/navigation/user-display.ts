@@ -15,9 +15,9 @@ export function getUserDisplayLabel(user?: Pick<User, 'email' | 'name' | 'firstN
     return 'guest';
   }
 
-  const fullName = [user.firstName?.trim(), user.lastName?.trim()]
-    .filter(Boolean)
-    .join(' ');
+  const firstName = user.firstName?.trim();
+  const lastName = user.lastName?.trim();
+  const fullName = firstName && lastName ? `${firstName} ${lastName}` : '';
 
   return fullName || user.name?.trim() || user.email || 'Account';
 }

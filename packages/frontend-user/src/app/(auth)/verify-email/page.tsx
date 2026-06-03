@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Loader2, CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
+import { Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth-store';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -12,6 +12,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
 type VerificationState = 'idle' | 'loading' | 'success' | 'error';
+
+const getSafeNextPath = (value: string | null) => (
+  value && value.startsWith('/') && !value.startsWith('//') ? value : '/documents'
+);
 
 export default function VerifyEmailPage() {
   const searchParams = useSearchParams();
@@ -26,6 +30,10 @@ export default function VerifyEmailPage() {
   const [userEmail, setUserEmail] = useState<string>('');
 
   const emailParam = searchParams.get('email');
+  const safeNext = getSafeNextPath(searchParams.get('next'));
+  const loginHref = safeNext === '/documents'
+    ? '/login'
+    : `/login?next=${encodeURIComponent(safeNext)}`;
 
   useEffect(() => {
     // Get email from URL param, user state, or localStorage
@@ -58,7 +66,7 @@ export default function VerifyEmailPage() {
       
       // Redirect to login after 2 seconds
       setTimeout(() => {
-        router.push('/login');
+        router.push(loginHref);
       }, 2000);
     } catch (error: any) {
       setState('error');
@@ -105,8 +113,8 @@ export default function VerifyEmailPage() {
       return (
         <Card>
           <CardHeader className="text-center">
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900">
-              <Loader2 className="h-6 w-6 animate-spin text-blue-600 dark:text-blue-400" />
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-lg border border-border/70 bg-muted/40">
+              <Loader2 className="h-6 w-6 animate-spin text-accent" />
             </div>
             <CardTitle>Verifying Your Email</CardTitle>
             <CardDescription>
@@ -121,8 +129,8 @@ export default function VerifyEmailPage() {
       return (
         <Card>
           <CardHeader className="text-center">
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-green-100 dark:bg-green-900">
-              <CheckCircle2 className="h-6 w-6 text-green-600 dark:text-green-400" />
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-lg border border-border/70 bg-[#eef3ed]">
+              <CheckCircle2 className="h-6 w-6 text-[#58715f]" />
             </div>
             <CardTitle>Email Verified!</CardTitle>
             <CardDescription>
@@ -140,7 +148,7 @@ export default function VerifyEmailPage() {
           </CardContent>
           <CardFooter className="flex flex-col gap-2">
             <Button asChild className="w-full">
-              <Link href="/login">Continue to Login</Link>
+              <Link href={loginHref}>Continue to Login</Link>
             </Button>
           </CardFooter>
         </Card>
@@ -186,7 +194,7 @@ export default function VerifyEmailPage() {
                 value={code}
                 onChange={handleCodeChange}
                 maxLength={6}
-                className="text-center text-2xl tracking-widest font-mono"
+                className="text-center text-2xl tracking-normal"
                 autoComplete="one-time-code"
                 autoFocus
               />
@@ -213,7 +221,7 @@ export default function VerifyEmailPage() {
         </CardContent>
         <CardFooter className="flex flex-col gap-2">
           <div className="text-sm text-muted-foreground text-center">
-            Didn't receive the code?
+            Did not receive the code?
           </div>
           <Button
             onClick={handleResend}
@@ -231,7 +239,7 @@ export default function VerifyEmailPage() {
             )}
           </Button>
           <Button asChild variant="ghost" className="w-full">
-            <Link href="/login">Back to Login</Link>
+            <Link href={loginHref}>Back to Login</Link>
           </Button>
         </CardFooter>
       </Card>

@@ -10,6 +10,8 @@
 jest.mock('../../models/user.model');
 jest.mock('../../models/refresh-token.model');
 jest.mock('../../models/user-ai-settings.model');
+jest.mock('../../models/file.model');
+jest.mock('../../services/file-storage.service');
 jest.mock('../../services/email.service', () => ({
   emailService: {
     sendVerificationEmail: jest.fn().mockResolvedValue(undefined),
@@ -24,14 +26,21 @@ jest.mock('../../utils/logger', () => ({
 // ── Imports ───────────────────────────────────────────────────────────────────
 
 import { AuthService } from '../../services/auth.service';
+import { emailService } from '../../services/email.service';
 import { UserModel } from '../../models/user.model';
 import { RefreshTokenModel } from '../../models/refresh-token.model';
 import { UserAISettingsModel } from '../../models/user-ai-settings.model';
+import { FileModel } from '../../models/file.model';
+import { FileStorageService } from '../../services/file-storage.service';
 import { hashPassword } from '../../utils/crypto';
+import { PASSWORD_RESET_TOKEN_TTL_MS } from '../../constants/auth';
 
 const MockUserModel = UserModel as jest.Mocked<typeof UserModel>;
 const MockRefreshTokenModel = RefreshTokenModel as jest.Mocked<typeof RefreshTokenModel>;
 const MockUserAISettingsModel = UserAISettingsModel as jest.Mocked<typeof UserAISettingsModel>;
+const MockFileModel = FileModel as jest.Mocked<typeof FileModel>;
+const MockFileStorageService = FileStorageService as jest.Mocked<typeof FileStorageService>;
+const MockEmailService = emailService as jest.Mocked<typeof emailService>;
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -112,7 +121,7 @@ describe('AuthService.register', () => {
 
   it('initializes default AI settings for new users when a default key is configured', async () => {
     process.env.DEFAULT_AI_API_KEY = 'prof-key';
-    process.env.DEFAULT_AI_MODEL = 'gpt-4o-mini';
+    process.env.DEFAULT_AI_MODEL = 'gpt-5.4-mini';
     process.env.DEFAULT_AI_BASE_URL = 'https://api.openai.com/v1';
 
     MockUserModel.findByEmail.mockResolvedValue(null);
@@ -126,7 +135,7 @@ describe('AuthService.register', () => {
       user.id,
       'prof-key',
       'https://api.openai.com/v1',
-      'gpt-4o-mini'
+      'gpt-5.4-mini'
     );
   });
 
@@ -190,6 +199,43 @@ describe('AuthService.login', () => {
     expect(result.refreshToken).toBeTruthy();
   });
 
+  it('allows an admin account to authenticate through the user portal', async () => {
+    const userWithPw = await makeUserWithPassword({ role: 'admin' });
+    MockUserModel.findByEmail.mockResolvedValue(userWithPw as any);
+    MockRefreshTokenModel.create.mockResolvedValue({} as any);
+    MockRefreshTokenModel.deleteExpired.mockResolvedValue(undefined);
+
+    const result = await AuthService.login('alice@example.com', 'password123', 'user');
+
+    expect(result.user.role).toBe('admin');
+    expect(result.accessToken).toBeTruthy();
+    expect(result.refreshToken).toBeTruthy();
+  });
+
+  it('allows an admin account to authenticate through the admin portal', async () => {
+    const userWithPw = await makeUserWithPassword({ role: 'admin' });
+    MockUserModel.findByEmail.mockResolvedValue(userWithPw as any);
+    MockRefreshTokenModel.create.mockResolvedValue({} as any);
+    MockRefreshTokenModel.deleteExpired.mockResolvedValue(undefined);
+
+    const result = await AuthService.login('alice@example.com', 'password123', 'admin');
+
+    expect(result.user.role).toBe('admin');
+  });
+
+  it('allows a user account to authenticate through the admin portal', async () => {
+    const userWithPw = await makeUserWithPassword({ role: 'user' });
+    MockUserModel.findByEmail.mockResolvedValue(userWithPw as any);
+    MockRefreshTokenModel.create.mockResolvedValue({} as any);
+    MockRefreshTokenModel.deleteExpired.mockResolvedValue(undefined);
+
+    const result = await AuthService.login('alice@example.com', 'password123', 'admin');
+
+    expect(result.user.role).toBe('user');
+    expect(result.accessToken).toBeTruthy();
+    expect(result.refreshToken).toBeTruthy();
+  });
+
   it('throws 401 when user does not exist', async () => {
     MockUserModel.findByEmail.mockResolvedValue(null);
     await expect(AuthService.login('x@x.com', 'pass')).rejects.toMatchObject({
@@ -203,6 +249,145 @@ describe('AuthService.login', () => {
     await expect(AuthService.login('alice@example.com', 'wrongpass')).rejects.toMatchObject({
       statusCode: 401,
     });
+  });
+
+  it('throws 403 when email has not been verified', async () => {
+    const userWithPw = await makeUserWithPassword({ emailVerified: false });
+    MockUserModel.findByEmail.mockResolvedValue(userWithPw as any);
+
+    await expect(AuthService.login('alice@example.com', 'password123')).rejects.toMatchObject({
+      statusCode: 403,
+      message: 'Please verify your email before logging in',
+    });
+
+    expect(MockRefreshTokenModel.create).not.toHaveBeenCalled();
+  });
+});
+
+// ── loginWithOAuth ───────────────────────────────────────────────────────────
+
+describe('AuthService.loginWithOAuth', () => {
+  it('creates a verified user, links the provider account, and returns tokens', async () => {
+    delete process.env.DEFAULT_AI_API_KEY;
+    delete process.env.AI_API_KEY;
+    MockUserModel.findByOAuthAccount.mockResolvedValue(null);
+    MockUserModel.findByEmail.mockResolvedValue(null);
+    MockUserModel.createOAuthUser.mockResolvedValue(makeUser({ id: 'oauth-user' }) as any);
+    MockUserModel.createOAuthAccount.mockResolvedValue(undefined);
+    MockRefreshTokenModel.create.mockResolvedValue({} as any);
+    MockRefreshTokenModel.deleteExpired.mockResolvedValue(undefined);
+
+    const result = await AuthService.loginWithOAuth({
+      provider: 'google',
+      providerUserId: 'google-123',
+      email: 'alice@example.com',
+    });
+
+    expect(result.user.email).toBe('alice@example.com');
+    expect(result.accessToken).toBeTruthy();
+    expect(result.refreshToken).toBeTruthy();
+    expect(MockUserModel.createOAuthUser).toHaveBeenCalledWith(
+      expect.objectContaining({ email: 'alice@example.com', role: 'user' })
+    );
+    expect(MockUserModel.createOAuthAccount).toHaveBeenCalledWith(
+      'oauth-user',
+      expect.objectContaining({
+        provider: 'google',
+        providerUserId: 'google-123',
+        email: 'alice@example.com',
+      })
+    );
+  });
+
+  it('links an existing verified email account on first OAuth login', async () => {
+    const existingUser = await makeUserWithPassword();
+    MockUserModel.findByOAuthAccount.mockResolvedValue(null);
+    MockUserModel.findByEmail.mockResolvedValue(existingUser as any);
+    MockUserModel.createOAuthAccount.mockResolvedValue(undefined);
+    MockRefreshTokenModel.create.mockResolvedValue({} as any);
+    MockRefreshTokenModel.deleteExpired.mockResolvedValue(undefined);
+
+    const result = await AuthService.loginWithOAuth({
+      provider: 'github',
+      providerUserId: '42',
+      email: 'alice@example.com',
+    });
+
+    expect(result.user.id).toBe('user-1');
+    expect(MockUserModel.createOAuthUser).not.toHaveBeenCalled();
+    expect(MockUserModel.createOAuthAccount).toHaveBeenCalledWith(
+      'user-1',
+      expect.objectContaining({ provider: 'github', providerUserId: '42' })
+    );
+  });
+
+  it('allows an existing admin email account to OAuth login through the user portal', async () => {
+    MockUserModel.findByOAuthAccount.mockResolvedValue(null);
+    MockUserModel.findByEmail.mockResolvedValue(
+      (await makeUserWithPassword({ role: 'admin' })) as any
+    );
+    MockUserModel.createOAuthAccount.mockResolvedValue(undefined);
+    MockRefreshTokenModel.create.mockResolvedValue({} as any);
+    MockRefreshTokenModel.deleteExpired.mockResolvedValue(undefined);
+
+    const result = await AuthService.loginWithOAuth(
+      {
+        provider: 'google',
+        providerUserId: 'google-123',
+        email: 'alice@example.com',
+      },
+      'user'
+    );
+
+    expect(result.user.role).toBe('admin');
+    expect(MockUserModel.createOAuthAccount).toHaveBeenCalledWith(
+      'user-1',
+      expect.objectContaining({ provider: 'google', providerUserId: 'google-123' })
+    );
+  });
+
+  it('allows an existing user OAuth email account to login through the admin portal', async () => {
+    MockUserModel.findByOAuthAccount.mockResolvedValue(null);
+    MockUserModel.findByEmail.mockResolvedValue(
+      (await makeUserWithPassword({ role: 'user' })) as any
+    );
+    MockUserModel.createOAuthAccount.mockResolvedValue(undefined);
+    MockRefreshTokenModel.create.mockResolvedValue({} as any);
+    MockRefreshTokenModel.deleteExpired.mockResolvedValue(undefined);
+
+    const result = await AuthService.loginWithOAuth(
+      {
+        provider: 'google',
+        providerUserId: 'google-123',
+        email: 'alice@example.com',
+      },
+      'admin'
+    );
+
+    expect(result.user.role).toBe('user');
+    expect(MockUserModel.createOAuthAccount).toHaveBeenCalledWith(
+      'user-1',
+      expect.objectContaining({ provider: 'google', providerUserId: 'google-123' })
+    );
+  });
+
+  it('allows a linked user OAuth account to login through the admin portal', async () => {
+    MockUserModel.findByOAuthAccount.mockResolvedValue(
+      (await makeUserWithPassword({ role: 'user' })) as any
+    );
+    MockRefreshTokenModel.create.mockResolvedValue({} as any);
+    MockRefreshTokenModel.deleteExpired.mockResolvedValue(undefined);
+
+    const result = await AuthService.loginWithOAuth(
+      {
+        provider: 'google',
+        providerUserId: 'google-123',
+        email: 'alice@example.com',
+      },
+      'admin'
+    );
+
+    expect(result.user.role).toBe('user');
   });
 });
 
@@ -220,6 +405,45 @@ describe('AuthService.logout', () => {
     MockRefreshTokenModel.deleteByUserId.mockResolvedValue(undefined);
     await AuthService.logout('user-1');
     expect(MockRefreshTokenModel.deleteByUserId).toHaveBeenCalledWith('user-1');
+  });
+});
+
+// ── deleteCurrentUser ───────────────────────────────────────────────────────
+
+describe('AuthService.deleteCurrentUser', () => {
+  it('revokes refresh tokens and deletes the user account', async () => {
+    MockFileModel.findByOwner.mockResolvedValue([
+      {
+        id: 'file-1',
+        storageProvider: 'local',
+        storageKey: 'files/file-1.pdf',
+        storageBucket: null,
+        legacySourceId: null,
+      } as any,
+    ]);
+    MockRefreshTokenModel.deleteByUserId.mockResolvedValue(undefined);
+    MockUserModel.deleteAccount.mockResolvedValue(true);
+    MockFileStorageService.delete.mockResolvedValue(undefined);
+
+    await AuthService.deleteCurrentUser('user-1');
+
+    expect(MockFileModel.findByOwner).toHaveBeenCalledWith('user-1');
+    expect(MockRefreshTokenModel.deleteByUserId).toHaveBeenCalledWith('user-1');
+    expect(MockUserModel.deleteAccount).toHaveBeenCalledWith('user-1');
+    expect(MockFileStorageService.delete).toHaveBeenCalledWith(expect.objectContaining({
+      id: 'file-1',
+      storageKey: 'files/file-1.pdf',
+    }));
+  });
+
+  it('throws 404 when the user cannot be found', async () => {
+    MockFileModel.findByOwner.mockResolvedValue([]);
+    MockRefreshTokenModel.deleteByUserId.mockResolvedValue(undefined);
+    MockUserModel.deleteAccount.mockResolvedValue(false);
+
+    await expect(AuthService.deleteCurrentUser('missing-user')).rejects.toMatchObject({
+      statusCode: 404,
+    });
   });
 });
 
@@ -257,6 +481,23 @@ describe('AuthService.refreshToken', () => {
       statusCode: 401,
     });
   });
+
+  it('throws 403 and revokes the refresh token when the account is unverified', async () => {
+    const { generateRefreshToken } = require('../../utils/jwt');
+    const token = generateRefreshToken({ userId: 'user-1', email: 'alice@example.com' });
+
+    MockRefreshTokenModel.findByUserIdAndHash.mockResolvedValue({ id: 'rt-1' } as any);
+    MockRefreshTokenModel.deleteByHash.mockResolvedValue(undefined);
+    MockUserModel.findById.mockResolvedValue(makeUser({ emailVerified: false }) as any);
+
+    await expect(AuthService.refreshToken(token)).rejects.toMatchObject({
+      statusCode: 403,
+      message: 'Please verify your email before logging in',
+    });
+
+    expect(MockRefreshTokenModel.deleteByHash).toHaveBeenCalledTimes(1);
+    expect(MockRefreshTokenModel.create).not.toHaveBeenCalled();
+  });
 });
 
 // ── verifyEmail ───────────────────────────────────────────────────────────────
@@ -272,6 +513,10 @@ describe('AuthService.verifyEmail', () => {
 
     const result = await AuthService.verifyEmail('123456');
     expect(result.emailVerified).toBe(true);
+    expect(MockEmailService.sendWelcomeEmail).toHaveBeenCalledWith(
+      'alice@example.com',
+      'user'
+    );
   });
 
   it('throws 400 for invalid verification code', async () => {
@@ -285,7 +530,7 @@ describe('AuthService.verifyEmail', () => {
 // ── forgotPassword ────────────────────────────────────────────────────────────
 
 describe('AuthService.forgotPassword', () => {
-  it('stores a reset token and sends email for known user', async () => {
+  it('stores a reset token and sends a password-reset email for known user', async () => {
     MockUserModel.findByEmail.mockResolvedValue(makeUser() as any);
     MockUserModel.setPasswordResetToken.mockResolvedValue(undefined);
     await AuthService.forgotPassword('alice@example.com');
@@ -294,12 +539,68 @@ describe('AuthService.forgotPassword', () => {
       expect.any(String),
       expect.any(Date)
     );
+    expect(MockEmailService.sendPasswordResetEmail).toHaveBeenCalledWith(
+      'alice@example.com',
+      expect.any(String)
+    );
+    expect(MockEmailService.sendVerificationEmail).not.toHaveBeenCalled();
+  });
+
+  it('sets password reset tokens to expire after 30 minutes', async () => {
+    MockUserModel.findByEmail.mockResolvedValue(makeUser() as any);
+    MockUserModel.setPasswordResetToken.mockResolvedValue(undefined);
+    const requestedAt = Date.now();
+
+    await AuthService.forgotPassword('alice@example.com');
+
+    const expiresAt = MockUserModel.setPasswordResetToken.mock.calls[0][2] as Date;
+    const expectedExpiry = requestedAt + PASSWORD_RESET_TOKEN_TTL_MS;
+    expect(expiresAt.getTime()).toBeGreaterThanOrEqual(expectedExpiry);
+    expect(expiresAt.getTime()).toBeLessThan(expectedExpiry + 1000);
+  });
+
+  it('surfaces reset email delivery failures for known users', async () => {
+    MockUserModel.findByEmail.mockResolvedValue(makeUser() as any);
+    MockUserModel.setPasswordResetToken.mockResolvedValue(undefined);
+    MockEmailService.sendPasswordResetEmail.mockRejectedValueOnce(new Error('sendgrid rejected'));
+
+    await expect(AuthService.forgotPassword('alice@example.com')).rejects.toThrow(
+      'sendgrid rejected'
+    );
   });
 
   it('does nothing (no error, no DB write) for unknown email', async () => {
     MockUserModel.findByEmail.mockResolvedValue(null);
     await expect(AuthService.forgotPassword('unknown@x.com')).resolves.toBeUndefined();
     expect(MockUserModel.setPasswordResetToken).not.toHaveBeenCalled();
+    expect(MockEmailService.sendPasswordResetEmail).not.toHaveBeenCalled();
+    expect(MockEmailService.sendVerificationEmail).not.toHaveBeenCalled();
+  });
+});
+
+// ── validatePasswordResetToken ────────────────────────────────────────────────
+
+describe('AuthService.validatePasswordResetToken', () => {
+  it('accepts a valid reset token without mutating the user', async () => {
+    MockUserModel.findByResetToken.mockResolvedValue(makeUser() as any);
+
+    await expect(
+      AuthService.validatePasswordResetToken('validtoken')
+    ).resolves.toBeUndefined();
+
+    expect(MockUserModel.findByResetToken).toHaveBeenCalledWith('validtoken');
+    expect(MockUserModel.resetPassword).not.toHaveBeenCalled();
+    expect(MockRefreshTokenModel.deleteByUserId).not.toHaveBeenCalled();
+  });
+
+  it('throws 400 for an invalid or expired reset token', async () => {
+    MockUserModel.findByResetToken.mockResolvedValue(null);
+
+    await expect(
+      AuthService.validatePasswordResetToken('badtoken')
+    ).rejects.toMatchObject({
+      statusCode: 400,
+    });
   });
 });
 

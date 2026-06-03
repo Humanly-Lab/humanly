@@ -1,8 +1,16 @@
 'use client';
 
 import {
+  AI_CHAT_MAX_TOKENS_DEFAULT,
+  AI_MAX_TOKENS_MAX,
+  AI_MAX_TOKENS_MIN,
+  AI_SHORTCUT_MAX_TOKENS_DEFAULT,
   DEFAULT_WRITING_ENVIRONMENT_CONFIG,
+  SUBMISSION_MAX_CHARACTERS_MAX,
+  SUBMISSION_MIN_CHARACTERS_MAX,
+  WRITING_AI_ACCESS_OPTIONS,
   WRITING_AI_MODELS,
+  normalizeWritingAiAccess,
   normalizeCopyPastePolicy,
   WritingEnvironmentConfig,
 } from '@humanly/shared';
@@ -24,6 +32,26 @@ const setNested = (
   ...config,
   ...patch,
 });
+
+const parseOptionalMinCharacters = (value: string): number | undefined => {
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+
+  const parsed = Number(trimmed);
+  if (!Number.isFinite(parsed) || parsed < 1) return undefined;
+
+  return Math.min(Math.floor(parsed), SUBMISSION_MIN_CHARACTERS_MAX);
+};
+
+const parseOptionalMaxCharacters = (value: string): number | undefined => {
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+
+  const parsed = Number(trimmed);
+  if (!Number.isFinite(parsed) || parsed < 1) return undefined;
+
+  return Math.min(Math.floor(parsed), SUBMISSION_MAX_CHARACTERS_MAX);
+};
 
 export default function EnvironmentConfigFields({
   value,
@@ -54,6 +82,7 @@ export default function EnvironmentConfigFields({
       ...DEFAULT_WRITING_ENVIRONMENT_CONFIG.traceability,
       ...value.traceability,
     },
+    aiAccess: normalizeWritingAiAccess(value.aiAccess),
     copyPastePolicy: normalizeCopyPastePolicy(value.copyPastePolicy),
   };
 
@@ -116,9 +145,11 @@ export default function EnvironmentConfigFields({
             disabled={disabled}
             onChange={(event) => onChange(setNested(config, { aiAccess: event.target.value as WritingEnvironmentConfig['aiAccess'] }))}
           >
-            <option value="off">Off</option>
-            <option value="readonly">Read-only</option>
-            <option value="full">Full Access</option>
+            {WRITING_AI_ACCESS_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
           </select>
         </div>
 
@@ -195,20 +226,41 @@ export default function EnvironmentConfigFields({
         </div>
       </div>
 
-      {config.allowedModels.includes('Custom models') && (
-        <div className="space-y-2">
-          <Label>Custom Models</Label>
-          <Input
-            value={(config.customModels || []).join(', ')}
-            disabled={disabled}
-            placeholder="model-a, model-b"
-            onChange={(event) => onChange(setNested(config, {
-              customModels: event.target.value
-                .split(',')
-                .map((item) => item.trim())
-                .filter(Boolean),
-            }))}
-          />
+      {config.aiAccess !== 'off' && (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-2">
+            <Label>Shortcut Tokens</Label>
+            <Input
+              type="number"
+              min={AI_MAX_TOKENS_MIN}
+              max={AI_MAX_TOKENS_MAX}
+              value={config.aiTokenBudget?.shortcutMaxTokens || AI_SHORTCUT_MAX_TOKENS_DEFAULT}
+              disabled={disabled}
+              onChange={(event) => onChange(setNested(config, {
+                aiTokenBudget: {
+                  shortcutMaxTokens: Number(event.target.value) || AI_SHORTCUT_MAX_TOKENS_DEFAULT,
+                  chatMaxTokens: config.aiTokenBudget?.chatMaxTokens || AI_CHAT_MAX_TOKENS_DEFAULT,
+                },
+              }))}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Chat Tokens</Label>
+            <Input
+              type="number"
+              min={AI_MAX_TOKENS_MIN}
+              max={AI_MAX_TOKENS_MAX}
+              value={config.aiTokenBudget?.chatMaxTokens || AI_CHAT_MAX_TOKENS_DEFAULT}
+              disabled={disabled}
+              onChange={(event) => onChange(setNested(config, {
+                aiTokenBudget: {
+                  shortcutMaxTokens: config.aiTokenBudget?.shortcutMaxTokens || AI_SHORTCUT_MAX_TOKENS_DEFAULT,
+                  chatMaxTokens: Number(event.target.value) || AI_CHAT_MAX_TOKENS_DEFAULT,
+                },
+              }))}
+            />
+          </div>
         </div>
       )}
 
@@ -229,6 +281,46 @@ export default function EnvironmentConfigFields({
             <option value="allowed">Allowed</option>
             <option value="not_allowed">Not allowed</option>
           </select>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="space-y-2">
+            <Label htmlFor="minimum-characters">Minimum Characters</Label>
+            <Input
+              id="minimum-characters"
+              type="number"
+              min={1}
+              max={SUBMISSION_MIN_CHARACTERS_MAX}
+              value={config.submission.minCharacters ?? ''}
+              disabled={disabled}
+              placeholder="No minimum"
+              onChange={(event) => onChange(setNested(config, {
+                submission: {
+                  ...config.submission,
+                  minCharacters: parseOptionalMinCharacters(event.target.value),
+                },
+              }))}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="maximum-characters">Maximum Characters</Label>
+            <Input
+              id="maximum-characters"
+              type="number"
+              min={1}
+              max={SUBMISSION_MAX_CHARACTERS_MAX}
+              value={config.submission.maxCharacters ?? ''}
+              disabled={disabled}
+              placeholder="No maximum"
+              onChange={(event) => onChange(setNested(config, {
+                submission: {
+                  ...config.submission,
+                  maxCharacters: parseOptionalMaxCharacters(event.target.value),
+                },
+              }))}
+            />
+          </div>
         </div>
 
         <div className="space-y-2">

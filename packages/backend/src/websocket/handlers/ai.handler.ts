@@ -1,12 +1,19 @@
 import { Server as SocketIOServer } from 'socket.io';
 import { TypedSocket } from '../socket-server';
+import { AgentRunner } from '../../services/agent-runner.service';
 import { AIService } from '../../services/ai.service';
 import { AIModel } from '../../models/ai.model';
 import { DocumentModel } from '../../models/document.model';
 import { DocumentEventModel } from '../../models/document-event.model';
-import { AIChatRequest, DocumentEventInsertData } from '@humanly/shared';
+import { AIChatRequest, AgentEvent, DocumentEventInsertData } from '@humanly/shared';
 import { logger } from '../../utils/logger';
 import { v4 as uuidv4 } from 'uuid';
+
+/**
+ * Sentinel session id used by quick-action streams so the chat-panel
+ * listeners can tell them apart from a real conversation turn.
+ */
+const SILENT_SESSION_ID = 'silent';
 
 /**
  * Track AI event to document events table
@@ -177,7 +184,7 @@ export async function handleAIMessage(
   data: AIChatRequest
 ): Promise<void> {
   const { userId } = socket.data;
-  const { documentId, sessionId, message, context } = data;
+  const { documentId, sessionId, message, context, clientRequestId } = data;
 
   const messageId = uuidv4();
 
@@ -185,18 +192,113 @@ export async function handleAIMessage(
     if (!documentId) {
       socket.emit('ai:error', {
         sessionId: sessionId || '',
+        clientRequestId,
         message: 'Document ID is required',
         code: 'MISSING_DOCUMENT_ID',
       });
       return;
     }
 
-    if (!message || message.trim().length === 0) {
+    // Validate the websocket-supplied attachments shape before letting it
+    // reach the dispatch layer. Keeps a malicious client from passing
+    // 10k entries or a path-traversal storageKey (#93 security follow-up).
+    const MAX_ATTACHMENTS = 5;
+    const STORAGE_KEY_RE = /^[A-Za-z0-9._\-/]{1,512}$/;
+    const rawAttachments = Array.isArray(data.attachments) ? data.attachments : [];
+    if (rawAttachments.length > MAX_ATTACHMENTS) {
       socket.emit('ai:error', {
         sessionId: sessionId || '',
-        message: 'Message is required',
+        clientRequestId,
+        message: `At most ${MAX_ATTACHMENTS} attachments per turn`,
+        code: 'TOO_MANY_ATTACHMENTS',
+      });
+      return;
+    }
+    for (const att of rawAttachments) {
+      if (
+        !att ||
+        typeof att !== 'object' ||
+        (att as any).type !== 'image' ||
+        typeof (att as any).storageKey !== 'string' ||
+        !STORAGE_KEY_RE.test((att as any).storageKey) ||
+        typeof (att as any).mimeType !== 'string'
+      ) {
+        socket.emit('ai:error', {
+          sessionId: sessionId || '',
+          clientRequestId,
+          message: 'Malformed attachment payload',
+          code: 'INVALID_ATTACHMENT',
+        });
+        return;
+      }
+    }
+    const hasAttachments = rawAttachments.length > 0;
+
+    // An image-only turn (no text, ≥1 attachment) is a legitimate vision
+    // query (#93). Refuse only when both text and attachments are absent.
+    if ((!message || message.trim().length === 0) && !hasAttachments) {
+      socket.emit('ai:error', {
+        sessionId: sessionId || '',
+        clientRequestId,
+        message: 'Message or image attachment is required',
         code: 'MISSING_MESSAGE',
       });
+      return;
+    }
+
+    // Quick action / silent path: stream the rewrite back over a sentinel
+    // sessionId without touching ai_chat_sessions or interaction-log rows.
+    // The chat-panel listeners filter frames with this sessionId so they
+    // never adopt the result as a conversation turn.
+    if (data.silent) {
+      const { clientRequestId } = data;
+      socket.emit('ai:response-start', {
+        sessionId: SILENT_SESSION_ID,
+        messageId,
+        clientRequestId,
+      });
+
+      logger.info('AI silent stream started', {
+        socketId: socket.id,
+        userId,
+        documentId,
+        messageId,
+        clientRequestId,
+      });
+
+      await AIService.silentStreamChat(
+        userId,
+        data,
+        (chunk: string) => {
+          socket.emit('ai:response-chunk', {
+            sessionId: SILENT_SESSION_ID,
+            messageId,
+            clientRequestId,
+            chunk,
+          });
+        },
+        (content: string) => {
+          socket.emit('ai:response-complete', {
+            sessionId: SILENT_SESSION_ID,
+            clientRequestId,
+            message: {
+              id: messageId,
+              role: 'assistant',
+              content,
+              timestamp: new Date(),
+            },
+            logId: '',
+          });
+        },
+        (error: Error) => {
+          socket.emit('ai:error', {
+            sessionId: SILENT_SESSION_ID,
+            clientRequestId,
+            message: error.message || 'Silent AI request failed',
+            code: 'SILENT_AI_ERROR',
+          });
+        },
+      );
       return;
     }
 
@@ -205,20 +307,26 @@ export async function handleAIMessage(
     if (!isOwner) {
       socket.emit('ai:error', {
         sessionId: sessionId || '',
+        clientRequestId,
         message: 'Document not found or unauthorized',
         code: 'UNAUTHORIZED',
       });
       return;
     }
 
-    // Get or create session
-    const session = sessionId
-      ? await AIModel.findSessionById(sessionId)
-      : await AIModel.getOrCreateSession(documentId, userId);
+    // Resolve the durable session for this turn. `forceNewSession` is the
+    // explicit New Chat boundary: do not collapse it into the latest active
+    // session for the document.
+    const session = data.forceNewSession
+      ? await AIModel.createSession(documentId, userId)
+      : sessionId
+        ? await AIModel.findSessionById(sessionId)
+        : await AIModel.getOrCreateSession(documentId, userId);
 
     if (!session) {
       socket.emit('ai:error', {
         sessionId: sessionId || '',
+        clientRequestId,
         message: 'Failed to create session',
         code: 'SESSION_ERROR',
       });
@@ -233,6 +341,7 @@ export async function handleAIMessage(
     socket.emit('ai:response-start', {
       sessionId: session.id,
       messageId,
+      clientRequestId,
     });
 
     logger.info('AI message received', {
@@ -246,31 +355,92 @@ export async function handleAIMessage(
     // Store the query for tracking after response completes
     const queryText = message.trim();
 
+    // Translate AgentRunner's internal AgentEvent stream into typed Socket.IO
+    // frames so the chat UI can render the tool-call timeline. Drops events
+    // when the client has cancelled the stream.
+    const onAgentEvent = (event: AgentEvent) => {
+      if (streamState.cancelled) return;
+      switch (event.type) {
+        case 'turn-start':
+          socket.emit('ai:turn-start', {
+            sessionId: session.id,
+            messageId,
+            turnIndex: event.turnIndex,
+          });
+          break;
+        case 'tool-call':
+          socket.emit('ai:tool-call', {
+            sessionId: session.id,
+            messageId,
+            toolCallId: event.toolCallId,
+            toolName: event.toolName,
+            args: event.args,
+          });
+          break;
+        case 'tool-result':
+          socket.emit('ai:tool-result', {
+            sessionId: session.id,
+            messageId,
+            toolCallId: event.toolCallId,
+            result: event.result,
+            isError: event.isError,
+            durationMs: event.durationMs,
+          });
+          break;
+        case 'thinking-delta':
+          socket.emit('ai:thinking-delta', {
+            sessionId: session.id,
+            messageId,
+            text: event.text,
+          });
+          break;
+        case 'turn-end':
+          socket.emit('ai:turn-end', {
+            sessionId: session.id,
+            messageId,
+            turnIndex: event.turnIndex,
+          });
+          break;
+        // text-delta is already surfaced via the onChunk path; error is handled
+        // by the AgentRunner.run rejection.
+        default:
+          break;
+      }
+    };
+
     // Stream the response
-    await AIService.streamChat(
+    await AgentRunner.run({
       userId,
-      {
+      request: {
         documentId,
         sessionId: session.id,
         message: message.trim(),
+        forceNewSession: false,
         context,
+        // Pass through image attachments uploaded via
+        // `POST /api/v1/ai/chat/attachments` so capability gating and the
+        // provider-side image inlining in AIService see them (#93).
+        attachments: data.attachments,
       },
-      // onChunk
-      (chunk: string) => {
+      onTextChunk: (chunk: string) => {
         if (!streamState.cancelled) {
           socket.emit('ai:response-chunk', {
             sessionId: session.id,
             messageId,
+            clientRequestId,
             chunk,
           });
         }
       },
-      // onComplete
-      (response) => {
+      onAgentEvent,
+      onComplete: (response) => {
         activeStreams.delete(session.id);
 
         if (!streamState.cancelled) {
-          socket.emit('ai:response-complete', response);
+          socket.emit('ai:response-complete', {
+            ...response,
+            clientRequestId,
+          });
 
           // If there are suggestions, emit them separately
           if (response.suggestions && response.suggestions.length > 0) {
@@ -296,8 +466,7 @@ export async function handleAIMessage(
           });
         }
       },
-      // onError
-      (error) => {
+      onError: (error) => {
         activeStreams.delete(session.id);
 
         logger.error('AI streaming error', {
@@ -310,11 +479,12 @@ export async function handleAIMessage(
 
         socket.emit('ai:error', {
           sessionId: session.id,
+          clientRequestId,
           message: error.message || 'An error occurred while processing your request',
           code: 'AI_ERROR',
         });
-      }
-    );
+      },
+    });
   } catch (error) {
     logger.error('Failed to process AI message', {
       socketId: socket.id,
@@ -325,6 +495,7 @@ export async function handleAIMessage(
 
     socket.emit('ai:error', {
       sessionId: sessionId || '',
+      clientRequestId,
       message: 'Failed to process message',
       code: 'PROCESS_ERROR',
     });

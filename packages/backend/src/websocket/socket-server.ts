@@ -125,14 +125,6 @@ export function setupWebSocketServer(io: SocketIOServer): void {
       });
     });
 
-    // Handle connection errors
-    socket.on('connect_error', (error) => {
-      logger.error('WebSocket connection error', {
-        socketId: socket.id,
-        userId,
-        error: error.message,
-      });
-    });
   });
 
   logger.info('WebSocket server configured successfully');

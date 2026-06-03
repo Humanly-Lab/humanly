@@ -1,6 +1,6 @@
 import { LexicalEditor, EditorState, $getRoot, $getSelection, $isRangeSelection, COMMAND_PRIORITY_LOW, COMMAND_PRIORITY_HIGH, KEY_DOWN_COMMAND, PASTE_COMMAND, COPY_COMMAND, CUT_COMMAND, SELECTION_CHANGE_COMMAND, FOCUS_COMMAND, BLUR_COMMAND, INDENT_CONTENT_COMMAND, OUTDENT_CONTENT_COMMAND, FORMAT_TEXT_COMMAND, TextFormatType } from 'lexical';
-import { EventType } from '@humanly/shared';
-import { EditorTrackerConfig, TrackedEvent } from '../types';
+import { EventType, TextRenderMode } from '@humanly/shared';
+import { EditorTrackerConfig, EventMetadata, TrackedEvent } from '../types';
 import {
   HEADING_CHANGE_COMMAND,
   FONT_FAMILY_CHANGE_COMMAND,
@@ -11,6 +11,8 @@ import {
   LIST_DELETE_COMMAND,
   LIST_ITEM_CHECK_COMMAND,
   ALIGNMENT_CHANGE_COMMAND,
+  TRACKING_TEXT_CHANGE_METADATA_COMMAND,
+  TRACKING_SUPPRESS_NEXT_TEXT_CHANGE_COMMAND,
 } from '../commands/formatting-commands';
 
 /**
@@ -22,12 +24,16 @@ export class EditorTracker {
   private eventBuffer: TrackedEvent[] = [];
   private flushTimer: NodeJS.Timeout | null = null;
   private listeners: Array<() => void> = [];
+  private flushPromise: Promise<void> | null = null;
   private isTracking: boolean = false;
   private lastEventType: EventType | null = null;
   private lastKeyCode: string | null = null;
   private lastKeyChar: string | null = null;
   private lastSelectionStart: number = 0;
   private lastSelectionEnd: number = 0;
+  private lastSelectedText: string = '';
+  private pendingTextChangeMetadata: EventMetadata | null = null;
+  private suppressNextTextChange: boolean = false;
 
   private get copyPastePolicy() {
     return this.config.copyPastePolicy === 'blocked' ? 'blocked' : 'allowed';
@@ -39,6 +45,37 @@ export class EditorTracker {
 
   private shouldTrackClipboard(): boolean {
     return !this.shouldBlockClipboard();
+  }
+
+  private getTextRenderMode(): TextRenderMode {
+    return this.config.getTextRenderMode?.() || this.config.textRenderMode || 'plain';
+  }
+
+  private setPendingTextChangeMetadata(metadata: EventMetadata): void {
+    this.pendingTextChangeMetadata = {
+      ...(this.pendingTextChangeMetadata || {}),
+      ...metadata,
+    };
+  }
+
+  private buildTextChangeMetadata(metadata?: EventMetadata): EventMetadata | undefined {
+    const nextMetadata: EventMetadata = {};
+    const textRenderMode = this.getTextRenderMode();
+
+    if (textRenderMode === 'markdown') {
+      nextMetadata.textRenderMode = 'markdown';
+    }
+
+    if (metadata) {
+      Object.assign(nextMetadata, metadata);
+    }
+
+    if (this.pendingTextChangeMetadata) {
+      Object.assign(nextMetadata, this.pendingTextChangeMetadata);
+      this.pendingTextChangeMetadata = null;
+    }
+
+    return Object.keys(nextMetadata).length > 0 ? nextMetadata : undefined;
   }
 
   constructor(editor: LexicalEditor, config: EditorTrackerConfig) {
@@ -278,6 +315,24 @@ export class EditorTracker {
       COMMAND_PRIORITY_HIGH
     );
 
+    const removeTrackingTextChangeMetadataListener = this.editor.registerCommand(
+      TRACKING_TEXT_CHANGE_METADATA_COMMAND,
+      (metadata) => {
+        this.setPendingTextChangeMetadata(metadata);
+        return false;
+      },
+      COMMAND_PRIORITY_HIGH
+    );
+
+    const removeTrackingSuppressNextTextChangeListener = this.editor.registerCommand(
+      TRACKING_SUPPRESS_NEXT_TEXT_CHANGE_COMMAND,
+      (suppress = true) => {
+        this.suppressNextTextChange = suppress !== false;
+        return false;
+      },
+      COMMAND_PRIORITY_HIGH
+    );
+
     // Track editor updates (text changes)
     const removeUpdateListener = this.editor.registerUpdateListener(
       ({ editorState, prevEditorState, dirtyElements, dirtyLeaves }) => {
@@ -307,6 +362,8 @@ export class EditorTracker {
       removeListOutdentListener,
       removeListItemCheckListener,
       removeAlignmentListener,
+      removeTrackingTextChangeMetadataListener,
+      removeTrackingSuppressNextTextChangeListener,
       removeUpdateListener
     );
 
@@ -334,8 +391,24 @@ export class EditorTracker {
       this.flushTimer = null;
     }
 
-    // Flush remaining events
-    this.flush();
+    // Flush remaining events. React cleanup cannot await this, so failures are
+    // retained in the buffer for any explicit retry path that still has access.
+    void this.flush().catch(() => undefined);
+  }
+
+  async flushPendingEvents(): Promise<void> {
+    while (true) {
+      if (this.flushPromise) {
+        await this.flushPromise;
+        continue;
+      }
+
+      if (this.eventBuffer.length === 0) {
+        return;
+      }
+
+      await this.flush();
+    }
   }
 
   /**
@@ -374,13 +447,17 @@ export class EditorTracker {
       const focus = selection.focus;
       const selectionStart = Math.min(anchor.offset, focus.offset);
       const selectionEnd = Math.max(anchor.offset, focus.offset);
+      const selectedText = selection.getTextContent();
 
       // Only track if selection actually changed
-      if (selectionStart !== this.lastSelectionStart || selectionEnd !== this.lastSelectionEnd) {
+      if (
+        selectionStart !== this.lastSelectionStart ||
+        selectionEnd !== this.lastSelectionEnd ||
+        selectedText !== this.lastSelectedText
+      ) {
         // Only track as 'select' event if there's an actual selection (not just cursor movement)
-        if (selectionStart !== selectionEnd) {
+        if (selectedText) {
           const currentText = this.extractPlainText(this.editor.getEditorState());
-          const selectedText = currentText.substring(selectionStart, selectionEnd);
 
           const event: TrackedEvent = {
             eventType: 'select',
@@ -401,6 +478,7 @@ export class EditorTracker {
 
         this.lastSelectionStart = selectionStart;
         this.lastSelectionEnd = selectionEnd;
+        this.lastSelectedText = selectedText;
       }
     });
   }
@@ -456,11 +534,7 @@ export class EditorTracker {
     const currentText = this.extractPlainText(this.editor.getEditorState());
     const { cursorPosition, selectionStart, selectionEnd } = this.getSelectionInfo(this.editor.getEditorState());
 
-    // Get the selected text if there's a selection
-    let selectedText = '';
-    if (selectionStart !== selectionEnd && currentText) {
-      selectedText = currentText.substring(selectionStart, selectionEnd);
-    }
+    const selectedText = this.getSelectedText(this.editor.getEditorState());
 
     const event: TrackedEvent = {
       eventType: format as EventType,
@@ -539,7 +613,17 @@ export class EditorTracker {
       return;
     }
 
+    if (this.suppressNextTextChange) {
+      this.suppressNextTextChange = false;
+      this.pendingTextChangeMetadata = null;
+      this.lastEventType = null;
+      this.lastKeyCode = null;
+      this.lastKeyChar = null;
+      return;
+    }
+
     const { cursorPosition, selectionStart, selectionEnd } = this.getSelectionInfo(currentState);
+    const selectedTextBeforeChange = this.getSelectedText(prevState);
 
     // Determine the event type based on the last recorded event
     let eventType: EventType = this.lastEventType || 'input';
@@ -565,6 +649,13 @@ export class EditorTracker {
       selectionEnd,
       editorStateBefore: prevState.toJSON(),
       editorStateAfter: currentState.toJSON(),
+      metadata: this.buildTextChangeMetadata(
+        selectedTextBeforeChange
+          ? {
+              selectedText: selectedTextBeforeChange,
+            }
+          : undefined
+      ),
     };
 
     this.addEvent(event);
@@ -574,7 +665,6 @@ export class EditorTracker {
    * Add event to buffer and flush if needed
    */
   private addEvent(event: TrackedEvent): void {
-    console.log('[EditorTracker] Adding event:', event.eventType, event.metadata);
     this.eventBuffer.push(event);
 
     // Notify individual event callback
@@ -582,41 +672,49 @@ export class EditorTracker {
       this.config.onEvent(event);
     }
 
-    // Flush if buffer is full
-    console.log(`[EditorTracker] Buffer size: ${this.eventBuffer.length}/${this.config.batchSize || 20}`);
     if (this.eventBuffer.length >= (this.config.batchSize || 20)) {
-      console.log('[EditorTracker] Buffer full, flushing...');
-      this.flush();
+      void this.flush().catch(() => undefined);
     }
   }
 
   /**
    * Flush buffered events
    */
-  private flush(): void {
+  private flush(): Promise<void> {
+    if (this.flushPromise) {
+      return this.flushPromise;
+    }
+
     if (this.eventBuffer.length === 0) {
-      return;
+      return Promise.resolve();
     }
 
     const events = [...this.eventBuffer];
-    console.log(`[EditorTracker] Flushing ${events.length} events:`, events.map(e => e.eventType));
     this.eventBuffer = [];
 
-    // Notify batch callback
-    if (this.config.onEventsBuffer) {
-      console.log('[EditorTracker] Calling onEventsBuffer callback');
-      this.config.onEventsBuffer(events);
-    } else {
-      console.log('[EditorTracker] No onEventsBuffer callback configured');
-    }
+    this.flushPromise = (async () => {
+      try {
+        // Notify batch callback
+        if (this.config.onEventsBuffer) {
+          await this.config.onEventsBuffer(events);
+        }
+      } catch (error) {
+        this.eventBuffer = [...events, ...this.eventBuffer];
+        throw error;
+      } finally {
+        this.flushPromise = null;
 
-    // Reset flush timer
-    if (this.flushTimer) {
-      clearTimeout(this.flushTimer);
-      this.flushTimer = null;
-    }
+        // Reset flush timer
+        if (this.flushTimer) {
+          clearTimeout(this.flushTimer);
+          this.flushTimer = null;
+        }
 
-    this.scheduleFlush();
+        this.scheduleFlush();
+      }
+    })();
+
+    return this.flushPromise;
   }
 
   /**
@@ -628,7 +726,7 @@ export class EditorTracker {
     }
 
     this.flushTimer = setTimeout(() => {
-      this.flush();
+      void this.flush().catch(() => undefined);
     }, this.config.flushInterval || 30000);
   }
 
@@ -677,6 +775,18 @@ export class EditorTracker {
     });
   }
 
+  private getSelectedText(editorState: EditorState): string {
+    return editorState.read(() => {
+      const selection = $getSelection();
+
+      if (!selection || !$isRangeSelection(selection)) {
+        return '';
+      }
+
+      return selection.getTextContent();
+    });
+  }
+
   /**
    * Get current event buffer (for testing)
    */
@@ -687,7 +797,7 @@ export class EditorTracker {
   /**
    * Manually flush events (for testing or forced save)
    */
-  forceFlush(): void {
-    this.flush();
+  forceFlush(): Promise<void> {
+    return this.flushPendingEvents();
   }
 }

@@ -1,0 +1,6 @@
+interface:
+  display_name: "Humanly AI Usage"
+  short_description: "Run AI provider/model/tool/image/app-level usage checks."
+  default_prompt: "Run the Humanly AI usage skill for the requested provider/model scope and summarize the report."
+policy:
+  allow_implicit_invocation: true

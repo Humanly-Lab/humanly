@@ -14,10 +14,10 @@ export class PDFService {
         const doc = new PDFDocument({
           size: 'A4',
           margins: {
-            top: 72,
-            bottom: 72,
-            left: 72,
-            right: 72,
+            top: 0,
+            bottom: 0,
+            left: 0,
+            right: 0,
           },
         });
 
@@ -34,11 +34,14 @@ export class PDFService {
           reject(err);
         });
 
-        // Start building PDF
-        this.buildCertificatePDF(doc, certificate);
-
-        // Finalize PDF
-        doc.end();
+        // Build any async assets, such as the verification QR code, before
+        // closing the stream so the PDF is complete and deterministic.
+        this.buildCertificatePDF(doc, certificate)
+          .then(() => doc.end())
+          .catch((error) => {
+            logger.error('Error in PDF generation', { error });
+            reject(error);
+          });
       } catch (error) {
         logger.error('Error in PDF generation', { error });
         reject(error);
@@ -52,9 +55,20 @@ export class PDFService {
   private static async buildCertificatePDF(doc: PDFKit.PDFDocument, certificate: Certificate) {
     const pageWidth = doc.page.width;
     const pageHeight = doc.page.height;
-    const margin = 72;
+    const margin = 48;
+    const contentWidth = pageWidth - margin * 2;
+    const ink = '#171717';
+    const muted = '#6b7280';
+    const border = '#e5e7eb';
+    const soft = '#f7f7f7';
+    const accent = '#111111';
+    const pasteAccent = '#f97316';
+    const verifyUrl = `${env.frontendUserUrl}/verify/${certificate.verificationToken}`;
+    const verificationHost = new URL(env.frontendUserUrl).hostname;
+    const tokenPreview = certificate.verificationToken.length > 24
+      ? `${certificate.verificationToken.slice(0, 12)}...${certificate.verificationToken.slice(-12)}`
+      : certificate.verificationToken;
 
-    // Calculate metrics based on total authorship activity (typed + pasted)
     const totalAuthored = certificate.typedCharacters + certificate.pastedCharacters;
     const typedPercentage = totalAuthored > 0
       ? (certificate.typedCharacters / totalAuthored) * 100
@@ -62,370 +76,334 @@ export class PDFService {
     const pastedPercentage = totalAuthored > 0
       ? (certificate.pastedCharacters / totalAuthored) * 100
       : 0;
-
-    const drawPageFrame = () => {
-      doc
-        .rect(margin, margin, pageWidth - 2 * margin, pageHeight - 2 * margin)
-        .stroke('#333333');
-    };
-
-    drawPageFrame();
-
-    // Title section
-    doc
-      .fontSize(28)
-      .font('Helvetica-Bold')
-      .fillColor('#1a1a1a')
-      .text('Certificate of Authorship', margin + 40, margin + 40, {
-        width: pageWidth - 2 * margin - 80,
-        align: 'center',
-      });
-
-    // Decorative line
-    doc
-      .moveTo(margin + 100, margin + 90)
-      .lineTo(pageWidth - margin - 100, margin + 90)
-      .stroke('#4A90E2');
-
-    // Document information
-    let currentY = margin + 120;
-
-    doc
-      .fontSize(14)
-      .font('Helvetica')
-      .fillColor('#333333')
-      .text('This certificate verifies the authorship of the following document:', margin + 40, currentY, {
-        width: pageWidth - 2 * margin - 80,
-        align: 'left',
-      });
-
-    currentY += 40;
-
-    // Document title
-    doc
-      .fontSize(18)
-      .font('Helvetica-Bold')
-      .fillColor('#1a1a1a')
-      .text(certificate.title, margin + 40, currentY, {
-        width: pageWidth - 2 * margin - 80,
-        align: 'center',
-      });
-
-    currentY += 30;
-
-    // Author/Signer Name
+    const editingMinutes = Math.round(certificate.editingTimeSeconds / 60);
     const displayName = certificate.signerName || 'Author';
-    doc
-      .fontSize(14)
-      .font('Helvetica-Bold')
-      .fillColor('#333333')
-      .text(`By: ${displayName}`, margin + 40, currentY, {
-        width: pageWidth - 2 * margin - 80,
-        align: 'center',
-      });
-
-    currentY += 40;
-
-    // Certificate type badge
     const certTypeLabel = certificate.certificateType === 'full_authorship'
-      ? 'Full Authorship'
-      : 'Partial Authorship';
-
-    doc
-      .fontSize(12)
-      .font('Helvetica')
-      .fillColor('#4A90E2')
-      .text(certTypeLabel, margin + 40, currentY, {
-        width: pageWidth - 2 * margin - 80,
-        align: 'center',
-      });
-
-    currentY += 40;
-
-    // Authorship statistics section
-    doc
-      .fontSize(16)
-      .font('Helvetica-Bold')
-      .fillColor('#1a1a1a')
-      .text('Authorship Statistics', margin + 40, currentY);
-
-    currentY += 30;
-
-    const statsData = [
-      { label: 'Total Characters:', value: certificate.totalCharacters.toString() },
-      { label: 'Typed Characters:', value: `${certificate.typedCharacters} (${typedPercentage.toFixed(1)}%)` },
-      { label: 'Pasted Characters:', value: `${certificate.pastedCharacters} (${pastedPercentage.toFixed(1)}%)` },
-      { label: 'Total Events:', value: certificate.totalEvents.toString() },
-      { label: 'Typing Events:', value: certificate.typingEvents.toString() },
-      { label: 'Paste Events:', value: certificate.pasteEvents.toString() },
-      { label: 'Editing Time:', value: `${Math.round(certificate.editingTimeSeconds / 60)} minutes` },
-    ];
-
-    doc.fontSize(11).font('Helvetica');
-
-    statsData.forEach(({ label, value }) => {
-      doc
-        .fillColor('#555555')
-        .text(label, margin + 60, currentY, { continued: true, width: 200 })
-        .fillColor('#1a1a1a')
-        .text(value, { width: pageWidth - 2 * margin - 140 });
-      currentY += 22;
-    });
-
-    currentY += 20;
-
-           // AI assistance statistics section (always show, even if zeros)
-    const aiStats = (certificate as any).aiAuthorshipStats; // 如果 TS 类型还没加字段，先这样顶一下
+      ? 'Verified writing process'
+      : 'Partial writing record';
+    const aiStats = (certificate as any).aiAuthorshipStats;
     const selection = aiStats?.selectionActions;
     const questions = aiStats?.aiQuestions;
-
     const aiSelectionTotal = selection?.total ?? 0;
-    const aiAccepted = selection?.accepted ?? 0;
-    const aiRejected = selection?.rejected ?? 0;
-    const aiAcceptanceRate = selection?.acceptanceRate ?? 0;
-
     const aiQuestionsTotal = questions?.total ?? 0;
-    const aiUnderstanding = questions?.understanding ?? 0;
-    const aiGeneration = questions?.generation ?? 0;
-    const aiOther = questions?.other ?? 0;
 
-    // Check page space
-    if (currentY > pageHeight - margin - 260) {
-      doc.addPage();
-      drawPageFrame();
-      currentY = margin + 40;
-    }
-
-    doc
-      .fontSize(16)
-      .font('Helvetica-Bold')
-      .fillColor('#1a1a1a')
-      .text('AI Assistance Statistics', margin + 40, currentY);
-
-    currentY += 30;
-
-    const aiData = [
-      { label: 'AI Questions:', value: aiQuestionsTotal.toString() },
-      { label: '• Understanding:', value: aiUnderstanding.toString() },
-      { label: '• Generation:', value: aiGeneration.toString() },
-      { label: '• Other:', value: aiOther.toString() },
-      { label: 'AI Selection Actions:', value: aiSelectionTotal.toString() },
-      { label: '• Accepted:', value: aiAccepted.toString() },
-      { label: '• Rejected:', value: aiRejected.toString() },
-      { label: '• Acceptance Rate:', value: `${Number(aiAcceptanceRate).toFixed(1)}%` },
-      { label: '• Grammar Fixes:', value: (selection?.grammarFixes ?? 0).toString() },
-      { label: '• Improve Writing:', value: (selection?.improveWriting ?? 0).toString() },
-      { label: '• Simplify:', value: (selection?.simplify ?? 0).toString() },
-      { label: '• Make Formal:', value: (selection?.makeFormal ?? 0).toString() },
-    ];
-
-    doc.fontSize(11).font('Helvetica');
-
-    aiData.forEach(({ label, value }) => {
-      doc
-        .fillColor('#555555')
-        .text(label, margin + 60, currentY, { continued: true, width: 200 })
-        .fillColor('#1a1a1a')
-        .text(value, { width: pageWidth - 2 * margin - 140 });
-      currentY += 22;
+    const formatNumber = (value: number) => value.toLocaleString('en-US');
+    const formatDate = (value: Date | string) => new Date(value).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
     });
 
-    currentY += 20;
-
-    // Full Text Content (if included)
-    if (certificate.includeFullText && certificate.plainTextSnapshot) {
-      // Add new page for full text if needed
-      const textSectionStart = currentY;
-      const availableHeight = pageHeight - currentY - margin - 100;
-
-      // Check if we need a new page
-      if (availableHeight < 200) {
-        doc.addPage();
-        drawPageFrame();
-        currentY = margin + 40;
-      }
-
+    const drawFooter = () => {
+      const y = pageHeight - 44;
       doc
-        .fontSize(16)
-        .font('Helvetica-Bold')
-        .fillColor('#1a1a1a')
-        .text('Document Content', margin + 40, currentY);
-
-      currentY += 30;
-
-      // Add full text with word wrapping
-      const textLines = certificate.plainTextSnapshot.substring(0, 5000); // Limit to first 5000 chars
-      const isTruncated = certificate.plainTextSnapshot.length > 5000;
-
+        .moveTo(margin, y - 14)
+        .lineTo(pageWidth - margin, y - 14)
+        .lineWidth(0.5)
+        .strokeColor(border)
+        .stroke();
       doc
-        .fontSize(10)
         .font('Helvetica')
-        .fillColor('#333333')
-        .text(textLines, margin + 60, currentY, {
-          width: pageWidth - 2 * margin - 120,
-          align: 'left',
+        .fontSize(7.5)
+        .fillColor(muted)
+        .text(`Certificate ID: ${certificate.id}`, margin, y, {
+          width: contentWidth / 2,
+          height: 10,
+          lineBreak: false,
+        })
+        .text(`Verify at ${verificationHost}`, margin + contentWidth / 2, y, {
+          width: contentWidth / 2,
+          height: 10,
+          align: 'right',
+          lineBreak: false,
         });
+    };
 
-      currentY = doc.y + 20;
+    const drawPill = (text: string, x: number, y: number, width: number) => {
+      doc
+        .roundedRect(x, y, width, 22, 11)
+        .fillAndStroke('#ffffff', border);
+      doc
+        .font('Helvetica-Bold')
+        .fontSize(8.5)
+        .fillColor(muted)
+        .text(text, x, y + 6.5, {
+          width,
+          align: 'center',
+        });
+    };
 
-      if (isTruncated) {
+    const drawMetric = (x: number, y: number, width: number, label: string, value: string, note?: string) => {
+      doc
+        .roundedRect(x, y, width, 74, 8)
+        .fillAndStroke(soft, border);
+      doc
+        .font('Helvetica-Bold')
+        .fontSize(8)
+        .fillColor(muted)
+        .text(label.toUpperCase(), x + 14, y + 14, {
+          width: width - 28,
+        });
+      doc
+        .font('Helvetica-Bold')
+        .fontSize(22)
+        .fillColor(ink)
+        .text(value, x + 14, y + 31, {
+          width: width - 28,
+        });
+      if (note) {
         doc
-          .fontSize(9)
-          .fillColor('#999999')
-          .text('[Content truncated. Full text available in JSON export.]', margin + 60, currentY, {
-            width: pageWidth - 2 * margin - 120,
-            align: 'center',
+          .font('Helvetica')
+          .fontSize(7.5)
+          .fillColor(muted)
+          .text(note, x + 14, y + 56, {
+            width: width - 28,
           });
-        currentY += 30;
       }
+    };
 
-      // Add new page for verification if text took too much space
-      if (currentY > pageHeight - 300) {
-        doc.addPage();
-        drawPageFrame();
-        currentY = margin + 40;
-      }
-    }
+    const drawSmallRow = (label: string, value: string, x: number, y: number, width: number) => {
+      doc
+        .font('Helvetica')
+        .fontSize(9)
+        .fillColor(muted)
+        .text(label, x, y, { width: width * 0.58 });
+      doc
+        .font('Helvetica-Bold')
+        .fontSize(9)
+        .fillColor(ink)
+        .text(value, x + width * 0.58, y, {
+          width: width * 0.42,
+          align: 'right',
+        });
+    };
 
-    // Verification section
-    doc
-      .fontSize(16)
-      .font('Helvetica-Bold')
-      .fillColor('#1a1a1a')
-      .text('Verification', margin + 40, currentY);
-
-    currentY += 30;
-
-    doc
-      .fontSize(10)
-      .font('Helvetica')
-      .fillColor('#555555')
-      .text('Verification Token:', margin + 60, currentY);
-
-    currentY += 15;
-
-    doc
-      .fontSize(9)
-      .font('Courier')
-      .fillColor('#333333')
-      .text(certificate.verificationToken, margin + 60, currentY, {
-        width: pageWidth - 2 * margin - 120,
-        lineBreak: true,
-      });
-
-    currentY += 40;
-
-    // Generate QR code
+    let qrBuffer: Buffer | null = null;
     try {
-      const verifyUrl = `${env.frontendUserUrl}/verify/${certificate.verificationToken}`;
       const qrCodeDataURL = await QRCode.toDataURL(verifyUrl, {
-        width: 120,
+        width: 160,
         margin: 1,
         color: {
-          dark: '#000000',
+          dark: '#111111',
           light: '#ffffff',
         },
       });
-
-      // Convert data URL to buffer
-      const base64Data = qrCodeDataURL.replace(/^data:image\/png;base64,/, '');
-      const qrBuffer = Buffer.from(base64Data, 'base64');
-
-      // Add QR code to PDF
-      doc.image(qrBuffer, margin + 60, currentY, {
-        width: 120,
-        height: 120,
-      });
-
-      doc
-        .fontSize(9)
-        .font('Helvetica')
-        .fillColor('#555555')
-        .text(
-          'Scan to verify',
-          margin + 60,
-          currentY + 130,
-          { width: 120, align: 'center' }
-        );
-
-      // Verification URL
-      doc
-        .fontSize(9)
-        .font('Helvetica')
-        .fillColor('#555555')
-        .text('Verify online at:', margin + 200, currentY);
-
-      doc
-        .fontSize(9)
-        .font('Courier')
-        .fillColor('#4A90E2')
-        .text(verifyUrl, margin + 200, currentY + 15, {
-          width: pageWidth - 2 * margin - 260,
-          link: verifyUrl,
-        });
+      qrBuffer = Buffer.from(qrCodeDataURL.replace(/^data:image\/png;base64,/, ''), 'base64');
     } catch (error) {
       logger.error('Error generating QR code for PDF', { error });
-      doc
-        .fontSize(9)
-        .font('Helvetica')
-        .fillColor('#555555')
-        .text(
-          `Verify at: ${env.frontendUserUrl}/verify/${certificate.verificationToken}`,
-          margin + 60,
-          currentY,
-          { width: pageWidth - 2 * margin - 120 }
-        );
     }
 
-    // Footer
-    const footerY = pageHeight - margin - 80;
+    doc
+      .rect(0, 0, pageWidth, pageHeight)
+      .fill('#ffffff');
 
     doc
+      .font('Helvetica-Bold')
+      .fontSize(11)
+      .fillColor(ink)
+      .text('Humanly', margin, 42);
+    doc
+      .font('Helvetica')
+      .fontSize(8.5)
+      .fillColor(muted)
+      .text('Verifiable writing process certificate', margin, 57);
+    doc
+      .font('Helvetica')
+      .fontSize(8)
+      .fillColor(muted)
+      .text(formatDate(certificate.generatedAt), margin, 42, {
+        width: contentWidth,
+        align: 'right',
+      });
+    doc
+      .moveTo(margin, 82)
+      .lineTo(pageWidth - margin, 82)
+      .lineWidth(0.75)
+      .strokeColor(border)
+      .stroke();
+
+    drawPill(certTypeLabel, margin, 104, 150);
+
+    doc
+      .font('Helvetica-Bold')
+      .fontSize(32)
+      .fillColor(ink)
+      .text('Authorship Certificate', margin, 140, {
+        width: contentWidth,
+      });
+    doc
+      .font('Helvetica-Bold')
+      .fontSize(18)
+      .fillColor(ink)
+      .text(certificate.title, margin, 184, {
+        width: contentWidth - 140,
+        lineGap: 2,
+      });
+    doc
+      .font('Helvetica')
+      .fontSize(10)
+      .fillColor(muted)
+      .text(`Prepared for ${displayName}`, margin, 228, {
+        width: contentWidth / 2,
+      })
+      .text(`Generated ${formatDate(certificate.generatedAt)}`, margin + contentWidth / 2, 228, {
+        width: contentWidth / 2,
+        align: 'right',
+      });
+
+    const metricGap = 10;
+    const metricWidth = (contentWidth - metricGap * 3) / 4;
+    const metricY = 270;
+    drawMetric(margin, metricY, metricWidth, 'Typed', `${typedPercentage.toFixed(0)}%`, `${formatNumber(certificate.typedCharacters)} chars`);
+    drawMetric(margin + (metricWidth + metricGap), metricY, metricWidth, 'Pasted', `${pastedPercentage.toFixed(0)}%`, `${formatNumber(certificate.pastedCharacters)} chars`);
+    drawMetric(margin + (metricWidth + metricGap) * 2, metricY, metricWidth, 'Final Text', formatNumber(certificate.totalCharacters), 'characters');
+    drawMetric(margin + (metricWidth + metricGap) * 3, metricY, metricWidth, 'Writing Time', `${editingMinutes} min`, 'recorded');
+
+    const barY = 382;
+    doc
+      .font('Helvetica-Bold')
+      .fontSize(12)
+      .fillColor(ink)
+      .text('Writing composition', margin, barY);
+    doc
+      .font('Helvetica')
       .fontSize(9)
-      .font('Helvetica')
-      .fillColor('#999999')
-      .text(
-        `Generated on ${new Date(certificate.generatedAt).toLocaleString('en-US', {
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit',
-        })}`,
-        margin + 40,
-        footerY,
-        {
-          width: pageWidth - 2 * margin - 80,
-          align: 'center',
-        }
-      );
+      .fillColor(muted)
+      .text(`${formatNumber(certificate.typedCharacters)} typed characters · ${formatNumber(certificate.pastedCharacters)} pasted characters`, margin, barY + 17);
+    const barWidth = contentWidth;
+    const typedBarWidth = Math.max(0, Math.min(barWidth, (typedPercentage / 100) * barWidth));
+    doc
+      .roundedRect(margin, barY + 42, barWidth, 10, 5)
+      .fill('#e5e7eb');
+    doc
+      .roundedRect(margin, barY + 42, typedBarWidth, 10, 5)
+      .fill(accent);
+    if (pastedPercentage > 0) {
+      doc
+        .roundedRect(margin + typedBarWidth, barY + 42, Math.max(2, barWidth - typedBarWidth), 10, 5)
+        .fill(pasteAccent);
+    }
+    doc
+      .font('Helvetica-Bold')
+      .fontSize(8)
+      .fillColor(muted)
+      .text(`${typedPercentage.toFixed(0)}% typed`, margin, barY + 62, {
+        width: barWidth,
+        align: 'right',
+      });
+
+    const panelY = 486;
+    const panelGap = 16;
+    const leftPanelWidth = (contentWidth - panelGap) * 0.58;
+    const rightPanelWidth = contentWidth - panelGap - leftPanelWidth;
+    const panelHeight = 158;
 
     doc
-      .fontSize(8)
-      .font('Helvetica')
-      .fillColor('#999999')
-      .text(
-        `This certificate is cryptographically signed and can be verified at ${new URL(env.frontendUserUrl).hostname}`,
-        margin + 40,
-        footerY + 20,
-        {
-          width: pageWidth - 2 * margin - 80,
-          align: 'center',
-        }
-      );
-
+      .roundedRect(margin, panelY, leftPanelWidth, panelHeight, 10)
+      .fillAndStroke('#ffffff', border);
     doc
+      .font('Helvetica-Bold')
+      .fontSize(13)
+      .fillColor(ink)
+      .text('Activity record', margin + 18, panelY + 18);
+    doc
+      .font('Helvetica')
+      .fontSize(9)
+      .fillColor(muted)
+      .text('Write-time tracking and in-platform AI activity.', margin + 18, panelY + 37, {
+        width: leftPanelWidth - 36,
+      });
+    drawSmallRow('AI chat', formatNumber(aiQuestionsTotal), margin + 18, panelY + 68, leftPanelWidth - 36);
+    drawSmallRow('Text improvements', formatNumber(aiSelectionTotal), margin + 18, panelY + 88, leftPanelWidth - 36);
+    drawSmallRow('Tracked actions', formatNumber(certificate.totalEvents), margin + 18, panelY + 108, leftPanelWidth - 36);
+    drawSmallRow('Typing updates / pastes', `${formatNumber(certificate.typingEvents)} / ${formatNumber(certificate.pasteEvents)}`, margin + 18, panelY + 128, leftPanelWidth - 36);
+
+    const verificationX = margin + leftPanelWidth + panelGap;
+    doc
+      .roundedRect(verificationX, panelY, rightPanelWidth, panelHeight, 10)
+      .fillAndStroke('#ffffff', border);
+    doc
+      .font('Helvetica-Bold')
+      .fontSize(13)
+      .fillColor(ink)
+      .text('Verification', verificationX + 18, panelY + 18);
+    if (qrBuffer) {
+      const qrSize = 82;
+      doc.image(qrBuffer, verificationX + (rightPanelWidth - qrSize) / 2, panelY + 42, {
+        width: qrSize,
+        height: qrSize,
+      });
+    }
+    doc
+      .font('Helvetica')
       .fontSize(8)
+      .fillColor(muted)
+      .text('Scan to verify online', verificationX + 18, panelY + 130, {
+        width: rightPanelWidth - 36,
+        align: 'center',
+      })
       .font('Courier')
-      .fillColor('#cccccc')
-      .text(
-        `Certificate ID: ${certificate.id}`,
-        margin + 40,
-        footerY + 40,
-        {
-          width: pageWidth - 2 * margin - 80,
-          align: 'center',
-        }
-      );
+      .fontSize(7)
+      .fillColor(ink)
+      .text(tokenPreview, verificationX + 18, panelY + 143, {
+        width: rightPanelWidth - 36,
+        align: 'center',
+        height: 9,
+        lineBreak: false,
+      });
+
+    drawFooter();
+
+    if (certificate.includeFullText && certificate.plainTextSnapshot) {
+      doc.addPage();
+      doc.rect(0, 0, pageWidth, pageHeight).fill('#ffffff');
+      doc
+        .font('Helvetica-Bold')
+        .fontSize(18)
+        .fillColor(ink)
+        .text('Document Content', margin, 56);
+      doc
+        .font('Helvetica')
+        .fontSize(9)
+        .fillColor(muted)
+        .text('A snapshot of the submitted text. Long documents are truncated in the PDF export; the JSON export preserves the complete certificate record.', margin, 82, {
+          width: contentWidth,
+        });
+
+      const textTop = 122;
+      const maxTextHeight = pageHeight - textTop - 98;
+      const textSample = certificate.plainTextSnapshot.substring(0, 4500);
+      const renderedHeight = doc.heightOfString(textSample, {
+        width: contentWidth,
+        lineGap: 2,
+      });
+      const isTruncated = certificate.plainTextSnapshot.length > 4500 || renderedHeight > maxTextHeight;
+
+      doc
+        .roundedRect(margin, textTop - 14, contentWidth, maxTextHeight + 28, 8)
+        .fillAndStroke(soft, border);
+      doc
+        .font('Helvetica')
+        .fontSize(9.5)
+        .fillColor(ink)
+        .text(textSample, margin + 18, textTop, {
+          width: contentWidth - 36,
+          height: maxTextHeight,
+          lineGap: 2,
+        });
+
+      if (isTruncated) {
+        doc
+          .font('Helvetica')
+          .fontSize(8)
+          .fillColor(muted)
+          .text('Content truncated in PDF preview. Use JSON export for the full certificate payload.', margin, pageHeight - 72, {
+            width: contentWidth,
+            align: 'center',
+          });
+      }
+
+      drawFooter();
+    }
   }
 }

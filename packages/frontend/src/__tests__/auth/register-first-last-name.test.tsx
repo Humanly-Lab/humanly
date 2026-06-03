@@ -57,6 +57,6 @@ describe('admin registration names', () => {
       jest.advanceTimersByTime(2000);
     });
 
-    expect(mockPush).toHaveBeenCalledWith('/login');
+    expect(mockPush).toHaveBeenCalledWith('/verify-email?email=admin%40example.com');
   });
 });

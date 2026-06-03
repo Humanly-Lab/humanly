@@ -21,7 +21,7 @@ const theme = {
     italic: 'italic',
     underline: 'underline',
     strikethrough: 'line-through',
-    code: 'bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded font-mono text-sm',
+    code: 'bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded text-sm',
   },
   heading: {
     h1: 'text-3xl font-bold mb-2 mt-4',

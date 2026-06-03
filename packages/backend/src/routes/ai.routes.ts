@@ -1,6 +1,7 @@
 import { Router } from 'express';
+import multer from 'multer';
 import { authenticate } from '../middleware/auth.middleware';
-import { asyncHandler } from '../middleware/error-handler';
+import { asyncHandler, AppError } from '../middleware/error-handler';
 import {
   sendChatMessage,
   getLogs,
@@ -11,7 +12,25 @@ import {
   deleteSession,
   trackSelectionAction,
   getSelectionStats,
+  uploadChatImageAttachment,
 } from '../controllers/ai.controller';
+
+/**
+ * Image upload middleware for chat attachments (#93). 10 MB cap is
+ * generous for screenshots / photos without becoming a DOS vector; MIME
+ * validation is repeated in the controller as defense-in-depth.
+ */
+const chatImageUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (!file.mimetype.startsWith('image/')) {
+      cb(new AppError(400, 'Only image files are allowed'));
+      return;
+    }
+    cb(null, true);
+  },
+});
 import {
   getSettings,
   saveSettings,
@@ -19,7 +38,7 @@ import {
   testConnection,
 } from '../controllers/ai-settings.controller';
 
-const router = Router();
+const router: Router = Router();
 
 // All routes require authentication
 router.use(authenticate);
@@ -38,6 +57,18 @@ router.post('/settings/test', asyncHandler(testConnection));
  * Body: { documentId: string, sessionId?: string, message: string, context?: { selection?, selectedText?, cursorPosition? } }
  */
 router.post('/chat', asyncHandler(sendChatMessage));
+
+/**
+ * POST /api/v1/ai/chat/attachments
+ * Upload a single chat image attachment (#93).
+ * Multipart field name: "image". Returns `{ storageKey, mimeType, filename, size }`.
+ * The client then references `storageKey` in the next `ai:message` payload.
+ */
+router.post(
+  '/chat/attachments',
+  chatImageUpload.single('image'),
+  asyncHandler(uploadChatImageAttachment),
+);
 
 /**
  * GET /api/v1/ai/logs

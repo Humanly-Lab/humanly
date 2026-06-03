@@ -3,8 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/auth-store';
-import { BasicInfoDialog } from '@/components/account/basic-info-dialog';
 import { Navbar } from '@/components/navigation/navbar';
+import { BasicInfoDialog } from '@/components/account/basic-info-dialog';
 
 export default function TasksLayout({
   children,
@@ -19,8 +19,14 @@ export default function TasksLayout({
   useEffect(() => {
     // Always validate session on mount
     const validateSession = async () => {
+      const shouldSwitchSession = typeof window !== 'undefined'
+        && new URLSearchParams(window.location.search).get('switchSession') === '1';
+
       try {
-        await fetchUser();
+        await fetchUser({ forceRefresh: shouldSwitchSession });
+        if (shouldSwitchSession) {
+          router.replace('/tasks');
+        }
       } catch (error) {
         router.push('/login');
       } finally {
@@ -42,7 +48,7 @@ export default function TasksLayout({
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4" />
           <p className="text-muted-foreground">Loading...</p>
         </div>
       </div>
@@ -62,7 +68,7 @@ export default function TasksLayout({
         mode="complete"
         onOpenChange={setBasicInfoOpen}
       />
-      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <main className="humanly-page">
         {children}
       </main>
     </div>

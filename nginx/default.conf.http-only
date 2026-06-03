@@ -6,9 +6,9 @@
 
 server {
     listen 80;
-    server_name app.writehumanly.net admin.writehumanly.net;
+    server_name writehumanly.net app.writehumanly.net admin.writehumanly.net api.writehumanly.net;
 
-    client_max_body_size 10M;
+    client_max_body_size 50M;
 
     # Docker embedded DNS — resolves container names at request time
     resolver 127.0.0.11 valid=30s;

@@ -1,25 +1,25 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useCertificate } from '@/hooks/use-certificates';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/components/ui/use-toast';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { AccessCodeDialog } from '@/components/certificates/access-code-dialog';
-import { apiClient } from '@/lib/api-client';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 import {
   ArrowLeft,
   FileJson,
   FileText,
   Calendar,
   Award,
-  Clock,
-  Type,
   Copy,
   Check,
   Share2,
@@ -29,29 +29,78 @@ import {
   X,
   Trash2,
   Bot,
-  CheckCircle,
-  XCircle,
   MessageSquare,
-  Sparkles,
-  BookOpen,
   Wand2,
+  ChevronDown,
+  RefreshCw,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import QRCode from 'qrcode';
 import { Input } from '@/components/ui/input';
+import { copyTextToClipboard } from '@/lib/clipboard';
+import { getApiUrl, TokenManager } from '@/lib/api-client';
+import { useAuthStore } from '@/stores/auth-store';
+import { isGuestUserEmail } from '@/components/navigation/user-display';
+
+function usePublicCertificateToken(certificateId: string) {
+  const previousAccessTokenRef = useRef<string | null | undefined>(undefined);
+
+  useLayoutEffect(() => {
+    const publicCertificateAccessToken = TokenManager.getPublicCertificateAccessToken(certificateId);
+    if (!publicCertificateAccessToken) return undefined;
+
+    const currentAccessToken = TokenManager.getAccessToken();
+    if (currentAccessToken === publicCertificateAccessToken) return undefined;
+
+    previousAccessTokenRef.current = currentAccessToken;
+    TokenManager.setAccessToken(publicCertificateAccessToken);
+
+    return () => {
+      if (TokenManager.getAccessToken() !== publicCertificateAccessToken) {
+        previousAccessTokenRef.current = undefined;
+        return;
+      }
+
+      const previousAccessToken = previousAccessTokenRef.current;
+      if (previousAccessToken) {
+        TokenManager.setAccessToken(previousAccessToken);
+      } else {
+        TokenManager.clearAccessToken();
+      }
+      previousAccessTokenRef.current = undefined;
+    };
+  }, [certificateId]);
+}
 
 export default function CertificateDetailPage() {
   const params = useParams();
   const router = useRouter();
   const { toast } = useToast();
   const certificateId = params.id as string;
-  const { certificate, aiStats, isLoading, isLoadingAiStats, error, downloadJSON, downloadPDF, updateAccessCode, updateDisplayOptions } = useCertificate(certificateId);
+  const { user } = useAuthStore();
+  usePublicCertificateToken(certificateId);
+  const { certificate, aiStats, isLoading, isLoadingAiStats, error, downloadJSON, updateAccessCode, updateDisplayOptions } = useCertificate(certificateId);
   const [qrCodeDataURL, setQrCodeDataURL] = useState<string>('');
   const [copied, setCopied] = useState(false);
   const [isEditingAccessCode, setIsEditingAccessCode] = useState(false);
   const [editedAccessCode, setEditedAccessCode] = useState('');
   const [isUpdatingAccessCode, setIsUpdatingAccessCode] = useState(false);
   const [isUpdatingDisplay, setIsUpdatingDisplay] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const isGuestCertificateView = isGuestUserEmail(user?.email)
+    || Boolean(TokenManager.getPublicCertificateAccessToken(certificateId));
+
+  const generateAccessCode = () => {
+    const fallbackCode = () => Math.floor(Math.random() * 10000);
+
+    if (typeof window !== 'undefined' && window.crypto?.getRandomValues) {
+      const values = new Uint32Array(1);
+      window.crypto.getRandomValues(values);
+      return String(values[0] % 10000).padStart(4, '0');
+    }
+
+    return String(fallbackCode()).padStart(4, '0');
+  };
 
   useEffect(() => {
     if (certificate) {
@@ -69,13 +118,29 @@ export default function CertificateDetailPage() {
     }
   }, [certificate]);
 
+  const showDownloadToast = (label: string, outcome: 'saved' | 'downloaded' | 'canceled') => {
+    if (outcome === 'canceled') {
+      return;
+    }
+
+    if (outcome === 'saved') {
+      toast({
+        title: 'Saved',
+        description: `${label} saved to the selected location`,
+      });
+      return;
+    }
+
+    toast({
+      title: 'Download started',
+      description: `${label} was sent to your browser's default downloads folder.`,
+    });
+  };
+
   const handleDownloadJSON = async () => {
     try {
-      await downloadJSON();
-      toast({
-        title: 'Success',
-        description: 'JSON certificate downloaded successfully',
-      });
+      const outcome = await downloadJSON();
+      showDownloadToast('JSON certificate', outcome);
     } catch (err: any) {
       toast({
         title: 'Error',
@@ -85,42 +150,42 @@ export default function CertificateDetailPage() {
     }
   };
 
-  const handleDownloadPDF = async () => {
-    try {
-      await downloadPDF();
-      toast({
-        title: 'Success',
-        description: 'PDF certificate downloaded successfully',
-      });
-    } catch (err: any) {
-      toast({
-        title: 'Error',
-        description: err.message || 'Failed to download PDF',
-        variant: 'destructive',
-      });
-    }
+  const showCopyUnavailableToast = (label: string) => {
+    toast({
+      title: 'Copy unavailable',
+      description: `${label} could not be copied automatically. Select it manually instead.`,
+      variant: 'destructive',
+    });
   };
 
-  const handleCopyVerificationToken = () => {
+  const handleCopyVerificationToken = async () => {
     if (certificate) {
-      navigator.clipboard.writeText(certificate.verificationToken);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-      toast({
-        title: 'Copied',
-        description: 'Verification token copied to clipboard',
-      });
+      const didCopy = await copyTextToClipboard(certificate.verificationToken);
+      if (didCopy) {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+        toast({
+          title: 'Copied',
+          description: 'Verification token copied to clipboard',
+        });
+      } else {
+        showCopyUnavailableToast('Verification token');
+      }
     }
   };
 
-  const handleShareVerificationLink = () => {
+  const handleShareVerificationLink = async () => {
     if (certificate) {
       const verifyUrl = `${window.location.origin}/verify/${certificate.verificationToken}`;
-      navigator.clipboard.writeText(verifyUrl);
-      toast({
-        title: 'Link Copied',
-        description: 'Verification link copied to clipboard',
-      });
+      const didCopy = await copyTextToClipboard(verifyUrl);
+      if (didCopy) {
+        toast({
+          title: 'Link Copied',
+          description: 'Verification link copied to clipboard',
+        });
+      } else {
+        showCopyUnavailableToast('Verification link');
+      }
     }
   };
 
@@ -129,16 +194,56 @@ export default function CertificateDetailPage() {
     setIsEditingAccessCode(true);
   };
 
-  const handleStartAddCode = () => {
-    setEditedAccessCode('');
-    setIsEditingAccessCode(true);
+  const handleCopyAccessCode = async (accessCode: string) => {
+    const didCopy = await copyTextToClipboard(accessCode);
+    if (didCopy) {
+      toast({ title: 'Copied', description: 'Access code copied' });
+    } else {
+      showCopyUnavailableToast('Access code');
+    }
+    return didCopy;
+  };
+
+  const handleGenerateAccessCode = async () => {
+    const generatedCode = generateAccessCode();
+
+    try {
+      setIsUpdatingAccessCode(true);
+      await updateAccessCode(generatedCode);
+      setEditedAccessCode(generatedCode);
+      setIsEditingAccessCode(false);
+
+      const didCopy = await copyTextToClipboard(generatedCode);
+      toast({
+        title: 'Access code generated',
+        description: didCopy
+          ? '4-digit code generated and copied.'
+          : '4-digit code generated. Use the copy button to copy it.',
+      });
+    } catch (err: any) {
+      toast({
+        title: 'Error',
+        description: err.message || 'Failed to generate access code',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsUpdatingAccessCode(false);
+    }
+  };
+
+  const handleRegenerateEditedAccessCode = () => {
+    setEditedAccessCode(generateAccessCode());
+  };
+
+  const handleEditedAccessCodeChange = (value: string) => {
+    setEditedAccessCode(value.replace(/\D/g, '').slice(0, 4));
   };
 
   const handleSaveAccessCode = async () => {
-    if (editedAccessCode.length < 4) {
+    if (!/^\d{4}$/.test(editedAccessCode)) {
       toast({
         title: 'Error',
-        description: 'Access code must be at least 4 characters',
+        description: 'Access code must be exactly 4 digits',
         variant: 'destructive',
       });
       return;
@@ -226,18 +331,20 @@ export default function CertificateDetailPage() {
 
   if (error || !certificate) {
     return (
-      <div className="container mx-auto max-w-5xl px-4 py-8">
+      <div className="humanly-page-narrow">
         <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4">
           <h2 className="text-lg font-semibold text-destructive">Error</h2>
           <p className="mt-2 text-sm">{error || 'Certificate not found'}</p>
-          <Button
-            onClick={() => router.push('/certificates')}
-            variant="outline"
-            className="mt-4"
-          >
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Certificates
-          </Button>
+          {!isGuestCertificateView && (
+            <Button
+              onClick={() => router.push('/certificates')}
+              variant="outline"
+              className="mt-4"
+            >
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Certificates
+            </Button>
+          )}
         </div>
       </div>
     );
@@ -251,427 +358,404 @@ export default function CertificateDetailPage() {
   const pastedPercentage = totalAuthored > 0
     ? (certificate.pastedCharacters / totalAuthored) * 100
     : 0;
+  const editingMinutes = Math.round(certificate.editingTimeSeconds / 60);
+  const textImprovementTotal = aiStats?.selectionActions.total || 0;
+  const aiChatTotal = aiStats?.aiQuestions.total || 0;
+  const safeTitle = certificate.title
+    ?.trim()
+    .replace(/[^a-z0-9]+/gi, '-')
+    .replace(/^-+|-+$/g, '')
+    .toLowerCase() || certificateId;
+  const pdfPreviewUrl = getApiUrl(`/certificates/${certificateId}/pdf?disposition=inline&filename=certificate-${safeTitle}.pdf`);
 
   return (
-    <div className="container mx-auto max-w-5xl px-4 py-8">
-      <div className="mb-8">
-        <Button
-          onClick={() => router.push('/certificates')}
-          variant="ghost"
-          size="sm"
-          className="mb-4"
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Certificates
-        </Button>
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div className="flex-1">
-            <div className="flex items-center gap-3">
-              <Award className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
-              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight break-words">{certificate.title}</h1>
-            </div>
-            <p className="text-xs sm:text-sm text-muted-foreground mt-2 flex items-center gap-2">
-              <Calendar className="h-3 w-3 sm:h-4 sm:w-4" />
-              Generated on {format(new Date(certificate.generatedAt), 'MMMM dd, yyyy')}
-            </p>
-          </div>
-          <Badge
-            variant={certificate.certificateType === 'full_authorship' ? 'default' : 'secondary'}
-            className="text-sm sm:text-base px-3 py-1 sm:px-4 sm:py-2 self-start"
+    <div className="mx-auto max-w-6xl px-5 pb-6 pt-5 sm:px-8 lg:px-10">
+      <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        {!isGuestCertificateView && (
+          <Button
+            onClick={() => router.push('/certificates')}
+            variant="outline"
+            size="sm"
+            className="w-fit"
           >
-            {certificate.certificateType === 'full_authorship' ? 'Full Authorship' : 'Partial Authorship'}
-          </Badge>
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Certificates
+          </Button>
+        )}
+
+        <div className="grid grid-cols-3 gap-2 sm:w-auto">
+          <Button onClick={handleShareVerificationLink} variant="outline" size="sm" className="w-full sm:w-36">
+            <Share2 className="mr-2 h-4 w-4" />
+            Share Link
+          </Button>
+          <Button asChild size="sm" className="w-full sm:w-36">
+            <a href={pdfPreviewUrl} target="_blank" rel="noopener noreferrer">
+              <FileText className="mr-2 h-4 w-4" />
+              Open PDF
+            </a>
+          </Button>
+          <Button onClick={handleDownloadJSON} variant="outline" size="sm" className="w-full sm:w-36">
+            <FileJson className="mr-2 h-4 w-4" />
+            JSON Data
+          </Button>
         </div>
       </div>
 
-      {/* Main Content - Two Column Layout */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Left Column (2/3 width) */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Authorship Statistics Card */}
+      <div className="space-y-4">
+        <Card>
+          <CardContent className="space-y-4 p-4 sm:p-5">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-start gap-3">
+                  <Award className="mt-1 h-6 w-6 shrink-0 text-accent" />
+                  <div className="min-w-0">
+                    <h1 className="break-words text-2xl font-semibold tracking-normal">{certificate.title}</h1>
+                    <p className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
+                      <Calendar className="h-4 w-4" />
+                      Generated {format(new Date(certificate.generatedAt), 'MMMM dd, yyyy')}
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <p className="max-w-full text-sm text-muted-foreground lg:ml-6 lg:shrink-0 lg:whitespace-nowrap lg:text-right">
+                A verifiable snapshot of typing activity, pasted text, and AI assistance.
+              </p>
+            </div>
+
+            <Separator />
+
+            <div className="grid gap-2 sm:grid-cols-4">
+              <div className="rounded-lg border border-border/60 bg-muted/35 p-3">
+                <p className="text-xs text-muted-foreground">Typed</p>
+                <p className="mt-1 text-2xl font-semibold">{typedPercentage.toFixed(0)}%</p>
+              </div>
+              <div className="rounded-lg border border-border/60 bg-muted/35 p-3">
+                <p className="text-xs text-muted-foreground">Pasted</p>
+                <p className="mt-1 text-2xl font-semibold">{pastedPercentage.toFixed(0)}%</p>
+              </div>
+              <div className="rounded-lg border border-border/60 bg-muted/35 p-3">
+                <p className="text-xs text-muted-foreground">Final Text</p>
+                <p className="mt-1 text-2xl font-semibold">{certificate.totalCharacters.toLocaleString()}</p>
+              </div>
+              <div className="rounded-lg border border-border/60 bg-muted/35 p-3">
+                <p className="text-xs text-muted-foreground">Writing Time</p>
+                <p className="mt-1 text-2xl font-semibold">{editingMinutes} min</p>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Typed vs pasted composition</span>
+                <span className="font-medium">
+                  {certificate.typedCharacters.toLocaleString()} typed · {certificate.pastedCharacters.toLocaleString()} pasted
+                </span>
+              </div>
+              <div className="flex h-3 overflow-hidden rounded-full bg-secondary">
+                <div className="bg-primary" style={{ width: `${typedPercentage}%` }} />
+                <div className="bg-[#b9774f]" style={{ width: `${pastedPercentage}%` }} />
+              </div>
+            </div>
+
+          </CardContent>
+        </Card>
+
+        {(aiStats || isLoadingAiStats) && (
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-lg">Authorship Statistics</CardTitle>
-              <CardDescription>Detailed breakdown of document authorship</CardDescription>
+              <div className="flex items-center gap-2">
+                <Bot className="h-5 w-5 text-[#b9774f]" />
+                <CardTitle className="text-lg">AI Assistance</CardTitle>
+              </div>
+              <CardDescription>How AI was used while writing this document.</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Key Metrics Row */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div className="p-3 bg-muted/50 rounded-lg text-center">
-                  <p className="text-xs text-muted-foreground">Document Length</p>
-                  <p className="text-xl font-bold">{certificate.totalCharacters.toLocaleString()}</p>
+            <CardContent>
+              {isLoadingAiStats ? (
+                <div className="flex items-center justify-center py-6">
+                  <div className="inline-block h-5 w-5 animate-spin rounded-full border-2 border-solid border-current border-r-transparent" />
+                  <span className="ml-2 text-sm text-muted-foreground">Loading...</span>
                 </div>
-                <div className="p-3 bg-muted/50 rounded-lg text-center">
-                  <p className="text-xs text-muted-foreground">Total Events</p>
-                  <p className="text-xl font-bold">{certificate.totalEvents.toLocaleString()}</p>
-                </div>
-                <div className="p-3 bg-muted/50 rounded-lg text-center">
-                  <p className="text-xs text-muted-foreground">Typing Events</p>
-                  <p className="text-xl font-bold">{certificate.typingEvents.toLocaleString()}</p>
-                </div>
-                <div className="p-3 bg-muted/50 rounded-lg text-center">
-                  <p className="text-xs text-muted-foreground flex items-center justify-center gap-1">
-                    <Clock className="h-3 w-3" />
-                    Editing Time
-                  </p>
-                  <p className="text-xl font-bold">{Math.round(certificate.editingTimeSeconds / 60)} min</p>
-                </div>
-              </div>
-
-              <Separator />
-
-              {/* Authorship Composition */}
-              <div className="space-y-3">
-                <p className="text-sm font-medium">Authorship Composition</p>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm text-muted-foreground flex items-center gap-1">
-                        <Type className="h-3 w-3" />
-                        Typed
-                      </p>
-                      <p className="text-sm font-semibold">{typedPercentage.toFixed(1)}%</p>
+              ) : aiStats ? (
+                <div className="grid gap-4 lg:grid-cols-[1fr_220px]">
+                  <div className="space-y-3">
+                    <p className="flex items-center gap-2 text-sm font-medium">
+                      <Wand2 className="h-4 w-4 text-[#b9774f]" />
+                      Text Improvements
+                    </p>
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                      <div className="rounded-lg border border-border/60 bg-muted/35 p-3 text-center">
+                        <p className="text-xs text-muted-foreground">Grammar</p>
+                        <p className="text-xl font-semibold">{aiStats.selectionActions.grammarFixes}</p>
+                      </div>
+                      <div className="rounded-lg border border-border/60 bg-muted/35 p-3 text-center">
+                        <p className="text-xs text-muted-foreground">Improve</p>
+                        <p className="text-xl font-semibold">{aiStats.selectionActions.improveWriting}</p>
+                      </div>
+                      <div className="rounded-lg border border-border/60 bg-muted/35 p-3 text-center">
+                        <p className="text-xs text-muted-foreground">Simplify</p>
+                        <p className="text-xl font-semibold">{aiStats.selectionActions.simplify}</p>
+                      </div>
+                      <div className="rounded-lg border border-border/60 bg-muted/35 p-3 text-center">
+                        <p className="text-xs text-muted-foreground">Formal</p>
+                        <p className="text-xl font-semibold">{aiStats.selectionActions.makeFormal}</p>
+                      </div>
                     </div>
-                    <div className="h-2 bg-secondary rounded-full overflow-hidden">
-                      <div className="h-full bg-primary" style={{ width: `${typedPercentage}%` }} />
-                    </div>
-                    <p className="text-xs text-muted-foreground">{certificate.typedCharacters.toLocaleString()} chars</p>
+                    <p className="text-xs text-muted-foreground">
+                      {textImprovementTotal} total · {aiStats.selectionActions.accepted} accepted · {aiStats.selectionActions.rejected} discarded
+                      {textImprovementTotal > 0 ? ` · ${aiStats.selectionActions.acceptanceRate.toFixed(0)}% acceptance` : ''}
+                    </p>
                   </div>
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm text-muted-foreground flex items-center gap-1">
-                        <FileText className="h-3 w-3" />
-                        Pasted
-                      </p>
-                      <p className="text-sm font-semibold">{pastedPercentage.toFixed(1)}%</p>
-                    </div>
-                    <div className="h-2 bg-secondary rounded-full overflow-hidden">
-                      <div className="h-full bg-orange-500" style={{ width: `${pastedPercentage}%` }} />
-                    </div>
-                    <p className="text-xs text-muted-foreground">{certificate.pastedCharacters.toLocaleString()} chars</p>
+
+                  <div className="rounded-lg border border-border/70 bg-muted/25 p-4">
+                    <p className="flex items-center gap-2 text-sm font-medium">
+                      <MessageSquare className="h-4 w-4 text-[#b9774f]" />
+                      AI Chat
+                    </p>
+                    <p className="mt-3 text-3xl font-semibold">{aiChatTotal}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Chat questions asked in this document.
+                    </p>
                   </div>
                 </div>
-              </div>
+              ) : (
+                <p className="py-4 text-center text-sm text-muted-foreground">
+                  No AI statistics available.
+                </p>
+              )}
             </CardContent>
           </Card>
+        )}
 
-          {/* AI Authorship Statistics Card */}
-          {(aiStats || isLoadingAiStats) && (
-            <Card>
-              <CardHeader className="pb-3">
-                <div className="flex items-center gap-2">
-                  <Bot className="h-5 w-5 text-violet-600" />
-                  <CardTitle className="text-lg">AI Assistance</CardTitle>
+        <Collapsible open={detailsOpen} onOpenChange={setDetailsOpen}>
+          <Card>
+            <CollapsibleTrigger asChild>
+              <button className="flex w-full items-center justify-between px-5 py-4 text-left">
+                <div>
+                  <p className="font-medium">More details</p>
+                  <p className="text-sm text-muted-foreground">Verification, access, display, and identifiers.</p>
                 </div>
-                <CardDescription>AI usage during document creation</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {isLoadingAiStats ? (
-                  <div className="flex items-center justify-center py-6">
-                    <div className="inline-block h-5 w-5 animate-spin rounded-full border-2 border-solid border-current border-r-transparent" />
-                    <span className="ml-2 text-sm text-muted-foreground">Loading...</span>
+                <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform ${detailsOpen ? 'rotate-180' : ''}`} />
+              </button>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <Separator />
+              <CardContent className="grid gap-5 p-5 !pt-6 lg:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
+                <div className="grid gap-4 rounded-lg border border-border/70 bg-muted/20 p-4 lg:grid-cols-[minmax(190px,0.8fr)_minmax(280px,1.2fr)]">
+                  <div className="space-y-3">
+                    <div>
+                      <h3 className="text-sm font-medium">Verification</h3>
+                      <p className="text-xs text-muted-foreground">Share or scan this link to verify the certificate.</p>
+                    </div>
+                    <div className="flex flex-col items-center">
+                      {qrCodeDataURL ? (
+                        <img
+                          src={qrCodeDataURL}
+                          alt="Verification QR Code"
+                          className="h-36 w-36 bg-white"
+                        />
+                      ) : (
+                        <div className="h-36 w-36 animate-pulse rounded bg-muted" />
+                      )}
+                      <Button
+                        onClick={handleShareVerificationLink}
+                        variant="outline"
+                        size="sm"
+                        className="mt-3 w-full max-w-56 bg-background"
+                      >
+                        <Share2 className="mr-2 h-4 w-4" />
+                        Copy Link
+                      </Button>
+                    </div>
                   </div>
-                ) : aiStats ? (
-                  <div className="space-y-4">
-                    {/* Text Improvement Actions */}
-                    <div className="space-y-3">
-                      <p className="text-sm font-medium flex items-center gap-2">
-                        <Wand2 className="h-4 w-4 text-violet-500" />
-                        Text Improvements
-                      </p>
-                      <div className="grid grid-cols-4 gap-2">
-                        <div className="p-2 bg-muted/50 rounded-lg text-center">
-                          <p className="text-[10px] text-muted-foreground">Grammar</p>
-                          <p className="text-lg font-semibold">{aiStats.selectionActions.grammarFixes}</p>
-                        </div>
-                        <div className="p-2 bg-muted/50 rounded-lg text-center">
-                          <p className="text-[10px] text-muted-foreground">Improve</p>
-                          <p className="text-lg font-semibold">{aiStats.selectionActions.improveWriting}</p>
-                        </div>
-                        <div className="p-2 bg-muted/50 rounded-lg text-center">
-                          <p className="text-[10px] text-muted-foreground">Simplify</p>
-                          <p className="text-lg font-semibold">{aiStats.selectionActions.simplify}</p>
-                        </div>
-                        <div className="p-2 bg-muted/50 rounded-lg text-center">
-                          <p className="text-[10px] text-muted-foreground">Formal</p>
-                          <p className="text-lg font-semibold">{aiStats.selectionActions.makeFormal}</p>
-                        </div>
+
+                  <div className="space-y-8">
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Lock className={`h-4 w-4 ${certificate.isProtected ? 'text-[#b9774f]' : 'text-muted-foreground'}`} />
+                        <h3 className="text-sm font-medium">Access Protection</h3>
                       </div>
-                      {/* Acceptance Stats */}
-                      <div className="flex flex-wrap items-center gap-3 text-xs pt-1">
-                        <span className="text-muted-foreground">Total: <span className="font-medium text-foreground">{aiStats.selectionActions.total}</span></span>
-                        <span className="flex items-center gap-1">
-                          <CheckCircle className="h-3 w-3 text-green-600" />
-                          <span className="text-green-600 font-medium">{aiStats.selectionActions.accepted}</span>
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <XCircle className="h-3 w-3 text-red-500" />
-                          <span className="text-red-500 font-medium">{aiStats.selectionActions.rejected}</span>
-                        </span>
-                        {aiStats.selectionActions.total > 0 && (
-                          <span className="text-muted-foreground">
-                            Rate: <span className="font-medium text-foreground">{aiStats.selectionActions.acceptanceRate.toFixed(0)}%</span>
-                          </span>
-                        )}
-                      </div>
+
+                      {!isEditingAccessCode ? (
+                        <>
+                          {certificate.isProtected && certificate.accessCode ? (
+                            <div className="flex items-center gap-1">
+                              <div className="min-w-0 flex-1 truncate rounded-lg border border-border/60 bg-background p-2 text-xs">
+                                {certificate.accessCode}
+                              </div>
+                              <Button
+                                onClick={() => handleCopyAccessCode(certificate.accessCode!)}
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0"
+                                aria-label="Copy access code"
+                              >
+                                <Copy className="h-3 w-3" />
+                              </Button>
+                              <Button
+                                onClick={handleStartEdit}
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0"
+                                aria-label="Edit access code"
+                              >
+                                <Edit2 className="h-3 w-3" />
+                              </Button>
+                              <Button
+                                onClick={handleRemoveAccessCode}
+                                variant="ghost"
+                                size="sm"
+                                disabled={isUpdatingAccessCode}
+                                className="h-8 w-8 p-0"
+                                aria-label="Remove access code"
+                              >
+                                <Trash2 className="h-3 w-3 text-destructive" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <Button
+                              onClick={handleGenerateAccessCode}
+                              variant="outline"
+                              size="sm"
+                              className="w-full"
+                              disabled={isUpdatingAccessCode}
+                            >
+                              <RefreshCw className="mr-2 h-3 w-3" />
+                              Generate 4-digit Code
+                            </Button>
+                          )}
+                        </>
+                      ) : (
+                        <div className="flex items-center gap-1">
+                          <Input
+                            type="text"
+                            inputMode="numeric"
+                            maxLength={4}
+                            placeholder="4-digit code"
+                            value={editedAccessCode}
+                            onChange={(e) => handleEditedAccessCodeChange(e.target.value)}
+                            disabled={isUpdatingAccessCode}
+                            className="h-8 flex-1 text-xs"
+                            autoFocus
+                          />
+                          <Button
+                            onClick={handleRegenerateEditedAccessCode}
+                            size="sm"
+                            variant="outline"
+                            disabled={isUpdatingAccessCode}
+                            className="h-8 w-8 p-0"
+                            aria-label="Generate new access code"
+                          >
+                            <RefreshCw className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            onClick={() => handleCopyAccessCode(editedAccessCode)}
+                            size="sm"
+                            variant="outline"
+                            disabled={isUpdatingAccessCode || editedAccessCode.trim().length !== 4}
+                            className="h-8 w-8 p-0"
+                            aria-label="Copy access code"
+                          >
+                            <Copy className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            onClick={handleSaveAccessCode}
+                            size="sm"
+                            disabled={isUpdatingAccessCode || !/^\d{4}$/.test(editedAccessCode)}
+                            className="h-8 w-8 p-0"
+                            aria-label="Save access code"
+                          >
+                            <Check className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            onClick={handleCancelEdit}
+                            size="sm"
+                            variant="outline"
+                            disabled={isUpdatingAccessCode}
+                            className="h-8 w-8 p-0"
+                            aria-label="Cancel access code edit"
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      )}
                     </div>
 
                     <Separator />
 
-                    {/* AI Questions */}
-                    <div className="space-y-3">
-                      <p className="text-sm font-medium flex items-center gap-2">
-                        <MessageSquare className="h-4 w-4 text-blue-500" />
-                        AI Questions
-                      </p>
-                      <div className="grid grid-cols-4 gap-2">
-                        <div className="p-2 bg-muted/50 rounded-lg text-center">
-                          <p className="text-[10px] text-muted-foreground">Total</p>
-                          <p className="text-lg font-semibold">{aiStats.aiQuestions.total}</p>
-                        </div>
-                        <div className="p-2 bg-blue-50 rounded-lg text-center border border-blue-100">
-                          <p className="text-[10px] text-blue-700">Understanding</p>
-                          <p className="text-lg font-semibold text-blue-700">{aiStats.aiQuestions.understanding}</p>
-                        </div>
-                        <div className="p-2 bg-violet-50 rounded-lg text-center border border-violet-100">
-                          <p className="text-[10px] text-violet-700">Generation</p>
-                          <p className="text-lg font-semibold text-violet-700">{aiStats.aiQuestions.generation}</p>
-                        </div>
-                        <div className="p-2 bg-muted/50 rounded-lg text-center">
-                          <p className="text-[10px] text-muted-foreground">Other</p>
-                          <p className="text-lg font-semibold">{aiStats.aiQuestions.other}</p>
-                        </div>
+                    <div className="space-y-2.5">
+                      <div className="flex items-center gap-2">
+                        <Settings className="h-4 w-4 text-muted-foreground" />
+                        <h3 className="text-sm font-medium">Public Display</h3>
                       </div>
-                    </div>
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground text-center py-4">
-                    No AI statistics available.
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Download & Details Row */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">Download</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <Button onClick={handleDownloadPDF} className="w-full" size="sm">
-                  <FileText className="mr-2 h-4 w-4" />
-                  PDF Certificate
-                </Button>
-                <Button onClick={handleDownloadJSON} variant="outline" className="w-full" size="sm">
-                  <FileJson className="mr-2 h-4 w-4" />
-                  JSON Data
-                </Button>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">Details</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2 text-xs">
-                <div>
-                  <p className="text-muted-foreground">Certificate ID</p>
-                  <p className="font-mono truncate">{certificate.id}</p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">Document ID</p>
-                  <p className="font-mono truncate">{certificate.documentId}</p>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-
-        {/* Right Column (1/3 width) */}
-        <div className="space-y-6">
-          {/* Verification QR Code */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Verification</CardTitle>
-              <CardDescription>Scan QR code to verify</CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col items-center">
-              {qrCodeDataURL ? (
-                <img
-                  src={qrCodeDataURL}
-                  alt="Verification QR Code"
-                  className="w-40 h-40 border rounded-lg"
-                />
-              ) : (
-                <div className="w-40 h-40 bg-muted animate-pulse rounded-lg" />
-              )}
-              <Button
-                onClick={handleShareVerificationLink}
-                variant="outline"
-                size="sm"
-                className="mt-3 w-full"
-              >
-                <Share2 className="mr-2 h-4 w-4" />
-                Share Link
-              </Button>
-            </CardContent>
-          </Card>
-
-          {/* Verification Token */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Token</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <div className="p-2 bg-muted rounded-md font-mono text-[10px] break-all max-h-20 overflow-y-auto">
-                {certificate.verificationToken}
-              </div>
-              <Button
-                onClick={handleCopyVerificationToken}
-                variant="outline"
-                size="sm"
-                className="w-full"
-              >
-                {copied ? (
-                  <>
-                    <Check className="mr-2 h-4 w-4" />
-                    Copied!
-                  </>
-                ) : (
-                  <>
-                    <Copy className="mr-2 h-4 w-4" />
-                    Copy
-                  </>
-                )}
-              </Button>
-            </CardContent>
-          </Card>
-
-          {/* Certificate Settings */}
-          <Card>
-            <CardHeader className="pb-3">
-              <div className="flex items-center gap-2">
-                <Settings className="h-4 w-4 text-muted-foreground" />
-                <CardTitle className="text-base">Settings</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Access Protection */}
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <Lock className={`h-3 w-3 ${certificate.isProtected ? 'text-yellow-600' : 'text-muted-foreground'}`} />
-                  <h3 className="font-medium text-sm">Protection</h3>
-                </div>
-
-                {!isEditingAccessCode ? (
-                  <>
-                    {certificate.isProtected && certificate.accessCode ? (
                       <div className="space-y-2">
-                        <div className="flex items-center gap-1">
-                          <div className="flex-1 p-2 bg-muted rounded font-mono text-xs truncate">
-                            {certificate.accessCode}
-                          </div>
-                          <Button
-                            onClick={() => {
-                              navigator.clipboard.writeText(certificate.accessCode!);
-                              toast({ title: 'Copied', description: 'Access code copied' });
-                            }}
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 w-8 p-0"
-                          >
-                            <Copy className="h-3 w-3" />
-                          </Button>
-                          <Button onClick={handleStartEdit} variant="ghost" size="sm" className="h-8 w-8 p-0">
-                            <Edit2 className="h-3 w-3" />
-                          </Button>
-                          <Button
-                            onClick={handleRemoveAccessCode}
-                            variant="ghost"
-                            size="sm"
-                            disabled={isUpdatingAccessCode}
-                            className="h-8 w-8 p-0"
-                          >
-                            <Trash2 className="h-3 w-3 text-destructive" />
-                          </Button>
+                        <div className="flex items-center justify-between gap-3">
+                          <Label htmlFor="includeFullText" className="cursor-pointer text-xs">
+                            Show full text
+                          </Label>
+                          <Switch
+                            id="includeFullText"
+                            checked={certificate.includeFullText}
+                            onCheckedChange={(checked) => handleToggleDisplayOption('fullText', checked)}
+                            disabled={isUpdatingDisplay}
+                          />
+                        </div>
+                        <div className="flex items-center justify-between gap-3">
+                          <Label htmlFor="includeEditHistory" className="cursor-pointer text-xs">
+                            Show edit history
+                          </Label>
+                          <Switch
+                            id="includeEditHistory"
+                            checked={certificate.includeEditHistory}
+                            onCheckedChange={(checked) => handleToggleDisplayOption('editHistory', checked)}
+                            disabled={isUpdatingDisplay}
+                          />
                         </div>
                       </div>
-                    ) : (
-                      <Button onClick={handleStartAddCode} variant="outline" size="sm" className="w-full">
-                        <Lock className="h-3 w-3 mr-2" />
-                        Add Access Code
-                      </Button>
-                    )}
-                  </>
-                ) : (
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-1">
-                      <Input
-                        type="text"
-                        placeholder="Code (min 4 chars)"
-                        value={editedAccessCode}
-                        onChange={(e) => setEditedAccessCode(e.target.value)}
-                        disabled={isUpdatingAccessCode}
-                        className="flex-1 h-8 text-xs font-mono"
-                        autoFocus
-                      />
-                      <Button
-                        onClick={handleSaveAccessCode}
-                        size="sm"
-                        disabled={isUpdatingAccessCode || editedAccessCode.trim().length < 4}
-                        className="h-8 w-8 p-0"
-                      >
-                        <Check className="h-3 w-3" />
-                      </Button>
-                      <Button
-                        onClick={handleCancelEdit}
-                        size="sm"
-                        variant="outline"
-                        disabled={isUpdatingAccessCode}
-                        className="h-8 w-8 p-0"
-                      >
-                        <X className="h-3 w-3" />
-                      </Button>
                     </div>
                   </div>
-                )}
-              </div>
+                </div>
 
-              <Separator />
-
-              {/* Display Options */}
-              <div className="space-y-3">
-                <h3 className="font-medium text-sm">Display</h3>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="includeFullText" className="text-xs cursor-pointer">
-                      Show Full Text
-                    </Label>
-                    <Switch
-                      id="includeFullText"
-                      checked={certificate.includeFullText}
-                      onCheckedChange={(checked) => handleToggleDisplayOption('fullText', checked)}
-                      disabled={isUpdatingDisplay}
-                    />
+                <div className="space-y-3 rounded-lg border border-border/70 bg-muted/20 p-4 text-xs">
+                  <div>
+                    <h3 className="text-sm font-medium">Identifiers</h3>
+                    <p className="text-xs text-muted-foreground">Technical identifiers for audit and support.</p>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="includeEditHistory" className="text-xs cursor-pointer">
-                      Show Edit History
-                    </Label>
-                    <Switch
-                      id="includeEditHistory"
-                      checked={certificate.includeEditHistory}
-                      onCheckedChange={(checked) => handleToggleDisplayOption('editHistory', checked)}
-                      disabled={isUpdatingDisplay}
-                    />
+                  <div>
+                    <p className="text-muted-foreground">Certificate ID</p>
+                    <p className="truncate">{certificate.id}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Document ID</p>
+                    <p className="truncate">{certificate.documentId}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Verification Token</p>
+                    <div className="mt-1 max-h-20 overflow-y-auto rounded-lg border border-border/60 bg-background p-2 text-[10px] break-all">
+                      {certificate.verificationToken}
+                    </div>
+                    <Button
+                      onClick={handleCopyVerificationToken}
+                      variant="outline"
+                      size="sm"
+                      className="mt-4 w-full"
+                    >
+                      {copied ? (
+                        <>
+                          <Check className="mr-2 h-4 w-4" />
+                          Copied
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="mr-2 h-4 w-4" />
+                          Copy Token
+                        </>
+                      )}
+                    </Button>
                   </div>
                 </div>
-              </div>
-            </CardContent>
+              </CardContent>
+            </CollapsibleContent>
           </Card>
-        </div>
+        </Collapsible>
       </div>
     </div>
   );

@@ -92,8 +92,8 @@ export function ColorPicker({
                   backgroundColor: color.value,
                   border:
                     currentColor === color.value
-                      ? '2px solid #3b82f6'
-                      : '1px solid #d1d5db',
+                      ? '2px solid #1a1c20'
+                      : '1px solid #d8d9cf',
                 }}
                 aria-label={color.label}
                 title={color.label}

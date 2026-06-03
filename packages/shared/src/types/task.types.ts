@@ -16,8 +16,12 @@ export interface Task {
   startDate: Date;
   endDate: Date;
   environmentConfig?: WritingEnvironmentConfig | null;
+  allowGuestSubmissions: boolean;
   isActive: boolean;
   enrolledUserCount?: number;
+  documentCount?: number;
+  eventCount?: number;
+  submissionCount?: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -33,6 +37,7 @@ export interface TaskCreateInput {
   startDate: string | Date;
   endDate: string | Date;
   environmentConfig?: WritingEnvironmentConfig;
+  allowGuestSubmissions?: boolean;
 }
 
 export interface TaskUpdateInput {
@@ -46,6 +51,7 @@ export interface TaskUpdateInput {
   startDate?: string | Date;
   endDate?: string | Date;
   environmentConfig?: WritingEnvironmentConfig;
+  allowGuestSubmissions?: boolean;
   isActive?: boolean;
 }
 

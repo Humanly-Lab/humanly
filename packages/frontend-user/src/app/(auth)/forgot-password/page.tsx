@@ -4,14 +4,13 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import Link from 'next/link';
 import { useAuthStore } from '@/stores/auth-store';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Mail, ArrowLeft, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import { Mail, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import { AuthBackLink, AuthCard } from '@/components/auth/auth-card';
 
 // Form validation schema
 const forgotPasswordSchema = z.object({
@@ -45,25 +44,32 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Reset your password</CardTitle>
-        <CardDescription>
-          Enter your email address and we'll send you instructions to reset your password.
-        </CardDescription>
-      </CardHeader>
-
-      <CardContent>
+    <AuthCard
+      title={success ? 'Check your email' : 'Reset your password'}
+      description={
+        success
+          ? 'If this address belongs to a Humanly account, a reset link is on its way.'
+          : 'Enter the email you use for Humanly. We will send a secure reset link if the account exists.'
+      }
+      footer={<AuthBackLink href="/login">Back to login</AuthBackLink>}
+    >
         {success ? (
-          <Alert variant="success">
-            <CheckCircle2 className="h-4 w-4" />
-            <AlertTitle>Check your email</AlertTitle>
-            <AlertDescription>
-              We've sent password reset instructions to your email address. Please check your inbox and follow the link to reset your password.
-            </AlertDescription>
-          </Alert>
+          <div className="space-y-4">
+            <Alert variant="success">
+              <CheckCircle2 className="h-4 w-4" />
+              <AlertTitle>Reset link requested</AlertTitle>
+              <AlertDescription>
+                Look for the subject Reset Your Password - Humanly. It contains
+                a reset link that expires in 30 minutes, not a verification code.
+              </AlertDescription>
+            </Alert>
+            <p className="rounded-lg border border-border/80 bg-muted/40 p-4 text-sm leading-6 text-muted-foreground">
+              Check your inbox and spam folder. For security, this page shows the
+              same message whether or not the email is registered.
+            </p>
+          </div>
         ) : (
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <form method="post" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             {error && (
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
@@ -80,7 +86,7 @@ export default function ForgotPasswordPage() {
                   id="email"
                   type="email"
                   placeholder="you@example.com"
-                  className="pl-10"
+                  className="h-11 rounded-lg bg-background/70 pl-10"
                   disabled={isLoading}
                   {...register('email')}
                 />
@@ -90,29 +96,22 @@ export default function ForgotPasswordPage() {
               )}
             </div>
 
-            <Button type="submit" className="w-full" disabled={isLoading}>
+            <Button
+              type="submit"
+              className="h-11 w-full rounded-full font-bold"
+              disabled={isLoading}
+            >
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Sending...
                 </>
               ) : (
-                'Send reset instructions'
+                'Send reset link'
               )}
             </Button>
           </form>
         )}
-      </CardContent>
-
-      <CardFooter className="flex justify-center">
-        <Link
-          href="/login"
-          className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to login
-        </Link>
-      </CardFooter>
-    </Card>
+    </AuthCard>
   );
 }

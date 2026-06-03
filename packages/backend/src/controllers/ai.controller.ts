@@ -4,7 +4,77 @@ import { AIChatRequest, AILogQueryFilters, AIContentModification } from '@humanl
 import { AppError } from '../middleware/error-handler';
 import { AISelectionActionModel, AIActionType, AIDecision } from '../models/ai-selection-action.model';
 import { AIModel } from '../models/ai.model';
+import { AIChatAttachmentModel } from '../models/ai-chat-attachment.model';
+import { FileStorageService } from '../services/file-storage.service';
 import { logger } from '../utils/logger';
+import { v4 as uuidv4 } from 'uuid';
+
+/**
+ * Allow-list of image MIME types accepted as chat attachments (#93).
+ * Kept narrow on purpose — vision models on Together / OpenAI / Anthropic
+ * all support these formats, and refusing exotic types at the upload edge
+ * keeps the rest of the pipeline simple.
+ */
+const ALLOWED_CHAT_IMAGE_MIME_TYPES = new Set([
+  'image/png',
+  'image/jpeg',
+  'image/jpg',
+  'image/webp',
+  'image/gif',
+]);
+
+/**
+ * POST /api/v1/ai/chat/attachments — upload a single chat image attachment.
+ *
+ * The chat panel uses this BEFORE sending the chat turn: it uploads the
+ * bytes, gets back `{ storageKey, mimeType }`, then passes that as an
+ * `attachments` entry on the websocket `ai:message` payload. The actual
+ * image inlining for the LLM happens server-side in AIService just before
+ * the provider call, so the websocket frame and the persisted message rows
+ * stay small.
+ */
+export async function uploadChatImageAttachment(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  const userId = req.user?.userId;
+  if (!userId) {
+    throw new AppError(401, 'Unauthorized');
+  }
+  const file = (req as Request & { file?: Express.Multer.File }).file;
+  if (!file) {
+    throw new AppError(400, 'No file uploaded (use multipart field "image")');
+  }
+  if (!ALLOWED_CHAT_IMAGE_MIME_TYPES.has(file.mimetype)) {
+    throw new AppError(
+      400,
+      `Unsupported image type "${file.mimetype}". Allowed: png, jpeg, webp, gif.`,
+    );
+  }
+  // File storage adapter expects an opaque fileId; mint a UUID per upload.
+  const stored = await FileStorageService.store(file.buffer, `chat-image-${uuidv4()}`);
+  // Persist ownership so later dispatches can refuse cross-user use of
+  // this storageKey (#93 security follow-up).
+  await AIChatAttachmentModel.record({
+    storageKey: stored.storageKey,
+    storageProvider: stored.storageProvider,
+    storageBucket: stored.storageBucket,
+    userId,
+    mimeType: file.mimetype,
+    filename: file.originalname,
+    sizeBytes: file.size,
+    imageBytes: file.buffer,
+  });
+  res.status(201).json({
+    success: true,
+    data: {
+      storageKey: stored.storageKey,
+      mimeType: file.mimetype,
+      filename: file.originalname,
+      size: file.size,
+    },
+  });
+}
 
 const AI_ACTION_QUERY_MAP: Record<AIActionType, { queryType: 'grammar_check' | 'rewrite'; label: string }> = {
   grammar: { queryType: 'grammar_check', label: 'Fix grammar' },
@@ -23,21 +93,26 @@ export async function sendChatMessage(req: Request, res: Response): Promise<void
     throw new AppError(401, 'Unauthorized');
   }
 
-  const { documentId, sessionId, message, context, silent } = req.body;
+  const { documentId, sessionId, message, context, silent, attachments, forceNewSession } = req.body;
 
   if (!documentId) {
     throw new AppError(400, 'Document ID is required');
   }
 
-  if (!message || typeof message !== 'string' || message.trim().length === 0) {
-    throw new AppError(400, 'Message is required');
+  // Allow image-only turns: a vision query with no text is valid (#93).
+  const hasAttachments = Array.isArray(attachments) && attachments.length > 0;
+  const messageStr = typeof message === 'string' ? message.trim() : '';
+  if (messageStr.length === 0 && !hasAttachments) {
+    throw new AppError(400, 'Message or image attachment is required');
   }
 
   const request: AIChatRequest = {
     documentId,
     sessionId,
-    message: message.trim(),
+    message: messageStr,
     context,
+    attachments: hasAttachments ? attachments : undefined,
+    forceNewSession: forceNewSession === true,
   };
 
   // Silent mode: only get AI response without creating session/logs
@@ -255,6 +330,7 @@ export async function trackSelectionAction(req: Request, res: Response): Promise
   if (!actionType || !validActionTypes.includes(actionType)) {
     throw new AppError(400, 'Valid action type is required (grammar, improve, simplify, formal)');
   }
+  const validatedActionType = actionType as AIActionType;
 
   if (!originalText || typeof originalText !== 'string') {
     throw new AppError(400, 'Original text is required');
@@ -272,7 +348,7 @@ export async function trackSelectionAction(req: Request, res: Response): Promise
   const action = await AISelectionActionModel.create({
     documentId,
     userId,
-    actionType,
+    actionType: validatedActionType,
     originalText,
     suggestedText,
     decision,
@@ -282,7 +358,7 @@ export async function trackSelectionAction(req: Request, res: Response): Promise
 
   try {
     let targetLogId = logId as string | undefined;
-    const { queryType, label } = AI_ACTION_QUERY_MAP[actionType];
+    const { queryType, label } = AI_ACTION_QUERY_MAP[validatedActionType];
 
     if (!targetLogId) {
       const existingLog = await AIModel.findRecentSelectionLog({
@@ -340,7 +416,7 @@ export async function trackSelectionAction(req: Request, res: Response): Promise
     logger.warn('Failed to mirror AI selection action into AI interaction logs', {
       userId,
       documentId,
-      actionType,
+      actionType: validatedActionType,
       error,
     });
   }

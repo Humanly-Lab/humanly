@@ -7,6 +7,7 @@ import {
   AIQueryType,
   AISuggestion,
   AIContentModification,
+  ModelCapabilities,
 } from '@humanly/shared';
 
 /**
@@ -17,6 +18,8 @@ interface AIChatSessionRow {
   document_id: string;
   user_id: string;
   status: 'active' | 'closed';
+  model_version: string | null;
+  model_capabilities: ModelCapabilities | Record<string, unknown> | null;
   created_at: Date;
   updated_at: Date;
 }
@@ -57,26 +60,65 @@ interface AIInteractionLogRow {
  * Transform database row to AIChatSession
  */
 function toAIChatSession(row: AIChatSessionRow): AIChatSession {
+  const createdAt = normalizeAITimestamp(row.created_at);
+  const updatedAt = normalizeAITimestamp(row.updated_at);
+
   return {
     id: row.id,
     documentId: row.document_id,
     userId: row.user_id,
     status: row.status,
     messages: [],
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
+    modelVersion: row.model_version ?? undefined,
+    modelCapabilities: isModelCapabilities(row.model_capabilities)
+      ? (row.model_capabilities as ModelCapabilities)
+      : undefined,
+    createdAt,
+    updatedAt,
   };
+}
+
+function isModelCapabilities(value: unknown): boolean {
+  if (!value || typeof value !== 'object') return false;
+  const inputs = (value as { inputs?: unknown }).inputs;
+  return Array.isArray(inputs);
+}
+
+function hasExplicitTimezone(value: string) {
+  return /(?:z|[+-]\d{2}:?\d{2})$/i.test(value.trim());
+}
+
+function normalizeAITimestamp(value: Date | string): Date {
+  if (value instanceof Date) {
+    return new Date(Date.UTC(
+      value.getFullYear(),
+      value.getMonth(),
+      value.getDate(),
+      value.getHours(),
+      value.getMinutes(),
+      value.getSeconds(),
+      value.getMilliseconds()
+    ));
+  }
+
+  const trimmed = String(value).trim();
+  if (!trimmed) return new Date(value);
+
+  const normalized = trimmed.includes('T') ? trimmed : trimmed.replace(' ', 'T');
+  return new Date(hasExplicitTimezone(normalized) ? normalized : `${normalized}Z`);
 }
 
 /**
  * Transform database row to AIChatMessage
  */
 function toAIChatMessage(row: AIChatMessageRow): AIChatMessage {
+  const timestamp = normalizeAITimestamp(row.created_at);
+
   return {
     id: row.id,
     role: row.role,
     content: row.content,
-    timestamp: row.created_at,
+    timestamp,
     metadata: row.metadata,
   };
 }
@@ -85,12 +127,14 @@ function toAIChatMessage(row: AIChatMessageRow): AIChatMessage {
  * Transform database row to AIInteractionLog
  */
 function toAIInteractionLog(row: AIInteractionLogRow): AIInteractionLog {
+  const timestamp = normalizeAITimestamp(row.created_at);
+
   return {
     id: row.id,
     documentId: row.document_id,
     userId: row.user_id,
     sessionId: row.session_id || undefined,
-    timestamp: row.created_at,
+    timestamp,
     query: row.query,
     queryType: row.query_type,
     questionCategory: row.question_category || undefined,
@@ -104,8 +148,71 @@ function toAIInteractionLog(row: AIInteractionLogRow): AIInteractionLog {
     modelVersion: row.model_version || undefined,
     status: row.status,
     errorMessage: row.error_message || undefined,
-    createdAt: row.created_at,
+    createdAt: timestamp,
   };
+}
+
+/**
+ * Thrown when an `ai_chat_messages` insert references a `session_id` that
+ * no longer exists in `ai_chat_sessions` (Postgres FK violation 23503 on
+ * `ai_chat_messages_session_id_fkey`). Surfacing a typed error lets callers
+ * translate it into a clean user-facing message instead of letting the raw
+ * constraint string reach the UI (issue #90).
+ */
+export class AIChatSessionMissingError extends Error {
+  public readonly sessionId: string;
+
+  constructor(sessionId: string) {
+    super(`AI chat session ${sessionId} no longer exists`);
+    this.name = 'AIChatSessionMissingError';
+    this.sessionId = sessionId;
+  }
+}
+
+/**
+ * Postgres error code for foreign key violations. Centralised so the model
+ * layer doesn't sprinkle magic strings across the catch blocks.
+ */
+const PG_FOREIGN_KEY_VIOLATION = '23503';
+const PG_UNDEFINED_COLUMN = '42703';
+let supportsSessionModelSnapshotColumns: boolean | null = null;
+
+function isUndefinedColumnError(error: unknown): boolean {
+  return !!error && typeof error === 'object' && (error as { code?: unknown }).code === PG_UNDEFINED_COLUMN;
+}
+
+async function aiChatSessionsSupportsModelSnapshotColumns(): Promise<boolean> {
+  if (supportsSessionModelSnapshotColumns !== null && process.env.NODE_ENV !== 'test') {
+    return supportsSessionModelSnapshotColumns;
+  }
+
+  const rows = await query<{ column_name: string }>(
+    `
+      SELECT column_name
+      FROM information_schema.columns
+      WHERE table_schema = current_schema()
+        AND table_name = 'ai_chat_sessions'
+        AND column_name IN ('model_version', 'model_capabilities')
+    `
+  );
+  const columns = new Set(rows.map(row => row.column_name));
+  const supportsColumns = columns.has('model_version') && columns.has('model_capabilities');
+
+  if (process.env.NODE_ENV !== 'test') {
+    supportsSessionModelSnapshotColumns = supportsColumns;
+  }
+
+  return supportsColumns;
+}
+
+function isAIChatMessagesSessionFkViolation(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const code = (error as { code?: unknown }).code;
+  const constraint = (error as { constraint?: unknown }).constraint;
+  return (
+    code === PG_FOREIGN_KEY_VIOLATION &&
+    constraint === 'ai_chat_messages_session_id_fkey'
+  );
 }
 
 export class AIModel {
@@ -114,16 +221,48 @@ export class AIModel {
   // ============================================================================
 
   /**
-   * Create a new chat session
+   * Create a new chat session. The optional model snapshot is persisted on
+   * the session row so the websocket layer can detect mid-session model
+   * switches that drop a modality already used in the conversation (#93).
    */
-  static async createSession(documentId: string, userId: string): Promise<AIChatSession> {
-    const sql = `
+  static async createSession(
+    documentId: string,
+    userId: string,
+    modelSnapshot?: { modelVersion: string; capabilities: ModelCapabilities },
+  ): Promise<AIChatSession> {
+    const sqlWithModelSnapshot = `
+      INSERT INTO ai_chat_sessions (document_id, user_id, status, model_version, model_capabilities)
+      VALUES ($1, $2, 'active', $3, $4)
+      RETURNING *
+    `;
+
+    const legacySql = `
       INSERT INTO ai_chat_sessions (document_id, user_id, status)
       VALUES ($1, $2, 'active')
       RETURNING *
     `;
 
-    const row = await queryOne<AIChatSessionRow>(sql, [documentId, userId]);
+    let row: AIChatSessionRow | null;
+    if (await aiChatSessionsSupportsModelSnapshotColumns()) {
+      try {
+        row = await queryOne<AIChatSessionRow>(sqlWithModelSnapshot, [
+          documentId,
+          userId,
+          modelSnapshot?.modelVersion ?? null,
+          JSON.stringify(modelSnapshot?.capabilities ?? {}),
+        ]);
+      } catch (error) {
+        if (!isUndefinedColumnError(error)) {
+          throw error;
+        }
+
+        supportsSessionModelSnapshotColumns = false;
+        row = await queryOne<AIChatSessionRow>(legacySql, [documentId, userId]);
+      }
+    } else {
+      row = await queryOne<AIChatSessionRow>(legacySql, [documentId, userId]);
+    }
+
     if (!row) {
       throw new Error('Failed to create AI chat session');
     }
@@ -175,13 +314,19 @@ export class AIModel {
   }
 
   /**
-   * Get or create active session
+   * Get or create active session. When creating a new session and a model
+   * snapshot is supplied, the snapshot is persisted so capability gating
+   * (#93) has a stable reference for the rest of the conversation.
    */
-  static async getOrCreateSession(documentId: string, userId: string): Promise<AIChatSession> {
+  static async getOrCreateSession(
+    documentId: string,
+    userId: string,
+    modelSnapshot?: { modelVersion: string; capabilities: ModelCapabilities },
+  ): Promise<AIChatSession> {
     const existing = await this.findActiveSession(documentId, userId);
     if (existing) return existing;
 
-    return this.createSession(documentId, userId);
+    return this.createSession(documentId, userId, modelSnapshot);
   }
 
   /**
@@ -258,12 +403,23 @@ export class AIModel {
       RETURNING *
     `;
 
-    const row = await queryOne<AIChatMessageRow>(sql, [
-      sessionId,
-      role,
-      content,
-      JSON.stringify(metadata || {}),
-    ]);
+    let row: AIChatMessageRow | null;
+    try {
+      row = await queryOne<AIChatMessageRow>(sql, [
+        sessionId,
+        role,
+        content,
+        JSON.stringify(metadata || {}),
+      ]);
+    } catch (error) {
+      // Translate the Postgres FK violation into a typed error so the
+      // websocket/REST layer can return a clean message instead of leaking
+      // the constraint name to the user (issue #90).
+      if (isAIChatMessagesSessionFkViolation(error)) {
+        throw new AIChatSessionMissingError(sessionId);
+      }
+      throw error;
+    }
 
     if (!row) {
       throw new Error('Failed to add AI chat message');

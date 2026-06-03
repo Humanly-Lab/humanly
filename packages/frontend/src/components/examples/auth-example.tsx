@@ -207,7 +207,7 @@ function LoginForm({ onToggle }: { onToggle: () => void }) {
       </CardContent>
       <CardFooter className="flex flex-col space-y-2">
         <Button variant="link" className="text-sm" onClick={onToggle}>
-          Don't have an account? Sign up
+          Do not have an account? Sign up
         </Button>
         <Button variant="link" className="text-sm text-muted-foreground">
           Forgot password?

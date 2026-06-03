@@ -17,7 +17,7 @@ import {
   getAIAuthorshipStats,
 } from '../controllers/certificate.controller';
 
-const router = Router();
+const router: Router = Router();
 
 /**
  * GET /api/v1/certificates/verify/:token

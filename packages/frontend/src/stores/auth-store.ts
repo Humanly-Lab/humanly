@@ -33,11 +33,14 @@ interface AuthState {
   login: (email: string, password: string, role?: 'admin' | 'user') => Promise<void>;
   register: (email: string, password: string, firstName: string, lastName: string, role?: 'admin' | 'user') => Promise<void>;
   logout: () => Promise<void>;
+  deleteAccount: () => Promise<void>;
   verifyEmail: (code: string) => Promise<void>;
   resendVerificationEmail: (email?: string) => Promise<void>;
   forgotPassword: (email: string) => Promise<void>;
+  validatePasswordResetToken: (token: string) => Promise<void>;
   resetPassword: (token: string, newPassword: string) => Promise<void>;
-  fetchUser: () => Promise<void>;
+  fetchUser: (options?: { forceRefresh?: boolean }) => Promise<void>;
+  clearLocalSession: () => void;
   updateUser: (data: Partial<User>) => Promise<void>;
   clearError: () => void;
   setLoading: (loading: boolean) => void;
@@ -163,6 +166,31 @@ export const useAuthStore = create<AuthState>()(
       },
 
       /**
+       * Delete the current account and clear local session state.
+       */
+      deleteAccount: async () => {
+        try {
+          set({ isLoading: true, error: null });
+
+          await api.delete('/api/v1/auth/me');
+
+          TokenManager.clearTokens();
+          disconnectSocket();
+
+          set({
+            user: null,
+            isAuthenticated: false,
+            isLoading: false,
+            error: null,
+          });
+        } catch (error) {
+          const errorMessage = error instanceof ApiError ? error.message : 'Failed to delete account';
+          set({ isLoading: false, error: errorMessage });
+          throw error;
+        }
+      },
+
+      /**
        * Verify email with code
        */
       verifyEmail: async (code: string) => {
@@ -231,6 +259,20 @@ export const useAuthStore = create<AuthState>()(
       },
 
       /**
+       * Validate password reset token before showing the reset form
+       */
+      validatePasswordResetToken: async (token: string) => {
+        try {
+          await api.post('/api/v1/auth/reset-password/validate', { token });
+        } catch (error) {
+          const errorMessage =
+            error instanceof ApiError ? error.message : 'Invalid or expired password reset link';
+          set({ error: errorMessage });
+          throw error;
+        }
+      },
+
+      /**
        * Reset password with token
        */
       resetPassword: async (token: string, newPassword: string) => {
@@ -250,12 +292,16 @@ export const useAuthStore = create<AuthState>()(
       /**
        * Fetch current user
        */
-      fetchUser: async () => {
+      fetchUser: async (options: { forceRefresh?: boolean } = {}) => {
         try {
           set({ isLoading: true, error: null });
 
+          if (options.forceRefresh) {
+            TokenManager.clearTokens();
+          }
+
           // Check if we have an access token
-          let token = TokenManager.getAccessToken();
+          let token = options.forceRefresh ? null : TokenManager.getAccessToken();
 
           // If no token, try to refresh it first
           if (!token) {
@@ -338,6 +384,20 @@ export const useAuthStore = create<AuthState>()(
           set({ error: errorMessage });
           throw error;
         }
+      },
+
+      /**
+       * Clear local auth state without calling the backend.
+       */
+      clearLocalSession: () => {
+        TokenManager.clearTokens();
+        disconnectSocket();
+        set({
+          user: null,
+          isAuthenticated: false,
+          isLoading: false,
+          error: null,
+        });
       },
 
       /**

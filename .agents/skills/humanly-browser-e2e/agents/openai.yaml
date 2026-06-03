@@ -1,0 +1,6 @@
+interface:
+  display_name: "Humanly Browser E2E"
+  short_description: "Run browser-assisted QA for Humanly user/admin flows and AI model matrix checks."
+  default_prompt: "Run the Humanly Browser E2E skill for the requested scope and record phase results in the QA issue."
+policy:
+  allow_implicit_invocation: true

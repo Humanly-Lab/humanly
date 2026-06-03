@@ -20,8 +20,7 @@ export const initializeSocket = (): Socket => {
   const token = TokenManager.getAccessToken();
 
   if (!token) {
-    console.warn('[Socket] No authentication token found in localStorage.');
-    console.warn('[Socket] Keys in localStorage:', Object.keys(localStorage));
+    console.warn('[Socket] No in-memory authentication token found.');
     console.warn('[Socket] WebSocket connection will fail without authentication.');
   } else {
     console.log('[Socket] Token found, length:', token.length);

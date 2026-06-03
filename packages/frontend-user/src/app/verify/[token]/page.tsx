@@ -5,10 +5,9 @@ import { useParams } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Shield, CheckCircle2, XCircle, Calendar, Type, FileText, Clock } from 'lucide-react';
+import { Shield, XCircle, Calendar, Type, FileText, Clock } from 'lucide-react';
 import { format } from 'date-fns';
 import { AccessCodeDialog } from '@/components/certificates/access-code-dialog';
-import { DocumentViewer } from '@/components/certificates/document-viewer';
 import { DocumentReplay } from '@/components/certificates/document-replay';
 
 interface VerificationResult {
@@ -115,7 +114,7 @@ export default function VerifyPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+      <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="text-center">
           <div className="inline-block h-12 w-12 animate-spin rounded-full border-4 border-solid border-primary border-r-transparent" />
           <p className="mt-4 text-lg text-muted-foreground">Verifying certificate...</p>
@@ -126,7 +125,7 @@ export default function VerifyPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-50 to-orange-100 p-4">
+      <div className="flex min-h-screen items-center justify-center bg-background p-4">
         <Card className="max-w-2xl w-full">
           <CardHeader className="text-center">
             <div className="mx-auto w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mb-4">
@@ -174,11 +173,7 @@ export default function VerifyPage() {
     ? verification.certificate.pastedCharacters === 0 && verification.certificate.typedCharacters > 0
     : false;
 
-  const bgClass = verification.valid
-    ? 'bg-gradient-to-br from-green-50 to-emerald-100'
-    : 'bg-gradient-to-br from-red-50 to-orange-100';
-
-  const statusBgClass = verification.valid ? 'bg-green-100' : 'bg-red-100';
+  const bgClass = verification.valid ? 'bg-background' : 'bg-background';
 
   return (
     <div className={'min-h-screen flex items-center justify-center p-2 sm:p-4 ' + bgClass}>
@@ -217,9 +212,9 @@ export default function VerifyPage() {
                       {isFullyHumanCreated && (
                         <Badge
                           variant="outline"
-                          className="text-xs px-2 py-0.5 bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-800"
+                          className="border-[#c8d4c8] bg-[#eef3ed] px-2 py-0.5 text-xs text-[#58715f]"
                         >
-                          ✓ 100% Human Created
+                          100% Human Created
                         </Badge>
                       )}
                     </div>
@@ -273,7 +268,7 @@ export default function VerifyPage() {
             )} */}
 
             {verification.certificate.includeEditHistory && (
-              <Card className="border-2 border-blue-500/20">
+              <Card>
                 <CardHeader className="pb-3 sm:pb-6">
                   <CardTitle className="text-xl sm:text-2xl">Live Document</CardTitle>
                   <CardDescription className="text-xs sm:text-sm">Watch how this document was created in real-time</CardDescription>

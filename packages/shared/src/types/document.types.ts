@@ -19,6 +19,7 @@ export interface Document {
   wordCount: number;
   characterCount: number;
   environmentConfig?: WritingEnvironmentConfig | null;
+  writingStartedAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
   lastEditedAt: Date;
@@ -145,6 +146,62 @@ export interface DocumentEventQueryFilters {
   endDate?: Date;
   limit?: number;
   offset?: number;
+}
+
+export type DocumentEventTimelineItemKind =
+  | 'typing_burst'
+  | 'line_break'
+  | 'ai_insert'
+  | 'replace'
+  | 'paste'
+  | 'delete'
+  | 'event';
+
+export interface DocumentEventTimelineRawEvent {
+  id: string;
+  eventType: EventType;
+  timestamp: Date | string;
+  keyCode?: string;
+  keyChar?: string;
+  insertedText?: string;
+  deletedText?: string;
+  cursorPosition?: number;
+  selectionStart?: number;
+  selectionEnd?: number;
+  metadata?: Record<string, any>;
+}
+
+export interface DocumentEventTimelineItem {
+  id: string;
+  kind: DocumentEventTimelineItemKind;
+  label: string;
+  timestamp: Date | string;
+  startTimestamp: Date | string;
+  endTimestamp: Date | string;
+  sessionId?: string;
+  text?: string;
+  charCount?: number;
+  wordCount?: number;
+  cursorStart?: number;
+  cursorEnd?: number;
+  rawEventCount: number;
+  rawEvents: DocumentEventTimelineRawEvent[];
+  metadata?: Record<string, any>;
+}
+
+export interface DocumentEventTimelineSummary {
+  rawEventTotal: number;
+  timelineItemTotal: number;
+  typingBursts: number;
+  typedCharacters: number;
+  typedWords: number;
+  pasteCharacters: number;
+  deletedCharacters: number;
+}
+
+export interface DocumentEventTimelineResponse {
+  items: DocumentEventTimelineItem[];
+  summary: DocumentEventTimelineSummary;
 }
 
 // Certificate types

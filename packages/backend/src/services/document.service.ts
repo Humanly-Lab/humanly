@@ -1,9 +1,13 @@
 import { DocumentModel } from '../models/document.model';
 import { DocumentEventModel } from '../models/document-event.model';
 import { SessionModel } from '../models/session.model';
+import { FileModel } from '../models/file.model';
 import { query, queryOne, transaction } from '../config/database';
 import { cacheDelPattern } from '../config/redis';
-import {
+import { FileStorageService } from './file-storage.service';
+import { buildDocumentEventTimeline } from './document-event-timeline.service';
+import type {
+  AppFile,
   Document,
   DocumentInsertData,
   DocumentUpdateData,
@@ -12,11 +16,18 @@ import {
   DocumentEvent,
   DocumentEventInsertData,
   DocumentEventQueryFilters,
+  DocumentEventTimelineResponse,
   PaginatedResult,
   WritingEnvironmentConfig,
 } from '@humanly/shared';
 import { AppError } from '../middleware/error-handler';
 import { logger } from '../utils/logger';
+
+type DeleteDocumentResult = {
+  deleted: boolean;
+  taskIds: string[];
+  files: AppFile[];
+};
 
 export class DocumentService {
   /**
@@ -117,13 +128,35 @@ export class DocumentService {
   }
 
   /**
+   * Mark the first entry into a timed writing session.
+   *
+   * This is intentionally idempotent: refreshing or reopening a document must
+   * not reset the countdown.
+   */
+  static async startWritingSession(documentId: string, userId: string): Promise<Document> {
+    try {
+      const document = await DocumentModel.startWritingSession(documentId, userId);
+
+      if (!document) {
+        throw new AppError(404, 'Document not found or unauthorized');
+      }
+
+      return document;
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      logger.error('Error starting document writing session', { error, documentId, userId });
+      throw error;
+    }
+  }
+
+  /**
    * Delete document
    */
   static async deleteDocument(documentId: string, userId: string): Promise<void> {
     try {
       logger.info('Deleting document', { documentId, userId });
 
-      const deleteResult: { deleted: boolean; taskIds: string[] } = await transaction(async (client) => {
+      const deleteResult: DeleteDocumentResult = await transaction(async (client) => {
         const documentResult = await client.query(
           `
             SELECT id
@@ -134,7 +167,7 @@ export class DocumentService {
         );
 
         if (documentResult.rowCount === 0) {
-          return { deleted: false, taskIds: [] as string[] };
+          return { deleted: false, taskIds: [] as string[], files: [] };
         }
 
         const linkedTaskResult = await client.query(
@@ -148,6 +181,17 @@ export class DocumentService {
         );
 
         const taskIds = linkedTaskResult.rows.map((row: { task_id: string }) => row.task_id);
+
+        const fileResult = await client.query(
+          `
+            SELECT ${FileModel.columns}
+            FROM files
+            WHERE document_id = $1
+              AND owner_user_id = $2
+          `,
+          [documentId, userId]
+        );
+        const files = fileResult.rows as AppFile[];
 
         await client.query(
           `
@@ -170,6 +214,7 @@ export class DocumentService {
         return {
           deleted: deletedDocumentResult.rowCount > 0,
           taskIds,
+          files,
         };
       });
 
@@ -181,12 +226,40 @@ export class DocumentService {
         deleteResult.taskIds.map((taskId: string) => cacheDelPattern(`analytics:${taskId}:*`))
       );
 
+      await this.deleteDocumentFileStorage(documentId, userId, deleteResult.files);
+
       logger.info('Document deleted successfully', { documentId, userId });
     } catch (error) {
       if (error instanceof AppError) throw error;
       logger.error('Error deleting document', { error, documentId, userId });
       throw error;
     }
+  }
+
+  private static async deleteDocumentFileStorage(
+    documentId: string,
+    userId: string,
+    files: AppFile[]
+  ): Promise<void> {
+    await Promise.all(
+      files
+        .filter((file) => !file.legacySourceId)
+        .map(async (file) => {
+          try {
+            await FileStorageService.delete(file);
+          } catch (error) {
+            logger.error('Failed to delete document file storage object', {
+              error,
+              documentId,
+              userId,
+              fileId: file.id,
+              storageProvider: file.storageProvider,
+              storageBucket: file.storageBucket,
+              storageKey: file.storageKey,
+            });
+          }
+        })
+    );
   }
 
   /**
@@ -323,6 +396,43 @@ export class DocumentService {
     } catch (error) {
       if (error instanceof AppError) throw error;
       logger.error('Error fetching document events', {
+        error,
+        documentId,
+        userId,
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Get a readable derived event timeline without changing raw audit storage.
+   */
+  static async getDocumentEventTimeline(
+    documentId: string,
+    userId: string,
+    filters: DocumentEventQueryFilters = {}
+  ): Promise<DocumentEventTimelineResponse> {
+    try {
+      const isOwner = await DocumentModel.isOwner(documentId, userId);
+      if (!isOwner) {
+        throw new AppError(404, 'Document not found or unauthorized');
+      }
+
+      const timelineFilters = {
+        ...filters,
+        limit: Math.min(filters.limit || 10000, 10000),
+        offset: filters.offset || 0,
+      };
+
+      const [events, total] = await Promise.all([
+        DocumentEventModel.findByDocumentId(documentId, timelineFilters),
+        DocumentEventModel.countByDocumentIdWithFilters(documentId, timelineFilters),
+      ]);
+
+      return buildDocumentEventTimeline(events, total);
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      logger.error('Error fetching document event timeline', {
         error,
         documentId,
         userId,

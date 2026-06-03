@@ -194,7 +194,7 @@ function VerifyEmailContent() {
                 value={code}
                 onChange={handleCodeChange}
                 maxLength={6}
-                className="text-center text-2xl tracking-widest font-mono"
+                className="text-center text-2xl tracking-widest"
                 autoComplete="one-time-code"
                 autoFocus
               />
@@ -221,7 +221,7 @@ function VerifyEmailContent() {
         </CardContent>
         <CardFooter className="flex flex-col gap-2">
           <div className="text-sm text-muted-foreground text-center">
-            Didn't receive the code?
+            Did not receive the code?
           </div>
           <Button
             onClick={handleResend}

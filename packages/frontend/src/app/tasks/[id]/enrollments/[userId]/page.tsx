@@ -27,8 +27,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { formatDateTime as formatLocalDateTime } from '@/lib/utils';
-
-const FRONTEND_USER_URL = process.env.NEXT_PUBLIC_FRONTEND_USER_URL || 'http://localhost:3002';
+import { buildCertificateVerifyUrl } from '@/lib/certificate-url';
 
 interface TaskEnrollment {
   id: string;
@@ -115,17 +114,13 @@ export default function EnrollmentSubmissionsPage() {
 
   const latestSubmission = submissions[0] || null;
 
-  const buildCertificateUrl = (verificationToken: string) => (
-    `${FRONTEND_USER_URL}/verify/${encodeURIComponent(verificationToken)}`
-  );
-
   return (
     <div className="space-y-6">
       <div>
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => router.push(`/tasks/${taskId}/enrollments`)}
+          onClick={() => router.push(`/tasks/${taskId}?tab=users`)}
           className="-ml-2 mb-2"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
@@ -164,7 +159,7 @@ export default function EnrollmentSubmissionsPage() {
                 <div className="truncate text-lg font-semibold" title={enrollment.email}>
                   {enrollment.email}
                 </div>
-                <p className="mt-1 truncate font-mono text-xs text-muted-foreground" title={enrollment.userId}>
+                <p className="mt-1 truncate text-xs text-muted-foreground" title={enrollment.userId}>
                   {enrollment.userId}
                 </p>
               </CardContent>
@@ -211,7 +206,7 @@ export default function EnrollmentSubmissionsPage() {
                       <FileText className="h-4 w-4 text-muted-foreground" />
                       <span>{latestSubmission.documentTitle || enrollment.documentTitle || 'Submission Document'}</span>
                     </div>
-                    <div className="font-mono text-xs text-muted-foreground">{latestSubmission.id}</div>
+                    <div className=" text-xs text-muted-foreground">{latestSubmission.id}</div>
                   </div>
                   <div className="flex items-center gap-2">
                     {latestSubmission.certificateVerificationToken ? (
@@ -221,7 +216,7 @@ export default function EnrollmentSubmissionsPage() {
                         size="sm"
                       >
                         <a
-                          href={buildCertificateUrl(latestSubmission.certificateVerificationToken)}
+                          href={buildCertificateVerifyUrl(latestSubmission.certificateVerificationToken)}
                           onClick={(event) => event.stopPropagation()}
                         >
                           <Award className="h-4 w-4 mr-2" />
@@ -296,7 +291,7 @@ export default function EnrollmentSubmissionsPage() {
                             </Badge>
                           </TableCell>
                           <TableCell>{submission.documentTitle || enrollment.documentTitle || 'Submission Document'}</TableCell>
-                          <TableCell className="font-mono text-xs">{submission.id}</TableCell>
+                          <TableCell className=" text-xs">{submission.id}</TableCell>
                           <TableCell className="text-right">
                             {submission.certificateVerificationToken ? (
                               <Button
@@ -305,7 +300,7 @@ export default function EnrollmentSubmissionsPage() {
                                 size="sm"
                               >
                                 <a
-                                  href={buildCertificateUrl(submission.certificateVerificationToken)}
+                                  href={buildCertificateVerifyUrl(submission.certificateVerificationToken)}
                                   onClick={(event) => event.stopPropagation()}
                                 >
                                   <Award className="h-4 w-4 mr-1" />

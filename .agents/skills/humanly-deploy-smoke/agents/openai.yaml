@@ -1,0 +1,6 @@
+interface:
+  display_name: "Humanly Deploy Smoke"
+  short_description: "Check app/admin/API deployment, TLS, proxy, and auth-guard reachability."
+  default_prompt: "Run the Humanly deploy smoke skill for the requested target and summarize the report."
+policy:
+  allow_implicit_invocation: true

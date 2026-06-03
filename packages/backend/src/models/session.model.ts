@@ -221,6 +221,35 @@ export class SessionModel {
   }
 
   /**
+   * Mark the latest session for a task user as submitted.
+   *
+   * User-portal task submissions do not carry a session id at submit time, so
+   * the best server-side source of truth is the latest session opened for the
+   * task and authenticated user's email.
+   */
+  static async markLatestSubmittedForTaskUser(
+    taskId: string,
+    externalUserId: string
+  ): Promise<void> {
+    const sql = `
+      UPDATE sessions
+      SET submitted = TRUE,
+          submission_time = COALESCE(submission_time, NOW()),
+          session_end = COALESCE(session_end, NOW())
+      WHERE id = (
+        SELECT id
+        FROM sessions
+        WHERE task_id = $1
+          AND external_user_id = $2
+        ORDER BY session_start DESC, created_at DESC
+        LIMIT 1
+      )
+    `;
+
+    await query(sql, [taskId, externalUserId]);
+  }
+
+  /**
    * End session by setting session_end timestamp
    */
   static async endSession(sessionId: string): Promise<void> {

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { apiClient } from '@/lib/api-client';
+import { apiClient, getApiUrl } from '@/lib/api-client';
+import { downloadBlobWithSavePicker, openDownloadUrl, openUrlInNewTab, type DownloadOutcome } from '@/lib/download';
 import type { Certificate, AIAuthorshipStats } from '@humanly/shared';
 
 export interface CertificatesFilters {
@@ -152,43 +153,54 @@ export function useCertificate(certificateId: string) {
     }
   }, [certificateId, fetchCertificate, fetchAIStats]);
 
-  const downloadJSON = useCallback(async () => {
+  const downloadJSON = useCallback(async (): Promise<DownloadOutcome> => {
     try {
-      const response = await apiClient.get(`/certificates/${certificateId}/json`);
-      const data = response.data;
+      return await downloadBlobWithSavePicker(async () => {
+        const response = await apiClient.get(`/certificates/${certificateId}/json`);
+        const data = response.data;
 
-      const blob = new Blob([JSON.stringify(data, null, 2)], {
-        type: 'application/json',
+        return new Blob([JSON.stringify(data, null, 2)], {
+          type: 'application/json',
+        });
+      }, {
+        filename: `certificate-${certificateId}.json`,
+        description: 'JSON certificate',
+        mimeType: 'application/json',
+        extensions: ['.json'],
       });
-
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `certificate-${certificateId}.json`;
-      link.click();
-      window.URL.revokeObjectURL(url);
     } catch (err: any) {
-      throw new Error(err.response?.data?.message || 'Failed to download JSON');
+      throw new Error(err.response?.data?.message || err.message || 'Failed to download JSON');
     }
   }, [certificateId]);  
 
-  const downloadPDF = useCallback(async () => {
+  const downloadPDF = useCallback(async (): Promise<DownloadOutcome> => {
     try {
-      const response = await apiClient.get(`/certificates/${certificateId}/pdf`, {
-        responseType: 'blob',
-      });
+      const safeTitle = certificate?.title
+        ?.trim()
+        .replace(/[^a-z0-9]+/gi, '-')
+        .replace(/^-+|-+$/g, '')
+        .toLowerCase() || certificateId;
+      const stamp = new Date().toISOString().replace(/[:.]/g, '-');
 
-      const blob = new Blob([response.data], { type: 'application/pdf' });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `certificate-${certificateId}.pdf`;
-      link.click();
-      window.URL.revokeObjectURL(url);
+      return openDownloadUrl(getApiUrl(`/certificates/${certificateId}/pdf?filename=certificate-${safeTitle}-${stamp}.pdf`));
     } catch (err: any) {
-      throw new Error(err.response?.data?.message || 'Failed to download PDF');
+      throw new Error(err.response?.data?.message || err.message || 'Failed to download PDF');
     }
-  }, [certificateId]);
+  }, [certificate?.title, certificateId]);
+
+  const openPDF = useCallback(async (): Promise<DownloadOutcome> => {
+    try {
+      const safeTitle = certificate?.title
+        ?.trim()
+        .replace(/[^a-z0-9]+/gi, '-')
+        .replace(/^-+|-+$/g, '')
+        .toLowerCase() || certificateId;
+
+      return openUrlInNewTab(getApiUrl(`/certificates/${certificateId}/pdf?disposition=inline&filename=certificate-${safeTitle}.pdf`));
+    } catch (err: any) {
+      throw new Error(err.response?.data?.message || err.message || 'Failed to open PDF');
+    }
+  }, [certificate?.title, certificateId]);
 
   const updateAccessCode = useCallback(async (accessCode: string | null) => {
     try {
@@ -239,6 +251,7 @@ export function useCertificate(certificateId: string) {
     refetchAiStats: fetchAIStats,
     downloadJSON,
     downloadPDF,
+    openPDF,
     updateAccessCode,
     updateDisplayOptions,
   };

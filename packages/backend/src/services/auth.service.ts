@@ -18,12 +18,16 @@ import {
 import { AppError } from '../middleware/error-handler';
 import { logger } from '../utils/logger';
 import { UserAISettingsModel } from '../models/user-ai-settings.model';
+import { FileModel } from '../models/file.model';
+import { OAuthProfile } from './oauth.service';
+import { PASSWORD_RESET_TOKEN_TTL_MS } from '../constants/auth';
+import { FileStorageService } from './file-storage.service';
 
 export class AuthService {
   private static async initializeDefaultAISettings(userId: string): Promise<void> {
     const apiKey = process.env.DEFAULT_AI_API_KEY || process.env.AI_API_KEY;
-    const model = process.env.DEFAULT_AI_MODEL || process.env.AI_MODEL || 'gpt-4o';
-    const baseUrl = process.env.DEFAULT_AI_BASE_URL || process.env.AI_BASE_URL || 'https://api.openai.com/v1';
+    const model = process.env.DEFAULT_AI_MODEL || process.env.AI_MODEL || 'moonshotai/Kimi-K2.6';
+    const baseUrl = process.env.DEFAULT_AI_BASE_URL || process.env.AI_BASE_URL || 'https://api.together.xyz/v1';
 
     if (!apiKey) {
       logger.info('Skipping default AI settings initialization: no default API key configured', { userId });
@@ -102,23 +106,50 @@ export class AuthService {
     return user;
   }
 
-  private static toPublicUser(user: User): User {
-    const firstName = user.firstName?.trim() || null;
-    const lastName = user.lastName?.trim() || null;
-    const name = user.name?.trim() || [firstName, lastName].filter(Boolean).join(' ') || null;
-
+  private static toPublicUser(userWithPassword: {
+    id: string;
+    email: string;
+    role?: UserRole;
+    name?: string | null;
+    firstName?: string | null;
+    lastName?: string | null;
+    profileCompleted: boolean;
+    emailVerified: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+  }): User {
     return {
-      id: user.id,
-      email: user.email,
-      role: user.role || 'user',
-      name,
-      firstName,
-      lastName,
-      profileCompleted: user.profileCompleted ?? Boolean(firstName && lastName),
-      emailVerified: user.emailVerified,
-      createdAt: user.createdAt,
-      updatedAt: user.updatedAt,
+      id: userWithPassword.id,
+      email: userWithPassword.email,
+      role: userWithPassword.role || 'user',
+      name: userWithPassword.name || null,
+      firstName: userWithPassword.firstName || null,
+      lastName: userWithPassword.lastName || null,
+      profileCompleted: userWithPassword.profileCompleted,
+      emailVerified: userWithPassword.emailVerified,
+      createdAt: userWithPassword.createdAt,
+      updatedAt: userWithPassword.updatedAt,
     };
+  }
+
+  private static async issueTokens(
+    user: User
+  ): Promise<{ user: User; accessToken: string; refreshToken: string }> {
+    const payload: TokenPayload = {
+      userId: user.id,
+      email: user.email,
+      role: user.role,
+    };
+
+    const accessToken = generateAccessToken(payload);
+    const refreshToken = generateRefreshToken(payload);
+
+    const tokenHash = hashToken(refreshToken);
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    await RefreshTokenModel.create(user.id, tokenHash, expiresAt);
+    await RefreshTokenModel.deleteExpired();
+
+    return { user, accessToken, refreshToken };
   }
 
   /**
@@ -147,7 +178,7 @@ export class AuthService {
 
     // Send welcome email (don't await to avoid blocking)
     emailService
-      .sendWelcomeEmail(user.email)
+      .sendWelcomeEmail(user.email, user.role || 'user')
       .catch((error) => {
         logger.error('Failed to send welcome email', { email: user.email, error });
       });
@@ -172,49 +203,86 @@ export class AuthService {
       throw new AppError(401, 'Invalid email or password');
     }
 
-    if (requestedRole && userWithPassword.role !== requestedRole) {
-      throw new AppError(
-        403,
-        requestedRole === 'admin'
-          ? 'This email is not registered as an admin account'
-          : 'This email is not registered as a user account'
-      );
-    }
-
     // Compare password
     const isPasswordValid = await comparePassword(password, userWithPassword.passwordHash);
     if (!isPasswordValid) {
       throw new AppError(401, 'Invalid email or password');
     }
 
-    // Skip email verification check for now (email service not configured)
-    // if (!userWithPassword.emailVerified) {
-    //   throw new AppError(403, 'Please verify your email before logging in');
-    // }
+    if (!userWithPassword.emailVerified) {
+      throw new AppError(403, 'Please verify your email before logging in');
+    }
 
-    // Generate tokens
-    const payload: TokenPayload = {
-      userId: userWithPassword.id,
-      email: userWithPassword.email,
-      role: userWithPassword.role,
-    };
-
-    const accessToken = generateAccessToken(payload);
-    const refreshToken = generateRefreshToken(payload);
-
-    // Store refresh token hash
-    const tokenHash = hashToken(refreshToken);
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
-    await RefreshTokenModel.create(userWithPassword.id, tokenHash, expiresAt);
-
-    // Clean up expired tokens for this user
-    await RefreshTokenModel.deleteExpired();
-
-    // Get user without password
     const user = this.toPublicUser(userWithPassword);
-
+    const result = await this.issueTokens(user);
     logger.info('Login successful', { userId: user.id, email: user.email });
-    return { user, accessToken, refreshToken };
+    return result;
+  }
+
+  /**
+   * Login or create a user through a trusted OAuth provider.
+   */
+  static async loginWithOAuth(
+    profile: OAuthProfile,
+    requestedRole: UserRole = 'user'
+  ): Promise<{ user: User; accessToken: string; refreshToken: string }> {
+    logger.info('Attempting OAuth login', {
+      provider: profile.provider,
+      email: profile.email,
+      requestedRole,
+    });
+
+    let userWithPassword = await UserModel.findByOAuthAccount(
+      profile.provider,
+      profile.providerUserId
+    );
+
+    if (!userWithPassword) {
+      userWithPassword = await UserModel.findByEmail(profile.email);
+
+      if (userWithPassword) {
+        if (!userWithPassword.emailVerified) {
+          await UserModel.verifyEmail(userWithPassword.id);
+          userWithPassword = {
+            ...userWithPassword,
+            emailVerified: true,
+            emailVerificationToken: undefined,
+            emailVerificationExpires: undefined,
+          };
+        }
+      } else {
+        const passwordHash = await hashPassword(generatePasswordResetToken());
+        const user = await UserModel.createOAuthUser({
+          email: profile.email,
+          passwordHash,
+          role: requestedRole,
+        });
+        await this.initializeDefaultAISettings(user.id);
+        userWithPassword = {
+          ...user,
+          passwordHash,
+          emailVerificationToken: undefined,
+          emailVerificationExpires: undefined,
+          passwordResetToken: undefined,
+          passwordResetExpires: undefined,
+        };
+      }
+
+      await UserModel.createOAuthAccount(userWithPassword.id, {
+        provider: profile.provider,
+        providerUserId: profile.providerUserId,
+        email: profile.email,
+      });
+    }
+
+    const user = this.toPublicUser(userWithPassword);
+    const result = await this.issueTokens(user);
+    logger.info('OAuth login successful', {
+      userId: user.id,
+      email: user.email,
+      provider: profile.provider,
+    });
+    return result;
   }
 
   /**
@@ -264,10 +332,10 @@ export class AuthService {
       throw new AppError(401, 'User not found');
     }
 
-    // Note: We don't check email verification here because:
-    // 1. User had to be verified to get a refresh token in the first place (checked at login)
-    // 2. Re-checking here causes issues when users have old tokens
-    // 3. If we need to revoke access, we should delete their refresh tokens instead
+    if (!user.emailVerified) {
+      await RefreshTokenModel.deleteByHash(tokenHash);
+      throw new AppError(403, 'Please verify your email before logging in');
+    }
 
     // Generate new tokens
     const newPayload: TokenPayload = {
@@ -288,7 +356,7 @@ export class AuthService {
     await RefreshTokenModel.create(user.id, newTokenHash, expiresAt);
 
     logger.info('Token refreshed successfully', { userId: user.id });
-    return { user: this.toPublicUser(user), accessToken, refreshToken: newRefreshToken };
+    return { user, accessToken, refreshToken: newRefreshToken };
   }
 
   /**
@@ -315,19 +383,26 @@ export class AuthService {
 
     // Generate reset token
     const resetToken = generatePasswordResetToken();
-    const resetExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+    const resetExpires = new Date(Date.now() + PASSWORD_RESET_TOKEN_TTL_MS);
 
     // Store reset token
     await UserModel.setPasswordResetToken(user.id, resetToken, resetExpires);
 
-    // Send reset email (don't await to avoid blocking)
-    emailService
-      .sendPasswordResetEmail(email, resetToken)
-      .catch((error) => {
-        logger.error('Failed to send password reset email', { email, error });
-      });
+    await emailService.sendPasswordResetEmail(email, resetToken);
 
     logger.info('Password reset email sent', { userId: user.id, email });
+  }
+
+  /**
+   * Validate a password reset token without mutating the account.
+   */
+  static async validatePasswordResetToken(token: string): Promise<void> {
+    logger.info('Validating password reset token', { token: token.substring(0, 10) + '...' });
+
+    const user = await UserModel.findByResetToken(token);
+    if (!user) {
+      throw new AppError(400, 'Invalid or expired password reset token');
+    }
   }
 
   /**
@@ -413,7 +488,7 @@ export class AuthService {
     if (!user) {
       throw new AppError(404, 'User not found');
     }
-    return this.toPublicUser(user);
+    return user;
   }
 
   /**
@@ -427,6 +502,41 @@ export class AuthService {
     if (!user) {
       throw new AppError(404, 'User not found');
     }
-    return this.toPublicUser(user);
+    return user;
+  }
+
+  /**
+   * Delete the current user's account and revoke all refresh tokens.
+   */
+  static async deleteCurrentUser(userId: string): Promise<void> {
+    logger.info('Attempting account deletion', { userId });
+
+    const files = await FileModel.findByOwner(userId);
+    await RefreshTokenModel.deleteByUserId(userId);
+    const deleted = await UserModel.deleteAccount(userId);
+    if (!deleted) {
+      throw new AppError(404, 'User not found');
+    }
+
+    await Promise.all(
+      files
+        .filter((file) => !file.legacySourceId)
+        .map(async (file) => {
+          try {
+            await FileStorageService.delete(file);
+          } catch (error) {
+            logger.error('Failed to delete account file storage object', {
+              error,
+              userId,
+              fileId: file.id,
+              storageProvider: file.storageProvider,
+              storageBucket: file.storageBucket,
+              storageKey: file.storageKey,
+            });
+          }
+        })
+    );
+
+    logger.info('Account deleted successfully', { userId });
   }
 }

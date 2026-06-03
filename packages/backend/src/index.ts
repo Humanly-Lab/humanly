@@ -4,6 +4,7 @@ import { testDatabaseConnection, closeDatabaseConnection } from './config/databa
 import { createRedisClient, closeRedisConnection } from './config/redis';
 import { logger } from './utils/logger';
 import { env } from './config/env';
+import { startTimedTaskAutoSubmitJob } from './jobs/timed-task-auto-submit.job';
 
 async function main() {
   try {
@@ -27,6 +28,9 @@ async function main() {
     // Start server
     startServer(httpServer, env.port);
 
+    // Start background jobs
+    const timedTaskAutoSubmitJob = startTimedTaskAutoSubmitJob();
+
     // Graceful shutdown
     const shutdown = async (signal: string) => {
       logger.info(`${signal} received, shutting down gracefully`);
@@ -40,6 +44,9 @@ async function main() {
       io.close(() => {
         logger.info('Socket.IO server closed');
       });
+
+      // Stop background jobs
+      timedTaskAutoSubmitJob.stop();
 
       // Close database connection
       await closeDatabaseConnection();

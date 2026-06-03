@@ -30,8 +30,20 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import api from '@/lib/api-client';
-import { UserAISettings } from '@humanly/shared';
-import { getWhitelist } from '@/lib/ai-models';
+import {
+  AI_CHAT_MAX_TOKENS_DEFAULT,
+  AI_MAX_TOKENS_MAX,
+  AI_MAX_TOKENS_MIN,
+  AI_SHORTCUT_MAX_TOKENS_DEFAULT,
+  UserAISettings,
+} from '@humanly/shared';
+import {
+  AI_PROVIDER_OPTIONS,
+  CUSTOM_AI_PROVIDER_VALUE,
+  TOGETHER_AI_BASE_URL,
+  getProviderValueForBaseUrl,
+  getWhitelist,
+} from '@/lib/ai-models';
 
 interface AISettingsDialogProps {
   onSettingsChanged?: () => void;
@@ -42,9 +54,11 @@ export function AISettingsDialog({ onSettingsChanged }: AISettingsDialogProps) {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
   // Form state
-  const [baseUrl, setBaseUrl] = useState('https://api.together.xyz/v1');
+  const [baseUrl, setBaseUrl] = useState(TOGETHER_AI_BASE_URL);
   const [apiKey, setApiKey] = useState('');
   const [model, setModel] = useState('');
+  const [shortcutMaxTokens, setShortcutMaxTokens] = useState(AI_SHORTCUT_MAX_TOKENS_DEFAULT);
+  const [chatMaxTokens, setChatMaxTokens] = useState(AI_CHAT_MAX_TOKENS_DEFAULT);
 
   // UI state
   const [loading, setLoading] = useState(false);
@@ -63,6 +77,15 @@ export function AISettingsDialog({ onSettingsChanged }: AISettingsDialogProps) {
   );
   const [maskedKey, setMaskedKey] = useState('');
 
+  const updateBaseUrl = (nextBaseUrl: string, resetModel = false) => {
+    setBaseUrl(nextBaseUrl);
+    setTestResult(null);
+    setModels([]);
+    if (resetModel) {
+      setModel(getWhitelist(nextBaseUrl)?.[0] ?? '');
+    }
+  };
+
   // Load existing settings when dialog opens
   useEffect(() => {
     if (open) {
@@ -78,15 +101,19 @@ export function AISettingsDialog({ onSettingsChanged }: AISettingsDialogProps) {
       if (settings && settings.hasApiKey) {
         setBaseUrl(settings.baseUrl);
         setModel(settings.model);
+        setShortcutMaxTokens(settings.shortcutMaxTokens || AI_SHORTCUT_MAX_TOKENS_DEFAULT);
+        setChatMaxTokens(settings.chatMaxTokens || AI_CHAT_MAX_TOKENS_DEFAULT);
         setMaskedKey(settings.maskedApiKey || '');
         setHasExisting(true);
         setApiKey(''); // Don't pre-fill actual key
       } else {
         setHasExisting(false);
         setMaskedKey('');
-        setBaseUrl('https://api.together.xyz/v1');
+        setBaseUrl(TOGETHER_AI_BASE_URL);
         setApiKey('');
         setModel('');
+        setShortcutMaxTokens(AI_SHORTCUT_MAX_TOKENS_DEFAULT);
+        setChatMaxTokens(AI_CHAT_MAX_TOKENS_DEFAULT);
       }
     } catch {
       // No settings yet
@@ -101,6 +128,11 @@ export function AISettingsDialog({ onSettingsChanged }: AISettingsDialogProps) {
       setTestResult({ success: false, message: 'Please enter an API key' });
       return;
     }
+    const baseUrlToTest = baseUrl.trim();
+    if (!baseUrlToTest) {
+      setTestResult({ success: false, message: 'Please select a provider or enter a custom base URL' });
+      return;
+    }
 
     setTesting(true);
     setTestResult(null);
@@ -109,7 +141,7 @@ export function AISettingsDialog({ onSettingsChanged }: AISettingsDialogProps) {
     try {
       const data: any = await api.post('/ai/settings/test', {
         apiKey: keyToTest || '__use_existing__',
-        baseUrl,
+        baseUrl: baseUrlToTest,
       });
       setTestResult({
         success: data.success,
@@ -146,13 +178,20 @@ export function AISettingsDialog({ onSettingsChanged }: AISettingsDialogProps) {
       setTestResult({ success: false, message: 'Please enter an API key' });
       return;
     }
+    const baseUrlToSave = baseUrl.trim();
+    if (!baseUrlToSave) {
+      setTestResult({ success: false, message: 'Please select a provider or enter a custom base URL' });
+      return;
+    }
 
     setSaving(true);
     try {
       await api.put('/ai/settings', {
         apiKey: apiKey || '__use_existing__',
-        baseUrl,
+        baseUrl: baseUrlToSave,
         model,
+        shortcutMaxTokens,
+        chatMaxTokens,
       });
       setHasExisting(true);
       setOpen(false);
@@ -175,6 +214,8 @@ export function AISettingsDialog({ onSettingsChanged }: AISettingsDialogProps) {
       setApiKey('');
       setMaskedKey('');
       setModel('');
+      setShortcutMaxTokens(AI_SHORTCUT_MAX_TOKENS_DEFAULT);
+      setChatMaxTokens(AI_CHAT_MAX_TOKENS_DEFAULT);
       setModels([]);
       setTestResult(null);
       setBaseUrl('https://api.together.xyz/v1');
@@ -197,7 +238,7 @@ export function AISettingsDialog({ onSettingsChanged }: AISettingsDialogProps) {
         </DialogTrigger>
         <DialogContent className="max-w-md overflow-hidden">
           <DialogHeader>
-            <DialogTitle className="text-sm font-semibold">AI Settings</DialogTitle>
+            <DialogTitle className="text-sm font-semibold tracking-normal">AI Settings</DialogTitle>
           </DialogHeader>
 
           {loading ? (
@@ -206,23 +247,43 @@ export function AISettingsDialog({ onSettingsChanged }: AISettingsDialogProps) {
             </div>
           ) : (
             <div className="space-y-4 min-w-0">
-              {/* Base URL */}
+              {/* Provider */}
               <div className="space-y-2">
-                <Label className="text-xs font-medium">Base URL</Label>
-                <Input
-                  value={baseUrl}
-                  onChange={(e) => {
-                    setBaseUrl(e.target.value);
-                    setTestResult(null);
-                    setModels([]);
+                <Label className="text-xs font-medium">Provider</Label>
+                <Select
+                  value={getProviderValueForBaseUrl(baseUrl)}
+                  onValueChange={(value) => {
+                    const provider = AI_PROVIDER_OPTIONS.find(option => option.value === value);
+                    updateBaseUrl(provider?.baseUrl ?? '', true);
                   }}
-                  placeholder="https://api.together.xyz/v1"
-                  className="text-sm"
-                />
-                <p className="text-[10px] text-muted-foreground">
-                  Together AI or any OpenAI-compatible API with tool calling
+                >
+                  <SelectTrigger className="text-sm" aria-label="AI provider">
+                    <SelectValue placeholder="Select provider" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {AI_PROVIDER_OPTIONS.map((provider) => (
+                      <SelectItem key={provider.value} value={provider.value}>
+                        {provider.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-[11px] leading-relaxed text-muted-foreground">
+                  Choose a supported provider, or use Custom for any OpenAI-compatible API with tool calling.
                 </p>
               </div>
+
+              {getProviderValueForBaseUrl(baseUrl) === CUSTOM_AI_PROVIDER_VALUE && (
+                <div className="space-y-2">
+                  <Label className="text-xs font-medium">Custom Base URL</Label>
+                  <Input
+                    value={baseUrl}
+                    onChange={(e) => updateBaseUrl(e.target.value, true)}
+                    placeholder={TOGETHER_AI_BASE_URL}
+                    className="text-sm"
+                  />
+                </div>
+              )}
 
               {/* API Key */}
               <div className="space-y-2">
@@ -267,7 +328,7 @@ export function AISettingsDialog({ onSettingsChanged }: AISettingsDialogProps) {
                 <div
                   className={`flex items-start gap-2 rounded-lg border p-3 text-xs min-w-0 ${
                     testResult.success
-                      ? 'border-green-200 bg-green-50 text-green-700'
+                      ? 'border-[#c8d4c8] bg-[#eef3ed] text-[#58715f]'
                       : 'border-red-200 bg-red-50 text-red-700'
                   }`}
                 >
@@ -307,10 +368,41 @@ export function AISettingsDialog({ onSettingsChanged }: AISettingsDialogProps) {
                     value={model}
                     onChange={(e) => setModel(e.target.value)}
                     className="text-sm"
-                    placeholder="gpt-4o"
+                    placeholder="gpt-5.4-mini"
                   />
                 </div>
               )}
+
+              <div className="grid gap-4 rounded-lg border border-border/70 bg-muted/25 p-3 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label className="text-xs font-medium">Shortcut Tokens</Label>
+                  <Input
+                    type="number"
+                    min={AI_MAX_TOKENS_MIN}
+                    max={AI_MAX_TOKENS_MAX}
+                    value={shortcutMaxTokens}
+                    onChange={(e) => setShortcutMaxTokens(Number(e.target.value) || AI_SHORTCUT_MAX_TOKENS_DEFAULT)}
+                    className="text-sm"
+                  />
+                  <p className="text-[10px] text-muted-foreground">
+                    Shortcut actions and fallback answers.
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs font-medium">Chat Tokens</Label>
+                  <Input
+                    type="number"
+                    min={AI_MAX_TOKENS_MIN}
+                    max={AI_MAX_TOKENS_MAX}
+                    value={chatMaxTokens}
+                    onChange={(e) => setChatMaxTokens(Number(e.target.value) || AI_CHAT_MAX_TOKENS_DEFAULT)}
+                    className="text-sm"
+                  />
+                  <p className="text-[10px] text-muted-foreground">
+                    Chat and retrieval tool turns, per model call.
+                  </p>
+                </div>
+              </div>
 
               {/* Actions */}
               <div className="flex gap-2 pt-2">

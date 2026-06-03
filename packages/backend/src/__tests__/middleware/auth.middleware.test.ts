@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { authenticate, requireAuth, optionalAuth } from '../../middleware/auth.middleware';
+import { authenticate, requireAuth, requireRole, optionalAuth } from '../../middleware/auth.middleware';
 import { generateAccessToken } from '../../utils/jwt';
 import { AppError } from '../../middleware/error-handler';
 
@@ -89,6 +89,35 @@ describe('requireAuth', () => {
     const err = (next as jest.Mock).mock.calls[0][0];
     expect(err).toBeInstanceOf(AppError);
     expect(err.statusCode).toBe(401);
+  });
+});
+
+// ── requireRole ───────────────────────────────────────────────────────────────
+
+describe('requireRole', () => {
+  it('calls next with no args when the authenticated role is allowed', () => {
+    const req = makeReq({ user: { ...validPayload, role: 'admin' } } as any);
+    const next: NextFunction = jest.fn();
+    requireRole('admin')(req, makeRes(), next);
+    expect(next).toHaveBeenCalledWith();
+  });
+
+  it('calls next with AppError(401) when req.user is absent', () => {
+    const req = makeReq();
+    const next: NextFunction = jest.fn();
+    requireRole('admin')(req, makeRes(), next);
+    const err = (next as jest.Mock).mock.calls[0][0];
+    expect(err).toBeInstanceOf(AppError);
+    expect(err.statusCode).toBe(401);
+  });
+
+  it('calls next with AppError(403) when the authenticated role is not allowed', () => {
+    const req = makeReq({ user: { ...validPayload, role: 'user' } } as any);
+    const next: NextFunction = jest.fn();
+    requireRole('admin')(req, makeRes(), next);
+    const err = (next as jest.Mock).mock.calls[0][0];
+    expect(err).toBeInstanceOf(AppError);
+    expect(err.statusCode).toBe(403);
   });
 });
 

@@ -80,11 +80,21 @@ export class FileModel {
     );
   }
 
+  static async findByOwner(userId: string): Promise<AppFile[]> {
+    return query<AppFile>(
+      `SELECT ${this.columns}
+       FROM files
+       WHERE owner_user_id = $1
+       ORDER BY created_at DESC`,
+      [userId]
+    );
+  }
+
   static async delete(fileId: string): Promise<void> {
     await query('DELETE FROM files WHERE id = $1', [fileId]);
   }
 
-  private static columns = `
+  static readonly columns = `
     id,
     owner_user_id as "ownerUserId",
     document_id as "documentId",

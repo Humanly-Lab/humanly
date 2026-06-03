@@ -1,5 +1,15 @@
 import { Server as SocketIOServer } from 'socket.io';
-import { TrackerEvent, AIChatRequest, AIChatResponse, AISuggestion } from '@humanly/shared';
+import {
+  TrackerEvent,
+  AIChatRequest,
+  AIChatResponse,
+  AISuggestion,
+  AgentTurnStartPayload,
+  AgentToolCallPayload,
+  AgentToolResultPayload,
+  AgentThinkingDeltaPayload,
+  AgentTurnEndPayload,
+} from '@humanly/shared';
 import { logger } from './logger';
 
 /**
@@ -21,11 +31,18 @@ export interface ServerToClientEvents {
   'session-ended': (data: SessionEndedData) => void;
   error: (data: ErrorData) => void;
   // AI Assistant events
-  'ai:response-start': (data: { sessionId: string; messageId: string }) => void;
-  'ai:response-chunk': (data: { sessionId: string; messageId: string; chunk: string }) => void;
-  'ai:response-complete': (data: AIChatResponse) => void;
+  'ai:response-start': (data: { sessionId: string; messageId: string; clientRequestId?: string }) => void;
+  'ai:response-chunk': (data: { sessionId: string; messageId: string; clientRequestId?: string; chunk: string }) => void;
+  'ai:response-complete': (data: AIChatResponse & { clientRequestId?: string }) => void;
   'ai:suggestion': (data: { sessionId: string; suggestions: AISuggestion[] }) => void;
-  'ai:error': (data: { sessionId: string; message: string; code?: string }) => void;
+  'ai:error': (data: { sessionId: string; clientRequestId?: string; message: string; code?: string }) => void;
+  // Agentic tool-call lifecycle events (mirrored from @humanly/shared
+  // AIServerToClientEvents until this local duplicate is removed).
+  'ai:turn-start': (data: AgentTurnStartPayload) => void;
+  'ai:tool-call': (data: AgentToolCallPayload) => void;
+  'ai:tool-result': (data: AgentToolResultPayload) => void;
+  'ai:thinking-delta': (data: AgentThinkingDeltaPayload) => void;
+  'ai:turn-end': (data: AgentTurnEndPayload) => void;
 }
 
 /**

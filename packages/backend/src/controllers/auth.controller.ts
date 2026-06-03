@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { AuthService } from '../services/auth.service';
+import { OAuthService } from '../services/oauth.service';
 import { asyncHandler } from '../middleware/error-handler';
 import {
   registerSchema,
@@ -7,9 +8,40 @@ import {
   verifyEmailSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
+  passwordResetTokenSchema,
   updateUserProfileSchema,
 } from '@humanly/shared';
+import { logger } from '../utils/logger';
 import { env } from '../config/env';
+
+const AUTH_COOKIE_BASE_OPTIONS = {
+  httpOnly: true,
+  secure: env.nodeEnv === 'production',
+  sameSite: 'strict' as const,
+  path: '/',
+  ...(env.authCookieDomain ? { domain: env.authCookieDomain } : {}),
+};
+
+function getOAuthCallbackFrontendUrl(role: 'admin' | 'user'): string {
+  return role === 'admin' ? env.frontendAdminUrl : env.frontendUserUrl;
+}
+
+function setAuthCookies(res: Response, accessToken: string, refreshToken: string): void {
+  res.cookie('refreshToken', refreshToken, {
+    ...AUTH_COOKIE_BASE_OPTIONS,
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+  });
+
+  res.cookie('accessToken', accessToken, {
+    ...AUTH_COOKIE_BASE_OPTIONS,
+    maxAge: 24 * 60 * 60 * 1000,
+  });
+}
+
+function clearAuthCookies(res: Response): void {
+  res.clearCookie('refreshToken', AUTH_COOKIE_BASE_OPTIONS);
+  res.clearCookie('accessToken', AUTH_COOKIE_BASE_OPTIONS);
+}
 
 /**
  * Register a new user
@@ -83,21 +115,7 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
   // Login user
   const { user, accessToken, refreshToken } = await AuthService.login(email, password, role);
 
-  // Set refresh token as httpOnly cookie
-  res.cookie('refreshToken', refreshToken, {
-    httpOnly: true,
-    secure: env.nodeEnv === 'production', // HTTPS only in production
-    sameSite: 'strict',
-    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-  });
-
-  // Optionally set access token as cookie too
-  res.cookie('accessToken', accessToken, {
-    httpOnly: true,
-    secure: env.nodeEnv === 'production',
-    sameSite: 'strict',
-    maxAge: 24 * 60 * 60 * 1000, // 1 day
-  });
+  setAuthCookies(res, accessToken, refreshToken);
 
   res.json({
     success: true,
@@ -131,8 +149,7 @@ export const logout = asyncHandler(async (req: Request, res: Response) => {
   await AuthService.logout(userId, refreshToken);
 
   // Clear cookies
-  res.clearCookie('refreshToken');
-  res.clearCookie('accessToken');
+  clearAuthCookies(res);
 
   res.json({
     success: true,
@@ -162,21 +179,7 @@ export const refreshToken = asyncHandler(async (req: Request, res: Response) => 
     refreshToken
   );
 
-  // Set new refresh token as httpOnly cookie
-  res.cookie('refreshToken', newRefreshToken, {
-    httpOnly: true,
-    secure: env.nodeEnv === 'production',
-    sameSite: 'strict',
-    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-  });
-
-  // Set new access token as cookie
-  res.cookie('accessToken', accessToken, {
-    httpOnly: true,
-    secure: env.nodeEnv === 'production',
-    sameSite: 'strict',
-    maxAge: 24 * 60 * 60 * 1000, // 1 day
-  });
+  setAuthCookies(res, accessToken, newRefreshToken);
 
   res.json({
     success: true,
@@ -203,6 +206,21 @@ export const forgotPassword = asyncHandler(async (req: Request, res: Response) =
   res.json({
     success: true,
     message: 'If an account with that email exists, a password reset link has been sent.',
+  });
+});
+
+/**
+ * Validate password reset link
+ * POST /api/v1/auth/reset-password/validate
+ */
+export const validatePasswordResetToken = asyncHandler(async (req: Request, res: Response) => {
+  const { token } = passwordResetTokenSchema.parse(req.body);
+
+  await AuthService.validatePasswordResetToken(token);
+
+  res.json({
+    success: true,
+    message: 'Password reset token is valid.',
   });
 });
 
@@ -269,4 +287,91 @@ export const updateCurrentUser = asyncHandler(async (req: Request, res: Response
     success: true,
     data: { user },
   });
+});
+
+/**
+ * Delete current user account
+ * DELETE /api/v1/auth/me
+ */
+export const deleteCurrentUser = asyncHandler(async (req: Request, res: Response) => {
+  const userId = req.user?.userId;
+  if (!userId) {
+    res.status(401).json({
+      success: false,
+      error: 'Unauthorized',
+      message: 'Authentication required',
+    });
+    return;
+  }
+
+  await AuthService.deleteCurrentUser(userId);
+  clearAuthCookies(res);
+
+  res.json({
+    success: true,
+    message: 'Account deleted successfully',
+  });
+});
+
+/**
+ * List configured OAuth providers
+ * GET /api/v1/auth/oauth/providers
+ */
+export const getOAuthProviders = asyncHandler(async (_req: Request, res: Response) => {
+  res.json({
+    success: true,
+    data: {
+      providers: OAuthService.getEnabledProviders(),
+    },
+  });
+});
+
+/**
+ * Redirect to provider OAuth consent/login page
+ * GET /api/v1/auth/oauth/:provider/start
+ */
+export const startOAuth = asyncHandler(async (req: Request, res: Response) => {
+  const url = OAuthService.getAuthorizationUrl(
+    req.params.provider,
+    req.query.role,
+    req.query.next
+  );
+  res.redirect(url);
+});
+
+/**
+ * Provider OAuth callback
+ * GET /api/v1/auth/oauth/:provider/callback
+ */
+export const handleOAuthCallback = asyncHandler(async (req: Request, res: Response) => {
+  let redirectUrl = new URL('/auth/callback', env.frontendUserUrl);
+
+  try {
+    const state = OAuthService.parseState(req.query.state);
+    redirectUrl = new URL('/auth/callback', getOAuthCallbackFrontendUrl(state.role));
+
+    if (req.query.error) {
+      throw new Error(String(req.query.error_description || req.query.error));
+    }
+
+    const profile = await OAuthService.exchangeCodeForProfile(state.provider, req.query.code);
+    const { accessToken, refreshToken } = await AuthService.loginWithOAuth(profile, state.role);
+
+    setAuthCookies(res, accessToken, refreshToken);
+
+    redirectUrl.hash = new URLSearchParams({
+      accessToken,
+      next: state.next,
+    }).toString();
+  } catch (error: any) {
+    logger.error('OAuth callback failed', {
+      provider: req.params.provider,
+      error: error?.message || error,
+    });
+    redirectUrl.hash = new URLSearchParams({
+      error: error?.message || 'OAuth login failed',
+    }).toString();
+  }
+
+  res.redirect(redirectUrl.toString());
 });

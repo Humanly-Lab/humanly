@@ -7,9 +7,14 @@ import {
   logout,
   refreshToken,
   forgotPassword,
+  validatePasswordResetToken,
   resetPassword,
   getCurrentUser,
   updateCurrentUser,
+  deleteCurrentUser,
+  getOAuthProviders,
+  startOAuth,
+  handleOAuthCallback,
 } from '../controllers/auth.controller';
 import { authenticate } from '../middleware/auth.middleware';
 import {
@@ -20,7 +25,7 @@ import {
   refreshTokenRateLimiter,
 } from '../middleware/rate-limit';
 
-const router = Router();
+const router: Router = Router();
 
 /**
  * POST /api/v1/auth/register
@@ -72,11 +77,36 @@ router.post('/refresh', refreshTokenRateLimiter, refreshToken);
 router.post('/forgot-password', passwordResetRateLimiter, forgotPassword);
 
 /**
+ * POST /api/v1/auth/reset-password/validate
+ * Validate password reset link before showing the reset form
+ * Rate limited: 3 attempts per hour
+ */
+router.post('/reset-password/validate', passwordResetRateLimiter, validatePasswordResetToken);
+
+/**
  * POST /api/v1/auth/reset-password
  * Reset password using reset token
  * Rate limited: 3 attempts per hour
  */
 router.post('/reset-password', passwordResetRateLimiter, resetPassword);
+
+/**
+ * GET /api/v1/auth/oauth/providers
+ * Public list of configured OAuth login providers
+ */
+router.get('/oauth/providers', getOAuthProviders);
+
+/**
+ * GET /api/v1/auth/oauth/:provider/start
+ * Start OAuth login flow
+ */
+router.get('/oauth/:provider/start', loginRateLimiter, startOAuth);
+
+/**
+ * GET /api/v1/auth/oauth/:provider/callback
+ * Complete OAuth login flow
+ */
+router.get('/oauth/:provider/callback', loginRateLimiter, handleOAuthCallback);
 
 /**
  * GET /api/v1/auth/me
@@ -85,5 +115,6 @@ router.post('/reset-password', passwordResetRateLimiter, resetPassword);
  */
 router.get('/me', authenticate, getCurrentUser);
 router.patch('/me', authenticate, updateCurrentUser);
+router.delete('/me', authenticate, deleteCurrentUser);
 
 export default router;

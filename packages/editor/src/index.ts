@@ -13,6 +13,7 @@ export { SelectionPopupPlugin } from './plugins/selection-popup-plugin';
 export type {
   SelectionInfo,
   SelectionPopupPluginProps,
+  SelectionReplacementOptions,
   SelectionReplacementResult,
 } from './plugins/selection-popup-plugin';
 

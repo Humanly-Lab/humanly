@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { TrackerController } from '../controllers/tracker.controller';
 
-const router = Router();
+const router: Router = Router();
 
 /**
  * GET /tracker/snippet

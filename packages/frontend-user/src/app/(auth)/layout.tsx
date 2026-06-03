@@ -2,8 +2,9 @@
 
 import { Suspense } from 'react';
 import Link from 'next/link';
-import { BRAND } from '@humanly/shared';
 import { Loader2 } from 'lucide-react';
+import { HumanlyWordmark } from '@/components/brand/humanly-wordmark';
+import { marketingHref } from '@/lib/app-origin';
 
 export default function AuthLayout({
   children,
@@ -11,16 +12,17 @@ export default function AuthLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-4">
-      <div className="w-full max-w-md space-y-8">
-        <div className="text-center">
-          <Link href="/" className="inline-block">
-            <h1 className="text-3xl font-bold tracking-tight hover:opacity-80 transition-opacity">
-              {BRAND.name}
-            </h1>
+    <div className="min-h-screen bg-background px-4 py-8 text-foreground">
+      <div className="mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-md flex-col justify-center">
+        <div className="mb-8 text-center">
+          <Link
+            href={marketingHref('/')}
+            className="inline-flex items-center justify-center transition-opacity hover:opacity-80"
+          >
+            <HumanlyWordmark size="lg" />
           </Link>
-          <p className="mt-2 text-sm text-muted-foreground">
-            {BRAND.taglineUser}
+          <p className="mx-auto mt-5 max-w-sm text-sm leading-7 text-muted-foreground">
+            Write with AI. Prove your process.
           </p>
         </div>
         <Suspense fallback={

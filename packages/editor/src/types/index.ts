@@ -1,4 +1,4 @@
-import { CopyPastePolicy, EventType } from '@humanly/shared';
+import { CopyPastePolicy, EventType, TextRenderMode } from '@humanly/shared';
 
 /**
  * Configuration for the editor tracker
@@ -7,11 +7,14 @@ export interface EditorTrackerConfig {
   documentId: string;
   userId?: string;
   onEvent?: (event: TrackedEvent) => void;
-  onEventsBuffer?: (events: TrackedEvent[]) => void;
+  onEventsBuffer?: (events: TrackedEvent[]) => void | Promise<void>;
+  onEventFlushReady?: (flushPendingEvents: (() => Promise<void>) | null) => void;
   batchSize?: number;
   flushInterval?: number;
   enabled?: boolean;
   copyPastePolicy?: CopyPastePolicy;
+  textRenderMode?: TextRenderMode;
+  getTextRenderMode?: () => TextRenderMode;
 }
 
 /**
@@ -41,6 +44,10 @@ export interface EventMetadata {
   // Line spacing & indentation
   lineSpacing?: number;
   indentLevel?: number;
+  // Text display mode captured for audit-log full text rendering
+  textRenderMode?: TextRenderMode;
+  sourceText?: string;
+  replacedSourceText?: string;
   // Extensible for other metadata
   [key: string]: any;
 }
@@ -81,6 +88,25 @@ export interface SelectionReplacementResult {
   editorStateAfter?: Record<string, any>;
 }
 
+export interface SelectionReplacementOptions {
+  suppressTextChangeTracking?: boolean;
+}
+
+export interface EditorInsertResult {
+  selectionStart: number;
+  selectionEnd: number;
+  cursorPosition: number;
+  textBefore?: string;
+  textAfter?: string;
+  inserted?: boolean;
+  editorStateBefore?: Record<string, any>;
+  editorStateAfter?: Record<string, any>;
+}
+
+export interface EditorAIBridgeAPI {
+  insertAtCursor: (text: string) => EditorInsertResult;
+}
+
 /**
  * Props for the Lexical editor component
  */
@@ -92,21 +118,30 @@ export interface LexicalEditorProps {
   editable?: boolean;
   trackingEnabled?: boolean;
   copyPastePolicy?: CopyPastePolicy;
+  maxCharacters?: number | null;
+  onCharacterLimitReached?: (limit: number) => void;
   autoSaveEnabled?: boolean;
   autoSaveInterval?: number;
   onContentChange?: (content: Record<string, any>, plainText: string) => void;
   onEventTracked?: (event: TrackedEvent) => void;
-  onEventsBuffer?: (events: TrackedEvent[]) => void;
+  onEventsBuffer?: (events: TrackedEvent[]) => void | Promise<void>;
+  onEventFlushReady?: (flushPendingEvents: (() => Promise<void>) | null) => void;
   onAutoSave?: (content: Record<string, any>, plainText: string) => void;
   className?: string;
   /** Render a custom popup when text is selected */
   renderSelectionPopup?: (props: {
     selection: SelectionPopupInfo;
     onClose: () => void;
-    replaceSelection: (newText: string, keepOpen?: boolean) => SelectionReplacementResult | undefined;
+    replaceSelection: (
+      newText: string,
+      keepOpen?: boolean,
+      options?: SelectionReplacementOptions
+    ) => SelectionReplacementResult | undefined;
     cancelAIAction: () => void;
     undoLastAction: () => void;
   }) => React.ReactNode;
+  /** Expose editor actions to adjacent AI UI rendered outside the editor tree */
+  renderAIBridge?: (api: EditorAIBridgeAPI) => React.ReactNode;
 }
 
 /**
@@ -114,6 +149,11 @@ export interface LexicalEditorProps {
  */
 export interface EditorTheme {
   paragraph?: string;
+  link?: string;
+  table?: string;
+  tableRow?: string;
+  tableCell?: string;
+  tableCellHeader?: string;
   text?: {
     bold?: string;
     italic?: string;
@@ -153,6 +193,9 @@ export interface ToolbarConfig {
   showStrikethrough?: boolean;
   showCode?: boolean;
   showClear?: boolean;
+  showMarkdownToggle?: boolean;
+  markdownEnabled?: boolean;
+  onMarkdownEnabledChange?: (enabled: boolean) => void;
 }
 
 /**

@@ -1,4 +1,5 @@
 import { createCommand, LexicalCommand } from 'lexical';
+import type { EventMetadata } from '../types';
 
 /**
  * Custom formatting commands for the editor
@@ -85,3 +86,9 @@ export const FIND_CLOSE_COMMAND: LexicalCommand<void> = createCommand('FIND_CLOS
 
 // Clear formatting command
 export const CLEAR_FORMATTING_COMMAND: LexicalCommand<void> = createCommand('CLEAR_FORMATTING_COMMAND');
+
+export const TRACKING_TEXT_CHANGE_METADATA_COMMAND: LexicalCommand<EventMetadata> =
+  createCommand('TRACKING_TEXT_CHANGE_METADATA_COMMAND');
+
+export const TRACKING_SUPPRESS_NEXT_TEXT_CHANGE_COMMAND: LexicalCommand<boolean | void> =
+  createCommand('TRACKING_SUPPRESS_NEXT_TEXT_CHANGE_COMMAND');

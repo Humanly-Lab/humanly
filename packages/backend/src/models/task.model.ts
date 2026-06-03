@@ -13,6 +13,7 @@ export interface CreateTaskData {
   startDate: Date;
   endDate: Date;
   environmentConfig?: WritingEnvironmentConfig | null;
+  allowGuestSubmissions?: boolean;
 }
 
 export interface UpdateTaskData {
@@ -26,6 +27,7 @@ export interface UpdateTaskData {
   startDate?: Date;
   endDate?: Date;
   environmentConfig?: WritingEnvironmentConfig | null;
+  allowGuestSubmissions?: boolean;
   isActive?: boolean;
 }
 
@@ -56,6 +58,14 @@ export interface TaskEnrollmentSummary {
   lastActivity: Date | null;
 }
 
+export interface TaskEnrollmentRecord {
+  id: string;
+  taskId: string;
+  userId: string;
+  documentId: string | null;
+  joinedAt: Date;
+}
+
 export interface CurrentUserTaskEnrollment {
   id: string;
   taskId: string;
@@ -64,11 +74,22 @@ export interface CurrentUserTaskEnrollment {
   description?: string | null;
   inviteCode: string;
   documentId: string | null;
+  writingStartedAt?: Date | null;
   joinedAt: Date;
   startDate: Date;
   endDate: Date;
   environmentConfig?: WritingEnvironmentConfig | null;
   isActive: boolean;
+}
+
+export interface ExpiredTimedTaskEnrollment {
+  enrollmentId: string;
+  taskId: string;
+  userId: string;
+  userEmail: string;
+  documentId: string;
+  writingStartedAt: Date;
+  timeLimitSeconds: number;
 }
 
 export class TaskModel {
@@ -79,8 +100,12 @@ export class TaskModel {
     p.allowed_llm_models as "allowedLlmModels", p.ai_usage_limit as "aiUsageLimit",
     p.start_date as "startDate", p.end_date as "endDate",
     p.environment_config as "environmentConfig",
+    p.allow_guest_submissions as "allowGuestSubmissions",
     p.is_active as "isActive",
     COALESCE(pe.enrolled_user_count, 0)::int as "enrolledUserCount",
+    COALESCE(ps.document_count, 0)::int as "documentCount",
+    COALESCE(ps.event_count, 0)::int as "eventCount",
+    COALESCE(ps.submission_count, 0)::int as "submissionCount",
     p.created_at as "createdAt", p.updated_at as "updatedAt"
   `;
 
@@ -90,6 +115,28 @@ export class TaskModel {
       FROM task_enrollments
       GROUP BY task_id
     ) pe ON pe.task_id = p.id
+  `;
+
+  private static readonly taskStatsJoin = `
+    LEFT JOIN (
+      SELECT
+        te.task_id,
+        (COUNT(DISTINCT te.submission_document_id)
+          FILTER (WHERE te.submission_document_id IS NOT NULL))::int as document_count,
+        COUNT(DISTINCT sub.id)::int as submission_count,
+        (COUNT(DISTINCT e.id) + COUNT(DISTINCT de.id))::int as event_count
+      FROM task_enrollments te
+      LEFT JOIN users u ON u.id = te.user_id
+      LEFT JOIN sessions s
+        ON s.task_id = te.task_id
+       AND s.external_user_id = u.email
+      LEFT JOIN events e ON e.session_id = s.id
+      LEFT JOIN document_events de ON de.document_id = te.submission_document_id
+      LEFT JOIN submissions sub
+        ON sub.task_id = te.task_id
+       AND sub.user_id = te.user_id
+      GROUP BY te.task_id
+    ) ps ON ps.task_id = p.id
   `;
 
   /**
@@ -103,17 +150,23 @@ export class TaskModel {
       INSERT INTO tasks (
         user_id, name, description, task_token, user_id_key,
         external_service_type, external_service_url,
-        allowed_llm_models, ai_usage_limit, start_date, end_date, environment_config, is_active
+        allowed_llm_models, ai_usage_limit, start_date, end_date, environment_config,
+        allow_guest_submissions, is_active
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, TRUE)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, TRUE)
       RETURNING id, user_id as "userId", name, description, task_token as "taskToken",
                 user_id_key as "userIdKey", external_service_type as "externalServiceType",
                 external_service_url as "externalServiceUrl",
                 allowed_llm_models as "allowedLlmModels", ai_usage_limit as "aiUsageLimit",
                 start_date as "startDate", end_date as "endDate",
                 environment_config as "environmentConfig",
+                allow_guest_submissions as "allowGuestSubmissions",
                 is_active as "isActive",
-                0 as "enrolledUserCount", created_at as "createdAt", updated_at as "updatedAt"
+                0 as "enrolledUserCount",
+                0 as "documentCount",
+                0 as "eventCount",
+                0 as "submissionCount",
+                created_at as "createdAt", updated_at as "updatedAt"
     `;
 
     const task = await queryOne<Task>(sql, [
@@ -129,6 +182,7 @@ export class TaskModel {
       data.startDate,
       data.endDate,
       data.environmentConfig ? JSON.stringify(data.environmentConfig) : null,
+      data.allowGuestSubmissions ?? true,
     ]);
 
     if (!task) throw new Error('Failed to create task');
@@ -143,6 +197,7 @@ export class TaskModel {
       SELECT ${this.taskSelect}
       FROM tasks p
       ${this.enrollmentCountJoin}
+      ${this.taskStatsJoin}
       WHERE p.id = $1
     `;
     return queryOne<Task>(sql, [id]);
@@ -176,6 +231,7 @@ export class TaskModel {
       SELECT ${this.taskSelect}
       FROM tasks p
       ${this.enrollmentCountJoin}
+      ${this.taskStatsJoin}
       WHERE p.user_id = $1 ${tasksSearchCondition}
       ORDER BY p.created_at DESC
       LIMIT $2 OFFSET $3
@@ -208,6 +264,7 @@ export class TaskModel {
       SELECT ${this.taskSelect}
       FROM tasks p
       ${this.enrollmentCountJoin}
+      ${this.taskStatsJoin}
       WHERE p.task_token = $1 AND p.is_active = TRUE
     `;
     return queryOne<Task>(sql, [taskToken]);
@@ -222,6 +279,7 @@ export class TaskModel {
       SELECT ${this.taskSelect}
       FROM tasks p
       ${this.enrollmentCountJoin}
+      ${this.taskStatsJoin}
       WHERE UPPER(SUBSTRING(p.task_token FROM 1 FOR 6)) = $1
         AND p.is_active = TRUE
       ORDER BY p.created_at DESC
@@ -238,6 +296,7 @@ export class TaskModel {
       SELECT ${this.taskSelect}
       FROM tasks p
       ${this.enrollmentCountJoin}
+      ${this.taskStatsJoin}
       JOIN task_enrollments te
         ON te.task_id = p.id
        AND te.submission_document_id = $1
@@ -285,6 +344,28 @@ export class TaskModel {
   }
 
   /**
+   * Find one task enrollment for a specific user.
+   */
+  static async findEnrollmentForUserTask(
+    taskId: string,
+    userId: string
+  ): Promise<TaskEnrollmentRecord | null> {
+    const sql = `
+      SELECT
+        id,
+        task_id as "taskId",
+        user_id as "userId",
+        submission_document_id as "documentId",
+        joined_at as "joinedAt"
+      FROM task_enrollments
+      WHERE task_id = $1 AND user_id = $2
+      LIMIT 1
+    `;
+
+    return queryOne<TaskEnrollmentRecord>(sql, [taskId, userId]);
+  }
+
+  /**
    * Link an enrollment to the user's task submission document.
    */
   static async linkSubmissionDocument(taskId: string, userId: string, documentId: string): Promise<boolean> {
@@ -311,6 +392,7 @@ export class TaskModel {
         t.description,
         UPPER(SUBSTRING(t.task_token FROM 1 FOR 6)) as "inviteCode",
         te.submission_document_id as "documentId",
+        d.writing_started_at as "writingStartedAt",
         te.joined_at as "joinedAt",
         t.start_date as "startDate",
         t.end_date as "endDate",
@@ -318,11 +400,101 @@ export class TaskModel {
         t.is_active as "isActive"
       FROM task_enrollments te
       JOIN tasks t ON t.id = te.task_id
+      LEFT JOIN documents d
+        ON d.id = te.submission_document_id
+       AND d.user_id = te.user_id
       WHERE te.user_id = $1
       ORDER BY te.joined_at DESC
     `;
 
     return query<CurrentUserTaskEnrollment>(sql, [userId]);
+  }
+
+  /**
+   * Claim expired timed task enrollments for server-side auto-submission.
+   *
+   * The claim columns make the job safe when multiple backend instances are
+   * running: one worker claims a row, others skip it until the claim ages out.
+   */
+  static async claimExpiredTimedEnrollments(limit = 25): Promise<ExpiredTimedTaskEnrollment[]> {
+    const sql = `
+      WITH due AS (
+        SELECT te.id
+        FROM task_enrollments te
+        JOIN tasks t ON t.id = te.task_id
+        JOIN documents d
+          ON d.id = te.submission_document_id
+         AND d.user_id = te.user_id
+        WHERE te.submission_document_id IS NOT NULL
+          AND d.writing_started_at IS NOT NULL
+          AND te.auto_submit_completed_at IS NULL
+          AND (
+            te.auto_submit_claimed_at IS NULL
+            OR te.auto_submit_claimed_at < NOW() - INTERVAL '5 minutes'
+          )
+          AND t.is_active = true
+          AND t.environment_config #>> '{time,timeLimitSeconds}' ~ '^[0-9]+$'
+          AND (
+            d.writing_started_at
+            + make_interval(secs => (t.environment_config #>> '{time,timeLimitSeconds}')::int)
+          ) <= NOW()
+          AND NOT EXISTS (
+            SELECT 1
+            FROM submissions s
+            WHERE s.task_id = te.task_id
+              AND s.user_id = te.user_id
+              AND s.status = 'active'
+          )
+        ORDER BY d.writing_started_at ASC
+        FOR UPDATE OF te SKIP LOCKED
+        LIMIT $1
+      )
+      UPDATE task_enrollments te
+      SET auto_submit_claimed_at = NOW(),
+          auto_submit_error = NULL
+      FROM due
+      JOIN tasks t ON t.id = (
+        SELECT task_id FROM task_enrollments WHERE id = due.id
+      )
+      JOIN users u ON u.id = (
+        SELECT user_id FROM task_enrollments WHERE id = due.id
+      )
+      JOIN documents d ON d.id = (
+        SELECT submission_document_id FROM task_enrollments WHERE id = due.id
+      )
+      WHERE te.id = due.id
+      RETURNING
+        te.id as "enrollmentId",
+        te.task_id as "taskId",
+        te.user_id as "userId",
+        u.email as "userEmail",
+        te.submission_document_id as "documentId",
+        d.writing_started_at as "writingStartedAt",
+        (t.environment_config #>> '{time,timeLimitSeconds}')::int as "timeLimitSeconds"
+    `;
+
+    return query<ExpiredTimedTaskEnrollment>(sql, [limit]);
+  }
+
+  static async markTimedEnrollmentAutoSubmitComplete(enrollmentId: string): Promise<void> {
+    const sql = `
+      UPDATE task_enrollments
+      SET auto_submit_completed_at = NOW(),
+          auto_submit_error = NULL
+      WHERE id = $1
+    `;
+
+    await query(sql, [enrollmentId]);
+  }
+
+  static async markTimedEnrollmentAutoSubmitFailed(enrollmentId: string, errorMessage: string): Promise<void> {
+    const sql = `
+      UPDATE task_enrollments
+      SET auto_submit_error = $2
+      WHERE id = $1
+    `;
+
+    await query(sql, [enrollmentId, errorMessage.slice(0, 1000)]);
   }
 
   /**
@@ -424,6 +596,11 @@ export class TaskModel {
     if (data.environmentConfig !== undefined) {
       updates.push(`environment_config = $${paramIndex++}`);
       values.push(data.environmentConfig ? JSON.stringify(data.environmentConfig) : null);
+    }
+
+    if (data.allowGuestSubmissions !== undefined) {
+      updates.push(`allow_guest_submissions = $${paramIndex++}`);
+      values.push(data.allowGuestSubmissions);
     }
 
     if (data.isActive !== undefined) {

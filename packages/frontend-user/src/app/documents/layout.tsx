@@ -1,11 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/auth-store';
 import { BasicInfoDialog } from '@/components/account/basic-info-dialog';
 import { Navbar } from '@/components/navigation/navbar';
 import { isGuestUserEmail } from '@/components/navigation/user-display';
+import { TokenManager } from '@/lib/api-client';
 
 export default function DocumentsLayout({
   children,
@@ -13,23 +14,40 @@ export default function DocumentsLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
-  const { user, isAuthenticated, isLoading, checkAuth } = useAuthStore();
+  const pathname = usePathname();
+  const { user, isAuthenticated, isLoading, checkAuth, clearLocalSession } = useAuthStore();
   const [hasChecked, setHasChecked] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
-  const [basicInfoOpen, setBasicInfoOpen] = useState(false);
+  const [isBasicInfoOpen, setIsBasicInfoOpen] = useState(false);
+  const documentIdMatch = pathname.match(/^\/documents\/([^/]+)/);
+  const publicDocumentId = documentIdMatch?.[1] || '';
+  const isPublicGuestDocumentRoute = Boolean(
+    publicDocumentId && TokenManager.getPublicDocumentAccessToken(publicDocumentId)
+  );
+  const isGuestWorkspaceRoute =
+    isAuthenticated &&
+    isGuestUserEmail(user?.email) &&
+    (pathname === '/documents' || pathname === '/documents/new');
   const requiresBasicInfo =
     isAuthenticated &&
     user?.profileCompleted === false &&
-    !isGuestUserEmail(user?.email);
+    !isGuestUserEmail(user?.email) &&
+    !isPublicGuestDocumentRoute;
 
   useEffect(() => {
     if (!hasChecked) {
-      checkAuth().finally(() => {
+      const shouldSwitchSession = typeof window !== 'undefined'
+        && new URLSearchParams(window.location.search).get('switchSession') === '1';
+
+      checkAuth({ forceRefresh: shouldSwitchSession }).finally(() => {
+        if (shouldSwitchSession) {
+          router.replace(pathname);
+        }
         setHasChecked(true);
         setIsCheckingAuth(false);
       });
     }
-  }, [hasChecked, checkAuth]);
+  }, [hasChecked, checkAuth, pathname, router]);
 
   useEffect(() => {
     // Only redirect after we've checked auth and user is not authenticated
@@ -39,8 +57,15 @@ export default function DocumentsLayout({
   }, [isAuthenticated, isLoading, router, hasChecked, isCheckingAuth]);
 
   useEffect(() => {
+    if (hasChecked && !isCheckingAuth && !isLoading && isGuestWorkspaceRoute) {
+      clearLocalSession();
+      router.replace('/login');
+    }
+  }, [clearLocalSession, hasChecked, isCheckingAuth, isGuestWorkspaceRoute, isLoading, router]);
+
+  useEffect(() => {
     if (hasChecked && !isCheckingAuth && !isLoading && requiresBasicInfo) {
-      setBasicInfoOpen(true);
+      setIsBasicInfoOpen(true);
     }
   }, [hasChecked, isCheckingAuth, isLoading, requiresBasicInfo]);
 
@@ -55,17 +80,17 @@ export default function DocumentsLayout({
     );
   }
 
-  if (!isAuthenticated) {
+  if (!isAuthenticated || isGuestWorkspaceRoute) {
     return null;
   }
 
   return (
     <div className="min-h-screen bg-background">
-      <Navbar />
+      <Navbar forceGuest={isPublicGuestDocumentRoute} />
       <BasicInfoDialog
-        open={basicInfoOpen}
+        open={isBasicInfoOpen}
         mode="complete"
-        onOpenChange={setBasicInfoOpen}
+        onOpenChange={setIsBasicInfoOpen}
       />
       {children}
     </div>

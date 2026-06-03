@@ -4,6 +4,11 @@ const API_URL =
   process.env.NEXT_PUBLIC_API_URL ??
   (process.env.NODE_ENV === 'production' ? '' : 'http://localhost:3001');
 
+export function getApiUrl(path: string): string {
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  return `${API_URL}${normalizedPath}`;
+}
+
 /**
  * Custom error class for API errors
  */
@@ -21,31 +26,46 @@ export class ApiError extends Error {
 /**
  * Token management utilities
  */
+let inMemoryAccessToken: string | null = null;
+
+const clearLegacyStoredTokens = (): void => {
+  if (typeof window === 'undefined') return;
+  localStorage.removeItem('accessToken');
+  localStorage.removeItem('refreshToken');
+};
+
 export const TokenManager = {
   getAccessToken: (): string | null => {
     if (typeof window === 'undefined') return null;
-    return localStorage.getItem('accessToken');
+    if (inMemoryAccessToken) return inMemoryAccessToken;
+
+    const legacyStoredToken = localStorage.getItem('accessToken');
+    if (legacyStoredToken) {
+      inMemoryAccessToken = legacyStoredToken;
+      clearLegacyStoredTokens();
+    }
+
+    return inMemoryAccessToken;
   },
 
   setAccessToken: (token: string): void => {
     if (typeof window === 'undefined') return;
-    localStorage.setItem('accessToken', token);
+    inMemoryAccessToken = token;
+    clearLegacyStoredTokens();
   },
 
   getRefreshToken: (): string | null => {
-    if (typeof window === 'undefined') return null;
-    return localStorage.getItem('refreshToken');
+    clearLegacyStoredTokens();
+    return null;
   },
 
-  setRefreshToken: (token: string): void => {
-    if (typeof window === 'undefined') return;
-    localStorage.setItem('refreshToken', token);
+  setRefreshToken: (_token: string): void => {
+    clearLegacyStoredTokens();
   },
 
   clearTokens: (): void => {
-    if (typeof window === 'undefined') return;
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
+    inMemoryAccessToken = null;
+    clearLegacyStoredTokens();
   },
 };
 
@@ -90,8 +110,13 @@ const createApiClient = (): AxiosInstance => {
     async (error: AxiosError) => {
       const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean };
 
-      // Handle 401 errors (unauthorized)
-      if (error.response?.status === 401 && !originalRequest._retry) {
+      // Handle 401 errors (unauthorized), but do not try to refresh login/register/refresh failures.
+      const requestUrl = originalRequest.url || '';
+      const isAuthEndpoint = requestUrl.includes('/auth/login')
+        || requestUrl.includes('/auth/register')
+        || requestUrl.includes('/auth/refresh');
+
+      if (error.response?.status === 401 && !originalRequest._retry && !isAuthEndpoint) {
         originalRequest._retry = true;
 
         try {

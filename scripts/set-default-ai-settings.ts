@@ -1,6 +1,3 @@
-import { pool } from '../packages/backend/src/config/database';
-import { UserAISettingsModel } from '../packages/backend/src/models/user-ai-settings.model';
-
 type Options = {
   days: number;
   limit?: number;
@@ -17,11 +14,35 @@ type UserRow = {
   has_settings: boolean;
 };
 
+type PoolLike = {
+  query<T>(sql: string, params?: Array<string | number | boolean>): Promise<{ rows: T[] }>;
+  end(): Promise<void>;
+};
+
+type UserAISettingsModelLike = {
+  upsert(userId: string, apiKey: string, baseUrl: string, model: string): Promise<unknown>;
+};
+
+async function loadBackendModules(): Promise<{
+  pool: PoolLike;
+  UserAISettingsModel: UserAISettingsModelLike;
+}> {
+  const [databaseModule, settingsModule] = await Promise.all([
+    import('../packages/backend/src/config/database'),
+    import('../packages/backend/src/models/user-ai-settings.model'),
+  ]);
+
+  return {
+    pool: databaseModule.pool,
+    UserAISettingsModel: settingsModule.UserAISettingsModel,
+  };
+}
+
 function parseArgs(argv: string[]): Options {
   const options: Options = {
     days: 14,
-    model: process.env.DEFAULT_AI_MODEL || process.env.AI_MODEL || 'gpt-4o',
-    baseUrl: process.env.DEFAULT_AI_BASE_URL || process.env.AI_BASE_URL || 'https://openrouter.ai/api/v1',
+    model: process.env.DEFAULT_AI_MODEL || process.env.AI_MODEL || 'Qwen/Qwen3.5-397B-A17B',
+    baseUrl: process.env.DEFAULT_AI_BASE_URL || process.env.AI_BASE_URL || 'https://api.together.xyz/v1',
     overwrite: false,
     apply: false,
   };
@@ -76,20 +97,20 @@ function parseArgs(argv: string[]): Options {
 
 function printHelp() {
   console.log(`Usage:
-  DEFAULT_AI_API_KEY=sk-... npm --workspace=@humanly/backend exec tsx ../../scripts/set-default-ai-settings.ts [options]
+  DEFAULT_AI_API_KEY=sk-... pnpm --filter @humanly/backend exec tsx ../../scripts/set-default-ai-settings.ts [options]
 
 Options:
   --days <n>        Target users created in the last n days. Default: 14
   --limit <n>       Limit number of matched users
-  --model <name>    Model to save. Default: DEFAULT_AI_MODEL or AI_MODEL or gpt-4o
-  --base-url <url>  Base URL to save. Default: DEFAULT_AI_BASE_URL or AI_BASE_URL or https://api.openai.com/v1
+  --model <name>    Model to save. Default: DEFAULT_AI_MODEL or AI_MODEL or Qwen/Qwen3.5-397B-A17B
+  --base-url <url>  Base URL to save. Default: DEFAULT_AI_BASE_URL or AI_BASE_URL or https://api.together.xyz/v1
   --overwrite       Replace existing per-user AI settings
   --apply           Actually write changes. Without this flag, the script is dry-run only.
   --help            Show this message
 `);
 }
 
-async function getTargetUsers(options: Options): Promise<UserRow[]> {
+async function getTargetUsers(options: Options, pool: PoolLike): Promise<UserRow[]> {
   const params: Array<string | number | boolean> = [options.days, options.overwrite];
   let limitSql = '';
 
@@ -117,13 +138,15 @@ async function getTargetUsers(options: Options): Promise<UserRow[]> {
 }
 
 async function main() {
+  const options = parseArgs(process.argv.slice(2));
   const apiKey = process.env.DEFAULT_AI_API_KEY || process.env.AI_API_KEY;
   if (!apiKey) {
     throw new Error('Set DEFAULT_AI_API_KEY or AI_API_KEY in the environment before running this script');
   }
 
-  const options = parseArgs(process.argv.slice(2));
-  const users = await getTargetUsers(options);
+  const { pool, UserAISettingsModel } = await loadBackendModules();
+  loadedPool = pool;
+  const users = await getTargetUsers(options, pool);
 
   console.log(`Matched ${users.length} user(s) created within the last ${options.days} day(s).`);
   console.log(`Mode: ${options.apply ? 'APPLY' : 'DRY RUN'}`);
@@ -154,8 +177,10 @@ async function main() {
   await pool.end();
 }
 
+let loadedPool: PoolLike | null = null;
+
 main().catch(async (error) => {
   console.error(error instanceof Error ? error.message : error);
-  await pool.end().catch(() => {});
+  await loadedPool?.end().catch(() => {});
   process.exit(1);
 });

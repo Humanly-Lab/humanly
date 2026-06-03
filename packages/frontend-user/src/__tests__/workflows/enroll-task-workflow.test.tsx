@@ -63,7 +63,11 @@ jest.mock('@/hooks/use-documents', () => ({
 }));
 
 describe('task enrollment workflow', () => {
+  let dateNowSpy: jest.SpyInstance<number, []> | null = null;
+
   beforeEach(() => {
+    dateNowSpy?.mockRestore();
+    dateNowSpy = null;
     documents = [];
     enrollments = [];
     mockPush.mockClear();
@@ -73,6 +77,7 @@ describe('task enrollment workflow', () => {
     mockApiPut.mockReset();
     mockCreateDocument.mockClear();
     mockDeleteDocument.mockClear();
+    window.localStorage.clear();
 
     mockApiGet.mockImplementation(async (path: string) => {
       if (path === '/tasks/my-enrollments') {
@@ -117,11 +122,18 @@ describe('task enrollment workflow', () => {
     });
   });
 
+  afterEach(() => {
+    dateNowSpy?.mockRestore();
+    dateNowSpy = null;
+  });
+
   it('blocks invalid invite codes, enrolls valid codes, prevents duplicates, and opens submissions', async () => {
     const user = userEvent.setup();
     const { rerender } = render(<DocumentsPage />);
 
-    expect((await screen.findAllByRole('heading', { name: /^my documents$/i })).length).toBeGreaterThan(0);
+    expect(await screen.findByRole('heading', { name: /writing dashboard/i })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('tab', { name: /task submissions/i }));
 
     await user.click(screen.getByRole('button', { name: /join task/i }));
     let dialog = screen.getByRole('dialog');
@@ -155,7 +167,7 @@ describe('task enrollment workflow', () => {
     });
 
     rerender(<DocumentsPage />);
-    expect(await screen.findByText('Enrolled Task Documents')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Task Submissions' })).toBeInTheDocument();
     expect(screen.getByText('Enrollment Task')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: /join task/i }));
@@ -170,5 +182,193 @@ describe('task enrollment workflow', () => {
 
     await user.click(screen.getByRole('button', { name: /open submission/i }));
     expect(mockPush).toHaveBeenCalledWith('/documents/submission-doc-1');
+  });
+
+  it('shows the persistent writing countdown on timed task cards', async () => {
+    dateNowSpy = jest
+      .spyOn(Date, 'now')
+      .mockReturnValue(new Date('2026-05-14T12:01:30.000Z').getTime());
+    documents = [{ ...createdDocument, id: 'timed-doc-1' }];
+    enrollments = [{
+      id: 'enroll-1',
+      name: 'Timed Task',
+      inviteCode: 'TIME01',
+      documentId: 'timed-doc-1',
+      joinedAt: '2026-05-14T12:00:00.000Z',
+      writingStartedAt: '2026-05-14T12:00:00.000Z',
+      environmentConfig: {
+        time: {
+          timeLimitSeconds: 120,
+        },
+      },
+    }];
+
+    const user = userEvent.setup();
+    render(<DocumentsPage />);
+
+    await screen.findByRole('heading', { name: /writing dashboard/i });
+    await user.click(screen.getByRole('tab', { name: /task submissions/i }));
+
+    expect(screen.getByText('Writing time left')).toBeInTheDocument();
+    expect(screen.getByText('0:30')).toBeInTheDocument();
+    expect(screen.getByText('Continues while you are away.')).toBeInTheDocument();
+  });
+
+  it('shows the persistent writing countdown on personal writing cards', async () => {
+    dateNowSpy = jest
+      .spyOn(Date, 'now')
+      .mockReturnValue(new Date('2026-05-14T12:01:30.000Z').getTime());
+    documents = [{
+      ...createdDocument,
+      id: 'personal-timed-doc-1',
+      title: 'Timed Personal Writing',
+      writingStartedAt: '2026-05-14T12:00:00.000Z',
+      environmentConfig: {
+        time: {
+          timeLimitSeconds: 120,
+        },
+      },
+    }];
+
+    render(<DocumentsPage />);
+
+    expect(await screen.findByRole('heading', { name: /writing dashboard/i })).toBeInTheDocument();
+    expect(screen.getByText('Timed Personal Writing')).toBeInTheDocument();
+    expect(screen.getByText('0:30')).toBeInTheDocument();
+    expect(screen.getByText('Continues while you are away.')).toBeInTheDocument();
+  });
+
+  it('lets users switch personal writing between card and list views', async () => {
+    documents = [
+      {
+        ...createdDocument,
+        id: 'personal-doc-1',
+        title: 'First Personal Writing',
+        characterCount: 0,
+      },
+      {
+        ...createdDocument,
+        id: 'personal-doc-2',
+        title: 'Second Personal Writing',
+        plainText: 'This document has enough preview text to exercise the list layout without changing row controls.',
+        characterCount: 101,
+      },
+    ];
+
+    const user = userEvent.setup();
+    const { unmount } = render(<DocumentsPage />);
+
+    expect(await screen.findByRole('heading', { name: /writing dashboard/i })).toBeInTheDocument();
+    const cardViewButton = screen.getByRole('button', { name: /card view/i });
+    expect(screen.getByText('Name')).toBeInTheDocument();
+    expect(screen.getByText('Characters')).toBeInTheDocument();
+    expect(screen.getByText('Last edited')).toBeInTheDocument();
+    expect(screen.getByText('First Personal Writing')).toBeInTheDocument();
+    expect(screen.getByText('Second Personal Writing')).toBeInTheDocument();
+    expect(screen.queryByText('This document has enough preview text to exercise the list layout without changing row controls.')).not.toBeInTheDocument();
+
+    await user.click(cardViewButton);
+
+    expect(screen.getByRole('button', { name: /list view/i })).toBeInTheDocument();
+    expect(screen.getByText('This document has enough preview text to exercise the list layout without changing row controls.')).toBeInTheDocument();
+    expect(window.localStorage.getItem('humanly:documents:view-mode')).toBe('cards');
+
+    unmount();
+    render(<DocumentsPage />);
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /list view/i })).toBeInTheDocument();
+    });
+    expect(screen.getByText('This document has enough preview text to exercise the list layout without changing row controls.')).toBeInTheDocument();
+  });
+
+  it('marks expired timed personal writing cards as read-only while preserving access', async () => {
+    dateNowSpy = jest
+      .spyOn(Date, 'now')
+      .mockReturnValue(new Date('2026-05-14T12:03:00.000Z').getTime());
+    documents = [{
+      ...createdDocument,
+      id: 'personal-expired-doc-1',
+      title: 'Expired Personal Writing',
+      writingStartedAt: '2026-05-14T12:00:00.000Z',
+      environmentConfig: {
+        time: {
+          timeLimitSeconds: 120,
+        },
+      },
+    }];
+
+    render(<DocumentsPage />);
+
+    expect(await screen.findByRole('heading', { name: /writing dashboard/i })).toBeInTheDocument();
+    expect(screen.getByText('Expired Personal Writing')).toBeInTheDocument();
+    expect(screen.getByText('Opens in read-only mode.')).toBeInTheDocument();
+    expect(screen.getAllByText('Read-only').length).toBeGreaterThan(0);
+    expect(screen.getByRole('link', { name: /Expired Personal Writing/i })).toHaveAttribute(
+      'href',
+      '/documents/personal-expired-doc-1'
+    );
+  });
+
+  it('marks expired timed task cards as read-only while preserving access', async () => {
+    dateNowSpy = jest
+      .spyOn(Date, 'now')
+      .mockReturnValue(new Date('2026-05-14T12:03:00.000Z').getTime());
+    documents = [{ ...createdDocument, id: 'expired-doc-1' }];
+    enrollments = [{
+      id: 'enroll-1',
+      name: 'Expired Timed Task',
+      inviteCode: 'TIME02',
+      documentId: 'expired-doc-1',
+      joinedAt: '2026-05-14T12:00:00.000Z',
+      writingStartedAt: '2026-05-14T12:00:00.000Z',
+      environmentConfig: {
+        time: {
+          timeLimitSeconds: 120,
+        },
+      },
+    }];
+
+    const user = userEvent.setup();
+    render(<DocumentsPage />);
+
+    await screen.findByRole('heading', { name: /writing dashboard/i });
+    await user.click(screen.getByRole('tab', { name: /task submissions/i }));
+
+    expect(screen.getByText('Writing time limit reached')).toBeInTheDocument();
+    expect(screen.getByText('Submission opens in read-only mode.')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /open read-only/i }));
+    expect(mockPush).toHaveBeenCalledWith('/documents/expired-doc-1');
+  });
+
+  it('keeps long task submission card content constrained inside the card', async () => {
+    const longTaskName = 'QA #351 deployed enroll 1779937231291 with an intentionally long title';
+    documents = [{ ...createdDocument, id: 'long-task-doc-1' }];
+    enrollments = [{
+      id: 'enroll-long-1',
+      name: longTaskName,
+      inviteCode: '7E414D',
+      documentId: 'long-task-doc-1',
+      joinedAt: '2026-05-14T12:00:00.000Z',
+      startDate: '2026-05-14T12:00:00.000Z',
+      endDate: '2026-05-15T12:00:00.000Z',
+      environmentConfig: { aiAccess: 'off' },
+    }];
+
+    const user = userEvent.setup();
+    render(<DocumentsPage />);
+
+    await screen.findByRole('heading', { name: /writing dashboard/i });
+    await user.click(screen.getByRole('tab', { name: /task submissions/i }));
+
+    const card = screen.getByTestId('task-submission-card');
+    expect(card).toHaveClass('min-w-0', 'overflow-hidden');
+    expect(within(card).getByTitle(longTaskName)).toHaveClass('truncate', 'max-w-full');
+    expect(within(card).getByText('7E414D')).toHaveClass('w-full', 'max-w-full', 'truncate');
+
+    const actionRow = within(card).getByRole('button', { name: /open submission/i }).parentElement;
+    expect(actionRow).toHaveClass('w-full', 'min-w-0');
+    expect(within(card).getByTitle('Delete task submission')).toHaveClass('shrink-0');
   });
 });

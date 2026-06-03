@@ -58,11 +58,12 @@ export class EventsController {
     const taskToken = req.headers['x-task-token'] as string;
 
     if (!taskToken) {
-      return res.status(401).json({
+      res.status(401).json({
         success: false,
         error: 'Missing task token',
         message: 'X-Task-Token header is required',
       });
+      return;
     }
 
     // Get IP address and user agent
@@ -111,11 +112,12 @@ export class EventsController {
     const sessionId = (req.headers['x-session-id'] as string) || validatedData.sessionId;
 
     if (!sessionId) {
-      return res.status(401).json({
+      res.status(401).json({
         success: false,
         error: 'Missing session ID',
         message: 'X-Session-Id header or sessionId in body is required',
       });
+      return;
     }
 
     // Get task ID from authenticated request (set by validateTaskToken middleware)
@@ -129,22 +131,24 @@ export class EventsController {
       const task = await TaskModel.findByToken(validatedData.taskToken);
 
       if (!task || !task.isActive) {
-        return res.status(401).json({
+        res.status(401).json({
           success: false,
           error: 'Invalid task token',
           message: 'Task authentication required',
         });
+        return;
       }
 
       taskId = task.id;
     }
 
     if (!taskId) {
-      return res.status(401).json({
+      res.status(401).json({
         success: false,
         error: 'Missing task ID',
         message: 'Task authentication required',
       });
+      return;
     }
 
     // Ingest events
@@ -181,11 +185,12 @@ export class EventsController {
     const sessionId = req.headers['x-session-id'] as string;
 
     if (!sessionId) {
-      return res.status(401).json({
+      res.status(401).json({
         success: false,
         error: 'Missing session ID',
         message: 'X-Session-Id header is required',
       });
+      return;
     }
 
     // Get task ID from authenticated request
@@ -230,11 +235,12 @@ export class EventsController {
     const userId = (req as any).userId; // Assumes user authentication middleware sets this
 
     if (!userId) {
-      return res.status(401).json({
+      res.status(401).json({
         success: false,
         error: 'Unauthorized',
         message: 'User authentication required',
       });
+      return;
     }
 
     const limit = parseInt(req.query.limit as string) || 1000;
@@ -258,11 +264,12 @@ export class EventsController {
     const userId = (req as any).userId; // Assumes user authentication middleware sets this
 
     if (!userId) {
-      return res.status(401).json({
+      res.status(401).json({
         success: false,
         error: 'Unauthorized',
         message: 'User authentication required',
       });
+      return;
     }
 
     // Parse query filters
@@ -310,11 +317,12 @@ export class EventsController {
     const userId = (req as any).userId; // Assumes user authentication middleware sets this
 
     if (!userId) {
-      return res.status(401).json({
+      res.status(401).json({
         success: false,
         error: 'Unauthorized',
         message: 'User authentication required',
       });
+      return;
     }
 
     const result = await EventService.getEventStats(taskId, userId);

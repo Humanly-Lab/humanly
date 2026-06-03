@@ -12,13 +12,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { OAuthButtons } from '@/components/auth/oauth-buttons';
 import { Mail, Lock, AlertCircle, Loader2, CheckCircle2 } from 'lucide-react';
 
 // Form validation schema
 const loginSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
   password: z.string().min(8, 'Password must be at least 8 characters'),
-  rememberMe: z.boolean().optional(),
 });
 
 type LoginForm = z.infer<typeof loginSchema>;
@@ -31,6 +31,9 @@ export default function LoginPage() {
   const [resendSuccess, setResendSuccess] = useState(false);
   const [userEmail, setUserEmail] = useState<string>('');
   const { login, resendVerificationEmail, isLoading } = useAuthStore();
+  const verificationHref = userEmail
+    ? `/verify-email?email=${encodeURIComponent(userEmail)}`
+    : '/verify-email';
 
   const {
     register,
@@ -39,9 +42,6 @@ export default function LoginPage() {
     clearErrors,
   } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
-    defaultValues: {
-      rememberMe: false,
-    },
   });
 
   const onSubmit = async (data: LoginForm) => {
@@ -71,6 +71,9 @@ export default function LoginPage() {
       setResendLoading(true);
       setResendSuccess(false);
       await resendVerificationEmail(userEmail);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('pendingVerificationEmail', userEmail);
+      }
       setResendSuccess(true);
       setError('Verification email sent! Please check your inbox.');
       setShowResendVerification(false);
@@ -101,7 +104,12 @@ export default function LoginPage() {
       </CardHeader>
 
       <CardContent>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <OAuthButtons
+          className="mb-5"
+          separatorPosition="after"
+          separatorLabel="or use email"
+        />
+        <form method="post" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           {error && (
             <Alert variant={resendSuccess ? "default" : "destructive"}>
               {resendSuccess ? (
@@ -110,7 +118,14 @@ export default function LoginPage() {
                 <AlertCircle className="h-4 w-4" />
               )}
               <AlertTitle>{resendSuccess ? "Success" : "Error"}</AlertTitle>
-              <AlertDescription>{error}</AlertDescription>
+              <AlertDescription>
+                {error}
+                {resendSuccess && (
+                  <Button asChild variant="outline" size="sm" className="mt-3 w-full">
+                    <Link href={verificationHref}>Enter verification code</Link>
+                  </Button>
+                )}
+              </AlertDescription>
             </Alert>
           )}
 
@@ -196,22 +211,6 @@ export default function LoginPage() {
             )}
           </div>
 
-          <div className="flex items-center space-x-2">
-            <input
-              type="checkbox"
-              id="rememberMe"
-              className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-              disabled={isLoading}
-              {...register('rememberMe')}
-            />
-            <Label
-              htmlFor="rememberMe"
-              className="text-sm font-normal cursor-pointer"
-            >
-              Remember me
-            </Label>
-          </div>
-
           <Button type="submit" className="w-full" disabled={isLoading}>
             {isLoading ? (
               <>
@@ -225,14 +224,25 @@ export default function LoginPage() {
         </form>
       </CardContent>
 
-      <CardFooter className="flex justify-center">
+      <CardFooter className="flex flex-col items-center gap-3">
         <p className="text-sm text-muted-foreground">
           Do not have an account?{' '}
           <Link
             href="/register"
-            className="text-primary hover:underline font-medium"
+            className="font-medium text-primary hover:underline"
           >
             Sign up
+          </Link>
+        </p>
+        <p className="text-center text-xs text-muted-foreground">
+          By signing in, you agree to our{' '}
+          <Link
+            href="https://app.writehumanly.net/terms"
+            target="_blank"
+            rel="noreferrer"
+            className="underline hover:text-foreground"
+          >
+            Terms of Service
           </Link>
         </p>
       </CardFooter>
