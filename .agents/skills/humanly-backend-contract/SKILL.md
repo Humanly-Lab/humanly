@@ -28,6 +28,15 @@ Mutating contract pass:
 QA_BACKEND_MUTATING=1 pnpm qa:backend:contract
 ```
 
+Production mutating contract pass should reuse a verified browser session:
+
+```bash
+QA_BACKEND_BASE_URL=https://app.writehumanly.net/api/v1 \
+QA_BACKEND_MUTATING=1 \
+QA_BACKEND_STORAGE_STATE=/path/to/verified-user.storageState.json \
+pnpm qa:backend:contract
+```
+
 Optional PDF file probe:
 
 ```bash
@@ -38,7 +47,10 @@ QA_BACKEND_MUTATING=1 QA_BACKEND_FILE_PROBE=1 pnpm qa:backend:contract
 
 - Treat read-only default checks as safe for local or production.
 - Use mutating mode only when account/document creation is acceptable.
+- On production, replay a verified `storageState`; do not fresh-register a new
+  unverified account on every run.
 - Do not print passwords, tokens, API keys, or raw per-user AI keys.
+- Treat `storageState` files as secrets.
 - Keep `QA_BACKEND_KEEP_DATA=1` only for debugging; otherwise let the harness
   clean up created data.
 - If a contract fails, inspect the JSON and Markdown reports under
@@ -48,7 +60,7 @@ QA_BACKEND_MUTATING=1 QA_BACKEND_FILE_PROBE=1 pnpm qa:backend:contract
 
 - Versioned health and API root metadata.
 - Missing-token auth guard.
-- Optional fresh user register/login.
+- Optional verified-session auth or fresh user register/login.
 - Optional document create/update/search/events/statistics flow.
 - Optional small PDF upload/list/stream probe.
 - AI settings fields: `shortcutMaxTokens`, `chatMaxTokens`, legacy aliases,

@@ -9,7 +9,7 @@
     "start": "node dist/index.js",
     "migrate": "node dist/db/migrate.js",
     "test": "jest",
-    "lint": "eslint src --ext .ts",
+    "lint": "tsc --noEmit",
     "clean": "rm -rf dist"
   },
   "dependencies": {

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import crypto from "node:crypto";
+import fs from "node:fs/promises";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import {
@@ -40,7 +41,11 @@ Usage:
 
 Environment / flags:
   QA_BACKEND_BASE_URL / --base-url       API base URL, with or without /api/v1
-  QA_BACKEND_MUTATING=1 / --mutating     Register/login a fresh user
+  QA_BACKEND_MUTATING=1 / --mutating     Run authenticated mutating checks
+  QA_BACKEND_STORAGE_STATE / --storage-state
+                                          Reuse a verified Playwright storageState
+  QA_BACKEND_ACCESS_TOKEN / --access-token
+                                          Reuse a verified access token
   QA_BACKEND_EMAIL / --email             Email for mutating auth probe
   QA_BACKEND_PASSWORD / --password       Password for mutating auth probe
   QA_BACKEND_FILE_PROBE=1 / --file-probe Upload/list/stream a small PDF during mutating mode
@@ -48,9 +53,10 @@ Environment / flags:
   QA_OUTPUT_DIR / --output-dir           Report output directory
 
 Default checks are read-only: health, API root, and unauthenticated auth guard.
-Mutating checks are opt-in so this command is safe to run against production
-only when the caller intentionally asks for account creation. Mutating mode also
-validates AI settings token-budget contracts without calling a live AI provider.
+Mutating checks are opt-in. Production runs should pass a verified storageState
+or access token so the harness does not create a fresh unverified account.
+Mutating mode also validates AI settings token-budget contracts without calling
+a live AI provider.
 `);
 }
 
@@ -66,6 +72,21 @@ const baseUrl = normalizeApiBaseUrl(
 const mutating = boolArg("mutating", "QA_BACKEND_MUTATING", false);
 const fileProbe = boolArg("file-probe", "QA_BACKEND_FILE_PROBE", false);
 const keepData = boolArg("keep-data", "QA_BACKEND_KEEP_DATA", false);
+const storageStatePath = arg(
+  "storage-state",
+  process.env.QA_BACKEND_STORAGE_STATE,
+);
+const suppliedAccessToken = arg(
+  "access-token",
+  process.env.QA_BACKEND_ACCESS_TOKEN,
+);
+const authMode = mutating
+  ? suppliedAccessToken
+    ? "access-token"
+    : storageStatePath
+      ? "storage-state"
+      : "fresh-register"
+  : undefined;
 const email =
   arg("email", process.env.QA_BACKEND_EMAIL) ||
   `contract-${Date.now()}-${crypto.randomBytes(3).toString("hex")}@example.com`;
@@ -85,7 +106,10 @@ const report = createQaRun({
     mutating,
     fileProbe,
     keepData,
-    email: mutating ? email : undefined,
+    authMode,
+    hasStorageState: mutating ? Boolean(storageStatePath) : undefined,
+    hasAccessToken: mutating ? Boolean(suppliedAccessToken) : undefined,
+    email: authMode === "fresh-register" ? email : undefined,
   },
 });
 
@@ -194,6 +218,45 @@ function formatBody(body) {
   return ` body=${text.slice(0, 500)}`;
 }
 
+async function loadAccessTokenFromStorageState(filePath, apiBaseUrl) {
+  const raw = await fs.readFile(filePath, "utf8");
+  let storageState = null;
+  try {
+    storageState = JSON.parse(raw);
+  } catch (error) {
+    throw new Error(
+      `Expected Playwright storageState JSON: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
+  }
+
+  const origins = Array.isArray(storageState?.origins)
+    ? storageState.origins
+    : [];
+  const baseOrigin = new URL(apiBaseUrl).origin;
+  const orderedOrigins = [
+    ...origins.filter((entry) => entry?.origin === baseOrigin),
+    ...origins.filter((entry) => entry?.origin !== baseOrigin),
+  ];
+
+  for (const origin of orderedOrigins) {
+    const localStorage = Array.isArray(origin?.localStorage)
+      ? origin.localStorage
+      : [];
+    const tokenEntry = localStorage.find(
+      (entry) => entry?.name === "accessToken",
+    );
+    if (tokenEntry?.value) {
+      return tokenEntry.value;
+    }
+  }
+
+  throw new Error(
+    `No accessToken localStorage entry found in storageState for ${baseOrigin}`,
+  );
+}
+
 await runCheck(
   report,
   {
@@ -250,64 +313,91 @@ if (mutating) {
   let fileId = null;
   const runText = `Humanly backend contract ${report.run.id}`;
 
-  await runCheck(
-    report,
-    {
-      id: "auth-register",
-      title: "Fresh user registration succeeds",
-      target: joinUrl(baseUrl, "/auth/register"),
-    },
-    async () => {
-      const { response, body } = await fetchJson(
-        joinUrl(baseUrl, "/auth/register"),
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password, role: "user" }),
-        },
-      );
-      if (![200, 201, 409].includes(response.status)) {
-        throw new Error(
-          `Expected 201 registration or 409 existing user, got ${response.status}`,
+  if (authMode === "storage-state" || authMode === "access-token") {
+    await runCheck(
+      report,
+      {
+        id: "auth-verified-session",
+        title: "Verified auth session provides access token",
+        target: authMode === "storage-state" ? "storageState" : "accessToken",
+      },
+      async () => {
+        accessToken =
+          authMode === "access-token"
+            ? suppliedAccessToken
+            : await loadAccessTokenFromStorageState(storageStatePath, baseUrl);
+        if (!accessToken) {
+          throw new Error("Expected verified access token");
+        }
+        return {
+          details: {
+            authMode,
+            hasAccessToken: Boolean(accessToken),
+            hasStorageState: Boolean(storageStatePath),
+          },
+        };
+      },
+    );
+  } else {
+    await runCheck(
+      report,
+      {
+        id: "auth-register",
+        title: "Fresh user registration succeeds",
+        target: joinUrl(baseUrl, "/auth/register"),
+      },
+      async () => {
+        const { response, body } = await fetchJson(
+          joinUrl(baseUrl, "/auth/register"),
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, password, role: "user" }),
+          },
         );
-      }
-      return {
-        details: {
-          status: response.status,
-          userId: body?.data?.user?.id || null,
-        },
-      };
-    },
-  );
+        if (![200, 201, 409].includes(response.status)) {
+          throw new Error(
+            `Expected 201 registration or 409 existing user, got ${response.status}`,
+          );
+        }
+        return {
+          details: {
+            status: response.status,
+            userId: body?.data?.user?.id || null,
+          },
+        };
+      },
+    );
 
-  await runCheck(
-    report,
-    {
-      id: "auth-login",
-      title: "Fresh user login returns access token",
-      target: joinUrl(baseUrl, "/auth/login"),
-    },
-    async () => {
-      const { response, body } = await fetchJson(
-        joinUrl(baseUrl, "/auth/login"),
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password, role: "user" }),
-        },
-      );
-      accessToken = body?.data?.accessToken || null;
-      if (response.status !== 200 || !accessToken) {
-        throw new Error(`Expected login token, got ${response.status}`);
-      }
-      return {
-        details: {
-          status: response.status,
-          hasAccessToken: Boolean(accessToken),
-        },
-      };
-    },
-  );
+    await runCheck(
+      report,
+      {
+        id: "auth-login",
+        title: "Fresh user login returns access token",
+        target: joinUrl(baseUrl, "/auth/login"),
+      },
+      async () => {
+        const { response, body } = await fetchJson(
+          joinUrl(baseUrl, "/auth/login"),
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, password, role: "user" }),
+          },
+        );
+        accessToken = body?.data?.accessToken || null;
+        if (response.status !== 200 || !accessToken) {
+          throw new Error(`Expected login token, got ${response.status}`);
+        }
+        return {
+          details: {
+            status: response.status,
+            hasAccessToken: Boolean(accessToken),
+          },
+        };
+      },
+    );
+  }
 
   await runCheck(
     report,
@@ -946,12 +1036,12 @@ if (mutating) {
 } else {
   addCheck(report, {
     id: "auth-mutating",
-    title: "Fresh register/login probes",
+    title: "Authenticated mutating probes",
     target: joinUrl(baseUrl, "/auth/register"),
     status: "skip",
     details: {
       reason:
-        "Set QA_BACKEND_MUTATING=1 or pass --mutating to run account-creating contract checks.",
+        "Set QA_BACKEND_MUTATING=1 or pass --mutating to run authenticated contract checks.",
     },
   });
 }

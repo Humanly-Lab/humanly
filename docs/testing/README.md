@@ -136,18 +136,34 @@ QA_BACKEND_MUTATING=1 pnpm qa:backend:contract
 Use this harness for low-level API contract checks. Keep higher-volume event,
 upload, and latency work in `pnpm qa:stress:backend`.
 
-Detailed mutating pass:
+Detailed production mutating pass:
 
 ```bash
 QA_BACKEND_BASE_URL=https://app.writehumanly.net/api/v1 \
 QA_BACKEND_MUTATING=1 \
+QA_BACKEND_STORAGE_STATE=/path/to/verified-user.storageState.json \
 pnpm qa:backend:contract
 ```
 
-The mutating pass registers/logs in a QA user, creates a draft document, updates
-it, writes representative focus/input/paste/blur events, reads events and
-statistics, searches the document list, validates AI settings/token-budget
-contracts, and deletes created document/settings data by default.
+On production, save a verified Playwright browser `storageState` once and replay
+it with `QA_BACKEND_STORAGE_STATE`. Fresh signup is expected to hit email
+verification gates, so do not rely on per-run fresh registration for production
+mutating checks. The storageState file is a secret and must not be committed or
+attached to issues/PRs.
+
+Local mutating pass without a verified session:
+
+```bash
+QA_BACKEND_MUTATING=1 pnpm qa:backend:contract
+```
+
+When no verified session is supplied, the harness registers/logs in a QA user
+for local or disposable environments. With a verified session, it skips
+registration/login and uses the saved access token. The mutating pass creates a
+draft document, updates it, writes representative focus/input/paste/blur events,
+reads events and statistics, searches the document list, validates AI
+settings/token-budget contracts, and deletes created document/settings data by
+default.
 
 The AI settings checks verify:
 

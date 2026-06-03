@@ -23,6 +23,10 @@ harnesses.
 - File confirmed bugs with `docs/ISSUE_AUTHORING_GUIDE.md`.
 - Do not paste API keys, passwords, access tokens, or refresh tokens into
   issues, PRs, reports, or final answers.
+- For production automated runs, save a verified browser `storageState` once
+  and replay it per run. Do not fresh-register a new production account for
+  every run; unverified fresh signups are expected to hit verification 403s.
+  Treat `storageState` files as secrets and never commit or attach them.
 
 ## Before Opening The Browser
 
@@ -31,6 +35,15 @@ Run or inspect these first:
 ```bash
 git status --short --branch
 pnpm qa:deploy:smoke
+QA_BACKEND_BASE_URL=https://app.writehumanly.net/api/v1 pnpm qa:backend:contract
+```
+
+For production mutating backend checks, pass a verified user storageState:
+
+```bash
+QA_BACKEND_BASE_URL=https://app.writehumanly.net/api/v1 \
+QA_BACKEND_MUTATING=1 \
+QA_BACKEND_STORAGE_STATE=/path/to/verified-user.storageState.json \
 pnpm qa:backend:contract
 ```
 
