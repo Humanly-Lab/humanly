@@ -252,24 +252,17 @@ jobs:
             df -h "$VM_DEPLOY_PATH" || true
 
             cd "$VM_DEPLOY_PATH"
-            git_askpass="$(mktemp)"
-            cat > "$git_askpass" <<'EOF'
-            #!/bin/sh
-            case "$1" in
-              *Username*) printf '%s\n' 'x-access-token' ;;
-              *Password*) printf '%s\n' "$GH_REPO_TOKEN" ;;
-              *) printf '\n' ;;
-            esac
-            EOF
-            chmod 700 "$git_askpass"
-            export GIT_ASKPASS="$git_askpass"
             export GIT_TERMINAL_PROMPT=0
-            trap 'rm -f "$git_askpass"' EXIT
+            git_auth_header="$(printf 'x-access-token:%s' "$GH_REPO_TOKEN" | base64 | tr -d '\n')"
+            git_with_auth() {
+              git -c "http.https://github.com/.extraheader=AUTHORIZATION: Basic ${git_auth_header}" "$@"
+            }
 
             git gc --prune=now || true
-            git fetch --prune origin main
+            git_with_auth fetch --prune origin main
             git checkout main
-            git pull --ff-only origin main
+            git_with_auth pull --ff-only origin main
+            unset git_auth_header
             test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
             BACKEND_IMAGE="$BACKEND_IMAGE" FRONTEND_USER_IMAGE="$FRONTEND_USER_IMAGE" FRONTEND_IMAGE="$FRONTEND_IMAGE" BACKEND_CHANGED="$BACKEND_CHANGED" FRONTEND_USER_CHANGED="$FRONTEND_USER_CHANGED" FRONTEND_CHANGED="$FRONTEND_CHANGED" VM_DEPLOY_PATH="$VM_DEPLOY_PATH" bash scripts/deploy.sh
           script_stop: true
