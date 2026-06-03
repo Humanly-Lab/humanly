@@ -68,6 +68,14 @@ const QUICK_ACTION_HISTORY_LABEL_PREFIXES = [
 
 const MAX_CHAT_IMAGE_ATTACHMENTS = 5;
 
+type PreviewableChatImageAttachment = ChatImageAttachment & {
+  previewUrl?: string;
+};
+
+type ChatMessageAttachment = NonNullable<
+  NonNullable<AIChatMessage['metadata']>['attachments']
+>[number];
+
 function isQuickActionHistoryLog(log: AIInteractionLog): boolean {
   const query = log.query.trim();
 
@@ -112,6 +120,17 @@ function getImageFilesFromDataTransfer(dataTransfer: DataTransfer): File[] {
   return filesFromList(dataTransfer.files).filter((file) => file.type.startsWith('image/'));
 }
 
+function isChatImageAttachment(
+  attachment: ChatMessageAttachment,
+): attachment is ChatImageAttachment {
+  return attachment.type === 'image';
+}
+
+function getChatImagePreviewUrl(attachment: ChatImageAttachment): string | undefined {
+  const previewUrl = (attachment as { previewUrl?: unknown }).previewUrl;
+  return typeof previewUrl === 'string' && previewUrl.length > 0 ? previewUrl : undefined;
+}
+
 export function AIAssistantPanel({
   documentId,
   onClose,
@@ -126,7 +145,7 @@ export function AIAssistantPanel({
   // Pending image attachments staged in the input bar. Uploaded as soon as
   // the user picks them so the websocket frame only carries a storageKey
   // (#93). Cleared on send / cancel.
-  const [pendingAttachments, setPendingAttachments] = useState<ChatImageAttachment[]>([]);
+  const [pendingAttachments, setPendingAttachments] = useState<PreviewableChatImageAttachment[]>([]);
   const [attachmentUploading, setAttachmentUploading] = useState(false);
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const [imageDragActive, setImageDragActive] = useState(false);
@@ -264,10 +283,17 @@ export function AIAssistantPanel({
     }
 
     setAttachmentUploading(true);
+    const createdPreviewUrls: string[] = [];
     try {
-      const descriptors = await Promise.all(files.map((file) => uploadChatImage(file)));
+      const descriptors = await Promise.all(files.map(async (file) => {
+        const previewUrl = URL.createObjectURL(file);
+        createdPreviewUrls.push(previewUrl);
+        const descriptor = await uploadChatImage(file);
+        return { ...descriptor, previewUrl };
+      }));
       setPendingAttachments((prev) => [...prev, ...descriptors]);
     } catch (err: any) {
+      createdPreviewUrls.forEach((url) => URL.revokeObjectURL(url));
       setAttachmentError(err?.message || 'Failed to upload image');
     } finally {
       setAttachmentUploading(false);
@@ -290,6 +316,10 @@ export function AIAssistantPanel({
   };
 
   const handleRemoveAttachment = (storageKey: string) => {
+    const attachment = pendingAttachments.find((a) => a.storageKey === storageKey);
+    if (attachment?.previewUrl) {
+      URL.revokeObjectURL(attachment.previewUrl);
+    }
     setPendingAttachments((prev) => prev.filter((a) => a.storageKey !== storageKey));
   };
 
@@ -867,8 +897,15 @@ function MessageBubble({ message, isStreaming, toolCalls, thinking, insertAtCurs
         )}
       >
         {isUser ? (
-          <div className="whitespace-pre-wrap break-words overflow-wrap-anywhere leading-relaxed min-w-0">
-            {message.content}
+          <div className="flex min-w-0 flex-col gap-2">
+            {message.content.trim().length > 0 && (
+              <div className="whitespace-pre-wrap break-words overflow-wrap-anywhere leading-relaxed min-w-0">
+                {message.content}
+              </div>
+            )}
+            <ChatImageThumbnails
+              attachments={(message.metadata?.attachments || []).filter(isChatImageAttachment)}
+            />
           </div>
         ) : (
           <div className="min-w-0">
@@ -893,6 +930,56 @@ function MessageBubble({ message, isStreaming, toolCalls, thinking, insertAtCurs
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+interface ChatImageThumbnailsProps {
+  attachments: ChatImageAttachment[];
+}
+
+function ChatImageThumbnails({ attachments }: ChatImageThumbnailsProps) {
+  if (attachments.length === 0) return null;
+
+  return (
+    <div
+      data-testid="ai-chat-sent-image-thumbnails"
+      className="flex max-w-full flex-wrap gap-2"
+    >
+      {attachments.map((attachment) => {
+        const previewUrl = getChatImagePreviewUrl(attachment);
+        const label = attachment.filename || 'Attached image';
+
+        if (previewUrl) {
+          return (
+            <div
+              key={attachment.storageKey}
+              className="h-24 w-24 overflow-hidden rounded-md border border-primary-foreground/20 bg-primary-foreground/10"
+            >
+              {/* Blob URLs are client-only previews and cannot be optimized by next/image. */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                data-testid="ai-chat-sent-image-thumbnail"
+                src={previewUrl}
+                alt={label}
+                className="h-full w-full object-cover"
+              />
+            </div>
+          );
+        }
+
+        return (
+          <div
+            key={attachment.storageKey}
+            data-testid="ai-chat-sent-image-fallback"
+            className="flex h-24 w-24 min-w-0 flex-col items-center justify-center gap-1 rounded-md border border-primary-foreground/20 bg-primary-foreground/10 p-2 text-center text-[10px] text-primary-foreground/80"
+            title={label}
+          >
+            <ImageIcon className="h-5 w-5 shrink-0" />
+            <span className="max-w-full truncate">{label}</span>
+          </div>
+        );
+      })}
     </div>
   );
 }

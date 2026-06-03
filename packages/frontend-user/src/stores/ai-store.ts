@@ -52,6 +52,23 @@ function toEpochMs(value: string | number | undefined, fallback: number): number
   return fallback;
 }
 
+function stripClientOnlyAttachmentPreview(
+  attachments?: AIChatRequest['attachments'],
+): AIChatRequest['attachments'] {
+  if (!attachments || attachments.length === 0) return attachments;
+
+  return attachments.map((attachment) => {
+    if (attachment.type !== 'image') return attachment;
+
+    return {
+      type: 'image',
+      storageKey: attachment.storageKey,
+      mimeType: attachment.mimeType,
+      filename: attachment.filename,
+    };
+  });
+}
+
 /**
  * Rebuild the per-message tool-call timeline keyed map from a freshly loaded
  * `AIChatSession.messages` list (issue #94). The backend persists each
@@ -286,6 +303,7 @@ export const useAIStore = create<AIState>()(
       sendMessage: async (documentId, message, context, attachments) => {
         const { currentSession, pendingNewSession } = get();
         const forceNewSession = !currentSession?.id && pendingNewSession;
+        const requestAttachments = stripClientOnlyAttachmentPreview(attachments);
 
         set({ isLoading: true, error: null });
 
@@ -299,7 +317,7 @@ export const useAIStore = create<AIState>()(
             forceNewSession,
             message,
             context,
-            attachments,
+            attachments: requestAttachments,
           });
 
           const { sessionId, message: responseMessage, suggestions } = response.data;
@@ -344,6 +362,7 @@ export const useAIStore = create<AIState>()(
         const { currentSession, pendingNewSession } = get();
         const forceNewSession = !currentSession?.id && pendingNewSession;
         const clientRequestId = createClientRequestId('chat');
+        const requestAttachments = stripClientOnlyAttachmentPreview(attachments);
 
         // Check if socket is connected before attempting to send
         const socket = getSocket();
@@ -381,7 +400,7 @@ export const useAIStore = create<AIState>()(
           forceNewSession,
           message,
           context,
-          attachments,
+          attachments: requestAttachments,
           clientRequestId,
         } as AIChatRequest);
       },

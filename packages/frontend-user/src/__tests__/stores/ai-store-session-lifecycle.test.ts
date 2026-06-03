@@ -58,6 +58,16 @@ function assistantMessage(id: string, content = 'answer'): AIChatMessage {
   };
 }
 
+function imageAttachmentWithPreview() {
+  return {
+    type: 'image',
+    storageKey: 'mock/sent.png',
+    mimeType: 'image/png',
+    filename: 'sent.png',
+    previewUrl: 'blob:sent.png',
+  } as any;
+}
+
 describe('AI store session lifecycle', () => {
   beforeEach(() => {
     useAIStore.getState().reset();
@@ -92,6 +102,55 @@ describe('AI store session lifecycle', () => {
     expect(useAIStore.getState().messages).toEqual([]);
     expect(useAIStore.getState().logs).toHaveLength(1);
     expect(useAIStore.getState().pendingNewSession).toBe(true);
+  });
+
+  it('keeps local image previews on the websocket user echo but strips them from the socket payload', () => {
+    const attachment = imageAttachmentWithPreview();
+
+    useAIStore.getState().sendMessageViaSocket('doc-1', 'Can you see this?', undefined, [attachment]);
+
+    const messageCall = (emitEvent as jest.Mock).mock.calls.find(([event]) => event === 'ai:message');
+    expect(messageCall?.[1].attachments).toEqual([
+      {
+        type: 'image',
+        storageKey: 'mock/sent.png',
+        mimeType: 'image/png',
+        filename: 'sent.png',
+      },
+    ]);
+    expect(messageCall?.[1].attachments[0]).not.toHaveProperty('previewUrl');
+
+    const echoedAttachment = useAIStore.getState().messages[0].metadata?.attachments?.[0] as any;
+    expect(echoedAttachment.previewUrl).toBe('blob:sent.png');
+  });
+
+  it('keeps local image previews on the REST user echo but strips them from the REST payload', async () => {
+    (api.post as jest.Mock).mockResolvedValue({
+      data: {
+        sessionId: 'session-rest',
+        message: assistantMessage('assistant-rest'),
+        suggestions: [],
+      },
+    });
+    const attachment = imageAttachmentWithPreview();
+
+    await useAIStore.getState().sendMessage('doc-1', 'Can you see this?', undefined, [attachment]);
+
+    expect(api.post).toHaveBeenCalledWith('/ai/chat', expect.objectContaining({
+      attachments: [
+        {
+          type: 'image',
+          storageKey: 'mock/sent.png',
+          mimeType: 'image/png',
+          filename: 'sent.png',
+        },
+      ],
+    }));
+    const payload = (api.post as jest.Mock).mock.calls[0][1];
+    expect(payload.attachments[0]).not.toHaveProperty('previewUrl');
+
+    const echoedAttachment = useAIStore.getState().messages[0].metadata?.attachments?.[0] as any;
+    expect(echoedAttachment.previewUrl).toBe('blob:sent.png');
   });
 
   it('forces a fresh backend session for the first turn after New Chat', async () => {

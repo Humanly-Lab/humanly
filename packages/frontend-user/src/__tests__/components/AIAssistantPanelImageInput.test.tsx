@@ -6,6 +6,11 @@ window.HTMLElement.prototype.scrollIntoView = jest.fn();
 const mockApiGet = jest.fn();
 const mockUploadChatImage = jest.fn();
 const mockSendMessage = jest.fn();
+const mockCreateObjectURL = jest.fn((file: File) => `blob:${file.name}`);
+const mockRevokeObjectURL = jest.fn();
+let mockMessages: any[] = [];
+const originalCreateObjectURL = window.URL.createObjectURL;
+const originalRevokeObjectURL = window.URL.revokeObjectURL;
 
 jest.mock('@/lib/api-client', () => ({
   __esModule: true,
@@ -26,7 +31,7 @@ jest.mock('@/lib/ai-chat-attachments', () => {
 
 jest.mock('@/hooks/use-ai', () => ({
   useAI: () => ({
-    messages: [],
+    messages: mockMessages,
     isStreaming: false,
     streamingContent: '',
     streamingMessageId: null,
@@ -92,6 +97,15 @@ function renderPanel(model = 'qwen/qwen3.5-9b') {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockMessages = [];
+  Object.defineProperty(window.URL, 'createObjectURL', {
+    configurable: true,
+    value: mockCreateObjectURL,
+  });
+  Object.defineProperty(window.URL, 'revokeObjectURL', {
+    configurable: true,
+    value: mockRevokeObjectURL,
+  });
   mockApiGet.mockResolvedValue({
     data: {
       hasApiKey: true,
@@ -105,6 +119,17 @@ beforeEach(() => {
     mimeType: file.type,
     filename: file.name,
   }));
+});
+
+afterAll(() => {
+  Object.defineProperty(window.URL, 'createObjectURL', {
+    configurable: true,
+    value: originalCreateObjectURL,
+  });
+  Object.defineProperty(window.URL, 'revokeObjectURL', {
+    configurable: true,
+    value: originalRevokeObjectURL,
+  });
 });
 
 describe('AIAssistantPanel image paste and drag-drop', () => {
@@ -128,6 +153,7 @@ describe('AIAssistantPanel image paste and drag-drop', () => {
     });
 
     await waitFor(() => expect(mockUploadChatImage).toHaveBeenCalledWith(file));
+    expect(mockCreateObjectURL).toHaveBeenCalledWith(file);
     expect(await screen.findByText('paste.png')).toBeInTheDocument();
 
     const inputStack = screen.getByTestId('ai-chat-input-stack');
@@ -140,6 +166,97 @@ describe('AIAssistantPanel image paste and drag-drop', () => {
     expect(inputForm.parentElement).toBe(inputStack);
     expect(inputForm).not.toContainElement(attachmentRow);
     expect(stackChildren.indexOf(attachmentRow)).toBeLessThan(stackChildren.indexOf(inputForm));
+  });
+
+  it('passes preview metadata with sent attachments so the user echo can render thumbnails', async () => {
+    renderPanel();
+    expect(await screen.findByText('AI model: qwen/qwen3.5-9b (image+text)')).toBeInTheDocument();
+
+    const file = makeImageFile('sent.png');
+    const textarea = screen.getByPlaceholderText('Type your message...');
+    fireEvent.paste(textarea, {
+      clipboardData: {
+        items: [
+          {
+            kind: 'file',
+            type: 'image/png',
+            getAsFile: () => file,
+          },
+        ],
+        files: [file],
+        types: ['Files'],
+      },
+    });
+
+    await waitFor(() => expect(mockUploadChatImage).toHaveBeenCalledWith(file));
+    fireEvent.change(textarea, { target: { value: 'Can you see this?' } });
+    fireEvent.submit(screen.getByTestId('ai-chat-input-form'));
+
+    await waitFor(() => expect(mockSendMessage).toHaveBeenCalled());
+    const attachments = mockSendMessage.mock.calls[0][2];
+    expect(attachments).toEqual([
+      expect.objectContaining({
+        type: 'image',
+        storageKey: 'mock/sent.png',
+        mimeType: 'image/png',
+        filename: 'sent.png',
+        previewUrl: 'blob:sent.png',
+      }),
+    ]);
+  });
+
+  it('renders sent image thumbnails from user message attachment preview metadata', async () => {
+    mockMessages = [
+      {
+        id: 'user-image',
+        role: 'user',
+        content: 'Can you see this?',
+        timestamp: new Date(),
+        metadata: {
+          attachments: [
+            {
+              type: 'image',
+              storageKey: 'mock/sent.png',
+              mimeType: 'image/png',
+              filename: 'sent.png',
+              previewUrl: 'blob:sent.png',
+            },
+          ],
+        },
+      },
+    ];
+
+    renderPanel();
+    expect(await screen.findByText('Can you see this?')).toBeInTheDocument();
+    expect(screen.getByTestId('ai-chat-sent-image-thumbnails')).toHaveClass('gap-2');
+    const thumbnail = screen.getByTestId('ai-chat-sent-image-thumbnail');
+    expect(thumbnail).toHaveAttribute('src', 'blob:sent.png');
+    expect(thumbnail).toHaveAttribute('alt', 'sent.png');
+  });
+
+  it('renders a compact fallback for sent images without a live preview URL', async () => {
+    mockMessages = [
+      {
+        id: 'user-image-fallback',
+        role: 'user',
+        content: '',
+        timestamp: new Date(),
+        metadata: {
+          attachments: [
+            {
+              type: 'image',
+              storageKey: 'mock/historical.png',
+              mimeType: 'image/png',
+              filename: 'historical.png',
+            },
+          ],
+        },
+      },
+    ];
+
+    renderPanel();
+    expect(await screen.findByTestId('ai-chat-sent-image-fallback')).toHaveTextContent('historical.png');
+    expect(screen.queryByTestId('ai-chat-sent-image-thumbnail')).not.toBeInTheDocument();
   });
 
   it('stages a dropped image when the locked model accepts image input', async () => {
