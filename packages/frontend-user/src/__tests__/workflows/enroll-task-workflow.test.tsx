@@ -209,9 +209,9 @@ describe('task enrollment workflow', () => {
     await screen.findByRole('heading', { name: /writing dashboard/i });
     await user.click(screen.getByRole('tab', { name: /task submissions/i }));
 
-    expect(screen.getByText('Writing time left')).toBeInTheDocument();
     expect(screen.getByText('0:30')).toBeInTheDocument();
-    expect(screen.getByText('Continues while you are away.')).toBeInTheDocument();
+    expect(screen.getByText('Start Date: Not scheduled')).toBeInTheDocument();
+    expect(screen.getByText('Deadline: No deadline')).toBeInTheDocument();
   });
 
   it('shows the persistent writing countdown on personal writing cards', async () => {
@@ -335,10 +335,9 @@ describe('task enrollment workflow', () => {
     await screen.findByRole('heading', { name: /writing dashboard/i });
     await user.click(screen.getByRole('tab', { name: /task submissions/i }));
 
-    expect(screen.getByText('Writing time limit reached')).toBeInTheDocument();
-    expect(screen.getByText('Submission opens in read-only mode.')).toBeInTheDocument();
+    expect(screen.getByText('Read-only')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: /open read-only/i }));
+    await user.click(screen.getByRole('button', { name: /open submission/i }));
     expect(mockPush).toHaveBeenCalledWith('/documents/expired-doc-1');
   });
 
@@ -363,12 +362,20 @@ describe('task enrollment workflow', () => {
     await user.click(screen.getByRole('tab', { name: /task submissions/i }));
 
     const card = screen.getByTestId('task-submission-card');
-    expect(card).toHaveClass('min-w-0', 'overflow-hidden');
-    expect(within(card).getByTitle(longTaskName)).toHaveClass('truncate', 'max-w-full');
-    expect(within(card).getByText('7E414D')).toHaveClass('w-full', 'max-w-full', 'truncate');
+    expect(card).toHaveClass('flex', 'min-h-[270px]', 'flex-col');
+    expect(within(card).getByTitle(longTaskName)).toHaveClass('line-clamp-2', 'break-words');
+    expect(within(card).queryByText('7E414D')).not.toBeInTheDocument();
+    expect(within(card).getByText((_content, element) => (
+      element?.tagName.toLowerCase() === 'span' &&
+      (element?.textContent?.startsWith('Start Date:') ?? false)
+    ))).toBeInTheDocument();
+    expect(within(card).getByText((_content, element) => (
+      element?.tagName.toLowerCase() === 'span' &&
+      (element?.textContent?.startsWith('Deadline:') ?? false)
+    ))).toBeInTheDocument();
 
     const actionRow = within(card).getByRole('button', { name: /open submission/i }).parentElement;
-    expect(actionRow).toHaveClass('w-full', 'min-w-0');
-    expect(within(card).getByTitle('Delete task submission')).toHaveClass('shrink-0');
+    expect(actionRow).toHaveClass('border-t', 'border-border/70', 'pt-4', 'sm:pt-4');
+    expect(within(card).getByRole('button', { name: /delete/i })).toHaveClass('min-w-[120px]');
   });
 });

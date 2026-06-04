@@ -5,9 +5,10 @@ import { useRouter } from 'next/navigation';
 import {
   Award,
   BookOpen,
-  CalendarClock,
+  Calendar,
   ArrowDownAZ,
   Check,
+  Eye,
   FileText,
   KeyRound,
   LayoutGrid,
@@ -54,7 +55,7 @@ import { DocumentCard } from '@/components/documents/document-card';
 import { useDocuments } from '@/hooks/use-documents';
 import { useToast } from '@/components/ui/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { apiClient } from '@/lib/api-client';
 import { formatDateTime } from '@/lib/utils';
 import type { Document, WritingEnvironmentConfig } from '@humanly/shared';
@@ -102,10 +103,75 @@ interface WritingTimerCardState {
   detail: string;
 }
 
+interface TaskWindowStatus {
+  label: 'Scheduled' | 'Open now' | 'Ended';
+  tone: 'muted' | 'success' | 'warning';
+}
+
+const taskStatusToneClass: Record<TaskWindowStatus['tone'] | 'timer', string> = {
+  muted: 'border-border/80 bg-muted/45 text-muted-foreground',
+  success: 'border-[#b9c8b8] bg-[#edf2eb] text-[#5d7766]',
+  warning: 'border-[#dfc8aa] bg-[#f6efe4] text-[#92714e]',
+  timer: 'border-[#dfc8aa] bg-[#f6efe4] text-[#92714e]',
+};
+
 const getDisplayTaskName = (task: TaskEnrollment) => {
   const name = task.name?.trim();
-  if (!name || name === 'Task Name') return `Task ${task.inviteCode}`;
+  if (!name || name === 'Task Name') return 'Task Submission';
   return name;
+};
+
+const getDisplayTaskDescription = (task: TaskEnrollment) => {
+  const description = task.description?.trim();
+  return description || 'No description provided.';
+};
+
+const formatTaskDateLabel = (value: string | undefined, fallback: string) => (
+  value ? formatDateTime(value) : fallback
+);
+
+const getTaskWindowStatus = (
+  task: Pick<TaskEnrollment, 'startDate' | 'endDate'>,
+  nowMs: number
+): TaskWindowStatus => {
+  const startMs = task.startDate ? new Date(task.startDate).getTime() : NaN;
+  const endMs = task.endDate ? new Date(task.endDate).getTime() : NaN;
+
+  if (Number.isFinite(startMs) && nowMs < startMs) {
+    return { label: 'Scheduled', tone: 'muted' };
+  }
+
+  if (Number.isFinite(endMs) && nowMs > endMs) {
+    return { label: 'Ended', tone: 'warning' };
+  }
+
+  return { label: 'Open now', tone: 'success' };
+};
+
+const getTaskStatusBadge = (
+  task: TaskEnrollment,
+  nowMs: number,
+  timerState: WritingTimerCardState | null
+) => {
+  if (timerState?.expired) {
+    return {
+      label: 'Read-only',
+      className: taskStatusToneClass.muted,
+    };
+  }
+
+  if (timerState) {
+    return {
+      label: timerState.value,
+      className: taskStatusToneClass.timer,
+    };
+  }
+
+  const taskWindowStatus = getTaskWindowStatus(task, nowMs);
+  return {
+    label: taskWindowStatus.label,
+    className: taskStatusToneClass[taskWindowStatus.tone],
+  };
 };
 
 const getTimestampMs = (value?: string | Date | null): number | null => {
@@ -589,96 +655,73 @@ export default function DocumentsPage() {
               </p>
             </div>
           ) : (
-            <div className="grid min-w-0 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid min-w-0 gap-6 md:grid-cols-2 lg:grid-cols-3">
               {validTaskEnrollments.map((task) => {
                 const taskName = getDisplayTaskName(task);
+                const taskDescription = getDisplayTaskDescription(task);
                 const timerState = getWritingTimerState(task, dashboardNowMs, {
                   expiredDetail: 'Submission opens in read-only mode.',
                 });
+                const statusBadge = getTaskStatusBadge(task, dashboardNowMs, timerState);
                 return (
                   <Card
                     key={`${task.id}-${task.documentId}`}
                     data-testid="task-submission-card"
-                    className="flex h-full min-h-[18rem] min-w-0 overflow-hidden p-5 transition-colors hover:border-foreground/30"
+                    className="flex min-h-[270px] flex-col transition-[border-color,transform] hover:-translate-y-1 hover:border-foreground/20"
                   >
-                    <CardContent className="flex h-full min-w-0 flex-1 flex-col gap-4 p-0">
-                    <div className="flex min-w-0 items-start justify-between gap-3">
-                      <div className="min-w-0 flex-1 space-y-1">
-                        <p className="humanly-eyebrow">
-                          Task
-                        </p>
-                        <h3 className="max-w-full truncate text-lg font-semibold" title={taskName}>
-                          {taskName}
-                        </h3>
-                      </div>
-                        {timerState?.expired ? (
-                          <Badge variant="secondary" className="shrink-0 rounded-md">Read-only</Badge>
-                        ) : (
-                          <BookOpen className="h-5 w-5 shrink-0 text-muted-foreground" />
-                        )}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="mb-1 humanly-eyebrow">
-                          Invite Code
-                        </p>
-                        <div className="w-full max-w-full truncate rounded-lg border border-border/70 bg-muted/35 px-3 py-2 text-sm font-semibold tracking-normal">
-                          {task.inviteCode}
+                    <CardHeader>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <CardTitle className="line-clamp-2 break-words text-xl leading-tight" title={taskName}>
+                            {taskName}
+                          </CardTitle>
                         </div>
-                      </div>
-                      {(timerState || task.startDate || task.endDate) && (
-                        <div className="grid w-full min-w-0 gap-2 rounded-lg border border-border/70 bg-muted/35 p-3 text-sm">
-                          {timerState && (
-                            <div className="flex min-w-0 items-start gap-2">
-                              <CalendarClock className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
-                              <div className="min-w-0 flex-1">
-                                <p className="humanly-eyebrow">
-                                  {timerState.label}
-                                </p>
-                                <p className="font-semibold">{timerState.value}</p>
-                                <p className="text-xs text-muted-foreground">{timerState.detail}</p>
-                              </div>
-                            </div>
-                          )}
-                          {task.startDate && (
-                            <div className="flex min-w-0 items-start gap-2">
-                              <CalendarClock className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
-                              <div className="min-w-0 flex-1">
-                                <p className="humanly-eyebrow">
-                                  Starts
-                                </p>
-                                <p className="break-words">{formatDateTime(task.startDate)}</p>
-                              </div>
-                            </div>
-                          )}
-                          {task.endDate && (
-                            <div className="flex min-w-0 items-start gap-2">
-                              <CalendarClock className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
-                              <div className="min-w-0 flex-1">
-                                <p className="humanly-eyebrow">
-                                  Deadline
-                                </p>
-                                <p className="break-words">{formatDateTime(task.endDate)}</p>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                      <div className="flex-1" />
-                      <div className="flex w-full min-w-0 gap-2">
-                        <Button className="min-w-0 flex-1" onClick={() => router.push(`/documents/${task.documentId}`)}>
-                          {timerState?.expired ? 'Open Read-only' : 'Open Submission'}
-                        </Button>
-                        <Button
+                        <Badge
                           variant="outline"
-                          size="icon"
-                          className="shrink-0"
-                          title="Delete task submission"
-                          onClick={() => setTaskToDelete(task)}
+                          className={`${statusBadge.className} shrink-0 whitespace-nowrap rounded-full px-3`}
                         >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                          {statusBadge.label}
+                        </Badge>
+                      </div>
+                      <CardDescription className="line-clamp-3 min-h-[3.75rem]" title={taskDescription}>
+                        {taskDescription}
+                      </CardDescription>
+                    </CardHeader>
+
+                    <CardContent className="pb-2 sm:pb-2">
+                      <div className="space-y-2 text-sm text-muted-foreground">
+                        <div className="flex items-center gap-3">
+                          <Calendar className="h-4 w-4 text-muted-foreground" />
+                          <span>Start Date: {formatTaskDateLabel(task.startDate, 'Not scheduled')}</span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <Calendar className="h-4 w-4 text-muted-foreground" />
+                          <span>Deadline: {formatTaskDateLabel(task.endDate, 'No deadline')}</span>
+                        </div>
                       </div>
                     </CardContent>
+
+                    <CardFooter className="flex space-x-2 border-t border-border/70 pt-4 sm:pt-4">
+                      <Button
+                        variant="default"
+                        size="sm"
+                        className="w-full"
+                        onClick={() => router.push(`/documents/${task.documentId}`)}
+                      >
+                        <Eye className="mr-2 h-4 w-4" />
+                        Open Submission
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="min-w-[120px]"
+                        title="Delete task submission"
+                        onClick={() => setTaskToDelete(task)}
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Delete
+                      </Button>
+                    </CardFooter>
                   </Card>
                 );
               })}
