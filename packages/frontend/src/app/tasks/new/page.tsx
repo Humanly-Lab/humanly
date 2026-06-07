@@ -77,6 +77,8 @@ import {
   WRITING_AI_ACCESS_OPTIONS,
   WRITING_AI_MODELS,
   WRITING_ENVIRONMENT_PRESETS,
+  isWritingAiChatEnabled,
+  isWritingAiPolishEnabled,
   isTaskStartDateTooFarInPast,
   normalizeWritingAiAccess,
   normalizeCopyPastePolicy,
@@ -412,6 +414,8 @@ export default function NewTaskPage() {
   }, [aiBaseUrl, aiModel, testedAiModels]);
 
   const selectedAiModel = aiModel.trim();
+  const shortcutTokensEnabled = isWritingAiPolishEnabled(aiAccess);
+  const chatTokensEnabled = isWritingAiChatEnabled(aiAccess);
   const selectedAiProvider = AI_PROVIDER_OPTIONS.some((option) => option.value === aiBaseUrl)
     ? aiBaseUrl
     : DEFAULT_AI_BASE_URL;
@@ -1218,13 +1222,18 @@ export default function NewTaskPage() {
                                 type="number"
                                 min={AI_MAX_TOKENS_MIN}
                                 max={AI_MAX_TOKENS_MAX}
-                                value={environmentConfig.aiTokenBudget?.shortcutMaxTokens || AI_SHORTCUT_MAX_TOKENS_DEFAULT}
-                                disabled={isSubmitting}
+                                value={shortcutTokensEnabled ? environmentConfig.aiTokenBudget?.shortcutMaxTokens || AI_SHORTCUT_MAX_TOKENS_DEFAULT : ''}
+                                placeholder={shortcutTokensEnabled ? undefined : 'Not available in this mode'}
+                                disabled={isSubmitting || !shortcutTokensEnabled}
                                 onChange={(event) => setAiTokenBudget({
                                   shortcutMaxTokens: Number(event.target.value) || AI_SHORTCUT_MAX_TOKENS_DEFAULT,
                                 })}
                               />
-                              <FormDescription>Shortcut actions and fallback answers.</FormDescription>
+                              <FormDescription>
+                                {shortcutTokensEnabled
+                                  ? 'Shortcut actions and fallback answers.'
+                                  : 'Not available when AI access is chat only.'}
+                              </FormDescription>
                             </div>
 
                             <div className="grid gap-2">
@@ -1234,13 +1243,18 @@ export default function NewTaskPage() {
                                 type="number"
                                 min={AI_MAX_TOKENS_MIN}
                                 max={AI_MAX_TOKENS_MAX}
-                                value={environmentConfig.aiTokenBudget?.chatMaxTokens || AI_CHAT_MAX_TOKENS_DEFAULT}
-                                disabled={isSubmitting}
+                                value={chatTokensEnabled ? environmentConfig.aiTokenBudget?.chatMaxTokens || AI_CHAT_MAX_TOKENS_DEFAULT : ''}
+                                placeholder={chatTokensEnabled ? undefined : 'Not available in this mode'}
+                                disabled={isSubmitting || !chatTokensEnabled}
                                 onChange={(event) => setAiTokenBudget({
                                   chatMaxTokens: Number(event.target.value) || AI_CHAT_MAX_TOKENS_DEFAULT,
                                 })}
                               />
-                              <FormDescription>Chat and retrieval tool turns, per model call.</FormDescription>
+                              <FormDescription>
+                                {chatTokensEnabled
+                                  ? 'Chat and retrieval tool turns, per model call.'
+                                  : 'Not available when AI access is polish only.'}
+                              </FormDescription>
                             </div>
                           </div>
 

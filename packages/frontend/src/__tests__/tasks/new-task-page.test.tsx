@@ -436,6 +436,9 @@ describe('admin new task page', () => {
     await act(async () => {
       fireEvent.click(screen.getByRole('option', { name: 'Only polish' }));
     });
+    expect(screen.getByLabelText(/Shortcut Tokens/i)).toBeEnabled();
+    expect(screen.getByLabelText(/Chat Tokens/i)).toBeDisabled();
+    expect(screen.getByText(/not available when ai access is polish only/i)).toBeInTheDocument();
     await act(async () => {
       fireEvent.change(screen.getByLabelText(/AI API Key/i), {
         target: { value: 'sk-polish-test' },
@@ -459,6 +462,22 @@ describe('admin new task page', () => {
         })
       );
     });
+  });
+
+  it('disables shortcut token configuration for admin-created chat-only tasks', async () => {
+    render(<NewTaskPage />);
+
+    expect(await screen.findByRole('heading', { name: 'New Task' })).toBeInTheDocument();
+    await act(async () => {
+      fireEvent.click(screen.getByRole('option', { name: 'Custom' }));
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('option', { name: 'Only agent chat' }));
+    });
+
+    expect(screen.getByLabelText(/Shortcut Tokens/i)).toBeDisabled();
+    expect(screen.getByLabelText(/Chat Tokens/i)).toBeEnabled();
+    expect(screen.getByText(/not available when ai access is chat only/i)).toBeInTheDocument();
   });
 
   it('creates AI-enabled tasks with the selected OpenAI provider and model whitelist', async () => {

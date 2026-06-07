@@ -20,6 +20,8 @@ import {
   WRITING_AI_MODELS,
   WRITING_ENVIRONMENT_PRESETS,
   formatWritingAiAccess,
+  isWritingAiChatEnabled,
+  isWritingAiPolishEnabled,
   normalizeWritingAiAccess,
   normalizeCopyPastePolicy,
   validateWritingEnvironmentImportTemplate,
@@ -232,6 +234,8 @@ export default function NewDocumentPage() {
   }, [aiBaseUrl, aiModel, testedAiModels]);
 
   const selectedAiModel = aiModel.trim();
+  const shortcutTokensEnabled = isWritingAiPolishEnabled(environmentConfig.aiAccess);
+  const chatTokensEnabled = isWritingAiChatEnabled(environmentConfig.aiAccess);
   const timeMode = environmentConfig.aiUsageLimit.mode === 'time_restricted' ? 'time_restricted' : 'unlimited';
 
   useEffect(() => {
@@ -655,13 +659,18 @@ export default function NewDocumentPage() {
                   type="number"
                   min={AI_MAX_TOKENS_MIN}
                   max={AI_MAX_TOKENS_MAX}
-                  value={environmentConfig.aiTokenBudget?.shortcutMaxTokens || AI_SHORTCUT_MAX_TOKENS_DEFAULT}
+                  value={shortcutTokensEnabled ? environmentConfig.aiTokenBudget?.shortcutMaxTokens || AI_SHORTCUT_MAX_TOKENS_DEFAULT : ''}
+                  placeholder={shortcutTokensEnabled ? undefined : 'Not available in this mode'}
                   onChange={(event) => setAiTokenBudget({
                     shortcutMaxTokens: Number(event.target.value) || AI_SHORTCUT_MAX_TOKENS_DEFAULT,
                   })}
-                  disabled={isCreating}
+                  disabled={isCreating || !shortcutTokensEnabled}
                 />
-                <p className="text-xs text-muted-foreground">Shortcut actions and fallback answers.</p>
+                <p className="text-xs text-muted-foreground">
+                  {shortcutTokensEnabled
+                    ? 'Shortcut actions and fallback answers.'
+                    : 'Not available when AI access is chat only.'}
+                </p>
               </div>
 
               <div className="humanly-field">
@@ -671,13 +680,18 @@ export default function NewDocumentPage() {
                   type="number"
                   min={AI_MAX_TOKENS_MIN}
                   max={AI_MAX_TOKENS_MAX}
-                  value={environmentConfig.aiTokenBudget?.chatMaxTokens || AI_CHAT_MAX_TOKENS_DEFAULT}
+                  value={chatTokensEnabled ? environmentConfig.aiTokenBudget?.chatMaxTokens || AI_CHAT_MAX_TOKENS_DEFAULT : ''}
+                  placeholder={chatTokensEnabled ? undefined : 'Not available in this mode'}
                   onChange={(event) => setAiTokenBudget({
                     chatMaxTokens: Number(event.target.value) || AI_CHAT_MAX_TOKENS_DEFAULT,
                   })}
-                  disabled={isCreating}
+                  disabled={isCreating || !chatTokensEnabled}
                 />
-                <p className="text-xs text-muted-foreground">Chat and retrieval tool turns, per model call.</p>
+                <p className="text-xs text-muted-foreground">
+                  {chatTokensEnabled
+                    ? 'Chat and retrieval tool turns, per model call.'
+                    : 'Not available when AI access is polish only.'}
+                </p>
               </div>
             </div>
           </div>

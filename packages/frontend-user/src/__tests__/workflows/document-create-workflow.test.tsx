@@ -445,6 +445,9 @@ describe('document creation workflow', () => {
     await user.click(await screen.findByRole('option', { name: 'Custom' }));
     await user.click(screen.getByRole('combobox', { name: /ai access/i }));
     await user.click(await screen.findByRole('option', { name: 'Only agent chat' }));
+    expect(screen.getByLabelText(/shortcut tokens/i)).toBeDisabled();
+    expect(screen.getByLabelText(/chat tokens/i)).toBeEnabled();
+    expect(screen.getByText(/not available when ai access is chat only/i)).toBeInTheDocument();
     await user.type(screen.getByLabelText(/ai api key/i), 'sk-chat-test');
     await user.click(screen.getByRole('button', { name: /^done$/i }));
     await user.click(screen.getByRole('button', { name: /^create writing$/i }));
@@ -465,6 +468,22 @@ describe('document creation workflow', () => {
         '',
       );
     });
+  });
+
+  it('disables chat token configuration for polish-only personal documents', async () => {
+    const user = userEvent.setup();
+
+    render(<NewDocumentPage />);
+
+    await screen.findByRole('heading', { name: /create writing/i });
+    await user.click(screen.getByRole('combobox', { name: /environment/i }));
+    await user.click(await screen.findByRole('option', { name: 'Custom' }));
+    await user.click(screen.getByRole('combobox', { name: /ai access/i }));
+    await user.click(await screen.findByRole('option', { name: 'Only polish' }));
+
+    expect(screen.getByLabelText(/shortcut tokens/i)).toBeEnabled();
+    expect(screen.getByLabelText(/chat tokens/i)).toBeDisabled();
+    expect(screen.getByText(/not available when ai access is polish only/i)).toBeInTheDocument();
   });
 
   it('closes custom settings without a separate AI key verification step and validates on create', async () => {

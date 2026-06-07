@@ -10,6 +10,8 @@ import {
   SUBMISSION_MIN_CHARACTERS_MAX,
   WRITING_AI_ACCESS_OPTIONS,
   WRITING_AI_MODELS,
+  isWritingAiChatEnabled,
+  isWritingAiPolishEnabled,
   normalizeWritingAiAccess,
   normalizeCopyPastePolicy,
   WritingEnvironmentConfig,
@@ -85,6 +87,8 @@ export default function EnvironmentConfigFields({
     aiAccess: normalizeWritingAiAccess(value.aiAccess),
     copyPastePolicy: normalizeCopyPastePolicy(value.copyPastePolicy),
   };
+  const shortcutTokensEnabled = isWritingAiPolishEnabled(config.aiAccess);
+  const chatTokensEnabled = isWritingAiChatEnabled(config.aiAccess);
 
   const toggleModel = (model: string, checked: boolean) => {
     onChange(setNested(config, {
@@ -231,11 +235,13 @@ export default function EnvironmentConfigFields({
           <div className="space-y-2">
             <Label>Shortcut Tokens</Label>
             <Input
+              aria-label="Shortcut Tokens"
               type="number"
               min={AI_MAX_TOKENS_MIN}
               max={AI_MAX_TOKENS_MAX}
-              value={config.aiTokenBudget?.shortcutMaxTokens || AI_SHORTCUT_MAX_TOKENS_DEFAULT}
-              disabled={disabled}
+              value={shortcutTokensEnabled ? config.aiTokenBudget?.shortcutMaxTokens || AI_SHORTCUT_MAX_TOKENS_DEFAULT : ''}
+              placeholder={shortcutTokensEnabled ? undefined : 'Not available in this mode'}
+              disabled={disabled || !shortcutTokensEnabled}
               onChange={(event) => onChange(setNested(config, {
                 aiTokenBudget: {
                   shortcutMaxTokens: Number(event.target.value) || AI_SHORTCUT_MAX_TOKENS_DEFAULT,
@@ -243,16 +249,23 @@ export default function EnvironmentConfigFields({
                 },
               }))}
             />
+            <p className="text-xs text-muted-foreground">
+              {shortcutTokensEnabled
+                ? 'Shortcut actions and fallback answers.'
+                : 'Not available when AI access is chat only.'}
+            </p>
           </div>
 
           <div className="space-y-2">
             <Label>Chat Tokens</Label>
             <Input
+              aria-label="Chat Tokens"
               type="number"
               min={AI_MAX_TOKENS_MIN}
               max={AI_MAX_TOKENS_MAX}
-              value={config.aiTokenBudget?.chatMaxTokens || AI_CHAT_MAX_TOKENS_DEFAULT}
-              disabled={disabled}
+              value={chatTokensEnabled ? config.aiTokenBudget?.chatMaxTokens || AI_CHAT_MAX_TOKENS_DEFAULT : ''}
+              placeholder={chatTokensEnabled ? undefined : 'Not available in this mode'}
+              disabled={disabled || !chatTokensEnabled}
               onChange={(event) => onChange(setNested(config, {
                 aiTokenBudget: {
                   shortcutMaxTokens: config.aiTokenBudget?.shortcutMaxTokens || AI_SHORTCUT_MAX_TOKENS_DEFAULT,
@@ -260,6 +273,11 @@ export default function EnvironmentConfigFields({
                 },
               }))}
             />
+            <p className="text-xs text-muted-foreground">
+              {chatTokensEnabled
+                ? 'Chat and retrieval tool turns, per model call.'
+                : 'Not available when AI access is polish only.'}
+            </p>
           </div>
         </div>
       )}
