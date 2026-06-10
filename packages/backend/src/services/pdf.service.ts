@@ -113,7 +113,7 @@ export class PDFService {
           height: 10,
           lineBreak: false,
         })
-        .text(`Verify at ${verificationHost}`, margin + contentWidth / 2, y, {
+        .text(`Open at ${verificationHost}`, margin + contentWidth / 2, y, {
           width: contentWidth / 2,
           height: 10,
           align: 'right',
@@ -307,18 +307,18 @@ export class PDFService {
       .font('Helvetica-Bold')
       .fontSize(13)
       .fillColor(ink)
-      .text('Activity record', margin + 18, panelY + 18);
+      .text('Certificate evidence', margin + 18, panelY + 18);
     doc
       .font('Helvetica')
       .fontSize(9)
       .fillColor(muted)
-      .text('Write-time tracking and in-platform AI activity.', margin + 18, panelY + 37, {
+      .text('Write-time tracking, replay, and in-platform AI activity.', margin + 18, panelY + 37, {
         width: leftPanelWidth - 36,
       });
     drawSmallRow('AI chat', formatNumber(aiQuestionsTotal), margin + 18, panelY + 68, leftPanelWidth - 36);
     drawSmallRow('Text improvements', formatNumber(aiSelectionTotal), margin + 18, panelY + 88, leftPanelWidth - 36);
-    drawSmallRow('Tracked actions', formatNumber(certificate.totalEvents), margin + 18, panelY + 108, leftPanelWidth - 36);
-    drawSmallRow('Typing updates / pastes', `${formatNumber(certificate.typingEvents)} / ${formatNumber(certificate.pasteEvents)}`, margin + 18, panelY + 128, leftPanelWidth - 36);
+    drawSmallRow('Replay', certificate.includeEditHistory ? 'available' : 'hidden', margin + 18, panelY + 108, leftPanelWidth - 36);
+    drawSmallRow('Tracked actions', formatNumber(certificate.totalEvents), margin + 18, panelY + 128, leftPanelWidth - 36);
 
     const verificationX = margin + leftPanelWidth + panelGap;
     doc
@@ -328,7 +328,7 @@ export class PDFService {
       .font('Helvetica-Bold')
       .fontSize(13)
       .fillColor(ink)
-      .text('Verification', verificationX + 18, panelY + 18);
+      .text('Certificate link', verificationX + 18, panelY + 18);
     if (qrBuffer) {
       const qrSize = 82;
       doc.image(qrBuffer, verificationX + (rightPanelWidth - qrSize) / 2, panelY + 42, {
@@ -340,7 +340,7 @@ export class PDFService {
       .font('Helvetica')
       .fontSize(8)
       .fillColor(muted)
-      .text('Scan to verify online', verificationX + 18, panelY + 130, {
+      .text('Scan to open certificate online', verificationX + 18, panelY + 130, {
         width: rightPanelWidth - 36,
         align: 'center',
       })

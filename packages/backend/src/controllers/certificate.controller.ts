@@ -4,6 +4,117 @@ import { PDFService } from '../services/pdf.service';
 import { DocumentEventModel } from '../models/document-event.model';
 import { AppError } from '../middleware/error-handler';
 import { logger } from '../utils/logger';
+import type { Certificate, CertificateVerification } from '@humanly/shared';
+
+async function resolvePublicDocumentSnapshot(certificate: Certificate): Promise<Record<string, any>> {
+  let documentSnapshot = certificate.documentSnapshot;
+
+  if (!certificate.includeFullText || (documentSnapshot && Object.keys(documentSnapshot).length > 0)) {
+    return documentSnapshot;
+  }
+
+  try {
+    const events = await DocumentEventModel.findByDocumentId(certificate.documentId, {
+      limit: 5000,
+      offset: 0,
+    });
+
+    for (let i = events.length - 1; i >= 0; i--) {
+      const event = events[i];
+      if (event.editorStateAfter && typeof event.editorStateAfter === 'object') {
+        const editorState = event.editorStateAfter as any;
+        if (editorState.root && editorState.root.children) {
+          const hasContent = editorState.root.children.some((child: any) =>
+            child.children && child.children.length > 0
+          );
+          if (hasContent) {
+            documentSnapshot = event.editorStateAfter;
+            logger.info('Using edit history for certificate document snapshot', {
+              certificateId: certificate.id,
+              documentId: certificate.documentId,
+              eventTimestamp: event.timestamp,
+            });
+            break;
+          }
+        }
+      }
+    }
+  } catch (error) {
+    logger.error('Failed to fetch edit history for certificate document snapshot', { error });
+  }
+
+  return documentSnapshot;
+}
+
+async function buildPublicCertificateResponse(
+  verification: CertificateVerification,
+  options: { includeProtectedContent?: boolean } = {}
+) {
+  if (!verification.valid || !verification.certificate) {
+    return {
+      valid: verification.valid,
+      verifiedAt: verification.verifiedAt,
+      message: verification.message,
+      seal: verification.seal,
+      sealStatus: verification.sealStatus,
+      integrityMessage: verification.integrityMessage,
+    };
+  }
+
+  const certificate = verification.certificate;
+
+  if (certificate.isProtected && !options.includeProtectedContent) {
+    return {
+      valid: verification.valid,
+      certificate: {
+        id: certificate.id,
+        title: certificate.title,
+        certificateType: certificate.certificateType,
+        generatedAt: certificate.generatedAt,
+        isProtected: true,
+      },
+      verifiedAt: verification.verifiedAt,
+      message: verification.message,
+      seal: verification.seal,
+      sealStatus: verification.sealStatus,
+      integrityMessage: verification.integrityMessage,
+    };
+  }
+
+  const documentSnapshot = await resolvePublicDocumentSnapshot(certificate);
+  const aiAuthorshipStats = await CertificateService.getAIAuthorshipStats(certificate.documentId);
+
+  return {
+    valid: verification.valid,
+    certificate: {
+      id: certificate.id,
+      submissionId: certificate.submissionId,
+      title: certificate.title,
+      certificateType: certificate.certificateType,
+      generatedAt: certificate.generatedAt,
+      totalCharacters: certificate.totalCharacters,
+      typedCharacters: certificate.typedCharacters,
+      pastedCharacters: certificate.pastedCharacters,
+      totalEvents: certificate.totalEvents,
+      typingEvents: certificate.typingEvents,
+      pasteEvents: certificate.pasteEvents,
+      editingTimeSeconds: certificate.editingTimeSeconds,
+      isProtected: certificate.isProtected,
+      includeFullText: certificate.includeFullText,
+      includeEditHistory: certificate.includeEditHistory,
+      plainTextSnapshot: certificate.includeFullText ? certificate.plainTextSnapshot : undefined,
+      documentSnapshot: certificate.includeFullText ? documentSnapshot : undefined,
+      signerName: certificate.signerName,
+      documentId: certificate.documentId,
+    },
+    aiAuthorshipStats,
+    verifiedAt: verification.verifiedAt,
+    message: verification.message,
+    seal: verification.seal,
+    sealStatus: verification.sealStatus,
+    integrityMessage: verification.integrityMessage,
+  };
+}
 
 /**
  * Generate a certificate for a document
@@ -61,10 +172,16 @@ export async function getCertificate(req: Request, res: Response): Promise<void>
   }
 
   const certificate = await CertificateService.getCertificate(certificateId, userId);
+  const integrity = CertificateService.getCertificateIntegrity(certificate);
 
   res.json({
     success: true,
-    data: { certificate },
+    data: {
+      certificate,
+      seal: integrity.seal,
+      sealStatus: integrity.sealStatus,
+      integrityMessage: integrity.message,
+    },
   });
 }
 
@@ -185,93 +302,20 @@ export async function verifyCertificate(req: Request, res: Response): Promise<vo
   const token = req.params.token;
 
   if (!token) {
-    throw new AppError(400, 'Verification token is required');
+    throw new AppError(400, 'Certificate token is required');
   }
 
   const verification = await CertificateService.verifyCertificate(token);
 
   if (verification.valid) {
-    let documentSnapshot = verification.certificate!.documentSnapshot;
-
-    // If documentSnapshot is empty but includeFullText is enabled, try to get from edit history
-    if (verification.certificate!.includeFullText && (!documentSnapshot || Object.keys(documentSnapshot).length === 0)) {
-      try {
-        // Get the last event from edit history by querying directly
-        const events = await DocumentEventModel.findByDocumentId(verification.certificate!.documentId, {
-          limit: 5000,
-          offset: 0,
-        });
-
-        // Find the last event with a non-empty editorStateAfter
-        for (let i = events.length - 1; i >= 0; i--) {
-          const event = events[i];
-          if (event.editorStateAfter && typeof event.editorStateAfter === 'object') {
-            // Check if it has actual content (not just an empty paragraph)
-            const editorState = event.editorStateAfter as any;
-            if (editorState.root && editorState.root.children) {
-              const hasContent = editorState.root.children.some((child: any) =>
-                child.children && child.children.length > 0
-              );
-              if (hasContent) {
-                documentSnapshot = event.editorStateAfter;
-                logger.info('Using edit history for document snapshot', {
-                  certificateId: verification.certificate!.id,
-                  documentId: verification.certificate!.documentId,
-                  eventTimestamp: event.timestamp,
-                });
-                break;
-              }
-            }
-          }
-        }
-      } catch (error) {
-        logger.error('Failed to fetch edit history for document snapshot', { error });
-      }
-    }
-
     res.json({
       success: true,
-      data: {
-        valid: verification.valid,
-        certificate: {
-          id: verification.certificate!.id,
-          submissionId: verification.certificate!.submissionId,
-          title: verification.certificate!.title,
-          certificateType: verification.certificate!.certificateType,
-          generatedAt: verification.certificate!.generatedAt,
-          totalCharacters: verification.certificate!.totalCharacters,
-          typedCharacters: verification.certificate!.typedCharacters,
-          pastedCharacters: verification.certificate!.pastedCharacters,
-          totalEvents: verification.certificate!.totalEvents,
-          typingEvents: verification.certificate!.typingEvents,
-          pasteEvents: verification.certificate!.pasteEvents,
-          editingTimeSeconds: verification.certificate!.editingTimeSeconds,
-          isProtected: verification.certificate!.isProtected,
-          includeFullText: verification.certificate!.includeFullText,
-          includeEditHistory: verification.certificate!.includeEditHistory,
-          plainTextSnapshot: verification.certificate!.includeFullText ? verification.certificate!.plainTextSnapshot : undefined,
-          documentSnapshot: verification.certificate!.includeFullText ? documentSnapshot : undefined,
-          signerName: verification.certificate!.signerName,
-          documentId: verification.certificate!.documentId,
-        },
-        verifiedAt: verification.verifiedAt,
-        message: verification.message,
-        seal: verification.seal,
-        sealStatus: verification.sealStatus,
-        integrityMessage: verification.integrityMessage,
-      },
+      data: await buildPublicCertificateResponse(verification),
     });
   } else {
     res.status(400).json({
       success: false,
-      data: {
-        valid: verification.valid,
-        verifiedAt: verification.verifiedAt,
-        message: verification.message,
-        seal: verification.seal,
-        sealStatus: verification.sealStatus,
-        integrityMessage: verification.integrityMessage,
-      },
+      data: await buildPublicCertificateResponse(verification),
     });
   }
 }
@@ -284,7 +328,7 @@ export async function verifyCertificateWithAccessCode(req: Request, res: Respons
   const { accessCode } = req.body;
 
   if (!token) {
-    throw new AppError(400, 'Verification token is required');
+    throw new AppError(400, 'Certificate token is required');
   }
 
   if (!accessCode) {
@@ -294,50 +338,14 @@ export async function verifyCertificateWithAccessCode(req: Request, res: Respons
   const result = await CertificateService.verifyCertificateWithAccessCode(token, accessCode);
 
   if (result.valid && result.certificate) {
-    // If documentSnapshot is empty but includeFullText is enabled, try to get from edit history
-    if (result.certificate.includeFullText && (!result.certificate.documentSnapshot || Object.keys(result.certificate.documentSnapshot).length === 0)) {
-      try {
-        // Get the last event from edit history by querying directly
-        const events = await DocumentEventModel.findByDocumentId(result.certificate.documentId, {
-          limit: 5000,
-          offset: 0,
-        });
-
-        // Find the last event with a non-empty editorStateAfter
-        for (let i = events.length - 1; i >= 0; i--) {
-          const event = events[i];
-          if (event.editorStateAfter && typeof event.editorStateAfter === 'object') {
-            // Check if it has actual content (not just an empty paragraph)
-            const editorState = event.editorStateAfter as any;
-            if (editorState.root && editorState.root.children) {
-              const hasContent = editorState.root.children.some((child: any) =>
-                child.children && child.children.length > 0
-              );
-              if (hasContent) {
-                result.certificate.documentSnapshot = event.editorStateAfter;
-                logger.info('Using edit history for document snapshot (access code)', {
-                  certificateId: result.certificate.id,
-                  documentId: result.certificate.documentId,
-                  eventTimestamp: event.timestamp,
-                });
-                break;
-              }
-            }
-          }
-        }
-      } catch (error) {
-        logger.error('Failed to fetch edit history for document snapshot', { error });
-      }
-    }
-
     res.json({
       success: true,
-      data: result,
+      data: await buildPublicCertificateResponse(result, { includeProtectedContent: true }),
     });
   } else {
     res.status(403).json({
       success: false,
-      data: result,
+      data: await buildPublicCertificateResponse(result),
     });
   }
 }
@@ -355,10 +363,16 @@ export async function updateAccessCode(req: Request, res: Response): Promise<voi
   }
 
   const certificate = await CertificateService.updateAccessCode(certificateId, userId, accessCode);
+  const integrity = CertificateService.getCertificateIntegrity(certificate);
 
   res.json({
     success: true,
-    data: { certificate },
+    data: {
+      certificate,
+      seal: integrity.seal,
+      sealStatus: integrity.sealStatus,
+      integrityMessage: integrity.message,
+    },
     message: accessCode
       ? 'Access code updated successfully'
       : 'Access code removed successfully',
@@ -383,10 +397,16 @@ export async function updateDisplayOptions(req: Request, res: Response): Promise
     includeFullText,
     includeEditHistory
   );
+  const integrity = CertificateService.getCertificateIntegrity(certificate);
 
   res.json({
     success: true,
-    data: { certificate },
+    data: {
+      certificate,
+      seal: integrity.seal,
+      sealStatus: integrity.sealStatus,
+      integrityMessage: integrity.message,
+    },
     message: 'Display options updated successfully',
   });
 }
@@ -417,7 +437,7 @@ export async function getEditHistory(req: Request, res: Response): Promise<void>
   const token = req.params.token;
 
   if (!token) {
-    throw new AppError(400, 'Verification token is required');
+    throw new AppError(400, 'Certificate token is required');
   }
 
   // Verify the certificate by token

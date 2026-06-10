@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { apiClient, getApiUrl } from '@/lib/api-client';
 import { downloadBlobWithSavePicker, openDownloadUrl, openUrlInNewTab, type DownloadOutcome } from '@/lib/download';
-import type { Certificate, AIAuthorshipStats } from '@humanly/shared';
+import type { Certificate, AIAuthorshipStats, CertificateSeal, CertificateSealStatus } from '@humanly/shared';
 
 export interface CertificatesFilters {
   documentId?: string;
@@ -111,6 +111,9 @@ export function useCertificates(filters?: CertificatesFilters) {
 export function useCertificate(certificateId: string) {
   const [certificate, setCertificate] = useState<Certificate | null>(null);
   const [aiStats, setAiStats] = useState<AIAuthorshipStats | null>(null);
+  const [seal, setSeal] = useState<CertificateSeal | undefined>(undefined);
+  const [sealStatus, setSealStatus] = useState<CertificateSealStatus | undefined>(undefined);
+  const [integrityMessage, setIntegrityMessage] = useState<string | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingAiStats, setIsLoadingAiStats] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -124,9 +127,15 @@ export function useCertificate(certificateId: string) {
       const certData = response.data.data?.certificate;
 
       setCertificate(certData || null);
+      setSeal(response.data.data?.seal);
+      setSealStatus(response.data.data?.sealStatus);
+      setIntegrityMessage(response.data.data?.integrityMessage);
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to fetch certificate');
       setCertificate(null);
+      setSeal(undefined);
+      setSealStatus(undefined);
+      setIntegrityMessage(undefined);
       console.error('Error fetching certificate:', err);
     } finally {
       setIsLoading(false);
@@ -212,6 +221,9 @@ export function useCertificate(certificateId: string) {
       const updatedCertificate = response.data.data?.certificate;
       if (updatedCertificate) {
         setCertificate(updatedCertificate);
+        setSeal(response.data.data?.seal);
+        setSealStatus(response.data.data?.sealStatus);
+        setIntegrityMessage(response.data.data?.integrityMessage);
       }
 
       return updatedCertificate;
@@ -233,6 +245,9 @@ export function useCertificate(certificateId: string) {
       const updatedCertificate = response.data.data?.certificate;
       if (updatedCertificate) {
         setCertificate(updatedCertificate);
+        setSeal(response.data.data?.seal);
+        setSealStatus(response.data.data?.sealStatus);
+        setIntegrityMessage(response.data.data?.integrityMessage);
       }
 
       return updatedCertificate;
@@ -244,6 +259,9 @@ export function useCertificate(certificateId: string) {
   return {
     certificate,
     aiStats,
+    seal,
+    sealStatus,
+    integrityMessage,
     isLoading,
     isLoadingAiStats,
     error,

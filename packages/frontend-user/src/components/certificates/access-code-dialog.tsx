@@ -81,7 +81,7 @@ export function AccessCodeDialog({
               {isVerifying ? (
                 <>
                   <span className="inline-block h-3 w-3 sm:h-4 sm:w-4 animate-spin rounded-full border-2 border-solid border-current border-r-transparent mr-2" />
-                  Verifying...
+                  Unlocking...
                 </>
               ) : (
                 <>

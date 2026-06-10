@@ -42,7 +42,7 @@ What the mock backend supports:
 - **Auth**: `GET/PATCH /auth/me`, `/auth/login`, `/auth/refresh`, `/auth/logout`. The bypass page writes the same mock token the mock server accepts.
 - **Dev fixtures**: `POST /dev/mock-user` lets local QA flip mock user fields such as `profileCompleted`.
 - **Documents**: `GET /documents`, `GET/PUT /documents/:id`, `POST /documents/:id/events` (logs the inserted event types to stdout).
-- **Certificates**: `GET/POST /certificates`, `GET /certificates/:id`, and `GET /certificates/:id/ai-stats` for the list, generate, and detail-page smoke path.
+- **Certificates**: `GET/POST /certificates`, `GET /certificates/:id`, `GET /certificates/:id/ai-stats`, `GET /certificates/verify/:token`, and `GET /certificates/verify/:token/history` for owner detail, public certificate, and replay smoke paths.
 - **AI**: `GET /ai/settings` (returns `hasApiKey: true` so the selection menu activates), `GET /ai/sessions`, `POST /ai/chat`, `POST /ai/selection-action`, `GET /ai/logs`.
 - **Socket.IO `ai:message`**:
   - Regular chat — emits a typed tool-call lifecycle (`ai:turn-start` / `ai:tool-call` / `ai:tool-result` / `ai:turn-end`) when the user message looks search-like (mentions search / find / where / motivation / grammar / paper / summarize / conclusion). Mock chain matches the new `#70` 3-tool surface: `ls` → `grep` → `read`, so visual smoke verifies the full ToolCallCard timeline.

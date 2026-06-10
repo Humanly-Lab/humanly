@@ -230,6 +230,7 @@ export class CertificateService {
     const jsonCertificate: JSONCertificate = {
       version: '1.1',
       certificateId: certificate.id,
+      certificateUrl: `${env.frontendUserUrl}/verify/${certificate.verificationToken}`,
       submissionId: certificate.submissionId || undefined,
       documentId: certificate.documentId,
       userId: certificate.userId,
@@ -251,6 +252,12 @@ export class CertificateService {
         editingTimeMinutes: Math.round(certificate.editingTimeSeconds / 60),
       },
       aiAuthorshipStats: aiStats,
+      evidence: {
+        replayAvailable: certificate.includeEditHistory,
+        fullTextIncluded: certificate.includeFullText,
+        editHistoryIncluded: certificate.includeEditHistory,
+        aiAssistanceIncluded: true,
+      },
       verification: {
         token: certificate.verificationToken,
         verifyUrl: `${env.frontendUserUrl}/verify/${certificate.verificationToken}`,
@@ -451,6 +458,10 @@ export class CertificateService {
         message: 'Certificate signature is invalid or has been tampered with',
       };
     }
+  }
+
+  static getCertificateIntegrity(certificate: Certificate): CertificateSealVerification {
+    return this.verifyCertificateIntegrity(certificate);
   }
 
   private static async resealCertificate(certificate: Certificate): Promise<Certificate> {

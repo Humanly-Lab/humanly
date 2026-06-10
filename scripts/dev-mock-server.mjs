@@ -24,6 +24,8 @@
  *     POST /api/v1/certificates
  *     GET  /api/v1/certificates/:id
  *     GET  /api/v1/certificates/:id/ai-stats
+ *     GET  /api/v1/certificates/verify/:token
+ *     GET  /api/v1/certificates/verify/:token/history
  *     GET  /api/v1/ai/sessions/:documentId
  *     GET  /api/v1/ai/sessions/detail/:sessionId
  *     POST /api/v1/ai/chat              (legacy silent path; non-streaming)
@@ -158,6 +160,73 @@ function createMockCertificate(options = {}) {
     pdfUrl: null,
     jsonUrl: null,
     createdAt: now,
+  };
+}
+
+mockCertificates.push(createMockCertificate({
+  id: 'cert-1',
+  verificationToken: 'token-1',
+  signerName: 'Local Dev',
+}));
+
+const MOCK_AI_AUTHORSHIP_STATS = {
+  selectionActions: {
+    total: 4,
+    grammarFixes: 1,
+    improveWriting: 1,
+    simplify: 1,
+    makeFormal: 1,
+    accepted: 3,
+    rejected: 1,
+    acceptanceRate: 75,
+  },
+  aiQuestions: {
+    total: 2,
+    understanding: 1,
+    generation: 1,
+    other: 0,
+  },
+};
+
+const MOCK_SEAL = {
+  version: 'hly-seal-v1',
+  algorithm: 'HMAC-SHA256',
+  keyId: 'mock-local',
+  payloadHash: 'mock-payload-hash-for-local-certificate-smoke',
+  signature: 'mock-signature-for-local-certificate-smoke',
+  signedFields: [
+    'certificateType',
+    'documentId',
+    'generatedAt',
+    'includeEditHistory',
+    'includeFullText',
+    'pastedCharacters',
+    'plainTextSnapshot',
+    'title',
+    'totalCharacters',
+    'totalEvents',
+    'typedCharacters',
+    'typingEvents',
+    'verificationToken',
+  ],
+};
+
+function mockCertificateEnvelope(certificate) {
+  return {
+    certificate,
+    seal: MOCK_SEAL,
+    sealStatus: 'valid',
+    integrityMessage: 'Certificate seal is valid',
+  };
+}
+
+function mockPublicCertificatePayload(certificate) {
+  return {
+    valid: true,
+    ...mockCertificateEnvelope(certificate),
+    aiAuthorshipStats: MOCK_AI_AUTHORSHIP_STATS,
+    verifiedAt: new Date().toISOString(),
+    message: 'Certificate seal is valid',
   };
 }
 
@@ -327,30 +396,60 @@ const server = createServer(async (req, res) => {
     mockCertificates.unshift(certificate);
     return ok(res, { certificate });
   }
-  if (p.match(/^\/api\/v1\/certificates\/[^/]+\/ai-stats$/) && method === 'GET') {
+  if (p.match(/^\/api\/v1\/certificates\/verify\/[^/]+\/history$/) && method === 'GET') {
     return ok(res, {
-      selectionActions: {
-        total: 1,
-        grammarFixes: 1,
-        improveWriting: 0,
-        simplify: 0,
-        makeFormal: 0,
-        accepted: 0,
-        rejected: 0,
-        acceptanceRate: 0,
-      },
-      aiQuestions: {
-        total: 2,
-        understanding: 1,
-        generation: 1,
-        other: 0,
-      },
+      editHistory: [
+        {
+          id: 'mock-history-1',
+          eventType: 'typing',
+          actionType: 'insert',
+          timestamp: new Date(Date.now() - 120000).toISOString(),
+          textContent: 'ok so basically I want to talk about how AI changes writing.',
+          editorStateAfter: {
+            root: {
+              children: [
+                {
+                  children: [
+                    { text: 'ok so basically I want to talk about how AI changes writing.' },
+                  ],
+                },
+              ],
+            },
+          },
+        },
+        {
+          id: 'mock-history-2',
+          eventType: 'ai_selection_action',
+          actionType: 'improve',
+          timestamp: new Date(Date.now() - 60000).toISOString(),
+          textContent: 'The motivation here is that traditional plagiarism detectors only look at the final text.',
+          editorStateAfter: MOCK_LEXICAL_CONTENT,
+        },
+        {
+          id: 'mock-history-3',
+          eventType: 'typing',
+          actionType: 'insert',
+          timestamp: new Date().toISOString(),
+          textContent: MOCK_PLAIN_TEXT,
+          editorStateAfter: MOCK_LEXICAL_CONTENT,
+        },
+      ],
     });
+  }
+  if (p.match(/^\/api\/v1\/certificates\/verify\/[^/]+$/) && method === 'GET') {
+    const token = p.split('/').pop();
+    const certificate = mockCertificates.find((item) => item.verificationToken === token) || null;
+    return certificate
+      ? ok(res, mockPublicCertificatePayload(certificate))
+      : json(res, 404, { success: false, data: { valid: false, message: 'Certificate not found' } });
+  }
+  if (p.match(/^\/api\/v1\/certificates\/[^/]+\/ai-stats$/) && method === 'GET') {
+    return ok(res, MOCK_AI_AUTHORSHIP_STATS);
   }
   if (p.match(/^\/api\/v1\/certificates\/[^/]+$/) && method === 'GET') {
     const certificateId = p.split('/').pop();
     const certificate = mockCertificates.find((item) => item.id === certificateId) || null;
-    return certificate ? ok(res, { certificate }) : json(res, 404, { success: false, message: 'Certificate not found' });
+    return certificate ? ok(res, mockCertificateEnvelope(certificate)) : json(res, 404, { success: false, message: 'Certificate not found' });
   }
 
   if (p.startsWith('/api/v1/ai/sessions/detail/')) {

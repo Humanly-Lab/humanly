@@ -310,6 +310,7 @@ export interface CertificateVerification {
   certificate: Certificate | null;
   verifiedAt: Date;
   message: string;
+  aiAuthorshipStats?: AIAuthorshipStats;
   seal?: CertificateSeal;
   sealStatus?: CertificateSealStatus;
   integrityMessage?: string;
@@ -353,6 +354,7 @@ export interface AIAuthorshipStats {
 export interface JSONCertificate {
   version: string;
   certificateId: string;
+  certificateUrl: string;
   submissionId?: string;
   documentId: string;
   userId: string;
@@ -374,6 +376,12 @@ export interface JSONCertificate {
     editingTimeMinutes: number;
   };
   aiAuthorshipStats?: AIAuthorshipStats;
+  evidence: {
+    replayAvailable: boolean;
+    fullTextIncluded: boolean;
+    editHistoryIncluded: boolean;
+    aiAssistanceIncluded: boolean;
+  };
   verification: {
     token: string;
     verifyUrl: string;
