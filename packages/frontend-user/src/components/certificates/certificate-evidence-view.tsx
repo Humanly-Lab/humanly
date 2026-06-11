@@ -207,6 +207,7 @@ export function CertificateEvidenceView({
   integrityMessage,
 }: CertificateEvidenceViewProps) {
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [sealDetailsOpen, setSealDetailsOpen] = useState(false);
   const textImprovementTotal = aiStats?.selectionActions.total || 0;
   const aiChatTotal = aiStats?.aiQuestions.total || 0;
   const compositionEventTotal = certificate.typingEvents + certificate.pasteEvents + textImprovementTotal;
@@ -219,10 +220,15 @@ export function CertificateEvidenceView({
   const aiImprovementEventPercentage = compositionEventTotal > 0
     ? (textImprovementTotal / compositionEventTotal) * 100
     : 0;
-  const isFullyHumanCreated = certificate.pastedCharacters === 0 && certificate.typedCharacters > 0;
   const sealHashPreview = seal?.payloadHash
     ? `${seal.payloadHash.slice(0, 12)}...${seal.payloadHash.slice(-12)}`
     : null;
+  const sealEvidenceRows = [
+    ['Payload hash', sealHashPreview || 'Unavailable'],
+    ['Algorithm', seal?.algorithm || 'Unavailable'],
+    ['Key ID', seal?.keyId || 'Unavailable'],
+    ['Signed fields', seal?.signedFields?.length ? seal.signedFields.length.toLocaleString() : 'Unavailable'],
+  ];
   const sealPresentation = getSealStatusPresentation(sealStatus);
   const SealStatusIcon = sealPresentation.Icon;
   const showReplay = Boolean(certificate.includeEditHistory && replayToken);
@@ -239,14 +245,6 @@ export function CertificateEvidenceView({
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <h1 className="break-words text-2xl font-semibold tracking-normal">{certificate.title}</h1>
-                    {isFullyHumanCreated && (
-                      <Badge
-                        variant="outline"
-                        className="border-[#c8d4c8] bg-[#eef3ed] px-2 py-0.5 text-xs text-[#58715f]"
-                      >
-                        100% Human Created
-                      </Badge>
-                    )}
                   </div>
                   {certificate.signerName && (
                     <p className="mt-1 text-sm text-muted-foreground">By: {certificate.signerName}</p>
@@ -283,12 +281,43 @@ export function CertificateEvidenceView({
                   <p className="mt-1 text-sm text-muted-foreground">{sealPresentation.message}</p>
                 </div>
               </div>
-              {sealHashPreview && (
-                <p className="shrink-0 rounded-md bg-background/70 px-2 py-1 font-mono text-[11px] text-muted-foreground">
-                  {sealHashPreview}
-                </p>
-              )}
             </div>
+
+            <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+              {sealEvidenceRows.map(([label, value]) => (
+                <div key={label} className="rounded-md bg-background/70 px-3 py-2">
+                  <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</p>
+                  <p className="mt-1 break-words font-mono text-[11px] text-foreground">{value}</p>
+                </div>
+              ))}
+            </div>
+
+            <Collapsible open={sealDetailsOpen} onOpenChange={setSealDetailsOpen} className="mt-3">
+              <CollapsibleTrigger asChild>
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium text-muted-foreground/80 transition hover:bg-background/70 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  aria-label={sealDetailsOpen ? 'Hide certificate seal details' : 'Show certificate seal details'}
+                >
+                  {sealDetailsOpen ? 'Less seal details' : 'More seal details'}
+                  <ChevronDown className={`h-3.5 w-3.5 transition-transform ${sealDetailsOpen ? 'rotate-180' : ''}`} />
+                </button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="space-y-2 pt-2 text-xs sm:text-sm">
+                <p className="font-medium">Certificate integrity</p>
+                <p>
+                  This certificate was checked against the Humanly server-issued integrity seal for the protected certificate
+                  record, including the writing metrics, document identity, generated timestamp, and current display options.
+                </p>
+                {integrityMessage && (
+                  <p className="text-muted-foreground">{integrityMessage}</p>
+                )}
+                <p className="text-muted-foreground">
+                  The authorship statistics come from write-time tracking of typing, paste, replayed edit history, and in-platform
+                  AI assistance. The seal verifies the certificate record shown here; it does not make claims about off-platform behavior.
+                </p>
+              </CollapsibleContent>
+            </Collapsible>
           </div>
 
           <Separator />
@@ -362,15 +391,18 @@ export function CertificateEvidenceView({
             </div>
 
             <Collapsible open={detailsOpen} onOpenChange={setDetailsOpen}>
-              <CollapsibleTrigger asChild>
-                <button
-                  type="button"
-                  aria-label={detailsOpen ? 'Hide more authorship details' : 'Show more authorship details'}
-                  className="mx-auto flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground/55 transition hover:bg-muted/35 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  <ChevronDown className={`h-5 w-5 transition-transform ${detailsOpen ? 'rotate-180' : ''}`} />
-                </button>
-              </CollapsibleTrigger>
+              {!detailsOpen && (
+                <CollapsibleTrigger asChild>
+                  <button
+                    type="button"
+                    aria-label="Show more authorship details"
+                    className="mx-auto inline-flex items-center gap-1 rounded-full px-2 py-1 text-sm font-medium text-muted-foreground/70 transition hover:bg-muted/30 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    See more
+                    <ChevronDown className="h-4 w-4" />
+                  </button>
+                </CollapsibleTrigger>
+              )}
               <CollapsibleContent className="space-y-4 pt-3">
                 <div className="grid gap-2 sm:grid-cols-3">
                   <div className="rounded-lg border border-border/60 bg-muted/25 p-3">
@@ -439,6 +471,18 @@ export function CertificateEvidenceView({
                     No AI statistics available.
                   </p>
                 )}
+                {detailsOpen && (
+                  <CollapsibleTrigger asChild>
+                    <button
+                      type="button"
+                      aria-label="Hide more authorship details"
+                      className="mx-auto inline-flex items-center gap-1 rounded-full px-2 py-1 text-sm font-medium text-muted-foreground/70 transition hover:bg-muted/30 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      See less
+                      <ChevronDown className="h-4 w-4 rotate-180" />
+                    </button>
+                  </CollapsibleTrigger>
+                )}
               </CollapsibleContent>
             </Collapsible>
           </div>
@@ -500,29 +544,6 @@ export function CertificateEvidenceView({
         </CardContent>
       </Card>
 
-      <Card className="bg-muted/50">
-        <CardHeader className="pb-3 sm:pb-6">
-          <CardTitle className="text-base sm:text-lg">Certificate integrity</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2 text-xs sm:text-sm">
-          <p>
-            This certificate was checked against the Humanly server-issued integrity seal for the protected certificate
-            record, including the writing metrics, document identity, generated timestamp, and current display options.
-          </p>
-          {sealHashPreview && (
-            <p className="font-mono text-[11px] text-muted-foreground sm:text-xs">
-              Payload hash: {sealHashPreview}
-            </p>
-          )}
-          {integrityMessage && (
-            <p className="text-muted-foreground">{integrityMessage}</p>
-          )}
-          <p className="text-muted-foreground">
-            The authorship statistics come from write-time tracking of typing, paste, replayed edit history, and in-platform
-            AI assistance. The seal verifies the certificate record shown here; it does not make claims about off-platform behavior.
-          </p>
-        </CardContent>
-      </Card>
     </div>
   );
 }
