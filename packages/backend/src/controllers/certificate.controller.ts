@@ -106,6 +106,7 @@ async function buildPublicCertificateResponse(
       documentSnapshot: certificate.includeFullText ? documentSnapshot : undefined,
       signerName: certificate.signerName,
       documentId: certificate.documentId,
+      environmentConfig: certificate.environmentConfig || null,
     },
     aiAuthorshipStats,
     verifiedAt: verification.verifiedAt,

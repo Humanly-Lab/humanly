@@ -135,7 +135,7 @@ export class CertificateService {
         userId,
       });
 
-      return certificate;
+      return this.withEnvironmentConfig(certificate, document.environmentConfig || null);
     } catch (error) {
       if (error instanceof AppError) throw error;
       logger.error('Error generating certificate', { error, documentId, userId });
@@ -154,11 +154,35 @@ export class CertificateService {
         throw new AppError(404, 'Certificate not found or unauthorized');
       }
 
-      return certificate;
+      return this.withEnvironmentConfig(certificate);
     } catch (error) {
       if (error instanceof AppError) throw error;
       logger.error('Error fetching certificate', { error, certificateId, userId });
       throw error;
+    }
+  }
+
+  private static async withEnvironmentConfig(
+    certificate: Certificate,
+    knownEnvironmentConfig?: Certificate['environmentConfig']
+  ): Promise<Certificate> {
+    if (knownEnvironmentConfig !== undefined) {
+      return { ...certificate, environmentConfig: knownEnvironmentConfig };
+    }
+
+    try {
+      const document = await DocumentModel.findById(certificate.documentId);
+      return {
+        ...certificate,
+        environmentConfig: document?.environmentConfig || null,
+      };
+    } catch (error) {
+      logger.warn('Unable to attach environment config to certificate', {
+        error,
+        certificateId: certificate.id,
+        documentId: certificate.documentId,
+      });
+      return { ...certificate, environmentConfig: null };
     }
   }
 
@@ -252,6 +276,9 @@ export class CertificateService {
         editingTimeMinutes: Math.round(certificate.editingTimeSeconds / 60),
       },
       aiAuthorshipStats: aiStats,
+      environmentConfig: certificate.environmentConfig
+        ?? (await this.withEnvironmentConfig(certificate)).environmentConfig
+        ?? null,
       evidence: {
         replayAvailable: certificate.includeEditHistory,
         fullTextIncluded: certificate.includeFullText,
@@ -347,7 +374,7 @@ export class CertificateService {
       if (integrity.valid) {
         return {
           valid: true,
-          certificate,
+          certificate: await this.withEnvironmentConfig(certificate),
           verifiedAt: new Date(),
           message: integrity.message,
           seal: integrity.seal,
@@ -358,7 +385,7 @@ export class CertificateService {
 
       return {
         valid: false,
-        certificate,
+        certificate: await this.withEnvironmentConfig(certificate),
         verifiedAt: new Date(),
         message: integrity.message,
         seal: integrity.seal,
@@ -509,7 +536,7 @@ export class CertificateService {
         if (integrity.valid) {
           return {
             valid: true,
-            certificate,
+            certificate: await this.withEnvironmentConfig(certificate),
             verifiedAt: new Date(),
             message: integrity.message,
             seal: integrity.seal,
@@ -520,7 +547,7 @@ export class CertificateService {
 
         return {
           valid: false,
-          certificate,
+          certificate: await this.withEnvironmentConfig(certificate),
           verifiedAt: new Date(),
           message: integrity.message,
           seal: integrity.seal,
@@ -555,7 +582,7 @@ export class CertificateService {
       if (integrity.valid) {
         return {
           valid: true,
-          certificate,
+          certificate: await this.withEnvironmentConfig(certificate),
           verifiedAt: new Date(),
           message: integrity.message,
           seal: integrity.seal,
@@ -566,7 +593,7 @@ export class CertificateService {
 
       return {
         valid: false,
-        certificate,
+        certificate: await this.withEnvironmentConfig(certificate),
         verifiedAt: new Date(),
         message: integrity.message,
         seal: integrity.seal,
@@ -626,7 +653,7 @@ export class CertificateService {
         isProtected,
       });
 
-      return resealed;
+      return this.withEnvironmentConfig(resealed);
     } catch (error) {
       if (error instanceof AppError) throw error;
       logger.error('Error updating certificate access code', { error, certificateId, userId });
@@ -671,7 +698,7 @@ export class CertificateService {
         includeEditHistory: resealed.includeEditHistory,
       });
 
-      return resealed;
+      return this.withEnvironmentConfig(resealed);
     } catch (error) {
       if (error instanceof AppError) throw error;
       logger.error('Error updating certificate display options', { error, certificateId, userId });

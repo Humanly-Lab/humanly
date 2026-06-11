@@ -113,6 +113,41 @@ const MOCK_LEXICAL_CONTENT = {
   },
 };
 
+const MOCK_ENVIRONMENT_CONFIG = {
+  preset: 'custom',
+  taskType: 'personal',
+  instructions: {
+    hasInstructionPdf: false,
+    editableAfterSubmission: true,
+  },
+  aiAccess: 'full',
+  allowedModels: ['GPT-5'],
+  customModels: [],
+  aiTokenBudget: {
+    shortcutMaxTokens: 1024,
+    chatMaxTokens: 4096,
+  },
+  aiUsageLimit: {
+    mode: 'max_requests',
+    maxRequests: 20,
+  },
+  time: {
+    timeLimitSeconds: 1800,
+    lateSubmission: 'allowed',
+  },
+  submission: {
+    mode: 'multiple',
+    maxCharacters: 2000,
+  },
+  traceability: {
+    trackAiUsage: true,
+    trackTyping: true,
+    trackCopyPaste: true,
+    trackFocusBlur: true,
+  },
+  copyPastePolicy: 'allowed',
+};
+
 const MOCK_DOC = {
   id: MOCK_DOC_ID,
   userId: MOCK_USER.id,
@@ -123,6 +158,7 @@ const MOCK_DOC = {
   version: 1,
   wordCount: MOCK_PLAIN_TEXT.split(/\s+/).filter(Boolean).length,
   characterCount: MOCK_PLAIN_TEXT.length,
+  environmentConfig: MOCK_ENVIRONMENT_CONFIG,
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
   lastEditedAt: new Date().toISOString(),
@@ -152,6 +188,7 @@ function createMockCertificate(options = {}) {
     signerName: options.signerName || null,
     includeFullText: options.includeFullText ?? true,
     includeEditHistory: options.includeEditHistory ?? true,
+    environmentConfig: MOCK_DOC.environmentConfig,
     isProtected: Boolean(options.accessCode),
     accessCode: options.accessCode || null,
     accessCodeHash: options.accessCode ? 'mock-access-code-hash' : null,

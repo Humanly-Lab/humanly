@@ -12,7 +12,6 @@ import {
   CheckCircle2,
   Copy,
   ExternalLink,
-  FileJson,
   FileText,
   History,
   Loader2,
@@ -328,18 +327,6 @@ function openDemoPdf(payload: DemoCertificatePayload) {
   const blob = new Blob([buildDemoCertificatePdf(payload)], { type: 'application/pdf' });
   const url = URL.createObjectURL(blob);
   window.open(url, '_blank', 'noopener,noreferrer');
-  window.setTimeout(() => URL.revokeObjectURL(url), 30000);
-}
-
-function downloadDemoJson(payload: DemoCertificatePayload) {
-  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = `${payload.certificateId}.json`;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
   window.setTimeout(() => URL.revokeObjectURL(url), 30000);
 }
 
@@ -1217,11 +1204,6 @@ function DemoCertificatePreview({
     setActionStatus('Opened local certificate PDF.');
   };
 
-  const handleDownloadJson = () => {
-    downloadDemoJson(certificatePayload);
-    setActionStatus('JSON data downloaded.');
-  };
-
   const handleCopyToken = async () => {
     const copied = await copyTextToClipboard(certificatePayload.certificateId);
     setActionStatus(copied ? 'Certificate token copied.' : `Certificate token: ${certificatePayload.certificateId}`);
@@ -1237,7 +1219,7 @@ function DemoCertificatePreview({
           <h3 className="truncate text-xl font-semibold tracking-normal">{title || 'Untitled Writing'}</h3>
         </div>
 
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-5 lg:w-auto">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:w-auto">
           <Button type="button" variant="outline" size="sm" aria-label="End demo" onClick={onEnd}>
             End
           </Button>
@@ -1248,10 +1230,6 @@ function DemoCertificatePreview({
           <Button type="button" size="sm" aria-label="Open PDF" onClick={handleOpenPdf}>
             <FileText className="mr-2 h-4 w-4" />
             PDF
-          </Button>
-          <Button type="button" variant="outline" size="sm" aria-label="JSON Data" onClick={handleDownloadJson}>
-            <FileJson className="mr-2 h-4 w-4" />
-            JSON
           </Button>
           <Button type="button" variant="outline" size="sm" aria-label="Do it again" onClick={onRestart}>
             <RotateCcw className="mr-2 h-4 w-4" />

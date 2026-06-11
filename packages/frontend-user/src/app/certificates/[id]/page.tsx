@@ -16,7 +16,6 @@ import {
 } from '@/components/ui/collapsible';
 import {
   ArrowLeft,
-  FileJson,
   FileText,
   Copy,
   Check,
@@ -83,7 +82,6 @@ export default function CertificateDetailPage() {
     isLoading,
     isLoadingAiStats,
     error,
-    downloadJSON,
     updateAccessCode,
     updateDisplayOptions,
   } = useCertificate(certificateId);
@@ -124,38 +122,6 @@ export default function CertificateDetailPage() {
         .catch((err) => console.error('Error generating QR code:', err));
     }
   }, [certificate]);
-
-  const showDownloadToast = (label: string, outcome: 'saved' | 'downloaded' | 'canceled') => {
-    if (outcome === 'canceled') {
-      return;
-    }
-
-    if (outcome === 'saved') {
-      toast({
-        title: 'Saved',
-        description: `${label} saved to the selected location`,
-      });
-      return;
-    }
-
-    toast({
-      title: 'Download started',
-      description: `${label} was sent to your browser's default downloads folder.`,
-    });
-  };
-
-  const handleDownloadJSON = async () => {
-    try {
-      const outcome = await downloadJSON();
-      showDownloadToast('JSON certificate', outcome);
-    } catch (err: any) {
-      toast({
-        title: 'Error',
-        description: err.message || 'Failed to download JSON',
-        variant: 'destructive',
-      });
-    }
-  };
 
   const showCopyUnavailableToast = (label: string) => {
     toast({
@@ -385,10 +351,6 @@ export default function CertificateDetailPage() {
           <Button onClick={handleShareVerificationLink} variant="outline" size="sm" className="min-w-0">
             <Share2 className="mr-2 h-4 w-4" />
             Share
-          </Button>
-          <Button onClick={handleDownloadJSON} variant="outline" size="sm" className="min-w-0">
-            <FileJson className="mr-2 h-4 w-4" />
-            JSON Data
           </Button>
         </div>
       </div>

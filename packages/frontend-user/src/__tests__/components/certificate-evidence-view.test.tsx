@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { CertificateEvidenceView } from '@/components/certificates/certificate-evidence-view';
-import type { AIAuthorshipStats } from '@humanly/shared';
+import type { AIAuthorshipStats, WritingEnvironmentConfig } from '@humanly/shared';
 
 jest.mock('@/components/certificates/document-replay', () => ({
   DocumentReplay: ({ token }: { token: string }) => (
@@ -27,8 +28,45 @@ const aiStats: AIAuthorshipStats = {
   },
 };
 
+const environmentConfig: WritingEnvironmentConfig = {
+  preset: 'custom',
+  taskType: 'personal',
+  instructions: {
+    hasInstructionPdf: false,
+    editableAfterSubmission: true,
+  },
+  aiAccess: 'full',
+  allowedModels: ['GPT-5'],
+  customModels: [],
+  aiTokenBudget: {
+    shortcutMaxTokens: 1024,
+    chatMaxTokens: 4096,
+  },
+  aiUsageLimit: {
+    mode: 'max_requests',
+    maxRequests: 20,
+  },
+  time: {
+    timeLimitSeconds: 1800,
+    lateSubmission: 'allowed',
+  },
+  submission: {
+    mode: 'multiple',
+    maxCharacters: 2000,
+  },
+  traceability: {
+    trackAiUsage: true,
+    trackTyping: true,
+    trackCopyPaste: true,
+    trackFocusBlur: true,
+  },
+  copyPastePolicy: 'allowed',
+};
+
 describe('CertificateEvidenceView', () => {
-  it('renders the shared certificate evidence surface with AI assistance and replay', () => {
+  it('renders the shared certificate evidence surface with collapsed authorship details and environment', async () => {
+    const user = userEvent.setup();
+
     render(
       <CertificateEvidenceView
         certificate={{
@@ -46,6 +84,7 @@ describe('CertificateEvidenceView', () => {
           editingTimeSeconds: 120,
           includeEditHistory: true,
           signerName: 'Test Writer',
+          environmentConfig,
         }}
         aiStats={aiStats}
         replayToken="certificate-token"
@@ -65,14 +104,26 @@ describe('CertificateEvidenceView', () => {
     expect(screen.getByRole('heading', { name: 'Research Reflection' })).toBeInTheDocument();
     expect(screen.getByText('Seal verified')).toBeInTheDocument();
     expect(screen.getAllByRole('heading', { name: 'Authorship Statistics' })).toHaveLength(1);
-    expect(screen.getByText('Typing Events')).toBeInTheDocument();
-    expect(screen.getByText('Paste Events')).toBeInTheDocument();
-    expect(screen.getByText('Total Events')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'AI Assistance' })).toBeInTheDocument();
-    expect(screen.getByText('Text Improvements')).toBeInTheDocument();
-    expect(screen.getByText('AI Chat')).toBeInTheDocument();
+    expect(screen.getByText('Typed / pasted / AI improvement composition')).toBeInTheDocument();
+    expect(screen.getByText('AI improvements')).toBeInTheDocument();
+    expect(screen.getByText('Events')).toBeInTheDocument();
+    expect(screen.getByText('Final Text')).toBeInTheDocument();
+    expect(screen.getByText('Writing Time')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'AI Assistance' })).not.toBeInTheDocument();
+    expect(screen.queryByText('AI improvement details')).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Replay' })).toBeInTheDocument();
     expect(screen.getByTestId('document-replay')).toHaveTextContent('certificate-token');
+    expect(screen.getByRole('heading', { name: 'Environment' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Download Config' })).toBeInTheDocument();
+    expect(screen.getByText('Full')).toBeInTheDocument();
+    expect(screen.getByText('Allowed')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Check more' }));
+
+    expect(screen.getByText('AI improvement details')).toBeInTheDocument();
+    expect(screen.getByText('Agent chat details')).toBeInTheDocument();
+    expect(screen.getByText('Typed Characters')).toBeInTheDocument();
+    expect(screen.getByText('Pasted Characters')).toBeInTheDocument();
     expect(screen.queryByText('Detailed breakdown of document authorship.')).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Certificate integrity' })).toBeInTheDocument();
   });

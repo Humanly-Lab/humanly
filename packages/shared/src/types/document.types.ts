@@ -258,6 +258,7 @@ export interface Certificate {
   pdfUrl: string | null;
   jsonUrl: string | null;
   createdAt: Date;
+  environmentConfig?: WritingEnvironmentConfig | null;
 }
 
 export interface CertificateInsertData {
@@ -376,6 +377,7 @@ export interface JSONCertificate {
     editingTimeMinutes: number;
   };
   aiAuthorshipStats?: AIAuthorshipStats;
+  environmentConfig?: WritingEnvironmentConfig | null;
   evidence: {
     replayAvailable: boolean;
     fullTextIncluded: boolean;

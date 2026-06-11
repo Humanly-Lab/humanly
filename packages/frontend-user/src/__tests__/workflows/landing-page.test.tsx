@@ -220,8 +220,7 @@ describe('landing page', () => {
       });
       const createObjectURL = jest
         .fn()
-        .mockReturnValueOnce('blob:demo-certificate-pdf')
-        .mockReturnValueOnce('blob:demo-certificate-json');
+        .mockReturnValueOnce('blob:demo-certificate-pdf');
       Object.defineProperty(URL, 'createObjectURL', {
         configurable: true,
         value: createObjectURL,
@@ -230,7 +229,6 @@ describe('landing page', () => {
         configurable: true,
         value: jest.fn(),
       });
-      const anchorClick = jest.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
 
       await user.click(screen.getByRole('button', { name: /create document/i }));
       expect(screen.getByRole('button', { name: /back to setup/i })).toBeEnabled();
@@ -279,10 +277,8 @@ describe('landing page', () => {
       await user.click(screen.getByRole('button', { name: /open pdf/i }));
       expect(createObjectURL).toHaveBeenCalledWith(expect.any(Blob));
       expect(openWindow).toHaveBeenCalledWith('blob:demo-certificate-pdf', '_blank', 'noopener,noreferrer');
-
-      await user.click(screen.getByRole('button', { name: /json data/i }));
-      expect(anchorClick).toHaveBeenCalled();
-      expect(createObjectURL).toHaveBeenCalledTimes(2);
+      expect(screen.queryByRole('button', { name: /json data/i })).not.toBeInTheDocument();
+      expect(createObjectURL).toHaveBeenCalledTimes(1);
 
       await user.click(screen.getByRole('button', { name: /end demo/i }));
       expect(screen.getByText(/local session has ended/i)).toBeInTheDocument();
@@ -292,8 +288,6 @@ describe('landing page', () => {
       expect(screen.queryByText('This draft records process evidence.')).not.toBeInTheDocument();
       expect(fetchMock).not.toHaveBeenCalled();
       expect(storageSetItemSpy).not.toHaveBeenCalled();
-
-      anchorClick.mockRestore();
     } finally {
       storageSetItemSpy.mockRestore();
       if (originalFetch) {
