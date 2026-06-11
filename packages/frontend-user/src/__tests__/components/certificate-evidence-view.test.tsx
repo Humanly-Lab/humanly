@@ -122,13 +122,20 @@ describe('CertificateEvidenceView', () => {
     expect(screen.getByRole('button', { name: 'Download Config' })).toBeInTheDocument();
     expect(screen.getByText('Full')).toBeInTheDocument();
     expect(screen.getByText('Allowed')).toBeInTheDocument();
+    expect(screen.getByText('See more')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Show more authorship details' }));
 
+    expect(screen.queryByText('See more')).not.toBeInTheDocument();
+    expect(screen.getByText('See less')).toBeInTheDocument();
     expect(screen.getByText('AI improvement details')).toBeInTheDocument();
     expect(screen.getByText('Agent chat details')).toBeInTheDocument();
     expect(screen.getByText('Typed Characters')).toBeInTheDocument();
     expect(screen.getByText('Pasted Characters')).toBeInTheDocument();
+    expect(
+      screen.getByText('See less').compareDocumentPosition(screen.getByText('Agent chat details'))
+        & Node.DOCUMENT_POSITION_PRECEDING
+    ).toBeTruthy();
     expect(screen.queryByText('Character composition')).not.toBeInTheDocument();
     expect(screen.queryByText('Detailed breakdown of document authorship.')).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Certificate integrity' })).toBeInTheDocument();

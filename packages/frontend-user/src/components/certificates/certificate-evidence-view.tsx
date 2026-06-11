@@ -362,15 +362,18 @@ export function CertificateEvidenceView({
             </div>
 
             <Collapsible open={detailsOpen} onOpenChange={setDetailsOpen}>
-              <CollapsibleTrigger asChild>
-                <button
-                  type="button"
-                  aria-label={detailsOpen ? 'Hide more authorship details' : 'Show more authorship details'}
-                  className="mx-auto flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground/55 transition hover:bg-muted/35 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  <ChevronDown className={`h-5 w-5 transition-transform ${detailsOpen ? 'rotate-180' : ''}`} />
-                </button>
-              </CollapsibleTrigger>
+              {!detailsOpen && (
+                <CollapsibleTrigger asChild>
+                  <button
+                    type="button"
+                    aria-label="Show more authorship details"
+                    className="mx-auto inline-flex items-center gap-1 rounded-full px-2 py-1 text-sm font-medium text-muted-foreground/70 transition hover:bg-muted/30 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    See more
+                    <ChevronDown className="h-4 w-4" />
+                  </button>
+                </CollapsibleTrigger>
+              )}
               <CollapsibleContent className="space-y-4 pt-3">
                 <div className="grid gap-2 sm:grid-cols-3">
                   <div className="rounded-lg border border-border/60 bg-muted/25 p-3">
@@ -438,6 +441,18 @@ export function CertificateEvidenceView({
                   <p className="rounded-lg border border-border/60 bg-muted/25 py-4 text-center text-sm text-muted-foreground">
                     No AI statistics available.
                   </p>
+                )}
+                {detailsOpen && (
+                  <CollapsibleTrigger asChild>
+                    <button
+                      type="button"
+                      aria-label="Hide more authorship details"
+                      className="mx-auto inline-flex items-center gap-1 rounded-full px-2 py-1 text-sm font-medium text-muted-foreground/70 transition hover:bg-muted/30 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      See less
+                      <ChevronDown className="h-4 w-4 rotate-180" />
+                    </button>
+                  </CollapsibleTrigger>
                 )}
               </CollapsibleContent>
             </Collapsible>
