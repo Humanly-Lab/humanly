@@ -34,7 +34,6 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
-import { Separator } from '@/components/ui/separator';
 import { DocumentReplay } from '@/components/certificates/document-replay';
 
 export interface CertificateEvidenceRecord {
@@ -133,13 +132,17 @@ function formatUsageLimit(config: WritingEnvironmentConfig) {
   return 'Time restricted';
 }
 
-function formatTimeWindow(config: WritingEnvironmentConfig) {
-  const limitSeconds = config.time?.timeLimitSeconds;
-  if (limitSeconds) return formatCompactDuration(limitSeconds);
-
+function formatAvailabilityWindow(config: WritingEnvironmentConfig) {
   if (config.time?.startTime || config.time?.endTime) {
     return [config.time.startTime, config.time.endTime].filter(Boolean).join(' - ');
   }
+
+  return 'No availability window';
+}
+
+function formatWritingTimeLimit(config: WritingEnvironmentConfig) {
+  const limitSeconds = config.time?.timeLimitSeconds;
+  if (limitSeconds) return formatCompactDuration(limitSeconds);
 
   return 'No limit';
 }
@@ -168,18 +171,46 @@ function formatTraceability(config: WritingEnvironmentConfig) {
 function getEnvironmentRows(config?: WritingEnvironmentConfig | null) {
   if (!config) return [];
 
-  return [
+  const isAdminAssigned = config.taskType === 'admin_assigned';
+  const aiEnabled = config.aiAccess !== 'off';
+  const rows: string[][] = [
+    ['Environment', isAdminAssigned ? 'Assigned task' : 'Personal writing'],
     ['Preset', formatPreset(config.preset)],
-    ['Task type', config.taskType === 'admin_assigned' ? 'Assigned task' : 'Personal writing'],
     ['AI access', formatWritingAiAccess(config.aiAccess)],
-    ['AI model', config.allowedModels?.length ? config.allowedModels.join(', ') : 'No fixed model'],
-    ['AI limit', formatUsageLimit(config)],
-    ['Copy / paste', normalizeCopyPastePolicy(config.copyPastePolicy) === 'blocked' ? 'Blocked' : 'Allowed'],
-    ['Time limit', formatTimeWindow(config)],
-    ['Character limit', formatCharacterLimit(config)],
-    ['Submission mode', config.submission?.mode === 'single' ? 'Single submission' : 'Multiple submissions'],
-    ['Traceability', formatTraceability(config)],
   ];
+
+  if (aiEnabled && config.allowedModels?.length) {
+    rows.push(['AI model', config.allowedModels.join(', ')]);
+  }
+
+  if (isAdminAssigned) {
+    rows.push(['AI limit', formatUsageLimit(config)]);
+  }
+
+  rows.push([
+    'Copy / paste',
+    normalizeCopyPastePolicy(config.copyPastePolicy) === 'blocked' ? 'Blocked' : 'Allowed',
+  ]);
+
+  if (isAdminAssigned) {
+    rows.push(['Availability window', formatAvailabilityWindow(config)]);
+  }
+
+  rows.push(['Writing time limit', formatWritingTimeLimit(config)]);
+
+  if (isAdminAssigned) {
+    rows.push(['Character limit', formatCharacterLimit(config)]);
+    rows.push(['Submission mode', config.submission?.mode === 'single' ? 'Single submission' : 'Multiple submissions']);
+  } else {
+    rows.push([
+      'Maximum characters',
+      config.submission?.maxCharacters ? `${config.submission.maxCharacters.toLocaleString()} chars` : 'No maximum',
+    ]);
+  }
+
+  rows.push(['Traceability', formatTraceability(config)]);
+
+  return rows;
 }
 
 function downloadEnvironmentConfig(certificateId: string, config?: WritingEnvironmentConfig | null) {
@@ -283,15 +314,6 @@ export function CertificateEvidenceView({
               </div>
             </div>
 
-            <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-              {sealEvidenceRows.map(([label, value]) => (
-                <div key={label} className="rounded-md bg-background/70 px-3 py-2">
-                  <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</p>
-                  <p className="mt-1 break-words font-mono text-[11px] text-foreground">{value}</p>
-                </div>
-              ))}
-            </div>
-
             <Collapsible open={sealDetailsOpen} onOpenChange={setSealDetailsOpen} className="mt-3">
               <CollapsibleTrigger asChild>
                 <button
@@ -304,6 +326,14 @@ export function CertificateEvidenceView({
                 </button>
               </CollapsibleTrigger>
               <CollapsibleContent className="space-y-2 pt-2 text-xs sm:text-sm">
+                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                  {sealEvidenceRows.map(([label, value]) => (
+                    <div key={label} className="rounded-md bg-background/70 px-3 py-2">
+                      <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</p>
+                      <p className="mt-1 break-words font-mono text-[11px] text-foreground">{value}</p>
+                    </div>
+                  ))}
+                </div>
                 <p className="font-medium">Certificate integrity</p>
                 <p>
                   This certificate was checked against the Humanly server-issued integrity seal for the protected certificate
@@ -319,16 +349,17 @@ export function CertificateEvidenceView({
               </CollapsibleContent>
             </Collapsible>
           </div>
+        </CardContent>
+      </Card>
 
-          <Separator />
-
-          <div className="space-y-3">
-            <div>
-              <h2 className="text-lg font-semibold tracking-normal">Authorship Statistics</h2>
-              <p className="text-sm text-muted-foreground">
-                Write-time composition, event counts, and in-platform AI activity.
-              </p>
-            </div>
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg">Authorship Statistics</CardTitle>
+          <CardDescription>
+            Write-time composition, event counts, and in-platform AI activity.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
 
             <div className="rounded-lg border border-border/70 bg-muted/20 p-3">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -485,7 +516,6 @@ export function CertificateEvidenceView({
                 )}
               </CollapsibleContent>
             </Collapsible>
-          </div>
         </CardContent>
       </Card>
 

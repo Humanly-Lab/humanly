@@ -43,8 +43,7 @@ const environmentConfig: WritingEnvironmentConfig = {
     chatMaxTokens: 4096,
   },
   aiUsageLimit: {
-    mode: 'max_requests',
-    maxRequests: 20,
+    mode: 'time_restricted',
   },
   time: {
     timeLimitSeconds: 1800,
@@ -106,14 +105,13 @@ describe('CertificateEvidenceView', () => {
     expect(screen.getByText('Certificate seal')).toBeInTheDocument();
     expect(screen.getByText('Seal verified')).toBeInTheDocument();
     expect(screen.getByText('Server-issued seal matches this certificate record.')).toBeInTheDocument();
-    expect(screen.getByText('Payload hash')).toBeInTheDocument();
-    expect(screen.getByText('1234567890ab...567890abcdef')).toBeInTheDocument();
-    expect(screen.getByText('Algorithm')).toBeInTheDocument();
-    expect(screen.getByText('HMAC-SHA256')).toBeInTheDocument();
-    expect(screen.getByText('Key ID')).toBeInTheDocument();
-    expect(screen.getByText('humanly-server-v1')).toBeInTheDocument();
-    expect(screen.getByText('Signed fields')).toBeInTheDocument();
-    expect(screen.getByText('2')).toBeInTheDocument();
+    expect(screen.queryByText('Payload hash')).not.toBeInTheDocument();
+    expect(screen.queryByText('1234567890ab...567890abcdef')).not.toBeInTheDocument();
+    expect(screen.queryByText('Algorithm')).not.toBeInTheDocument();
+    expect(screen.queryByText('HMAC-SHA256')).not.toBeInTheDocument();
+    expect(screen.queryByText('Key ID')).not.toBeInTheDocument();
+    expect(screen.queryByText('humanly-server-v1')).not.toBeInTheDocument();
+    expect(screen.queryByText('Signed fields')).not.toBeInTheDocument();
     expect(screen.getByText('More seal details')).toBeInTheDocument();
     expect(screen.queryByText('Certificate integrity')).not.toBeInTheDocument();
     expect(screen.getAllByRole('heading', { name: 'Authorship Statistics' })).toHaveLength(1);
@@ -130,12 +128,25 @@ describe('CertificateEvidenceView', () => {
     expect(screen.getByTestId('document-replay')).toHaveTextContent('certificate-token');
     expect(screen.getByRole('heading', { name: 'Environment' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Download Config' })).toBeInTheDocument();
+    expect(screen.getByText('Personal writing')).toBeInTheDocument();
     expect(screen.getByText('Full')).toBeInTheDocument();
     expect(screen.getByText('Allowed')).toBeInTheDocument();
+    expect(screen.getByText('Writing time limit')).toBeInTheDocument();
+    expect(screen.getByText('Maximum characters')).toBeInTheDocument();
+    expect(screen.queryByText('Submission mode')).not.toBeInTheDocument();
+    expect(screen.queryByText('Multiple submissions')).not.toBeInTheDocument();
     expect(screen.getByText('See more')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Show certificate seal details' }));
 
+    expect(screen.getByText('Payload hash')).toBeInTheDocument();
+    expect(screen.getByText('1234567890ab...567890abcdef')).toBeInTheDocument();
+    expect(screen.getByText('Algorithm')).toBeInTheDocument();
+    expect(screen.getByText('HMAC-SHA256')).toBeInTheDocument();
+    expect(screen.getByText('Key ID')).toBeInTheDocument();
+    expect(screen.getByText('humanly-server-v1')).toBeInTheDocument();
+    expect(screen.getByText('Signed fields')).toBeInTheDocument();
+    expect(screen.getByText('2')).toBeInTheDocument();
     expect(screen.getByText('Certificate integrity')).toBeInTheDocument();
     expect(
       screen.getByText(
@@ -159,5 +170,57 @@ describe('CertificateEvidenceView', () => {
     ).toBeTruthy();
     expect(screen.queryByText('Character composition')).not.toBeInTheDocument();
     expect(screen.queryByText('Detailed breakdown of document authorship.')).not.toBeInTheDocument();
+  });
+
+  it('shows assignment-only environment rows for admin-assigned certificates', () => {
+    render(
+      <CertificateEvidenceView
+        certificate={{
+          id: 'certificate-2',
+          documentId: 'document-2',
+          title: 'Assigned Review',
+          certificateType: 'full_authorship',
+          generatedAt: '2026-06-10T12:00:00.000Z',
+          totalCharacters: 100,
+          typedCharacters: 80,
+          pastedCharacters: 20,
+          totalEvents: 10,
+          typingEvents: 8,
+          pasteEvents: 2,
+          editingTimeSeconds: 1820,
+          includeEditHistory: false,
+          environmentConfig: {
+            ...environmentConfig,
+            taskType: 'admin_assigned',
+            aiUsageLimit: {
+              mode: 'max_requests',
+              maxRequests: 20,
+            },
+            time: {
+              startTime: '2026-06-10T12:00:00.000Z',
+              endTime: '2026-06-11T12:00:00.000Z',
+              timeLimitSeconds: 1800,
+              lateSubmission: 'not_allowed',
+            },
+            submission: {
+              mode: 'single',
+              minCharacters: 100,
+              maxCharacters: 2000,
+            },
+          },
+        }}
+        aiStats={aiStats}
+      />
+    );
+
+    expect(screen.getByText('Assigned task')).toBeInTheDocument();
+    expect(screen.getByText('AI limit')).toBeInTheDocument();
+    expect(screen.getByText('20 requests')).toBeInTheDocument();
+    expect(screen.getByText('Availability window')).toBeInTheDocument();
+    expect(screen.getByText('Character limit')).toBeInTheDocument();
+    expect(screen.getByText('100 - 2,000 chars')).toBeInTheDocument();
+    expect(screen.getByText('Submission mode')).toBeInTheDocument();
+    expect(screen.getByText('Single submission')).toBeInTheDocument();
+    expect(screen.queryByText('Maximum characters')).not.toBeInTheDocument();
   });
 });
