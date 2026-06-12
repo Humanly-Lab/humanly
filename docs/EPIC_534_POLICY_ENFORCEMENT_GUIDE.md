@@ -125,6 +125,20 @@ Per-OS shortcut visibility differs (macOS Meta+Shift+3/4/5 visible;
 Win+Shift+S usually not) — document a coverage table. `visibilitychange` and
 `blur` are separate signals.
 
+Coverage note for the shipped deterrence layer:
+
+| Environment | Browser-visible signal | Product behavior |
+|---|---|---|
+| macOS screenshot shortcuts | `Meta+Shift+3/4/5` keydown is often visible | Best-effort shortcut event logging |
+| Windows PrintScreen | `PrintScreen` keydown is often visible | Best-effort shortcut event logging |
+| Windows snipping shortcut | `Win+Shift+S` is generally not visible to pages | No detection claim |
+| OS-level or hardware capture | Not available to ordinary web pages | No detection claim |
+
+When `captureDeterrence` is enabled, the workspace notice says screen captures
+are not permitted and that focus changes / browser-visible screenshot shortcuts
+are recorded and may be flagged. The `focus_anomaly` rule is gated by
+`captureDeterrence=true` and `resourceAccess=view-only`.
+
 **#537 view-only (M-).** Two file surfaces (document files + task instruction
 files incl. the enrollment route, `files.routes.ts:31-36`). Token binding
 must work for guest sessions (X-Session-Id), not just JWT. PDF.js issues

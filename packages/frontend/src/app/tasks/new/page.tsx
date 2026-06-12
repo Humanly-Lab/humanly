@@ -391,6 +391,13 @@ const buildAdminEnvironmentSummary = ({
         : 'Standard file access',
     },
     {
+      label: 'Capture deterrence',
+      value: config.captureDeterrence ? 'On' : 'Off',
+      detail: config.captureDeterrence
+        ? 'Notice and best-effort shortcut logging'
+        : 'No capture notice',
+    },
+    {
       label: 'AI limit',
       value: formatAdminAiLimit(config),
       detail: 'Per enrolled writer',
@@ -1350,6 +1357,22 @@ export default function NewTaskPage() {
             View-only instruction PDFs load through short-lived viewer access and hide file-saving affordances.
           </FormDescription>
         </div>
+
+        <label className="flex items-start gap-3 rounded-md border border-border/70 bg-muted/20 p-3 text-sm">
+          <Checkbox
+            checked={environmentConfig.captureDeterrence === true}
+            disabled={isSubmitting}
+            onCheckedChange={(checked) => updateEnvironment({
+              captureDeterrence: checked === true,
+            })}
+          />
+          <span>
+            <span className="block font-medium">Capture deterrence</span>
+            <span className="block text-xs text-muted-foreground">
+              Show a screen-capture notice and log browser-visible screenshot shortcuts when available.
+            </span>
+          </span>
+        </label>
 
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="grid gap-2">

@@ -95,6 +95,7 @@ export const writingEnvironmentConfigSchema = z.object({
     trackCopyPaste: z.boolean(),
     trackFocusBlur: z.boolean(),
   }),
+  captureDeterrence: z.boolean().optional().default(false),
   resourceAccess: z.enum(['downloadable', 'view-only']).optional().default('downloadable'),
   copyPastePolicy: z.enum(['allowed', 'blocked']),
 }).superRefine((config, ctx) => {
@@ -278,6 +279,7 @@ export const validateWritingEnvironmentImportTemplate = (
     ...parsed,
     customModels,
     aiPolicy: normalizeWritingAiPolicy(parsed.aiPolicy),
+    captureDeterrence: parsed.captureDeterrence || false,
     resourceAccess: parsed.resourceAccess || 'downloadable',
   };
 };

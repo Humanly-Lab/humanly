@@ -1138,6 +1138,7 @@ export default function DocumentEditorPage() {
     taskInstructionFile;
   const displayFile = selectedInstructionFile || linkedFile;
   const isResourceViewOnly = normalizeResourceAccessPolicy(currentEnvironmentConfig.resourceAccess) === 'view-only';
+  const captureDeterrenceEnabled = currentEnvironmentConfig.captureDeterrence === true;
   const lockedAiModel = currentEnvironmentConfig.allowedModels?.[0] || (taskEnrollment ? 'Task model' : undefined);
   const lockedAiBaseUrl = currentEnvironmentConfig.aiProvider?.baseUrl;
 
@@ -1438,6 +1439,14 @@ export default function DocumentEditorPage() {
                       {taskEnrollment ? ' Humanly is submitting the task automatically.' : null}
                     </div>
                   )}
+                  {captureDeterrenceEnabled && !isEditorReadOnly && (
+                    <div className="mb-3 flex items-center gap-2 rounded-md border border-border/70 bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+                      <AlertCircle className="h-3.5 w-3.5 shrink-0 text-amber-700" />
+                      <span>
+                        Screen captures are not permitted in this environment. Focus changes and browser-visible screenshot shortcuts are recorded and may be flagged.
+                      </span>
+                    </div>
+                  )}
                   <LexicalEditor
                     documentId={documentId}
                     userId={user?.id}
@@ -1446,6 +1455,7 @@ export default function DocumentEditorPage() {
                     editable={!isEditorReadOnly}
                     trackingEnabled={!isEditorReadOnly}
                     copyPastePolicy={currentEnvironmentConfig.copyPastePolicy}
+                    captureDeterrence={captureDeterrenceEnabled}
                     maxCharacters={maximumSubmissionCharacters}
                     onCharacterLimitReached={handleCharacterLimitReached}
                     autoSaveEnabled={!isEditorReadOnly}

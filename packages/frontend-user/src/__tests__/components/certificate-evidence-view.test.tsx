@@ -283,7 +283,7 @@ describe('CertificateEvidenceView', () => {
 
     await user.click(screen.getByRole('button', { name: 'Show environment section' }));
 
-    expect(screen.getByText('Off')).toBeInTheDocument();
+    expect(screen.getAllByText('Off').length).toBeGreaterThan(0);
     expect(screen.queryByText('AI model')).not.toBeInTheDocument();
     expect(screen.queryByText('Quick-action token limit')).not.toBeInTheDocument();
     expect(screen.queryByText('Agent chat token limit')).not.toBeInTheDocument();

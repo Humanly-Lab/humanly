@@ -47,6 +47,10 @@ export class EditorTracker {
     return !this.shouldBlockClipboard();
   }
 
+  private shouldTrackCaptureDeterrence(): boolean {
+    return this.config.captureDeterrence === true;
+  }
+
   private getTextRenderMode(): TextRenderMode {
     return this.config.getTextRenderMode?.() || this.config.textRenderMode || 'plain';
   }
@@ -417,6 +421,11 @@ export class EditorTracker {
   private handleKeyDown(event: KeyboardEvent): void {
     const key = event.key;
 
+    if (this.shouldTrackCaptureDeterrence() && this.isVisibleScreenCaptureShortcut(event)) {
+      this.trackCaptureDeterrenceKeyDown(event);
+      return;
+    }
+
     // Capture key information
     this.lastKeyCode = event.code;
     this.lastKeyChar = key.length === 1 ? key : null; // Only single characters
@@ -430,6 +439,56 @@ export class EditorTracker {
     } else {
       this.lastEventType = 'keydown';
     }
+  }
+
+  private isVisibleScreenCaptureShortcut(event: KeyboardEvent): boolean {
+    const key = event.key;
+    if (key === 'PrintScreen' || event.code === 'PrintScreen') {
+      return true;
+    }
+
+    return event.metaKey && event.shiftKey && (key === '3' || key === '4' || key === '5');
+  }
+
+  private getScreenCaptureShortcutLabel(event: KeyboardEvent): string {
+    if (event.key === 'PrintScreen' || event.code === 'PrintScreen') {
+      return 'PrintScreen';
+    }
+
+    const parts = [
+      event.metaKey ? 'Meta' : null,
+      event.ctrlKey ? 'Ctrl' : null,
+      event.altKey ? 'Alt' : null,
+      event.shiftKey ? 'Shift' : null,
+      event.key,
+    ].filter(Boolean);
+    return parts.join('+');
+  }
+
+  private trackCaptureDeterrenceKeyDown(event: KeyboardEvent): void {
+    const currentText = this.extractPlainText(this.editor.getEditorState());
+    const { cursorPosition, selectionStart, selectionEnd } = this.getSelectionInfo(this.editor.getEditorState());
+
+    const trackedEvent: TrackedEvent = {
+      eventType: 'keydown',
+      timestamp: new Date(),
+      keyCode: event.code,
+      keyChar: undefined,
+      textBefore: currentText,
+      textAfter: currentText,
+      cursorPosition,
+      selectionStart,
+      selectionEnd,
+      editorStateAfter: this.editor.getEditorState().toJSON(),
+      metadata: {
+        deterrenceEvent: 'screen_capture_shortcut',
+        shortcut: this.getScreenCaptureShortcutLabel(event),
+        visibleToBrowser: true,
+        note: 'Best-effort browser-visible shortcut logging; OS-level capture is not detected.',
+      },
+    };
+
+    this.addEvent(trackedEvent);
   }
 
   /**

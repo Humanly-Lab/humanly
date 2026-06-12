@@ -90,6 +90,7 @@ export default function EnvironmentConfigFields({
     },
     aiAccess: normalizeWritingAiAccess(value.aiAccess),
     aiPolicy: normalizeWritingAiPolicy(value.aiPolicy),
+    captureDeterrence: value.captureDeterrence === true,
     resourceAccess: normalizeResourceAccessPolicy(value.resourceAccess),
     copyPastePolicy: normalizeCopyPastePolicy(value.copyPastePolicy),
   };
@@ -404,6 +405,22 @@ export default function EnvironmentConfigFields({
             />
           </div>
         </div>
+
+        <label className="flex items-start gap-3 rounded-md border bg-muted/20 p-3 text-sm sm:col-span-2">
+          <Checkbox
+            checked={config.captureDeterrence === true}
+            disabled={disabled}
+            onCheckedChange={(checked) => onChange(setNested(config, {
+              captureDeterrence: checked === true,
+            }))}
+          />
+          <span>
+            <span className="block font-medium">Capture deterrence</span>
+            <span className="block text-xs text-muted-foreground">
+              Show a screen-capture notice and log browser-visible screenshot shortcuts when available.
+            </span>
+          </span>
+        </label>
 
         <div className="space-y-2">
           <Label>Copy-Paste Policy</Label>

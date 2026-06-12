@@ -43,6 +43,13 @@ export interface AnomalyFocusInfluxFeature {
   addedCharacters: number;
 }
 
+export interface AnomalyFocusAnomalyFeature {
+  shortBlurEvents: number;
+  firstBlurTimestamp: Date | null;
+  lastFocusTimestamp: Date | null;
+  maximumBlurSeconds: number | null;
+}
+
 export interface AnomalyClockSkewFeature {
   sessionId: string | null;
   eventCount: number;
@@ -58,6 +65,7 @@ export interface DocumentAnomalyAnalysisFeatures {
   cadence: AnomalyCadenceFeature;
   textInflux: AnomalyTextInfluxFeature;
   focusInflux: AnomalyFocusInfluxFeature;
+  focusAnomaly: AnomalyFocusAnomalyFeature;
   clockSkew: AnomalyClockSkewFeature;
 }
 
@@ -351,12 +359,13 @@ export class DocumentEventModel {
     documentId: string,
     thresholds: WritingAnomalyThresholds
   ): Promise<DocumentAnomalyAnalysisFeatures> {
-    const [metrics, speed, cadence, textInflux, focusInflux, clockSkew] = await Promise.all([
+    const [metrics, speed, cadence, textInflux, focusInflux, focusAnomaly, clockSkew] = await Promise.all([
       this.getEventMetrics(documentId),
       this.getTypingSpeedFeature(documentId, thresholds.highSpeedWindowSeconds),
       this.getCadenceFeature(documentId),
       this.getTextInfluxFeature(documentId, thresholds.textInfluxMinimumCharacters),
       this.getFocusInfluxFeature(documentId, thresholds.focusInfluxWindowSeconds),
+      this.getFocusAnomalyFeature(documentId, thresholds.focusAnomalyMaximumBlurSeconds),
       this.getClockSkewFeature(documentId, thresholds.clockSkewMinimumEvents),
     ]);
 
@@ -368,6 +377,7 @@ export class DocumentEventModel {
       cadence,
       textInflux,
       focusInflux,
+      focusAnomaly,
       clockSkew,
     };
   }
@@ -578,6 +588,62 @@ export class DocumentEventModel {
       blurTimestamp: result?.blur_timestamp || null,
       focusTimestamp: result?.focus_timestamp || null,
       addedCharacters: parseInt(String(result?.added_chars || '0'), 10),
+    };
+  }
+
+  private static async getFocusAnomalyFeature(
+    documentId: string,
+    maximumBlurSeconds: number
+  ): Promise<AnomalyFocusAnomalyFeature> {
+    const sql = `
+      WITH blur_pairs AS (
+        SELECT
+          blur_event.timestamp as blur_timestamp,
+          (
+            SELECT MIN(focus_event.timestamp)
+            FROM document_events focus_event
+            WHERE focus_event.document_id = $1
+              AND focus_event.event_type = 'focus'
+              AND focus_event.timestamp > blur_event.timestamp
+          ) as focus_timestamp
+        FROM document_events blur_event
+        WHERE blur_event.document_id = $1
+          AND blur_event.event_type = 'blur'
+      ),
+      short_blurs AS (
+        SELECT
+          blur_timestamp,
+          focus_timestamp,
+          EXTRACT(EPOCH FROM (focus_timestamp - blur_timestamp)) as blur_seconds
+        FROM blur_pairs
+        WHERE focus_timestamp IS NOT NULL
+          AND EXTRACT(EPOCH FROM (focus_timestamp - blur_timestamp)) > 0
+          AND EXTRACT(EPOCH FROM (focus_timestamp - blur_timestamp)) <= $2
+      )
+      SELECT
+        COUNT(*)::int as short_blur_events,
+        MIN(blur_timestamp) as first_blur_timestamp,
+        MAX(focus_timestamp) as last_focus_timestamp,
+        MAX(blur_seconds) as maximum_blur_seconds
+      FROM short_blurs
+    `;
+
+    const result = await queryOne<{
+      short_blur_events: number | string;
+      first_blur_timestamp: Date | null;
+      last_focus_timestamp: Date | null;
+      maximum_blur_seconds: number | string | null;
+    }>(sql, [documentId, maximumBlurSeconds]);
+
+    const observedMaximumBlurSeconds = result?.maximum_blur_seconds;
+
+    return {
+      shortBlurEvents: parseInt(String(result?.short_blur_events || '0'), 10),
+      firstBlurTimestamp: result?.first_blur_timestamp || null,
+      lastFocusTimestamp: result?.last_focus_timestamp || null,
+      maximumBlurSeconds: observedMaximumBlurSeconds === null || observedMaximumBlurSeconds === undefined
+        ? null
+        : Number(observedMaximumBlurSeconds),
     };
   }
 

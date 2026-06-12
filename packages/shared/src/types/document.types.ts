@@ -216,6 +216,7 @@ export type WritingAnomalyFlagCode =
   | 'uniform_key_cadence'
   | 'text_influx_without_input'
   | 'focus_text_influx'
+  | 'focus_anomaly'
   | 'paste_policy_violation'
   | 'clock_skew_anomaly';
 
@@ -246,6 +247,8 @@ export interface WritingAnomalyThresholds {
   uniformCadenceMaximumMeanMs: number;
   textInfluxMinimumCharacters: number;
   focusInfluxWindowSeconds: number;
+  focusAnomalyMinimumBursts: number;
+  focusAnomalyMaximumBlurSeconds: number;
   clockSkewMinimumEvents: number;
   clockSkewMinimumClientSpanSeconds: number;
   clockSkewMaximumServerSpanSeconds: number;

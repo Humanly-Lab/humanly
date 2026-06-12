@@ -550,7 +550,7 @@ describe('document creation workflow', () => {
       expect(screen.queryByRole('dialog', { name: /custom environment/i })).not.toBeInTheDocument();
     });
     expect(screen.getByText('Custom Environment')).toBeInTheDocument();
-    expect(screen.getByText('Off')).toBeInTheDocument();
+    expect(screen.getAllByText('Off').length).toBeGreaterThan(0);
   });
 
   it('allows the time-limit minutes field to be cleared while editing', async () => {
