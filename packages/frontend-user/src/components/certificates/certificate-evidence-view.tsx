@@ -18,13 +18,16 @@ import { format } from 'date-fns';
 import {
   formatCompactDuration,
   formatWritingAiAccess,
+  formatWritingAiPolicy,
   isWritingAiChatEnabled,
   isWritingAiPolishEnabled,
   normalizeCopyPastePolicy,
+  normalizeResourceAccessPolicy,
   type AIAuthorshipStats,
   type CertificateSeal,
   type CertificateSealStatus,
   type CertificateType,
+  type WritingAnomalyFlag,
   type WritingEnvironmentConfig,
 } from '@humanly/shared';
 import { Badge } from '@/components/ui/badge';
@@ -38,6 +41,11 @@ import {
 import { DocumentReplay } from '@/components/certificates/document-replay';
 
 const SECTION_TITLE_CLASS = 'text-lg font-semibold tracking-normal';
+const COMPOSITION_COLORS = {
+  typed: '#7B8C9E',
+  pasted: '#B2A189',
+  aiImprovement: '#9B8FA6',
+} as const;
 
 export interface CertificateEvidenceRecord {
   id: string;
@@ -52,6 +60,7 @@ export interface CertificateEvidenceRecord {
   typingEvents: number;
   pasteEvents: number;
   editingTimeSeconds: number;
+  anomalyFlags?: WritingAnomalyFlag[] | null;
   includeEditHistory?: boolean;
   signerName?: string | null;
   environmentConfig?: WritingEnvironmentConfig | null;
@@ -198,6 +207,10 @@ function getEnvironmentRows(config?: WritingEnvironmentConfig | null) {
 
   if (isWritingAiChatEnabled(config.aiAccess)) {
     rows.push(['Agent chat token limit', formatTokenLimit(config.aiTokenBudget?.chatMaxTokens)]);
+    rows.push([
+      'AI policy',
+      formatWritingAiPolicy(config) === 'Guard' ? 'Guarded by custom rejection rule' : 'Off',
+    ]);
   }
 
   if (isAdminAssigned) {
@@ -207,6 +220,10 @@ function getEnvironmentRows(config?: WritingEnvironmentConfig | null) {
   rows.push([
     'Copy / paste',
     normalizeCopyPastePolicy(config.copyPastePolicy) === 'blocked' ? 'Blocked' : 'Allowed',
+  ]);
+  rows.push([
+    'PDF resource access',
+    normalizeResourceAccessPolicy(config.resourceAccess) === 'view-only' ? 'View-only' : 'Downloadable',
   ]);
 
   if (isAdminAssigned) {
@@ -228,6 +245,31 @@ function getEnvironmentRows(config?: WritingEnvironmentConfig | null) {
   rows.push(['Traceability', formatTraceability(config)]);
 
   return rows;
+}
+
+function getFlagSeverityClass(severity: WritingAnomalyFlag['severity']) {
+  if (severity === 'critical') {
+    return 'border-[#d6c5c7] bg-[#f2edee] text-[#6f5d61]';
+  }
+
+  if (severity === 'warning') {
+    return 'border-[#d8ccba] bg-[#f2efe8] text-[#6a6256]';
+  }
+
+  return 'border-[#c8d1dc] bg-[#eef1f4] text-[#576777]';
+}
+
+function formatEvidenceValue(value: unknown) {
+  if (value === null || value === undefined) return 'Unavailable';
+  if (Array.isArray(value)) return value.join(', ');
+  if (typeof value === 'number') return Number.isInteger(value) ? value.toLocaleString() : value.toFixed(1);
+  return String(value);
+}
+
+function formatEvidenceKey(key: string) {
+  return key
+    .replace(/([A-Z])/g, ' $1')
+    .replace(/^./, (char) => char.toUpperCase());
 }
 
 function downloadEnvironmentConfig(certificateId: string, config?: WritingEnvironmentConfig | null) {
@@ -257,6 +299,7 @@ export function CertificateEvidenceView({
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [sealDetailsOpen, setSealDetailsOpen] = useState(false);
   const [replayOpen, setReplayOpen] = useState(false);
+  const [behaviorReviewOpen, setBehaviorReviewOpen] = useState(false);
   const [environmentOpen, setEnvironmentOpen] = useState(false);
   const textImprovementTotal = aiStats?.selectionActions.total || 0;
   const aiChatTotal = aiStats?.aiQuestions.total || 0;
@@ -283,6 +326,7 @@ export function CertificateEvidenceView({
   const SealStatusIcon = sealPresentation.Icon;
   const showReplay = Boolean(certificate.includeEditHistory && replayToken);
   const environmentRows = getEnvironmentRows(certificate.environmentConfig);
+  const anomalyFlags = certificate.anomalyFlags || [];
 
   return (
     <div className="space-y-4">
@@ -388,23 +432,29 @@ export function CertificateEvidenceView({
                 </p>
               </div>
               <div className="mt-3 flex h-3 overflow-hidden rounded-full bg-secondary">
-                <div className="bg-[#6fa8dc]" style={{ width: `${typedEventPercentage}%` }} />
-                <div className="bg-[#f4b266]" style={{ width: `${pastedEventPercentage}%` }} />
-                <div className="bg-[#a895d3]" style={{ width: `${aiImprovementEventPercentage}%` }} />
+                {typedEventPercentage > 0 && (
+                  <div style={{ width: `${typedEventPercentage}%`, backgroundColor: COMPOSITION_COLORS.typed }} />
+                )}
+                {pastedEventPercentage > 0 && (
+                  <div style={{ width: `${pastedEventPercentage}%`, backgroundColor: COMPOSITION_COLORS.pasted }} />
+                )}
+                {aiImprovementEventPercentage > 0 && (
+                  <div style={{ width: `${aiImprovementEventPercentage}%`, backgroundColor: COMPOSITION_COLORS.aiImprovement }} />
+                )}
               </div>
               <div className="mt-3 grid gap-2 text-sm sm:grid-cols-3">
                 <div className="flex items-center gap-2">
-                  <span className="h-2.5 w-2.5 rounded-full bg-[#6fa8dc]" />
+                  <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: COMPOSITION_COLORS.typed }} />
                   <span className="text-muted-foreground">Typed</span>
                   <span className="font-medium">{formatPercentage(typedEventPercentage)}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="h-2.5 w-2.5 rounded-full bg-[#f4b266]" />
+                  <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: COMPOSITION_COLORS.pasted }} />
                   <span className="text-muted-foreground">Pasted</span>
                   <span className="font-medium">{formatPercentage(pastedEventPercentage)}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="h-2.5 w-2.5 rounded-full bg-[#a895d3]" />
+                  <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: COMPOSITION_COLORS.aiImprovement }} />
                   <span className="text-muted-foreground">AI improvements</span>
                   <span className="font-medium">{formatPercentage(aiImprovementEventPercentage)}</span>
                 </div>
@@ -571,6 +621,73 @@ export function CertificateEvidenceView({
           </Collapsible>
         </Card>
       )}
+
+      <Card>
+        <Collapsible open={behaviorReviewOpen} onOpenChange={setBehaviorReviewOpen}>
+          <CardHeader className="pb-3">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <CardTitle className={SECTION_TITLE_CLASS}>Abnormal Behavior Review</CardTitle>
+                <CardDescription>
+                  Review write-time signals that may need attention. These are evidence for review, not automatic verdicts.
+                </CardDescription>
+              </div>
+              <CollapsibleTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="shrink-0 gap-1"
+                  aria-label={
+                    behaviorReviewOpen
+                      ? 'Hide abnormal behavior review section'
+                      : 'Show abnormal behavior review section'
+                  }
+                >
+                  {behaviorReviewOpen ? 'Hide' : 'Show'}
+                  <ChevronDown className={`h-4 w-4 transition-transform ${behaviorReviewOpen ? 'rotate-180' : ''}`} />
+                </Button>
+              </CollapsibleTrigger>
+            </div>
+          </CardHeader>
+          <CollapsibleContent>
+            <CardContent>
+              {anomalyFlags.length === 0 ? (
+                <div className="rounded-lg border border-border/60 bg-muted/25 p-4 text-sm text-muted-foreground">
+                  No abnormal behavior signals were detected for this certificate.
+                </div>
+              ) : (
+                <div className="grid gap-3 md:grid-cols-2">
+                  {anomalyFlags.map((flag) => (
+                    <div key={flag.code} className="rounded-lg border border-border/70 bg-muted/20 p-4">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge
+                          variant="outline"
+                          className={`capitalize ${getFlagSeverityClass(flag.severity)}`}
+                        >
+                          {flag.severity}
+                        </Badge>
+                        <p className="font-medium">{flag.label}</p>
+                      </div>
+                      <p className="mt-2 text-sm text-muted-foreground">{flag.description}</p>
+                      <div className="mt-3 grid gap-2 text-xs sm:grid-cols-2">
+                        {Object.entries(flag.evidence || {}).slice(0, 6).map(([key, value]) => (
+                          <div key={key} className="rounded-md bg-background/70 px-2 py-1.5">
+                            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                              {formatEvidenceKey(key)}
+                            </p>
+                            <p className="mt-0.5 break-words font-medium">{formatEvidenceValue(value)}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </CollapsibleContent>
+        </Collapsible>
+      </Card>
 
       <Card>
         <Collapsible open={environmentOpen} onOpenChange={setEnvironmentOpen}>

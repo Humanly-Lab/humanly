@@ -13,6 +13,7 @@ import {
   AlertCircle,
   X,
   Loader2,
+  Download,
 } from 'lucide-react'
 import { fileApi } from '@/lib/file-api'
 import { usePDFTextStore } from '@/stores/pdf-text-store'
@@ -20,6 +21,7 @@ import { usePDFTextStore } from '@/stores/pdf-text-store'
 interface PDFViewerProps {
   fileId: string
   documentId?: string
+  viewOnly?: boolean
 }
 
 interface SearchMatch {
@@ -56,7 +58,7 @@ function getTextItemHighlightRect(item: any, matchStart: number, matchLength: nu
   }
 }
 
-export default function PDFViewer({ fileId, documentId }: PDFViewerProps) {
+export default function PDFViewer({ fileId, documentId, viewOnly = false }: PDFViewerProps) {
   const [numPages, setNumPages] = useState<number>(0)
   const [currentPage, setCurrentPage] = useState<number>(1)
   const [textExtractionError, setTextExtractionError] = useState<string | null>(null)
@@ -71,6 +73,7 @@ export default function PDFViewer({ fileId, documentId }: PDFViewerProps) {
   const [showSearch, setShowSearch] = useState<boolean>(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null)
 
   const containerRef = useRef<HTMLDivElement>(null)
   const pdfDocRef = useRef<any>(null)
@@ -235,6 +238,7 @@ export default function PDFViewer({ fileId, documentId }: PDFViewerProps) {
         setCurrentMatchIndex(-1)
         setShowSearch(false)
         setTextExtractionError(null)
+        setPdfBlobUrl(null)
         setLoading(true)
         setError(null)
         let attempts = 0
@@ -244,9 +248,10 @@ export default function PDFViewer({ fileId, documentId }: PDFViewerProps) {
         }
         if (!window.pdfjsLib) throw new Error('PDF.js failed to load')
 
-        const url = await fileApi.getPdfBlob(fileId)
+        const url = await fileApi.getPdfBlob(fileId, { viewOnly })
         if (cancelled) return
         blobUrl = url
+        setPdfBlobUrl(url)
 
         const pdf = await window.pdfjsLib.getDocument(url).promise
         if (cancelled) return
@@ -255,7 +260,7 @@ export default function PDFViewer({ fileId, documentId }: PDFViewerProps) {
         setFitToWidth(true)
         setLoading(false)
 
-        if (documentId && !cancelled) {
+        if (documentId && !viewOnly && !cancelled) {
           extractPDFTextInBackground(pdf, documentId, fileId)
         }
       } catch (err: any) {
@@ -279,7 +284,7 @@ export default function PDFViewer({ fileId, documentId }: PDFViewerProps) {
       }
       pdfDocRef.current = null
     }
-  }, [fileId, documentId, extractPDFTextInBackground, cancelCurrentRenderGeneration])
+  }, [fileId, documentId, viewOnly, extractPDFTextInBackground, cancelCurrentRenderGeneration])
 
   // Re-render all pages on scale change
   useEffect(() => {
@@ -468,7 +473,7 @@ export default function PDFViewer({ fileId, documentId }: PDFViewerProps) {
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+      if (!viewOnly && (e.ctrlKey || e.metaKey) && e.key === 'f') {
         e.preventDefault()
         openSearch()
       }
@@ -478,7 +483,7 @@ export default function PDFViewer({ fileId, documentId }: PDFViewerProps) {
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [showSearch, openSearch, closeSearch])
+  }, [showSearch, viewOnly, openSearch, closeSearch])
 
   // Ctrl+scroll zoom
   useEffect(() => {
@@ -497,8 +502,22 @@ export default function PDFViewer({ fileId, documentId }: PDFViewerProps) {
     return undefined
   }, [])
 
-  // Disable right-click / Ctrl+S / Ctrl+P
+  const handleDownloadPdf = useCallback(() => {
+    if (!pdfBlobUrl || viewOnly) return
+
+    const anchor = document.createElement('a')
+    anchor.href = pdfBlobUrl
+    anchor.download = `humanly-source-${fileId}.pdf`
+    anchor.style.display = 'none'
+    document.body.appendChild(anchor)
+    anchor.click()
+    anchor.remove()
+  }, [fileId, pdfBlobUrl, viewOnly])
+
+  // Disable right-click / Ctrl+S / Ctrl+P for view-only resources only.
   useEffect(() => {
+    if (!viewOnly) return
+
     const noContext = (e: MouseEvent) => e.preventDefault()
     const noSave = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'p')) e.preventDefault()
@@ -510,7 +529,7 @@ export default function PDFViewer({ fileId, documentId }: PDFViewerProps) {
       container?.removeEventListener('contextmenu', noContext)
       window.removeEventListener('keydown', noSave)
     }
-  }, [])
+  }, [viewOnly])
 
   if (loading) {
     return (
@@ -542,6 +561,26 @@ export default function PDFViewer({ fileId, documentId }: PDFViewerProps) {
           </span>
         )}
 
+        {viewOnly && !showSearch && (
+          <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+            View-only
+          </span>
+        )}
+
+        {!viewOnly && !showSearch && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleDownloadPdf}
+            disabled={!pdfBlobUrl}
+            title="Download PDF"
+            className="h-7 gap-1.5 px-2 text-xs"
+          >
+            <Download className="h-3.5 w-3.5" />
+            Download PDF
+          </Button>
+        )}
+
         {!showSearch && <div className="border-l h-5 mx-1" />}
 
         {/* Zoom Controls */}
@@ -565,7 +604,7 @@ export default function PDFViewer({ fileId, documentId }: PDFViewerProps) {
         {!showSearch && <div className="border-l h-5 mx-1" />}
 
         {/* Search — inline */}
-        {showSearch ? (
+        {!viewOnly && showSearch ? (
           <div className="flex items-center gap-1 flex-1">
             <Input
               ref={searchInputRef}
@@ -599,11 +638,11 @@ export default function PDFViewer({ fileId, documentId }: PDFViewerProps) {
               <X className="h-3.5 w-3.5" />
             </Button>
           </div>
-        ) : (
+        ) : !viewOnly ? (
           <Button variant="ghost" size="icon" onClick={openSearch} title="Search (Ctrl+F)" className="h-7 w-7">
             <Search className="h-4 w-4" />
           </Button>
-        )}
+        ) : null}
       </div>
 
       {/* PDF text extraction error */}

@@ -1,4 +1,4 @@
-import type { AnalyticsSummary } from '@humanly/shared';
+import type { AnalyticsSummary, WritingAnomalyFlag } from '@humanly/shared';
 
 export type TaskDetailTab = 'overview' | 'submission' | 'users' | 'analytics' | 'setting';
 
@@ -9,6 +9,10 @@ export const TASK_DETAIL_TABS: Array<{ value: TaskDetailTab; label: string }> = 
   { value: 'analytics', label: 'Analytics' },
   { value: 'setting', label: 'Setting' },
 ];
+
+export const getTaskDetailTabs = (canEditSettings: boolean) => (
+  canEditSettings ? TASK_DETAIL_TABS : TASK_DETAIL_TABS.filter((tab) => tab.value !== 'setting')
+);
 
 export const parseTaskDetailTab = (value: string | null): TaskDetailTab => (
   TASK_DETAIL_TABS.some((tab) => tab.value === value) ? (value as TaskDetailTab) : 'overview'
@@ -44,5 +48,6 @@ export interface AdminSubmission {
   certificateId?: string | null;
   certificateVerificationToken?: string | null;
   submittedAt: string;
+  anomalyFlags?: WritingAnomalyFlag[] | null;
   status: 'active' | 'historical';
 }

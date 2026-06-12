@@ -16,11 +16,12 @@ import { SettingsPanel } from './_components/SettingsPanel';
 import { SubmissionPanel } from './_components/SubmissionPanel';
 import { UsersPanel } from './_components/UsersPanel';
 import {
-  TASK_DETAIL_TABS,
+  getTaskDetailTabs,
   parseTaskDetailTab,
   taskDetailTabHref,
   type AdminSubmission,
   type TaskEnrollment,
+  type TaskDetailTab,
   type TaskStats,
 } from './_components/types';
 
@@ -29,7 +30,7 @@ export default function TaskDetailPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const taskId = params.id as string;
-  const activeTab = useMemo(
+  const requestedTab = useMemo(
     () => parseTaskDetailTab(searchParams.get('tab')),
     [searchParams]
   );
@@ -140,6 +141,16 @@ export default function TaskDetailPage() {
     }
   }, [fetchEnrollments, fetchStats, fetchSubmissions, fetchTask, taskId]);
 
+  const canEditSettings = task ? !task.isActive : true;
+  const activeTab: TaskDetailTab = requestedTab === 'setting' && !canEditSettings ? 'overview' : requestedTab;
+  const visibleTabs = useMemo(() => getTaskDetailTabs(canEditSettings), [canEditSettings]);
+
+  useEffect(() => {
+    if (task && requestedTab === 'setting' && !canEditSettings) {
+      router.replace(taskDetailTabHref(taskId, 'overview'), { scroll: false });
+    }
+  }, [canEditSettings, requestedTab, router, task, taskId]);
+
   if (isLoadingTask) {
     return (
       <div className="flex min-h-[calc(100vh-200px)] items-center justify-center">
@@ -207,7 +218,7 @@ export default function TaskDetailPage() {
           />
         );
       case 'setting':
-        return <SettingsPanel taskId={taskId} onTaskUpdated={setTask} />;
+        return canEditSettings ? <SettingsPanel taskId={taskId} onTaskUpdated={setTask} /> : null;
       case 'overview':
       default:
         return (
@@ -240,7 +251,7 @@ export default function TaskDetailPage() {
 
       <div className="border-b border-border/70">
         <nav className="-mb-px flex gap-6 overflow-x-auto" aria-label="Task sections">
-          {TASK_DETAIL_TABS.map((tab) => (
+          {visibleTabs.map((tab) => (
             <button
               key={tab.value}
               type="button"

@@ -50,6 +50,7 @@ QA reports should name the bucket before filing the issue.
 | #363 | Buffered document activity events could be read too early by logs, certificate generation, or task submit when users acted immediately after typing. | `type:old-gap` | current QA batch | Frontend editor workflow tests assert View Logs, certificate generation, and task submit await activity-log flush success before continuing. |
 | #441 | User-role tokens could access admin task owner endpoints and create/delete tasks through the admin API. | `type:old-gap` | current QA batch | Backend task route integration tests assert user-role tokens receive 403 on admin task endpoints while admin-role tokens and user enrollment routes still pass. |
 | #443 | `DELETE /auth/me` could return 500 for users with task/public-writing dependent rows. | `type:regression` | current QA batch | Backend user-model deletion tests assert account deletion explicitly cleans Humanly app-owned dependent rows before deleting the user row; deployed QA retests public guest account deletion. |
+| #554 | Public task guest documents hid the editor back button but still linked the navbar wordmark to `/documents`, giving guests a main workspace escape hatch. | `type:old-gap` | current QA batch | Frontend-user navbar tests assert regular users keep the wordmark workspace link while public task guests render a non-link wordmark. |
 
 ## How To Use
 

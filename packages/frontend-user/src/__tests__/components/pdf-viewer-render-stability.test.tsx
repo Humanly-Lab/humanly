@@ -159,4 +159,36 @@ describe('PDFViewer render stability', () => {
       transform: [2, 0, 0, 2, 0, 0],
     }))
   })
+
+  it('uses view-only file access without extracting client-side PDF text', async () => {
+    render(<PDFViewer fileId="file-123" documentId="doc-1" viewOnly />)
+
+    await waitFor(() => {
+      expect(fileApi.getPdfBlob).toHaveBeenCalledWith('file-123', { viewOnly: true })
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText('View-only')).toBeInTheDocument()
+    })
+
+    expect(screen.queryByTitle('Search (Ctrl+F)')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /download pdf/i })).not.toBeInTheDocument()
+    expect(mockSetPDFText).not.toHaveBeenCalled()
+  })
+
+  it('shows a download affordance for downloadable PDFs', async () => {
+    const user = userEvent.setup()
+    const clickSpy = jest.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+
+    render(<PDFViewer fileId="file-123" documentId="doc-1" />)
+
+    const downloadButton = await screen.findByRole('button', { name: /download pdf/i })
+    expect(downloadButton).toBeEnabled()
+    expect(screen.queryByText('View-only')).not.toBeInTheDocument()
+
+    await user.click(downloadButton)
+
+    expect(clickSpy).toHaveBeenCalledTimes(1)
+    clickSpy.mockRestore()
+  })
 })

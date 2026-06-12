@@ -1,10 +1,17 @@
 import crypto from 'crypto';
-import { CertificateSeal, CertificateSealStatus, CertificateType } from '@humanly/shared';
+import {
+  CertificateSeal,
+  CertificateSealStatus,
+  CertificateType,
+  WritingAnomalyFlag,
+} from '@humanly/shared';
 
-export const CERTIFICATE_SEAL_VERSION = 'hly-seal-v1';
+export const LEGACY_CERTIFICATE_SEAL_VERSION = 'hly-seal-v1';
+export const CERTIFICATE_SEAL_VERSION = 'hly-seal-v2';
 export const CERTIFICATE_SEAL_ALGORITHM = 'HMAC-SHA256';
 export const CERTIFICATE_SEAL_KEY_ID = 'humanly-server-v1';
 export const CERTIFICATE_SEAL_SIGNATURE_PREFIX = `${CERTIFICATE_SEAL_VERSION}.`;
+export const LEGACY_CERTIFICATE_SEAL_SIGNATURE_PREFIX = `${LEGACY_CERTIFICATE_SEAL_VERSION}.`;
 
 // The seal protects the server-issued certificate record and current display
 // controls. It intentionally does not protect plaintext access codes, access
@@ -27,11 +34,16 @@ export const CERTIFICATE_SEAL_SIGNED_FIELDS = [
   'metrics.typedCharacters',
   'metrics.pastedCharacters',
   'metrics.editingTimeSeconds',
+  'anomalyFlags',
   'options.signerName',
   'options.includeFullText',
   'options.includeEditHistory',
   'options.isProtected',
 ] as const;
+
+const LEGACY_CERTIFICATE_SEAL_SIGNED_FIELDS = CERTIFICATE_SEAL_SIGNED_FIELDS.filter(
+  (field) => field !== 'anomalyFlags'
+);
 
 export interface CertificateSealInput {
   id: string;
@@ -49,6 +61,7 @@ export interface CertificateSealInput {
   typedCharacters: number;
   pastedCharacters: number;
   editingTimeSeconds: number;
+  anomalyFlags?: WritingAnomalyFlag[];
   verificationToken: string;
   signerName?: string | null;
   includeFullText: boolean;
@@ -120,12 +133,18 @@ function safeEqual(a: string, b: string): boolean {
 
 export class CertificateSealService {
   static isSealSignature(signature?: string | null): boolean {
-    return Boolean(signature?.startsWith(CERTIFICATE_SEAL_SIGNATURE_PREFIX));
+    return Boolean(
+      signature?.startsWith(CERTIFICATE_SEAL_SIGNATURE_PREFIX)
+      || signature?.startsWith(LEGACY_CERTIFICATE_SEAL_SIGNATURE_PREFIX)
+    );
   }
 
-  static buildPayload(input: CertificateSealInput) {
-    return {
-      version: CERTIFICATE_SEAL_VERSION,
+  private static buildPayloadForVersion(
+    input: CertificateSealInput,
+    version: typeof CERTIFICATE_SEAL_VERSION | typeof LEGACY_CERTIFICATE_SEAL_VERSION
+  ) {
+    const payload = {
+      version,
       certificateId: input.id,
       submissionId: input.submissionId || null,
       documentId: input.documentId,
@@ -154,19 +173,42 @@ export class CertificateSealService {
         isProtected: input.isProtected,
       },
     };
+
+    if (version === CERTIFICATE_SEAL_VERSION) {
+      return {
+        ...payload,
+        anomalyFlags: input.anomalyFlags || [],
+      };
+    }
+
+    return payload;
+  }
+
+  static buildPayload(input: CertificateSealInput) {
+    return this.buildPayloadForVersion(input, CERTIFICATE_SEAL_VERSION);
   }
 
   static createSeal(input: CertificateSealInput, secret: string): CertificateSeal {
-    const payloadHash = sha256Hex(canonicalJSONString(this.buildPayload(input)));
-    const signatureBody = hmacBase64Url(`${CERTIFICATE_SEAL_VERSION}.${payloadHash}`, secret);
+    return this.createSealForVersion(input, secret, CERTIFICATE_SEAL_VERSION);
+  }
+
+  private static createSealForVersion(
+    input: CertificateSealInput,
+    secret: string,
+    version: typeof CERTIFICATE_SEAL_VERSION | typeof LEGACY_CERTIFICATE_SEAL_VERSION
+  ): CertificateSeal {
+    const payloadHash = sha256Hex(canonicalJSONString(this.buildPayloadForVersion(input, version)));
+    const signatureBody = hmacBase64Url(`${version}.${payloadHash}`, secret);
 
     return {
-      version: CERTIFICATE_SEAL_VERSION,
+      version,
       algorithm: CERTIFICATE_SEAL_ALGORITHM,
       keyId: CERTIFICATE_SEAL_KEY_ID,
       payloadHash,
-      signature: `${CERTIFICATE_SEAL_SIGNATURE_PREFIX}${signatureBody}`,
-      signedFields: [...CERTIFICATE_SEAL_SIGNED_FIELDS],
+      signature: `${version}.${signatureBody}`,
+      signedFields: version === CERTIFICATE_SEAL_VERSION
+        ? [...CERTIFICATE_SEAL_SIGNED_FIELDS]
+        : [...LEGACY_CERTIFICATE_SEAL_SIGNED_FIELDS],
     };
   }
 
@@ -187,7 +229,12 @@ export class CertificateSealService {
       };
     }
 
-    const seal = this.createSeal(input, secret);
+    const isLegacySeal = storedSignature.startsWith(LEGACY_CERTIFICATE_SEAL_SIGNATURE_PREFIX);
+    const seal = this.createSealForVersion(
+      input,
+      secret,
+      isLegacySeal ? LEGACY_CERTIFICATE_SEAL_VERSION : CERTIFICATE_SEAL_VERSION
+    );
     const valid = safeEqual(storedSignature, seal.signature);
 
     return {
@@ -196,9 +243,11 @@ export class CertificateSealService {
         ...seal,
         signature: storedSignature,
       },
-      sealStatus: valid ? 'valid' : 'invalid',
+      sealStatus: valid ? (isLegacySeal ? 'legacy_valid' : 'valid') : 'invalid',
       message: valid
-        ? 'Certificate seal is valid'
+        ? isLegacySeal
+          ? 'Certificate legacy seal is valid'
+          : 'Certificate seal is valid'
         : 'Certificate seal does not match the protected certificate fields',
     };
   }

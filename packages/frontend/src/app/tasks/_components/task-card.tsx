@@ -1,5 +1,6 @@
 'use client';
 
+import type { KeyboardEvent } from 'react';
 import { Archive, Calendar, Eye, Loader2, MoreHorizontal, RotateCcw, Settings, Trash2, Users } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
@@ -26,6 +27,7 @@ interface TaskCardProps {
   task: TaskDashboardItem;
   activeTab: TaskDashboardTab;
   nowMs: number;
+  variant?: 'card' | 'list';
   isDeleting: boolean;
   isChangingActiveState: boolean;
   isOptionsOpen: boolean;
@@ -53,6 +55,7 @@ export function TaskCard({
   task,
   activeTab,
   nowMs,
+  variant = 'card',
   isDeleting,
   isChangingActiveState,
   isOptionsOpen,
@@ -65,9 +68,159 @@ export function TaskCard({
   const nextIsActive = activeTab === 'archived';
   const activeStateAction = getTaskActiveStateAction(nextIsActive);
   const taskWindowStatus = activeTab === 'open' ? getTaskWindowStatus(task, nowMs) : null;
+  const canEditSettings = !task.isActive;
+
+  const handleRowKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      onView(task);
+    }
+  };
+
+  const renderStatusBadge = () => (
+    taskWindowStatus ? (
+      <Badge variant="outline" className={`${statusToneClass[taskWindowStatus.tone]} shrink-0 whitespace-nowrap`}>
+        {taskWindowStatus.label}
+      </Badge>
+    ) : (
+      <Badge variant="outline" className="shrink-0 whitespace-nowrap border-border/80 bg-muted/45 text-muted-foreground">
+        Archived
+      </Badge>
+    )
+  );
+
+  const renderOptionsMenu = (layout: 'card' | 'list') => (
+    <DropdownMenu
+      open={isOptionsOpen}
+      onOpenChange={onOptionsOpenChange}
+    >
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="outline"
+          size="sm"
+          className={layout === 'card' ? 'min-w-[120px]' : 'min-w-[112px] shrink-0'}
+          onPointerDown={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+          }}
+          onClick={(event) => {
+            event.stopPropagation();
+            if (event.detail === 0) return;
+            onOptionsOpenChange(!isOptionsOpen);
+          }}
+        >
+          <MoreHorizontal className="mr-2 h-4 w-4" />
+          Options
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        align="end"
+        className="w-48"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <DropdownMenuItem onClick={() => onView(task)}>
+          <Eye className="mr-2 h-4 w-4" />
+          View Details
+        </DropdownMenuItem>
+        {canEditSettings && (
+          <DropdownMenuItem onClick={() => onEditSetting(task)}>
+            <Settings className="mr-2 h-4 w-4" />
+            Edit Setting
+          </DropdownMenuItem>
+        )}
+        <DropdownMenuItem
+          disabled={isChangingActiveState}
+          onClick={() => onActiveStateChange(task, nextIsActive)}
+        >
+          {isChangingActiveState ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : nextIsActive ? (
+            <RotateCcw className="mr-2 h-4 w-4" />
+          ) : (
+            <Archive className="mr-2 h-4 w-4" />
+          )}
+          {isChangingActiveState ? activeStateAction.pendingLabel : activeStateAction.label}
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          className="text-destructive focus:text-destructive"
+          disabled={isDeleting}
+          onClick={() => onDelete(task)}
+        >
+          {isDeleting ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <Trash2 className="mr-2 h-4 w-4" />
+          )}
+          Delete
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+
+  const renderActionControls = () => (
+    <>
+      <Button
+        variant="default"
+        size="sm"
+        className="w-full"
+        onClick={() => onView(task)}
+      >
+        <Eye className="mr-2 h-4 w-4" />
+        View
+      </Button>
+      {renderOptionsMenu('card')}
+    </>
+  );
+
+  if (variant === 'list') {
+    return (
+      <div className="border-b border-border/70">
+        <div
+          role="button"
+          tabIndex={0}
+          aria-label={`View ${task.name}`}
+          className="grid min-h-[5.5rem] cursor-pointer grid-cols-1 gap-3 px-2 py-3 transition-colors hover:bg-muted/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:grid-cols-[minmax(0,1.4fr)_8.5rem_10rem_11rem_8rem] md:items-center"
+          onClick={() => onView(task)}
+          onKeyDown={handleRowKeyDown}
+        >
+          <div className="min-w-0">
+            <div className="flex min-w-0 items-start justify-between gap-3 md:block">
+              <h3 className="min-w-0 truncate text-base font-semibold text-foreground" title={task.name}>
+                {task.name}
+              </h3>
+              <div className="md:hidden">
+                {renderStatusBadge()}
+              </div>
+            </div>
+            <p className="mt-1 line-clamp-2 text-sm text-muted-foreground" title={task.description || undefined}>
+              {task.description || 'No description provided.'}
+            </p>
+            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground md:hidden">
+              <span>{formatCompletionCount(task)}</span>
+              <span>Created {formatDateTime(task.createdAt)}</span>
+            </div>
+          </div>
+
+          <div className="hidden md:block">
+            {renderStatusBadge()}
+          </div>
+          <div className="hidden text-sm text-muted-foreground md:block">
+            {formatCompletionCount(task)}
+          </div>
+          <div className="hidden text-sm text-muted-foreground md:block">
+            Created {formatDateTime(task.createdAt)}
+          </div>
+          <div className="flex items-center justify-end gap-2 md:justify-start">
+            {renderOptionsMenu('list')}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <Card className="flex min-h-[270px] flex-col transition-[border-color,transform] hover:-translate-y-1 hover:border-foreground/20">
+    <Card className="humanly-surface flex min-h-[270px] flex-col bg-card/95 transition-colors hover:border-foreground/15">
       <CardHeader>
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
@@ -75,15 +228,7 @@ export function TaskCard({
               {task.name}
             </CardTitle>
           </div>
-          {taskWindowStatus ? (
-            <Badge variant="outline" className={`${statusToneClass[taskWindowStatus.tone]} shrink-0 whitespace-nowrap`}>
-              {taskWindowStatus.label}
-            </Badge>
-          ) : (
-            <Badge variant="outline" className="shrink-0 whitespace-nowrap border-border/80 bg-muted/45 text-muted-foreground">
-              Archived
-            </Badge>
-          )}
+          {renderStatusBadge()}
         </div>
         <CardDescription className="line-clamp-3 min-h-[3.75rem]" title={task.description || undefined}>
           {task.description || 'No description provided.'}
@@ -103,75 +248,8 @@ export function TaskCard({
         </div>
       </CardContent>
 
-      <CardFooter className="flex space-x-2 border-t border-border/70 pt-4">
-        <Button
-          variant="default"
-          size="sm"
-          className="w-full"
-          onClick={() => onView(task)}
-        >
-          <Eye className="mr-2 h-4 w-4" />
-          View
-        </Button>
-        <DropdownMenu
-          open={isOptionsOpen}
-          onOpenChange={onOptionsOpenChange}
-        >
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="outline"
-              size="sm"
-              className="min-w-[120px]"
-              onPointerDown={(event) => event.preventDefault()}
-              onClick={(event) => {
-                if (event.detail === 0) return;
-                onOptionsOpenChange(!isOptionsOpen);
-              }}
-            >
-              <MoreHorizontal className="mr-2 h-4 w-4" />
-              Options
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent
-            align="end"
-            className="w-48"
-          >
-            <DropdownMenuItem onClick={() => onView(task)}>
-              <Eye className="mr-2 h-4 w-4" />
-              View Details
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onEditSetting(task)}>
-              <Settings className="mr-2 h-4 w-4" />
-              Edit Setting
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              disabled={isChangingActiveState}
-              onClick={() => onActiveStateChange(task, nextIsActive)}
-            >
-              {isChangingActiveState ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : nextIsActive ? (
-                <RotateCcw className="mr-2 h-4 w-4" />
-              ) : (
-                <Archive className="mr-2 h-4 w-4" />
-              )}
-              {isChangingActiveState ? activeStateAction.pendingLabel : activeStateAction.label}
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              className="text-destructive focus:text-destructive"
-              disabled={isDeleting}
-              onClick={() => onDelete(task)}
-            >
-              {isDeleting ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Trash2 className="mr-2 h-4 w-4" />
-              )}
-              Delete
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+      <CardFooter className="flex space-x-2 border-t border-border/70 bg-muted/20 pt-4">
+        {renderActionControls()}
       </CardFooter>
     </Card>
   );

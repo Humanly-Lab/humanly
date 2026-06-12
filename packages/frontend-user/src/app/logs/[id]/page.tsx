@@ -1,6 +1,6 @@
 'use client';
 
-import { Fragment, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import {
   ArrowLeft,
@@ -53,13 +53,23 @@ const LONG_TEXT_PREVIEW_THRESHOLD = 110;
 const LINE_BREAK_COLLAPSE_THRESHOLD = 4;
 const AI_MIRROR_REPLACE_TIME_WINDOW_MS = 10 * 60 * 1000;
 
-const TIMELINE_COLORS: Partial<Record<DocumentEventTimelineItem['kind'], string>> = {
-  typing_burst: 'bg-teal-100 text-teal-800',
-  line_break: 'bg-sky-100 text-sky-800',
-  ai_insert: 'bg-violet-100 text-violet-800',
-  replace: 'bg-indigo-100 text-indigo-800',
-  paste: 'bg-yellow-100 text-yellow-800',
-  delete: 'bg-red-100 text-red-800',
+const TIMELINE_COLORS: Partial<Record<DocumentEventTimelineItem['kind'], CSSProperties>> = {
+  typing_burst: { backgroundColor: '#EEF1F4', borderColor: '#C8D1DC', color: '#576777' },
+  line_break: { backgroundColor: '#EFF2EF', borderColor: '#CBD5CE', color: '#5B6B63' },
+  ai_insert: { backgroundColor: '#F0EDF2', borderColor: '#D0C8D7', color: '#655D70' },
+  replace: { backgroundColor: '#EEF1F4', borderColor: '#C8D1DC', color: '#576777' },
+  paste: { backgroundColor: '#F2EFE8', borderColor: '#D8CCBA', color: '#6A6256' },
+  delete: { backgroundColor: '#F2EDEE', borderColor: '#D6C5C7', color: '#6F5D61' },
+};
+const DEFAULT_TIMELINE_COLOR: CSSProperties = {
+  backgroundColor: '#EEEDEA',
+  borderColor: '#D1CDC7',
+  color: '#605D58',
+};
+const AI_LOG_BADGE_COLOR: CSSProperties = {
+  backgroundColor: '#F0EDF2',
+  borderColor: '#D0C8D7',
+  color: '#655D70',
 };
 
 const TIMELINE_ICONS: Partial<Record<DocumentEventTimelineItem['kind'], JSX.Element>> = {
@@ -69,6 +79,23 @@ const TIMELINE_ICONS: Partial<Record<DocumentEventTimelineItem['kind'], JSX.Elem
   replace: <RefreshCw className="h-3 w-3" />,
   paste: <Copy className="h-3 w-3" />,
   delete: <Trash2 className="h-3 w-3" />,
+};
+
+const getRawEventColor = (eventType: string): CSSProperties => {
+  if (eventType === 'paste') return TIMELINE_COLORS.paste || DEFAULT_TIMELINE_COLOR;
+  if (eventType === 'copy' || eventType === 'cut' || eventType === 'select') {
+    return { backgroundColor: '#F1EEE8', borderColor: '#D7CDC0', color: '#6B6255' };
+  }
+  if (eventType === 'focus' || eventType === 'blur') {
+    return TIMELINE_COLORS.line_break || DEFAULT_TIMELINE_COLOR;
+  }
+  if (eventType === 'delete') return TIMELINE_COLORS.delete || DEFAULT_TIMELINE_COLOR;
+  if (eventType.startsWith('ai_')) return TIMELINE_COLORS.ai_insert || DEFAULT_TIMELINE_COLOR;
+  if (eventType === 'keydown' || eventType === 'keyup' || eventType === 'input') {
+    return TIMELINE_COLORS.typing_burst || DEFAULT_TIMELINE_COLOR;
+  }
+
+  return DEFAULT_TIMELINE_COLOR;
 };
 
 const AI_ACTION_LABELS: Record<string, string> = {
@@ -844,6 +871,7 @@ function formatFoldTimeRange(item: FoldPointItem) {
 
 function RawEventTableRow({ event }: { event: DocumentEventTimelineRawEvent }) {
   const detail = renderRawDetail(event);
+  const eventColor = getRawEventColor(event.eventType);
 
   return (
     <tr className="bg-muted/20 text-xs text-muted-foreground hover:bg-muted/30">
@@ -857,7 +885,12 @@ function RawEventTableRow({ event }: { event: DocumentEventTimelineRawEvent }) {
       </td>
       <td className="max-w-[760px] px-4 py-2">
         <div className="flex min-w-0 items-center gap-2">
-          <span className="shrink-0 font-medium text-foreground/70">{getRawEventDisplayType(event)}</span>
+          <span
+            className="inline-flex shrink-0 items-center rounded border px-2 py-0.5 font-medium"
+            style={eventColor}
+          >
+            {getRawEventDisplayType(event)}
+          </span>
           {detail && <span className="min-w-0 truncate">{detail}</span>}
         </div>
       </td>
@@ -1217,7 +1250,7 @@ export default function DocumentLogsPage() {
 
                   if (historyItem.kind === 'timeline') {
                     const item = historyItem.item;
-                    const colorClass = TIMELINE_COLORS[item.kind] || 'bg-gray-100 text-gray-700';
+                    const colorStyle = TIMELINE_COLORS[item.kind] || DEFAULT_TIMELINE_COLOR;
                     const icon = TIMELINE_ICONS[item.kind] || null;
                     const canExpandText = canExpandTimelineText(item);
                     const isExpanded = expandedIds.has(item.id);
@@ -1233,7 +1266,10 @@ export default function DocumentLogsPage() {
                             {formatTimeRange(item)}
                           </td>
                           <td className="px-4 py-3">
-                            <span className={`inline-flex whitespace-nowrap items-center gap-1 rounded px-2 py-0.5 text-xs font-medium ${colorClass}`}>
+                            <span
+                              className="inline-flex whitespace-nowrap items-center gap-1 rounded border px-2 py-0.5 text-xs font-medium"
+                              style={colorStyle}
+                            >
                               {icon}
                               {getTimelineActivityLabel(item)}
                             </span>
@@ -1340,7 +1376,10 @@ export default function DocumentLogsPage() {
                           </div>
                         </td>
                         <td className="px-4 py-3">
-                          <span className="inline-flex whitespace-nowrap items-center gap-1 rounded bg-violet-100 px-2 py-0.5 text-xs font-medium text-violet-800">
+                          <span
+                            className="inline-flex whitespace-nowrap items-center gap-1 rounded border px-2 py-0.5 text-xs font-medium"
+                            style={AI_LOG_BADGE_COLOR}
+                          >
                             <Sparkles className="h-3 w-3" />
                             {label}
                           </span>

@@ -1,6 +1,6 @@
 # Humanly Current State
 
-Last updated: 2026-05-18.
+Last updated: 2026-06-12.
 
 GitHub issues and pull requests are the source of truth. This file is only a
 short state snapshot for fast agent orientation.
@@ -15,6 +15,15 @@ short state snapshot for fast agent orientation.
   issue.
 - Use `docs/REGRESSION_GUARD.md` and `docs/REGRESSION_LEDGER.md` before filing
   a bug from QA.
+
+## Active Epic
+
+- **Epic #534 — policy-enforcement layer** (deadline-bound: EMNLP paper claims
+  #535-#538 must be deployed before 2026-07-04). Implementation order and all
+  cross-cutting rules in `docs/EPIC_534_POLICY_ENFORCEMENT_GUIDE.md`. Order:
+  #540 (S) -> #537 (M-) -> #536 (M, builds trusted-provider infra) ->
+  #538 (M+) -> #535 (L). Integration branch:
+  `feat/epic-534-policy-enforcement`.
 
 ## Open Known Issues
 

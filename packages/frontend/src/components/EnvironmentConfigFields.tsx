@@ -9,12 +9,16 @@ import {
   SUBMISSION_MAX_CHARACTERS_MAX,
   SUBMISSION_MIN_CHARACTERS_MAX,
   WRITING_AI_ACCESS_OPTIONS,
+  WRITING_AI_POLICY_OPTIONS,
   WRITING_AI_MODELS,
   isWritingAiChatEnabled,
   isWritingAiPolishEnabled,
   normalizeWritingAiAccess,
+  normalizeWritingAiPolicy,
   normalizeCopyPastePolicy,
+  normalizeResourceAccessPolicy,
   WritingEnvironmentConfig,
+  WritingAiPolicyMode,
 } from '@humanly/shared';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -85,10 +89,13 @@ export default function EnvironmentConfigFields({
       ...value.traceability,
     },
     aiAccess: normalizeWritingAiAccess(value.aiAccess),
+    aiPolicy: normalizeWritingAiPolicy(value.aiPolicy),
+    resourceAccess: normalizeResourceAccessPolicy(value.resourceAccess),
     copyPastePolicy: normalizeCopyPastePolicy(value.copyPastePolicy),
   };
   const shortcutTokensEnabled = isWritingAiPolishEnabled(config.aiAccess);
   const chatTokensEnabled = isWritingAiChatEnabled(config.aiAccess);
+  const aiPolicy = normalizeWritingAiPolicy(config.aiPolicy);
 
   const toggleModel = (model: string, checked: boolean) => {
     onChange(setNested(config, {
@@ -147,7 +154,13 @@ export default function EnvironmentConfigFields({
             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
             value={config.aiAccess}
             disabled={disabled}
-            onChange={(event) => onChange(setNested(config, { aiAccess: event.target.value as WritingEnvironmentConfig['aiAccess'] }))}
+            onChange={(event) => {
+              const aiAccess = event.target.value as WritingEnvironmentConfig['aiAccess'];
+              onChange(setNested(config, {
+                aiAccess,
+                aiPolicy: isWritingAiChatEnabled(aiAccess) ? aiPolicy : { mode: 'off' },
+              }));
+            }}
           >
             {WRITING_AI_ACCESS_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
@@ -282,6 +295,57 @@ export default function EnvironmentConfigFields({
         </div>
       )}
 
+      {chatTokensEnabled && (
+        <div className="grid gap-4 rounded-md border bg-muted/30 p-3">
+          <div className="space-y-2">
+            <Label>AI Policy Enforcement</Label>
+            <select
+              aria-label="AI policy enforcement"
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              value={aiPolicy.mode}
+              disabled={disabled}
+              onChange={(event) => onChange(setNested(config, {
+                aiPolicy: event.target.value === 'guard'
+                  ? {
+                      mode: 'guard',
+                      rejectionRule: aiPolicy.rejectionRule || '',
+                    }
+                  : { mode: 'off' },
+              }))}
+            >
+              {WRITING_AI_POLICY_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {aiPolicy.mode === 'guard' && (
+            <div className="space-y-2">
+              <Label htmlFor="ai-policy-rejection-rule">Rejection Rule</Label>
+              <textarea
+                id="ai-policy-rejection-rule"
+                aria-label="AI rejection rule"
+                className="min-h-24 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                value={aiPolicy.rejectionRule || ''}
+                disabled={disabled}
+                onChange={(event) => onChange(setNested(config, {
+                  aiPolicy: {
+                    mode: 'guard' as WritingAiPolicyMode,
+                    rejectionRule: event.target.value,
+                  },
+                }))}
+                placeholder="Example: Refuse to produce evaluative claims; only help with grammar, wording, or understanding references."
+              />
+              <p className="text-xs text-muted-foreground">
+                Applies only to agent chat in Chat or Full mode.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <Label>Late Submission</Label>
@@ -352,6 +416,24 @@ export default function EnvironmentConfigFields({
             <option value="allowed">Allowed</option>
             <option value="blocked">Blocked</option>
           </select>
+        </div>
+
+        <div className="space-y-2">
+          <Label>PDF Resource Access</Label>
+          <select
+            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            value={normalizeResourceAccessPolicy(config.resourceAccess)}
+            disabled={disabled}
+            onChange={(event) => onChange(setNested(config, {
+              resourceAccess: normalizeResourceAccessPolicy(event.target.value),
+            }))}
+          >
+            <option value="downloadable">Downloadable</option>
+            <option value="view-only">View-only</option>
+          </select>
+          <p className="text-xs text-muted-foreground">
+            View-only PDFs load through short-lived in-workspace access.
+          </p>
         </div>
       </div>
 

@@ -1,11 +1,15 @@
 import type {
   AppFile,
+  ResourceAccessPolicy,
   SignedFileReadUrlResponse,
   SignedFileUploadInitRequest,
   SignedFileUploadInitResponse,
 } from '@humanly/shared';
+import { normalizeResourceAccessPolicy } from '@humanly/shared';
 import crypto from 'crypto';
+import jwt, { JwtPayload } from 'jsonwebtoken';
 import { queryOne } from '../config/database';
+import { env } from '../config/env';
 import { DocumentModel } from '../models/document.model';
 import { FileModel } from '../models/file.model';
 import { TaskModel } from '../models/task.model';
@@ -16,6 +20,15 @@ import { AIRetrievalService } from './ai-retrieval.service';
 
 const MAX_PDF_SIZE_BYTES = 50 * 1024 * 1024;
 const PENDING_UPLOAD_TTL_MS = 2 * 60 * 60 * 1000;
+const VIEW_ONLY_FILE_TOKEN_AUDIENCE = 'humanly:file-view';
+const VIEW_ONLY_FILE_TOKEN_PURPOSE = 'view_only_file';
+const VIEW_ONLY_FILE_TOKEN_EXPIRES_IN_SECONDS = 60;
+
+interface FileViewTokenPayload extends JwtPayload {
+  purpose: typeof VIEW_ONLY_FILE_TOKEN_PURPOSE;
+  fileId: string;
+  userId: string;
+}
 
 export class FileService {
   static async initiateDocumentFileUpload(
@@ -232,7 +245,11 @@ export class FileService {
     return FileModel.findReadyByTask(task.id);
   }
 
-  static async streamFile(fileId: string, userId: string): Promise<NodeJS.ReadableStream> {
+  static async issueViewOnlyFileToken(fileId: string, userId: string): Promise<{
+    token: string;
+    expiresAt: string;
+    expiresInSeconds: number;
+  }> {
     const appFile = await FileModel.findById(fileId);
     if (!appFile) {
       throw new AppError(404, 'File not found');
@@ -240,6 +257,49 @@ export class FileService {
 
     await this.assertCanRead(appFile, userId);
     this.assertFileReady(appFile);
+    const resourceAccess = await this.getResourceAccess(appFile);
+    if (resourceAccess !== 'view-only') {
+      throw new AppError(400, 'This file does not require a view-only token');
+    }
+
+    const token = jwt.sign(
+      {
+        purpose: VIEW_ONLY_FILE_TOKEN_PURPOSE,
+        fileId,
+        userId,
+      },
+      env.jwtSecret,
+      {
+        audience: VIEW_ONLY_FILE_TOKEN_AUDIENCE,
+        expiresIn: VIEW_ONLY_FILE_TOKEN_EXPIRES_IN_SECONDS,
+        subject: fileId,
+      }
+    );
+
+    return {
+      token,
+      expiresAt: new Date(Date.now() + VIEW_ONLY_FILE_TOKEN_EXPIRES_IN_SECONDS * 1000).toISOString(),
+      expiresInSeconds: VIEW_ONLY_FILE_TOKEN_EXPIRES_IN_SECONDS,
+    };
+  }
+
+  static async streamFile(
+    fileId: string,
+    userId: string,
+    options: { viewToken?: string } = {}
+  ): Promise<NodeJS.ReadableStream> {
+    const appFile = await FileModel.findById(fileId);
+    if (!appFile) {
+      throw new AppError(404, 'File not found');
+    }
+
+    await this.assertCanRead(appFile, userId);
+    this.assertFileReady(appFile);
+    const resourceAccess = await this.getResourceAccess(appFile);
+    if (resourceAccess === 'view-only') {
+      this.assertValidViewOnlyToken(options.viewToken, fileId, userId);
+    }
+
     return FileStorageService.getStream(appFile);
   }
 
@@ -251,8 +311,9 @@ export class FileService {
 
     await this.assertCanRead(appFile, userId);
     this.assertFileReady(appFile);
+    const resourceAccess = await this.getResourceAccess(appFile);
 
-    if (appFile.storageProvider !== 'gcs') {
+    if (resourceAccess === 'view-only' || appFile.storageProvider !== 'gcs') {
       return {
         url: null,
         expiresAt: null,
@@ -403,6 +464,61 @@ export class FileService {
     }
 
     throw new AppError(403, 'Access denied');
+  }
+
+  private static async getResourceAccess(appFile: AppFile): Promise<ResourceAccessPolicy> {
+    if (appFile.taskId) {
+      const task = await TaskModel.findById(appFile.taskId);
+      return normalizeResourceAccessPolicy(task?.environmentConfig?.resourceAccess);
+    }
+
+    if (appFile.documentId) {
+      const document = await DocumentModel.findById(appFile.documentId);
+      return normalizeResourceAccessPolicy(document?.environmentConfig?.resourceAccess);
+    }
+
+    return 'downloadable';
+  }
+
+  private static assertValidViewOnlyToken(
+    token: string | undefined,
+    fileId: string,
+    userId: string
+  ): void {
+    if (!token) {
+      this.logRejectedViewOnlyAccess(fileId, userId, 'missing_token');
+      throw new AppError(403, 'View-only file token is required');
+    }
+
+    try {
+      const decoded = jwt.verify(token, env.jwtSecret, {
+        audience: VIEW_ONLY_FILE_TOKEN_AUDIENCE,
+        subject: fileId,
+      }) as FileViewTokenPayload;
+
+      if (
+        decoded.purpose !== VIEW_ONLY_FILE_TOKEN_PURPOSE ||
+        decoded.fileId !== fileId ||
+        decoded.userId !== userId
+      ) {
+        this.logRejectedViewOnlyAccess(fileId, userId, 'token_scope_mismatch');
+        throw new AppError(403, 'View-only file token is not valid for this file');
+      }
+    } catch (error) {
+      if (error instanceof AppError) {
+        throw error;
+      }
+      this.logRejectedViewOnlyAccess(fileId, userId, 'invalid_or_expired_token');
+      throw new AppError(403, 'View-only file token is invalid or expired');
+    }
+  }
+
+  private static logRejectedViewOnlyAccess(fileId: string, userId: string, reason: string): void {
+    logger.warn('Rejected view-only file access', {
+      fileId,
+      userId,
+      reason,
+    });
   }
 
   private static async assertCanManage(appFile: AppFile, userId: string): Promise<void> {

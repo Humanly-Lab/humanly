@@ -72,6 +72,12 @@ describe('user navbar', () => {
     expect(switchLink).toHaveAttribute('href', 'https://admin.writehumanly.net/tasks?switchSession=1');
   });
 
+  it('links the wordmark to the workspace for regular users', () => {
+    render(<Navbar />);
+
+    expect(screen.getByRole('link', { name: /humanly/i })).toHaveAttribute('href', '/documents');
+  });
+
   it('shows the admin portal switch for admin users', async () => {
     process.env.NEXT_PUBLIC_ADMIN_APP_ORIGIN = 'https://admin.writehumanly.net';
     mockUser = {
@@ -175,5 +181,17 @@ describe('user navbar', () => {
     expect(screen.queryByText(/logout/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/settings/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/delete my account/i)).not.toBeInTheDocument();
+  });
+
+  it('does not link the wordmark back to the workspace for public task guests', () => {
+    mockUser = {
+      email: 'public-task-guest@guest.humanly.local',
+      role: 'user',
+    };
+
+    render(<Navbar />);
+
+    expect(screen.getByText('humanly')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /humanly/i })).not.toBeInTheDocument();
   });
 });

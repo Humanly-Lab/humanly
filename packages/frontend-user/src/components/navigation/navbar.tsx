@@ -55,9 +55,15 @@ export function Navbar({ forceGuest = false }: { forceGuest?: boolean }) {
         <div className={containerClass}>
           <div className="flex h-16 items-center justify-between">
             <div className="flex items-center">
-              <Link href="/documents" className="flex items-center">
-                <HumanlyWordmark size="md" />
-              </Link>
+              {isGuestMode ? (
+                <div className="flex items-center">
+                  <HumanlyWordmark size="md" />
+                </div>
+              ) : (
+                <Link href="/documents" className="flex items-center">
+                  <HumanlyWordmark size="md" />
+                </Link>
+              )}
             </div>
 
             <div className="flex items-center gap-2">

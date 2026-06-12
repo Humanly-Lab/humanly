@@ -163,6 +163,34 @@ describe('fileApi', () => {
     expect(mockFetch).not.toHaveBeenCalled();
   });
 
+  it('uses view-only token streams without requesting signed read URLs', async () => {
+    mockApiGet.mockResolvedValueOnce({
+      data: {
+        data: {
+          token: 'view-token-1',
+          expiresAt: '2026-05-15T12:01:00.000Z',
+          expiresInSeconds: 60,
+        },
+      },
+    });
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      blob: async () => new Blob(['%PDF-1.4'], { type: 'application/pdf' }),
+    });
+
+    await expect(fileApi.getPdfBlob('file-1', { viewOnly: true })).resolves.toBe('blob:pdf-file');
+    expect(mockApiGet).toHaveBeenCalledTimes(1);
+    expect(mockApiGet).toHaveBeenCalledWith('/files/file-1/view-token');
+    expect(mockFetch).toHaveBeenCalledWith(
+      expect.stringContaining('/files/file-1/content'),
+      expect.objectContaining({
+        headers: { Authorization: 'Bearer access-token' },
+        credentials: 'include',
+      })
+    );
+    expect(mockFetch.mock.calls[0][0]).toContain('viewToken=view-token-1');
+  });
+
   it('falls back to backend stream for local PDF viewing', async () => {
     mockApiGet.mockResolvedValueOnce({
       data: {

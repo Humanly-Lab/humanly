@@ -192,7 +192,7 @@ const adminLocalTimeFormatter = new Intl.DateTimeFormat('en-US', {
 });
 const localTimeZoneLabel = Intl.DateTimeFormat().resolvedOptions().timeZone || 'local time';
 
-function mockTaskOverviewResponses() {
+function mockTaskOverviewResponses(task = taskFixture) {
   mockApiGet.mockImplementation((url: string) => {
     if (url === '/api/v1/ai/settings') {
       return Promise.resolve({ success: true, data: mockAiSettings });
@@ -222,7 +222,7 @@ function mockTaskOverviewResponses() {
       return Promise.resolve({ success: true, data: { submissions: submissionsFixture } });
     }
 
-    return Promise.resolve({ success: true, data: taskFixture });
+    return Promise.resolve({ success: true, data: task });
   });
 }
 
@@ -666,8 +666,21 @@ describe('admin task overview invite code copy button', () => {
     expect(screen.queryByText(/session/i)).not.toBeInTheDocument();
   });
 
+  it('hides active task settings and falls direct setting URLs back to overview', async () => {
+    mockSearchParams = new URLSearchParams('tab=setting');
+
+    render(<TaskDetailPage />);
+
+    await screen.findByRole('heading', { name: 'Clipboard Task' });
+    expect(await screen.findByText('Task Overview')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Setting' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Task Settings' })).not.toBeInTheDocument();
+    expect(mockReplace).toHaveBeenCalledWith('/tasks/task-123', { scroll: false });
+  });
+
   it('exports the current setting form state as environment config JSON', async () => {
     mockSearchParams = new URLSearchParams('tab=setting');
+    mockTaskOverviewResponses({ ...taskFixture, isActive: false });
 
     render(<TaskDetailPage />);
 
@@ -765,6 +778,7 @@ describe('admin task overview invite code copy button', () => {
   it('shows AI key settings when no saved key exists', async () => {
     mockSearchParams = new URLSearchParams('tab=setting');
     mockAiSettings = null;
+    mockTaskOverviewResponses({ ...taskFixture, isActive: false });
 
     render(<TaskDetailPage />);
 
@@ -778,6 +792,7 @@ describe('admin task overview invite code copy button', () => {
     const aiSettings = createDeferred<{ success: boolean; data: any }>();
     const openRouterTask = {
       ...taskFixture,
+      isActive: false,
       allowedLlmModels: ['qwen/qwen3.5-397b-a17b'],
       environmentConfig: {
         ...taskFixture.environmentConfig,
@@ -850,6 +865,7 @@ describe('admin task overview invite code copy button', () => {
   it('keeps AI connection details visible after a connection failure', async () => {
     mockSearchParams = new URLSearchParams('tab=setting');
     mockApiPost.mockRejectedValueOnce(new Error('Connection test failed.'));
+    mockTaskOverviewResponses({ ...taskFixture, isActive: false });
 
     render(<TaskDetailPage />);
 
@@ -865,6 +881,7 @@ describe('admin task overview invite code copy button', () => {
 
   it('rejects changing task start date to the past in settings', async () => {
     mockSearchParams = new URLSearchParams('tab=setting');
+    mockTaskOverviewResponses({ ...taskFixture, isActive: false });
 
     render(<TaskDetailPage />);
 
@@ -887,6 +904,7 @@ describe('admin task overview invite code copy button', () => {
 
   it('saves grouped setting changes with the existing task payload shape', async () => {
     mockSearchParams = new URLSearchParams('tab=setting');
+    mockTaskOverviewResponses({ ...taskFixture, isActive: false });
 
     render(<TaskDetailPage />);
 

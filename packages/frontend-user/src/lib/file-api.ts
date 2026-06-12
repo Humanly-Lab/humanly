@@ -10,7 +10,11 @@ const API_BASE =
   (process.env.NODE_ENV === 'production' ? '/api/v1' : 'http://localhost:3001/api/v1');
 
 export const fileApi = {
-  async getPdfBlob(fileId: string): Promise<string> {
+  async getPdfBlob(fileId: string, options: { viewOnly?: boolean } = {}): Promise<string> {
+    if (options.viewOnly) {
+      return this.getPdfBlobViaStream(fileId, options);
+    }
+
     const readUrlResponse = await apiClient.get<{ data: SignedFileReadUrlResponse }>(`/files/${fileId}/read-url`);
     const readUrl = readUrlResponse.data.data;
     if (readUrl.fallbackMode === 'signed_url' && readUrl.url) {
@@ -20,9 +24,24 @@ export const fileApi = {
     return this.getPdfBlobViaStream(fileId);
   },
 
-  async getPdfBlobViaStream(fileId: string): Promise<string> {
+  async getPdfBlobViaStream(fileId: string, options: { viewOnly?: boolean } = {}): Promise<string> {
     const token = TokenManager.getAccessToken();
-    const response = await fetch(`${API_BASE}/files/${fileId}/content`, {
+    let viewToken: string | undefined;
+
+    if (options.viewOnly) {
+      const tokenResponse = await apiClient.get(`/files/${fileId}/view-token`);
+      viewToken = tokenResponse.data.data?.token;
+      if (!viewToken) {
+        throw new Error('Failed to prepare view-only PDF access');
+      }
+    }
+
+    const contentUrl = new URL(`${API_BASE}/files/${fileId}/content`, window.location.origin);
+    if (viewToken) {
+      contentUrl.searchParams.set('viewToken', viewToken);
+    }
+
+    const response = await fetch(contentUrl.toString(), {
       headers: {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },

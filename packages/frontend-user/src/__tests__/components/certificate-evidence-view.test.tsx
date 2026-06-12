@@ -105,6 +105,9 @@ describe('CertificateEvidenceView', () => {
     expect(screen.getByText('Certificate seal')).toBeInTheDocument();
     expect(screen.getByText('Seal verified')).toBeInTheDocument();
     expect(screen.getByText('Server-issued seal matches this certificate record.')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Activity Flags' })).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Abnormal Behavior Review' })).toBeInTheDocument();
+    expect(screen.queryByText('No abnormal behavior signals were detected for this certificate.')).not.toBeInTheDocument();
     expect(screen.queryByText('Payload hash')).not.toBeInTheDocument();
     expect(screen.queryByText('1234567890ab...567890abcdef')).not.toBeInTheDocument();
     expect(screen.queryByText('Algorithm')).not.toBeInTheDocument();
@@ -126,6 +129,7 @@ describe('CertificateEvidenceView', () => {
     const sectionTitles = [
       screen.getByRole('heading', { name: 'Authorship Statistics' }),
       screen.getByRole('heading', { name: 'Replay' }),
+      screen.getByRole('heading', { name: 'Abnormal Behavior Review' }),
       screen.getByRole('heading', { name: 'Environment' }),
     ];
     sectionTitles.forEach((title) => {
@@ -140,6 +144,12 @@ describe('CertificateEvidenceView', () => {
     expect(screen.queryByText('Submission mode')).not.toBeInTheDocument();
     expect(screen.queryByText('Multiple submissions')).not.toBeInTheDocument();
     expect(screen.getByText('See more')).toBeInTheDocument();
+    expect(
+      sectionTitles[1].compareDocumentPosition(sectionTitles[2]) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+    expect(
+      sectionTitles[2].compareDocumentPosition(sectionTitles[3]) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
 
     await user.click(screen.getByRole('button', { name: 'Show certificate seal details' }));
 
@@ -178,6 +188,10 @@ describe('CertificateEvidenceView', () => {
     await user.click(screen.getByRole('button', { name: 'Show replay section' }));
 
     expect(screen.getByTestId('document-replay')).toHaveTextContent('certificate-token');
+
+    await user.click(screen.getByRole('button', { name: 'Show abnormal behavior review section' }));
+
+    expect(screen.getByText('No abnormal behavior signals were detected for this certificate.')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Show environment section' }));
 
@@ -281,7 +295,7 @@ describe('CertificateEvidenceView', () => {
 
     await user.click(screen.getByRole('button', { name: 'Show environment section' }));
 
-    expect(screen.getByText('Off')).toBeInTheDocument();
+    expect(screen.getAllByText('Off').length).toBeGreaterThan(0);
     expect(screen.queryByText('AI model')).not.toBeInTheDocument();
     expect(screen.queryByText('Quick-action token limit')).not.toBeInTheDocument();
     expect(screen.queryByText('Agent chat token limit')).not.toBeInTheDocument();
@@ -326,5 +340,56 @@ describe('CertificateEvidenceView', () => {
 
     expect(screen.getByText('<1%')).toBeInTheDocument();
     expect(screen.queryByText('Pasted 0%')).not.toBeInTheDocument();
+  });
+
+  it('renders abnormal behavior review signals with evidence after expansion', async () => {
+    const user = userEvent.setup();
+
+    render(
+      <CertificateEvidenceView
+        certificate={{
+          id: 'certificate-5',
+          documentId: 'document-5',
+          title: 'Flagged Draft',
+          certificateType: 'full_authorship',
+          generatedAt: '2026-06-10T12:00:00.000Z',
+          totalCharacters: 1000,
+          typedCharacters: 1000,
+          pastedCharacters: 0,
+          totalEvents: 140,
+          typingEvents: 140,
+          pasteEvents: 0,
+          editingTimeSeconds: 45,
+          includeEditHistory: false,
+          anomalyFlags: [
+            {
+              code: 'uniform_key_cadence',
+              severity: 'warning',
+              label: 'Uniform key cadence',
+              description: 'Key intervals were unusually uniform, which can indicate scripted or agent-driven input.',
+              evidence: {
+                intervalCount: 139,
+                stddevIntervalMs: 4.5,
+              },
+            },
+          ],
+          environmentConfig,
+        }}
+        aiStats={aiStats}
+      />
+    );
+
+    expect(screen.getByRole('heading', { name: 'Abnormal Behavior Review' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Activity Flags' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Uniform key cadence')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Show abnormal behavior review section' }));
+
+    expect(screen.getByText('Uniform key cadence')).toBeInTheDocument();
+    expect(screen.getByText('warning')).toBeInTheDocument();
+    expect(screen.getByText('Interval Count')).toBeInTheDocument();
+    expect(screen.getByText('139')).toBeInTheDocument();
+    expect(screen.getByText('Stddev Interval Ms')).toBeInTheDocument();
+    expect(screen.getByText('4.5')).toBeInTheDocument();
   });
 });
