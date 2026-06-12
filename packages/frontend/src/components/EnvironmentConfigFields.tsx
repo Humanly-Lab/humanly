@@ -417,7 +417,7 @@ export default function EnvironmentConfigFields({
           <span>
             <span className="block font-medium">Capture deterrence</span>
             <span className="block text-xs text-muted-foreground">
-              Show a screen-capture notice and log browser-visible screenshot shortcuts when available.
+              Show a screen-capture notice and log browser-visible screenshot shortcuts when available. OS-level screenshots may not be detectable.
             </span>
           </span>
         </label>

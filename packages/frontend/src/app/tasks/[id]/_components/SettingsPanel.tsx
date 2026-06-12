@@ -1165,7 +1165,7 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
       label: 'Capture Deterrence',
       value: environmentConfig.captureDeterrence ? 'On' : 'Off',
       detail: environmentConfig.captureDeterrence
-        ? 'Notice and best-effort shortcut logging'
+        ? 'Notice and browser-visible shortcut logging'
         : 'No capture notice',
     },
   ];
@@ -1777,7 +1777,7 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
                     <span>
                       <span className="block font-medium">Capture deterrence</span>
                       <span className="block text-xs text-muted-foreground">
-                        Show a screen-capture notice and log browser-visible screenshot shortcuts when available.
+                        Show a screen-capture notice and log browser-visible screenshot shortcuts when available. OS-level screenshots may not be detectable.
                       </span>
                     </span>
                   </label>

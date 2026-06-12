@@ -1443,7 +1443,7 @@ export default function DocumentEditorPage() {
                     <div className="mb-3 flex items-center gap-2 rounded-md border border-border/70 bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
                       <AlertCircle className="h-3.5 w-3.5 shrink-0 text-amber-700" />
                       <span>
-                        Screen captures are not permitted in this environment. Focus changes and browser-visible screenshot shortcuts are recorded and may be flagged.
+                        Screen capture deterrence is active. Humanly logs focus changes and screenshot shortcuts only when the browser can observe them; OS-level screenshots may not be detectable.
                       </span>
                     </div>
                   )}

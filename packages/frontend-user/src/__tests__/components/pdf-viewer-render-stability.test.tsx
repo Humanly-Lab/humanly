@@ -172,6 +172,23 @@ describe('PDFViewer render stability', () => {
     })
 
     expect(screen.queryByTitle('Search (Ctrl+F)')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /download pdf/i })).not.toBeInTheDocument()
     expect(mockSetPDFText).not.toHaveBeenCalled()
+  })
+
+  it('shows a download affordance for downloadable PDFs', async () => {
+    const user = userEvent.setup()
+    const clickSpy = jest.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+
+    render(<PDFViewer fileId="file-123" documentId="doc-1" />)
+
+    const downloadButton = await screen.findByRole('button', { name: /download pdf/i })
+    expect(downloadButton).toBeEnabled()
+    expect(screen.queryByText('View-only')).not.toBeInTheDocument()
+
+    await user.click(downloadButton)
+
+    expect(clickSpy).toHaveBeenCalledTimes(1)
+    clickSpy.mockRestore()
   })
 })

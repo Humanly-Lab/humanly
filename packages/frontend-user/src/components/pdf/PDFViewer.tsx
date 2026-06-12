@@ -13,6 +13,7 @@ import {
   AlertCircle,
   X,
   Loader2,
+  Download,
 } from 'lucide-react'
 import { fileApi } from '@/lib/file-api'
 import { usePDFTextStore } from '@/stores/pdf-text-store'
@@ -72,6 +73,7 @@ export default function PDFViewer({ fileId, documentId, viewOnly = false }: PDFV
   const [showSearch, setShowSearch] = useState<boolean>(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null)
 
   const containerRef = useRef<HTMLDivElement>(null)
   const pdfDocRef = useRef<any>(null)
@@ -236,6 +238,7 @@ export default function PDFViewer({ fileId, documentId, viewOnly = false }: PDFV
         setCurrentMatchIndex(-1)
         setShowSearch(false)
         setTextExtractionError(null)
+        setPdfBlobUrl(null)
         setLoading(true)
         setError(null)
         let attempts = 0
@@ -248,6 +251,7 @@ export default function PDFViewer({ fileId, documentId, viewOnly = false }: PDFV
         const url = await fileApi.getPdfBlob(fileId, { viewOnly })
         if (cancelled) return
         blobUrl = url
+        setPdfBlobUrl(url)
 
         const pdf = await window.pdfjsLib.getDocument(url).promise
         if (cancelled) return
@@ -498,8 +502,22 @@ export default function PDFViewer({ fileId, documentId, viewOnly = false }: PDFV
     return undefined
   }, [])
 
-  // Disable right-click / Ctrl+S / Ctrl+P
+  const handleDownloadPdf = useCallback(() => {
+    if (!pdfBlobUrl || viewOnly) return
+
+    const anchor = document.createElement('a')
+    anchor.href = pdfBlobUrl
+    anchor.download = `humanly-source-${fileId}.pdf`
+    anchor.style.display = 'none'
+    document.body.appendChild(anchor)
+    anchor.click()
+    anchor.remove()
+  }, [fileId, pdfBlobUrl, viewOnly])
+
+  // Disable right-click / Ctrl+S / Ctrl+P for view-only resources only.
   useEffect(() => {
+    if (!viewOnly) return
+
     const noContext = (e: MouseEvent) => e.preventDefault()
     const noSave = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'p')) e.preventDefault()
@@ -511,7 +529,7 @@ export default function PDFViewer({ fileId, documentId, viewOnly = false }: PDFV
       container?.removeEventListener('contextmenu', noContext)
       window.removeEventListener('keydown', noSave)
     }
-  }, [])
+  }, [viewOnly])
 
   if (loading) {
     return (
@@ -547,6 +565,20 @@ export default function PDFViewer({ fileId, documentId, viewOnly = false }: PDFV
           <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
             View-only
           </span>
+        )}
+
+        {!viewOnly && !showSearch && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleDownloadPdf}
+            disabled={!pdfBlobUrl}
+            title="Download PDF"
+            className="h-7 gap-1.5 px-2 text-xs"
+          >
+            <Download className="h-3.5 w-3.5" />
+            Download PDF
+          </Button>
         )}
 
         {!showSearch && <div className="border-l h-5 mx-1" />}
