@@ -3,6 +3,8 @@ jest.mock('../../models/document.model');
 jest.mock('../../models/session.model');
 jest.mock('../../models/submission.model');
 jest.mock('../../models/certificate.model');
+jest.mock('../../models/document-event.model');
+jest.mock('../../models/ai.model');
 jest.mock('../../models/file.model');
 jest.mock('../../models/user.model');
 jest.mock('../../models/refresh-token.model');
@@ -27,6 +29,8 @@ import { DocumentModel } from '../../models/document.model';
 import { SessionModel } from '../../models/session.model';
 import { SubmissionModel } from '../../models/submission.model';
 import { CertificateModel } from '../../models/certificate.model';
+import { DocumentEventModel } from '../../models/document-event.model';
+import { AIModel } from '../../models/ai.model';
 import { FileModel } from '../../models/file.model';
 import { UserModel } from '../../models/user.model';
 import { RefreshTokenModel } from '../../models/refresh-token.model';
@@ -40,6 +44,8 @@ const MockDocumentModel = DocumentModel as jest.Mocked<typeof DocumentModel>;
 const MockSessionModel = SessionModel as jest.Mocked<typeof SessionModel>;
 const MockSubmissionModel = SubmissionModel as jest.Mocked<typeof SubmissionModel>;
 const MockCertificateModel = CertificateModel as jest.Mocked<typeof CertificateModel>;
+const MockDocumentEventModel = DocumentEventModel as jest.Mocked<typeof DocumentEventModel>;
+const MockAIModel = AIModel as jest.Mocked<typeof AIModel>;
 const MockFileModel = FileModel as jest.Mocked<typeof FileModel>;
 const MockUserModel = UserModel as jest.Mocked<typeof UserModel>;
 const MockRefreshTokenModel = RefreshTokenModel as jest.Mocked<typeof RefreshTokenModel>;
@@ -148,6 +154,42 @@ function makeCertificate(overrides: Partial<any> = {}): any {
 }
 
 describe('TaskService.submitTaskDocument', () => {
+  it('rejects manual task submissions before the task opens', async () => {
+    MockTaskModel.findById.mockResolvedValue(makeTask({
+      startDate: new Date(Date.now() + 60_000),
+      endDate: new Date(Date.now() + 120_000),
+    }));
+
+    await expect(
+      TaskService.submitTaskDocument('task-1', 'user-1', 'doc-1', 'student@example.com')
+    ).rejects.toMatchObject({
+      statusCode: 400,
+      message: 'This task is not open for submissions yet',
+    });
+
+    expect(MockTaskModel.hasEnrollment).not.toHaveBeenCalled();
+    expect(MockDocumentModel.findByIdAndUserId).not.toHaveBeenCalled();
+    expect(MockSubmissionModel.create).not.toHaveBeenCalled();
+  });
+
+  it('rejects manual task submissions after the task deadline', async () => {
+    MockTaskModel.findById.mockResolvedValue(makeTask({
+      startDate: new Date(Date.now() - 120_000),
+      endDate: new Date(Date.now() - 60_000),
+    }));
+
+    await expect(
+      TaskService.submitTaskDocument('task-1', 'user-1', 'doc-1', 'student@example.com')
+    ).rejects.toMatchObject({
+      statusCode: 400,
+      message: 'The submission deadline has passed',
+    });
+
+    expect(MockTaskModel.hasEnrollment).not.toHaveBeenCalled();
+    expect(MockDocumentModel.findByIdAndUserId).not.toHaveBeenCalled();
+    expect(MockSubmissionModel.create).not.toHaveBeenCalled();
+  });
+
   it('rejects task submissions below the configured minimum character count', async () => {
     const task = makeTask({
       startDate: new Date(Date.now() - 60_000),
@@ -336,6 +378,75 @@ describe('TaskService.autoSubmitExpiredTimedTaskEnrollments', () => {
   });
 });
 
+describe('TaskService.getTaskSubmissionEvents', () => {
+  it('reads the submitted document events up to the submission timestamp for admin analytics', async () => {
+    const submittedAt = new Date('2026-06-12T08:00:00.000Z');
+    const eventOne = {
+      id: 'event-1',
+      documentId: 'doc-1',
+      userId: 'user-1',
+      sessionId: 'session-1',
+      eventType: 'focus',
+      timestamp: new Date('2026-06-12T07:59:57.000Z'),
+      createdAt: new Date('2026-06-12T07:59:57.100Z'),
+      metadata: {},
+    };
+    const eventTwo = {
+      id: 'event-2',
+      documentId: 'doc-1',
+      userId: 'user-1',
+      sessionId: 'session-1',
+      eventType: 'input',
+      timestamp: new Date('2026-06-12T07:59:58.000Z'),
+      createdAt: new Date('2026-06-12T07:59:58.100Z'),
+      textBefore: '',
+      textAfter: 'Submitted text',
+      metadata: {},
+    };
+
+    MockTaskModel.findById.mockResolvedValue(makeTask({
+      id: 'task-1',
+      userId: 'admin-1',
+    }));
+    MockSubmissionModel.findById.mockResolvedValue(makeSubmission({
+      id: 'submission-1',
+      taskId: 'task-1',
+      documentId: 'doc-1',
+      userId: 'user-1',
+      submittedAt,
+    }));
+    MockDocumentEventModel.findByDocumentId.mockResolvedValue([eventTwo, eventOne] as any);
+    MockDocumentEventModel.countByDocumentIdWithFilters.mockResolvedValue(2);
+    MockAIModel.getLogs.mockResolvedValue({ logs: [], total: 0 } as any);
+
+    const result = await TaskService.getTaskSubmissionEvents(
+      'task-1',
+      'submission-1',
+      'admin-1'
+    );
+
+    expect(MockDocumentEventModel.findByDocumentId).toHaveBeenCalledWith('doc-1', {
+      endDate: submittedAt,
+      limit: 5000,
+      offset: 0,
+    });
+    expect(MockDocumentEventModel.countByDocumentIdWithFilters).toHaveBeenCalledWith('doc-1', {
+      endDate: submittedAt,
+      limit: 5000,
+      offset: 0,
+    });
+    expect(MockAIModel.getLogs).toHaveBeenCalledWith(expect.objectContaining({
+      documentId: 'doc-1',
+      userId: 'user-1',
+      endDate: submittedAt,
+    }));
+    expect(result.submission.id).toBe('submission-1');
+    expect(result.totalEvents).toBe(2);
+    expect(result.events.map((event: any) => event.id)).toEqual(['event-1', 'event-2']);
+    expect(result.timeline.summary.rawEventTotal).toBe(2);
+  });
+});
+
 describe('TaskService.startPublicTaskDocument', () => {
   it('uses the signed-in user for public task drafts when auth is present', async () => {
     const task = makeTask({
@@ -407,6 +518,133 @@ describe('TaskService.startPublicTaskDocument', () => {
     );
     expect(MockRefreshTokenModel.create).not.toHaveBeenCalled();
     expect(mockCacheDelPattern).toHaveBeenCalledWith('analytics:task-1:*');
+  });
+
+  it('creates a fresh signed-in task document when the existing timed document has expired', async () => {
+    const task = makeTask({
+      taskToken: 'share-token-1',
+      startDate: new Date(Date.now() - 60_000),
+      endDate: new Date(Date.now() + 60_000),
+      environmentConfig: {
+        aiAccess: 'off',
+        allowedModels: [],
+        time: {
+          timeLimitSeconds: 3600,
+        },
+      },
+    });
+    const user = {
+      id: 'user-1',
+      email: 'writer@example.com',
+      role: 'user',
+      emailVerified: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    const expiredDocument = makeDocument({
+      id: 'expired-doc-1',
+      userId: 'user-1',
+      writingStartedAt: new Date(Date.now() - 3_700_000),
+    });
+    const freshDocument = makeDocument({
+      id: 'fresh-signed-in-doc-1',
+      userId: 'user-1',
+      title: 'Task Submission - writer@example.com',
+      plainText: '',
+      wordCount: 0,
+      characterCount: 0,
+      writingStartedAt: null,
+    });
+
+    MockTaskModel.findByToken.mockResolvedValue(task);
+    MockUserModel.findById.mockResolvedValue(user);
+    MockTaskModel.enrollUser.mockResolvedValue(undefined);
+    MockTaskModel.findEnrollmentForUserTask.mockResolvedValue({
+      id: 'enrollment-1',
+      taskId: 'task-1',
+      userId: 'user-1',
+      documentId: 'expired-doc-1',
+      joinedAt: new Date(),
+    });
+    MockDocumentModel.findByIdAndUserId.mockResolvedValue(expiredDocument);
+    MockDocumentModel.create.mockResolvedValue(freshDocument);
+    MockTaskModel.linkSubmissionDocument.mockResolvedValue(true);
+
+    const result = await TaskService.startPublicTaskDocument(
+      'share-token-1',
+      { sessionId: 'browser-session-1', mode: 'signed-in' },
+      { userId: 'user-1' }
+    );
+
+    expect(result.mode).toBe('signed-in');
+    expect(result.document.id).toBe('fresh-signed-in-doc-1');
+    expect(MockDocumentModel.create).toHaveBeenCalledWith(expect.objectContaining({
+      userId: 'user-1',
+      title: 'Task Submission - writer@example.com',
+      status: 'draft',
+      plainText: '',
+      wordCount: 0,
+      characterCount: 0,
+      environmentConfig: task.environmentConfig,
+    }));
+    expect(MockTaskModel.linkSubmissionDocument).toHaveBeenCalledWith(
+      'task-1',
+      'user-1',
+      'fresh-signed-in-doc-1'
+    );
+    expect(MockRefreshTokenModel.create).not.toHaveBeenCalled();
+  });
+
+  it('reuses an existing signed-in task document while its writing timer is still open', async () => {
+    const task = makeTask({
+      taskToken: 'share-token-1',
+      startDate: new Date(Date.now() - 60_000),
+      endDate: new Date(Date.now() + 60_000),
+      environmentConfig: {
+        aiAccess: 'off',
+        allowedModels: [],
+        time: {
+          timeLimitSeconds: 3600,
+        },
+      },
+    });
+    const user = {
+      id: 'user-1',
+      email: 'writer@example.com',
+      role: 'user',
+      emailVerified: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    const existingDocument = makeDocument({
+      id: 'active-signed-in-doc-1',
+      userId: 'user-1',
+      writingStartedAt: new Date(Date.now() - 60_000),
+    });
+
+    MockTaskModel.findByToken.mockResolvedValue(task);
+    MockUserModel.findById.mockResolvedValue(user);
+    MockTaskModel.enrollUser.mockResolvedValue(undefined);
+    MockTaskModel.findEnrollmentForUserTask.mockResolvedValue({
+      id: 'enrollment-1',
+      taskId: 'task-1',
+      userId: 'user-1',
+      documentId: 'active-signed-in-doc-1',
+      joinedAt: new Date(),
+    });
+    MockDocumentModel.findByIdAndUserId.mockResolvedValue(existingDocument);
+
+    const result = await TaskService.startPublicTaskDocument(
+      'share-token-1',
+      { sessionId: 'browser-session-1', mode: 'signed-in' },
+      { userId: 'user-1' }
+    );
+
+    expect(result.mode).toBe('signed-in');
+    expect(result.document.id).toBe('active-signed-in-doc-1');
+    expect(MockDocumentModel.create).not.toHaveBeenCalled();
+    expect(MockTaskModel.linkSubmissionDocument).not.toHaveBeenCalled();
+    expect(MockRefreshTokenModel.create).not.toHaveBeenCalled();
   });
 
   it('creates a guest draft document and returns auth for the normal editor', async () => {

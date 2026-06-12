@@ -90,6 +90,23 @@ const getDocumentCharacterCount = (document: Document): number => {
   return (document.plainText || '').length;
 };
 
+const getWritingTimeLimitSeconds = (task: Task): number | null => {
+  const configuredSeconds = task.environmentConfig?.time?.timeLimitSeconds;
+  if (!Number.isFinite(configuredSeconds) || !configuredSeconds) return null;
+
+  return Math.max(1, Math.floor(configuredSeconds));
+};
+
+const isDocumentWritingTimeExpired = (task: Task, document: Document): boolean => {
+  const timeLimitSeconds = getWritingTimeLimitSeconds(task);
+  if (timeLimitSeconds === null || !document.writingStartedAt) return false;
+
+  const startedAtMs = getDateMs(document.writingStartedAt);
+  if (!Number.isFinite(startedAtMs)) return false;
+
+  return Date.now() - startedAtMs >= timeLimitSeconds * 1000;
+};
+
 const assertSubmissionCharacterBounds = (task: Task, actualCharacters: number): void => {
   const minimumCharacters = getMinimumSubmissionCharacters(task);
   if (minimumCharacters && actualCharacters < minimumCharacters) {
@@ -720,6 +737,10 @@ export class TaskService {
     let document = enrollment.documentId
       ? await DocumentModel.findByIdAndUserId(enrollment.documentId, participantUser.id)
       : null;
+
+    if (document && !isGuestMode && isDocumentWritingTimeExpired(task, document)) {
+      document = null;
+    }
 
     if (!document) {
       const titleSuffix = isGuestMode
