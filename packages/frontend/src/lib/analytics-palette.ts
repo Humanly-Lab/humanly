@@ -1,16 +1,15 @@
 export const ANALYTICS_CHART_COLORS = {
-  activity: '#8A6F4D',
-  activityFill: '#8A6F4D',
-  submissions: '#A7835A',
-  submittedUsers: '#65735D',
-  reference: '#8B8172',
+  activity: '#7B8C9E',
+  activityFill: '#7B8C9E',
+  submissions: '#B2A189',
+  submittedUsers: '#8A9A91',
+  reference: '#8E8985',
   eventTypes: [
-    '#7A5C42',
-    '#A7835A',
-    '#7C8068',
-    '#6F7C84',
-    '#9A7468',
-    '#806C7A',
+    '#7B8C9E',
+    '#9B8FA6',
+    '#8A9A91',
+    '#B2A189',
+    '#A88E91',
+    '#8E8985',
   ],
 } as const;
-

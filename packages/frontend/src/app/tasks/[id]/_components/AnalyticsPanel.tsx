@@ -561,8 +561,13 @@ export function AnalyticsPanel({
                     name="Submitted users"
                     stroke={ANALYTICS_CHART_COLORS.submittedUsers}
                     strokeWidth={2}
-                    dot={false}
-                    activeDot={{ r: 4 }}
+                    dot={{
+                      r: 3,
+                      fill: 'hsl(var(--card))',
+                      stroke: ANALYTICS_CHART_COLORS.submittedUsers,
+                      strokeWidth: 2,
+                    }}
+                    activeDot={{ r: 5, strokeWidth: 2 }}
                   />
                 </ComposedChart>
               </ResponsiveContainer>
@@ -619,6 +624,13 @@ export function AnalyticsPanel({
                     strokeWidth={2}
                     fill="url(#analyticsActivity)"
                     name="Events"
+                    dot={{
+                      r: 3,
+                      fill: 'hsl(var(--card))',
+                      stroke: ANALYTICS_CHART_COLORS.activity,
+                      strokeWidth: 2,
+                    }}
+                    activeDot={{ r: 5, strokeWidth: 2 }}
                   />
                 </AreaChart>
               </ResponsiveContainer>

@@ -84,22 +84,22 @@ const LONG_TEXT_PREVIEW_THRESHOLD = 110;
 const LINE_BREAK_COLLAPSE_THRESHOLD = 4;
 
 const TIMELINE_COLORS: Partial<Record<DocumentEventTimelineItem['kind'], CSSProperties>> = {
-  typing_burst: { backgroundColor: '#F2EDE6', borderColor: '#D8C8B8', color: '#6B553E' },
-  line_break: { backgroundColor: '#EEF0EA', borderColor: '#CFD4C6', color: '#59664F' },
-  ai_insert: { backgroundColor: '#F0EAE9', borderColor: '#D6C2BD', color: '#76594F' },
-  replace: { backgroundColor: '#ECEDEF', borderColor: '#C9CED2', color: '#56626A' },
-  paste: { backgroundColor: '#F4EADB', borderColor: '#DDC79F', color: '#7A5E34' },
-  delete: { backgroundColor: '#F1E8E4', borderColor: '#D4BBB1', color: '#75584D' },
+  typing_burst: { backgroundColor: '#EEF1F4', borderColor: '#C8D1DC', color: '#576777' },
+  line_break: { backgroundColor: '#EFF2EF', borderColor: '#CBD5CE', color: '#5B6B63' },
+  ai_insert: { backgroundColor: '#F0EDF2', borderColor: '#D0C8D7', color: '#655D70' },
+  replace: { backgroundColor: '#EEF1F4', borderColor: '#C8D1DC', color: '#576777' },
+  paste: { backgroundColor: '#F2EFE8', borderColor: '#D8CCBA', color: '#6A6256' },
+  delete: { backgroundColor: '#F2EDEE', borderColor: '#D6C5C7', color: '#6F5D61' },
 };
 const DEFAULT_TIMELINE_COLOR: CSSProperties = {
-  backgroundColor: '#EFEEE9',
-  borderColor: '#D4D0C7',
-  color: '#625D54',
+  backgroundColor: '#EEEDEA',
+  borderColor: '#D1CDC7',
+  color: '#605D58',
 };
 const AI_LOG_BADGE_COLOR: CSSProperties = {
-  backgroundColor: '#EFE8E6',
-  borderColor: '#D8C2BA',
-  color: '#73584F',
+  backgroundColor: '#F0EDF2',
+  borderColor: '#D0C8D7',
+  color: '#655D70',
 };
 
 const TIMELINE_ICONS: Partial<Record<DocumentEventTimelineItem['kind'], JSX.Element>> = {
@@ -109,6 +109,23 @@ const TIMELINE_ICONS: Partial<Record<DocumentEventTimelineItem['kind'], JSX.Elem
   replace: <RefreshCw className="h-3 w-3" />,
   paste: <Copy className="h-3 w-3" />,
   delete: <Trash2 className="h-3 w-3" />,
+};
+
+const getRawEventColor = (eventType: string): CSSProperties => {
+  if (eventType === 'paste') return TIMELINE_COLORS.paste || DEFAULT_TIMELINE_COLOR;
+  if (eventType === 'copy' || eventType === 'cut' || eventType === 'select') {
+    return { backgroundColor: '#F1EEE8', borderColor: '#D7CDC0', color: '#6B6255' };
+  }
+  if (eventType === 'focus' || eventType === 'blur') {
+    return TIMELINE_COLORS.line_break || DEFAULT_TIMELINE_COLOR;
+  }
+  if (eventType === 'delete') return TIMELINE_COLORS.delete || DEFAULT_TIMELINE_COLOR;
+  if (eventType.startsWith('ai_')) return TIMELINE_COLORS.ai_insert || DEFAULT_TIMELINE_COLOR;
+  if (eventType === 'keydown' || eventType === 'keyup' || eventType === 'input') {
+    return TIMELINE_COLORS.typing_burst || DEFAULT_TIMELINE_COLOR;
+  }
+
+  return DEFAULT_TIMELINE_COLOR;
 };
 
 const AI_ACTION_LABELS: Record<string, string> = {
@@ -656,6 +673,8 @@ function formatFoldTimeRange(item: FoldPointItem) {
 }
 
 function RawEventTableRow({ event }: { event: DocumentEventTimelineRawEvent }) {
+  const eventColor = getRawEventColor(event.eventType);
+
   return (
     <tr className="bg-muted/20 text-xs text-muted-foreground hover:bg-muted/30">
       <td className="whitespace-nowrap px-4 py-2">
@@ -668,7 +687,12 @@ function RawEventTableRow({ event }: { event: DocumentEventTimelineRawEvent }) {
       </td>
       <td className="max-w-[760px] px-4 py-2">
         <div className="flex min-w-0 items-center gap-2">
-          <span className="shrink-0 font-medium text-foreground/70">{event.eventType}</span>
+          <span
+            className="inline-flex shrink-0 items-center rounded border px-2 py-0.5 font-medium"
+            style={eventColor}
+          >
+            {event.eventType}
+          </span>
           <span className="min-w-0 truncate">{renderRawDetail(event)}</span>
         </div>
       </td>
