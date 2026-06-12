@@ -68,11 +68,15 @@ describe('FileStorageService', () => {
     const getMetadata = jest.fn().mockResolvedValue([{ etag: 'etag-1' }]);
     const download = jest.fn().mockResolvedValue([Buffer.from('%PDF-1.4\ngcs file\n')]);
     const deleteObject = jest.fn().mockResolvedValue([{}]);
+    const getSignedUrl = jest.fn()
+      .mockResolvedValueOnce(['https://storage.example/upload'])
+      .mockResolvedValueOnce(['https://storage.example/read']);
     const file = jest.fn().mockReturnValue({
       save,
       getMetadata,
       download,
       delete: deleteObject,
+      getSignedUrl,
     });
     const bucket = jest.fn().mockReturnValue({ file });
     const Storage = jest.fn().mockReturnValue({ bucket });
@@ -86,6 +90,13 @@ describe('FileStorageService', () => {
     const adapter = new GcsFileStorageAdapter();
 
     const stored = await adapter.store(Buffer.from('%PDF-1.4\ngcs file\n'), 'files/file-2/checksum.pdf', 'checksum');
+    const uploadUrl = await adapter.createSignedUploadUrl('files/file-2/checksum.pdf', {
+      contentType: 'application/pdf',
+      expiresAt: new Date('2026-05-15T12:30:00.000Z'),
+    });
+    const readUrl = await adapter.createSignedReadUrl(stored, {
+      expiresAt: new Date('2026-05-15T12:10:00.000Z'),
+    });
     const readBack = await adapter.getBuffer(stored);
     await adapter.delete(stored);
 
@@ -103,7 +114,27 @@ describe('FileStorageService', () => {
       contentType: 'application/pdf',
       resumable: false,
     }));
-    expect(getMetadata).toHaveBeenCalledTimes(2);
+    expect(getSignedUrl).toHaveBeenNthCalledWith(1, {
+      version: 'v4',
+      action: 'write',
+      expires: new Date('2026-05-15T12:30:00.000Z'),
+      contentType: 'application/pdf',
+    });
+    expect(getSignedUrl).toHaveBeenNthCalledWith(2, {
+      version: 'v4',
+      action: 'read',
+      expires: new Date('2026-05-15T12:10:00.000Z'),
+    });
+    expect(uploadUrl).toEqual({
+      url: 'https://storage.example/upload',
+      expiresAt: new Date('2026-05-15T12:30:00.000Z'),
+      requiredHeaders: { 'Content-Type': 'application/pdf' },
+    });
+    expect(readUrl).toEqual({
+      url: 'https://storage.example/read',
+      expiresAt: new Date('2026-05-15T12:10:00.000Z'),
+    });
+    expect(getMetadata).toHaveBeenCalledTimes(3);
     expect(readBack).toEqual(Buffer.from('%PDF-1.4\ngcs file\n'));
     expect(deleteObject).toHaveBeenCalledWith({ ignoreNotFound: true });
   });

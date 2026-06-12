@@ -70,11 +70,31 @@ export class FileModel {
     );
   }
 
+  static async findReadyByDocument(documentId: string, purpose: FilePurpose = 'document_source_pdf'): Promise<AppFile[]> {
+    return query<AppFile>(
+      `SELECT ${this.columns}
+       FROM files
+       WHERE document_id = $1 AND purpose = $2 AND upload_status = 'ready'
+       ORDER BY created_at DESC`,
+      [documentId, purpose]
+    );
+  }
+
   static async findByTask(taskId: string, purpose: FilePurpose = 'task_instruction_pdf'): Promise<AppFile[]> {
     return query<AppFile>(
       `SELECT ${this.columns}
        FROM files
        WHERE task_id = $1 AND purpose = $2
+       ORDER BY created_at DESC`,
+      [taskId, purpose]
+    );
+  }
+
+  static async findReadyByTask(taskId: string, purpose: FilePurpose = 'task_instruction_pdf'): Promise<AppFile[]> {
+    return query<AppFile>(
+      `SELECT ${this.columns}
+       FROM files
+       WHERE task_id = $1 AND purpose = $2 AND upload_status = 'ready'
        ORDER BY created_at DESC`,
       [taskId, purpose]
     );
@@ -92,6 +112,31 @@ export class FileModel {
 
   static async delete(fileId: string): Promise<void> {
     await query('DELETE FROM files WHERE id = $1', [fileId]);
+  }
+
+  static async markReady(fileId: string, data: {
+    storageEtag?: string | null;
+  } = {}): Promise<AppFile | null> {
+    return queryOne<AppFile>(
+      `UPDATE files
+       SET upload_status = 'ready',
+           storage_etag = COALESCE($2, storage_etag),
+           updated_at = NOW()
+       WHERE id = $1
+       RETURNING ${this.columns}`,
+      [fileId, data.storageEtag || null]
+    );
+  }
+
+  static async markFailed(fileId: string): Promise<AppFile | null> {
+    return queryOne<AppFile>(
+      `UPDATE files
+       SET upload_status = 'failed',
+           updated_at = NOW()
+       WHERE id = $1
+       RETURNING ${this.columns}`,
+      [fileId]
+    );
   }
 
   static readonly columns = `

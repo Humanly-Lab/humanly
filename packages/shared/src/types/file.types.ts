@@ -44,3 +44,29 @@ export interface CreateFileData {
   uploadStatus?: FileUploadStatus;
   legacySourceId?: string | null;
 }
+
+export interface SignedFileUploadInitRequest {
+  title?: string;
+  filename: string;
+  mimeType: 'application/pdf';
+  fileSize: number;
+  checksum: string;
+}
+
+export interface SignedFileUploadInitResponse {
+  fileId: string;
+  storageKey: string;
+  uploadUrl: string;
+  requiredHeaders: Record<string, string>;
+  expiresAt: string;
+}
+
+export interface SignedFileUploadCompleteResponse {
+  file: AppFile;
+}
+
+export interface SignedFileReadUrlResponse {
+  url: string | null;
+  expiresAt: string | null;
+  fallbackMode: 'signed_url' | 'stream';
+}

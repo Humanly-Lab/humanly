@@ -2,6 +2,30 @@ import { Request, Response } from 'express';
 import { FileService } from '../services/file.service';
 import { AppError } from '../middleware/error-handler';
 
+export async function initiateDocumentFileUpload(req: Request, res: Response): Promise<void> {
+  const upload = await FileService.initiateDocumentFileUpload(
+    req.params.documentId,
+    req.user!.userId,
+    req.body
+  );
+
+  res.status(201).json({
+    success: true,
+    data: upload,
+  });
+}
+
+export async function completeFileUpload(req: Request, res: Response): Promise<void> {
+  const file = await FileService.completeFileUpload(req.params.fileId, req.user!.userId);
+
+  res.json({
+    success: true,
+    data: {
+      file,
+    },
+  });
+}
+
 export async function uploadDocumentFile(req: Request, res: Response): Promise<void> {
   if (!req.file) {
     throw new AppError(400, 'PDF file is required');
@@ -80,6 +104,15 @@ export async function streamFileContent(req: Request, res: Response): Promise<vo
   res.setHeader('X-Frame-Options', 'SAMEORIGIN');
 
   stream.pipe(res);
+}
+
+export async function getFileReadUrl(req: Request, res: Response): Promise<void> {
+  const readUrl = await FileService.getFileReadUrl(req.params.fileId, req.user!.userId);
+
+  res.json({
+    success: true,
+    data: readUrl,
+  });
 }
 
 export async function deleteFile(req: Request, res: Response): Promise<void> {

@@ -3,7 +3,10 @@ import multer from 'multer';
 import { authenticate } from '../middleware/auth.middleware';
 import { asyncHandler, AppError } from '../middleware/error-handler';
 import {
+  completeFileUpload,
   deleteFile,
+  getFileReadUrl,
+  initiateDocumentFileUpload,
   listAccessibleTaskInstructionFiles,
   listDocumentFiles,
   listTaskInstructionFiles,
@@ -28,11 +31,14 @@ const upload = multer({
 
 router.use(authenticate);
 
+router.post('/documents/:documentId/files/uploads', asyncHandler(initiateDocumentFileUpload));
 router.post('/documents/:documentId/files', upload.single('pdf'), asyncHandler(uploadDocumentFile));
 router.get('/documents/:documentId/files', asyncHandler(listDocumentFiles));
 router.post('/tasks/:taskId/files', upload.single('pdf'), asyncHandler(uploadTaskInstructionFile));
 router.get('/tasks/:taskId/files', asyncHandler(listTaskInstructionFiles));
 router.get('/tasks/enrollments/:taskId/instruction-files', asyncHandler(listAccessibleTaskInstructionFiles));
+router.post('/files/:fileId/complete', asyncHandler(completeFileUpload));
+router.get('/files/:fileId/read-url', asyncHandler(getFileReadUrl));
 router.get('/files/:fileId/content', asyncHandler(streamFileContent));
 router.delete('/files/:fileId', asyncHandler(deleteFile));
 

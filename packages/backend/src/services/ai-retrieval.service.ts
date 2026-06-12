@@ -317,6 +317,7 @@ export class AIRetrievalService {
         AND te.user_id = $3
         AND te.submission_document_id = $2
        WHERE files.id = $1
+         AND files.upload_status = 'ready'
          AND (files.document_id = $2 OR te.id IS NOT NULL)`,
       [fileId, documentId, userId]
     );
@@ -349,8 +350,8 @@ export class AIRetrievalService {
          ON te.task_id = files.task_id
         AND te.user_id = $2
         AND te.submission_document_id = $1
-       WHERE files.document_id = $1
-          OR te.id IS NOT NULL
+       WHERE files.upload_status = 'ready'
+         AND (files.document_id = $1 OR te.id IS NOT NULL)
        ORDER BY files.created_at ASC`,
       [documentId, userId]
     );

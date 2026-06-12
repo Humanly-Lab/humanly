@@ -3,7 +3,9 @@ import { Storage, type StorageOptions } from '@google-cloud/storage';
 import { AppError } from '../../middleware/error-handler';
 import type {
   FileStorageAdapter,
+  FileStorageObjectMetadata,
   NormalizedFileStorageLocator,
+  SignedFileUrl,
   StoredFile,
 } from './types';
 
@@ -59,6 +61,70 @@ export class GcsFileStorageAdapter implements FileStorageAdapter {
     await gcsFile.delete({ ignoreNotFound: true });
   }
 
+  async createSignedUploadUrl(
+    storageKey: string,
+    options: { contentType: string; expiresAt: Date }
+  ): Promise<SignedFileUrl> {
+    const bucketName = this.gcsBucketName();
+    const gcsFile = this.gcsClientInstance().bucket(bucketName).file(storageKey);
+    const [url] = await gcsFile.getSignedUrl({
+      version: 'v4',
+      action: 'write',
+      expires: options.expiresAt,
+      contentType: options.contentType,
+    });
+
+    return {
+      url,
+      expiresAt: options.expiresAt,
+      requiredHeaders: {
+        'Content-Type': options.contentType,
+      },
+    };
+  }
+
+  async createSignedReadUrl(
+    locator: NormalizedFileStorageLocator,
+    options: { expiresAt: Date }
+  ): Promise<SignedFileUrl> {
+    const gcsFile = await this.getExistingGcsFile(locator);
+    const [url] = await gcsFile.getSignedUrl({
+      version: 'v4',
+      action: 'read',
+      expires: options.expiresAt,
+    });
+
+    return {
+      url,
+      expiresAt: options.expiresAt,
+    };
+  }
+
+  async getMetadata(locator: NormalizedFileStorageLocator): Promise<FileStorageObjectMetadata> {
+    const gcsFile = this.getGcsFile(locator);
+
+    try {
+      const [metadata] = await gcsFile.getMetadata();
+      const sizeValue = typeof metadata.size === 'string'
+        ? Number(metadata.size)
+        : typeof metadata.size === 'number'
+          ? metadata.size
+          : null;
+
+      return {
+        exists: true,
+        contentType: typeof metadata.contentType === 'string' ? metadata.contentType : null,
+        size: Number.isFinite(sizeValue) ? sizeValue : null,
+        etag: typeof metadata.etag === 'string' ? metadata.etag : null,
+      };
+    } catch (error) {
+      if (this.storageErrorStatus(error) === 404) {
+        return { exists: false };
+      }
+      throw error;
+    }
+  }
+
   private async getExistingGcsFile(locator: NormalizedFileStorageLocator) {
     const gcsFile = this.getGcsFile(locator);
 
@@ -77,15 +143,19 @@ export class GcsFileStorageAdapter implements FileStorageAdapter {
   }
 
   private throwStorageError(error: unknown): never {
-    const statusCode = typeof error === 'object' && error !== null && 'code' in error
-      ? Number((error as { code?: unknown }).code)
-      : undefined;
+    const statusCode = this.storageErrorStatus(error);
 
     if (statusCode === 404) {
       throw new AppError(404, 'File not found');
     }
 
     throw error;
+  }
+
+  private storageErrorStatus(error: unknown): number | undefined {
+    return typeof error === 'object' && error !== null && 'code' in error
+      ? Number((error as { code?: unknown }).code)
+      : undefined;
   }
 
   private gcsClientInstance(): Storage {

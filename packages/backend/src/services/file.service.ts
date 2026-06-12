@@ -1,4 +1,9 @@
-import type { AppFile } from '@humanly/shared';
+import type {
+  AppFile,
+  SignedFileReadUrlResponse,
+  SignedFileUploadInitRequest,
+  SignedFileUploadInitResponse,
+} from '@humanly/shared';
 import crypto from 'crypto';
 import { queryOne } from '../config/database';
 import { DocumentModel } from '../models/document.model';
@@ -9,7 +14,134 @@ import { logger } from '../utils/logger';
 import { FileStorageService } from './file-storage.service';
 import { AIRetrievalService } from './ai-retrieval.service';
 
+const MAX_PDF_SIZE_BYTES = 50 * 1024 * 1024;
+const PENDING_UPLOAD_TTL_MS = 2 * 60 * 60 * 1000;
+
 export class FileService {
+  static async initiateDocumentFileUpload(
+    documentId: string,
+    userId: string,
+    data: SignedFileUploadInitRequest
+  ): Promise<SignedFileUploadInitResponse> {
+    if (!FileStorageService.supportsSignedUploads()) {
+      throw new AppError(409, 'Signed PDF upload unavailable in this environment');
+    }
+
+    const document = await DocumentModel.findByIdAndUserId(documentId, userId);
+    if (!document) {
+      throw new AppError(404, 'Document not found');
+    }
+
+    this.assertValidPdfUploadRequest(data);
+
+    const fileId = crypto.randomUUID();
+    const checksum = data.checksum.toLowerCase();
+    const storageKey = FileStorageService.buildObjectKey(fileId, checksum);
+    const signedUrl = await FileStorageService.createSignedUploadUrl(storageKey, data.mimeType);
+
+    await FileModel.create({
+      id: fileId,
+      ownerUserId: userId,
+      documentId,
+      taskId: null,
+      purpose: 'document_source_pdf',
+      title: data.title?.trim() || document.title || data.filename.replace(/\.pdf$/i, ''),
+      originalFilename: data.filename.trim() || 'source.pdf',
+      mimeType: data.mimeType,
+      storageProvider: 'gcs',
+      storageKey,
+      storageBucket: process.env.GCS_BUCKET_NAME || null,
+      storageRegion: process.env.GCS_BUCKET_REGION || process.env.GCS_REGION || null,
+      storageEtag: null,
+      fileSize: data.fileSize,
+      checksum,
+      pageCount: null,
+      uploadStatus: 'pending',
+    });
+
+    return {
+      fileId,
+      storageKey,
+      uploadUrl: signedUrl.url,
+      requiredHeaders: signedUrl.requiredHeaders || {},
+      expiresAt: signedUrl.expiresAt.toISOString(),
+    };
+  }
+
+  static async completeFileUpload(fileId: string, userId: string): Promise<AppFile> {
+    const appFile = await FileModel.findById(fileId);
+    if (!appFile) {
+      throw new AppError(404, 'File not found');
+    }
+
+    await this.assertCanManage(appFile, userId);
+
+    if (appFile.purpose !== 'document_source_pdf' || !appFile.documentId) {
+      throw new AppError(400, 'Only document PDF uploads can be completed');
+    }
+
+    if (appFile.storageProvider !== 'gcs') {
+      throw new AppError(409, 'Signed upload completion is only available for GCS files');
+    }
+
+    if (appFile.uploadStatus === 'ready') {
+      return appFile;
+    }
+
+    if (appFile.uploadStatus === 'failed') {
+      throw new AppError(409, 'File upload has failed');
+    }
+
+    if (this.isPendingUploadExpired(appFile)) {
+      await FileModel.markFailed(fileId);
+      throw new AppError(410, 'File upload has expired');
+    }
+
+    const metadata = await FileStorageService.getMetadata(appFile);
+    if (!metadata.exists) {
+      await FileModel.markFailed(fileId);
+      throw new AppError(404, 'Uploaded file object was not found');
+    }
+
+    if (metadata.contentType && metadata.contentType !== 'application/pdf') {
+      await FileModel.markFailed(fileId);
+      throw new AppError(400, 'Uploaded file is not a PDF');
+    }
+
+    if (metadata.size !== null && metadata.size !== undefined && metadata.size !== appFile.fileSize) {
+      await FileModel.markFailed(fileId);
+      throw new AppError(400, 'Uploaded file size does not match the initiated upload');
+    }
+
+    const buffer = await FileStorageService.getBuffer(appFile);
+    if (buffer.length !== appFile.fileSize) {
+      await FileModel.markFailed(fileId);
+      throw new AppError(400, 'Uploaded file size does not match the initiated upload');
+    }
+
+    try {
+      this.assertValidPdfBuffer(buffer);
+    } catch (error) {
+      await FileModel.markFailed(fileId);
+      throw error;
+    }
+    const checksum = crypto.createHash('sha256').update(buffer).digest('hex');
+    if (checksum !== appFile.checksum) {
+      await FileModel.markFailed(fileId);
+      throw new AppError(400, 'Uploaded file checksum does not match the initiated upload');
+    }
+
+    const readyFile = await FileModel.markReady(fileId, {
+      storageEtag: metadata.etag || appFile.storageEtag || null,
+    });
+    if (!readyFile) {
+      throw new AppError(500, 'Failed to finalize uploaded file');
+    }
+
+    void this.indexFileBestEffort(readyFile);
+    return readyFile;
+  }
+
   static async uploadDocumentFile(
     documentId: string,
     userId: string,
@@ -66,7 +198,7 @@ export class FileService {
       throw new AppError(404, 'Document not found');
     }
 
-    return FileModel.findByDocument(documentId);
+    return FileModel.findReadyByDocument(documentId);
   }
 
   static async listTaskInstructionFiles(taskId: string, userId: string): Promise<AppFile[]> {
@@ -79,7 +211,7 @@ export class FileService {
       throw new AppError(403, 'Access denied to this task');
     }
 
-    return FileModel.findByTask(taskId);
+    return FileModel.findReadyByTask(taskId);
   }
 
   static async listAccessibleTaskInstructionFiles(taskIdOrInviteCode: string, userId: string): Promise<AppFile[]> {
@@ -97,7 +229,7 @@ export class FileService {
       throw new AppError(403, 'Access denied to this task');
     }
 
-    return FileModel.findByTask(task.id);
+    return FileModel.findReadyByTask(task.id);
   }
 
   static async streamFile(fileId: string, userId: string): Promise<NodeJS.ReadableStream> {
@@ -107,7 +239,33 @@ export class FileService {
     }
 
     await this.assertCanRead(appFile, userId);
+    this.assertFileReady(appFile);
     return FileStorageService.getStream(appFile);
+  }
+
+  static async getFileReadUrl(fileId: string, userId: string): Promise<SignedFileReadUrlResponse> {
+    const appFile = await FileModel.findById(fileId);
+    if (!appFile) {
+      throw new AppError(404, 'File not found');
+    }
+
+    await this.assertCanRead(appFile, userId);
+    this.assertFileReady(appFile);
+
+    if (appFile.storageProvider !== 'gcs') {
+      return {
+        url: null,
+        expiresAt: null,
+        fallbackMode: 'stream',
+      };
+    }
+
+    const signedUrl = await FileStorageService.createSignedReadUrl(appFile);
+    return {
+      url: signedUrl.url,
+      expiresAt: signedUrl.expiresAt.toISOString(),
+      fallbackMode: 'signed_url',
+    };
   }
 
   static async deleteFile(fileId: string, userId: string): Promise<void> {
@@ -190,10 +348,46 @@ export class FileService {
       throw new AppError(400, 'PDF file is empty');
     }
 
-    const headerWindow = file.buffer.subarray(0, Math.min(file.buffer.length, 1024));
+    this.assertValidPdfBuffer(file.buffer);
+  }
+
+  private static assertValidPdfUploadRequest(data: SignedFileUploadInitRequest): void {
+    if (data.mimeType !== 'application/pdf') {
+      throw new AppError(400, 'PDF file is required');
+    }
+
+    if (!data.filename || typeof data.filename !== 'string') {
+      throw new AppError(400, 'PDF filename is required');
+    }
+
+    if (!Number.isInteger(data.fileSize) || data.fileSize <= 0) {
+      throw new AppError(400, 'PDF file is empty');
+    }
+
+    if (data.fileSize > MAX_PDF_SIZE_BYTES) {
+      throw new AppError(400, 'PDF must be smaller than 50MB');
+    }
+
+    if (!/^[a-f0-9]{64}$/i.test(data.checksum)) {
+      throw new AppError(400, 'Invalid file checksum');
+    }
+  }
+
+  private static assertValidPdfBuffer(buffer: Buffer): void {
+    const headerWindow = buffer.subarray(0, Math.min(buffer.length, 1024));
     if (headerWindow.indexOf(Buffer.from('%PDF-')) === -1) {
       throw new AppError(400, 'Invalid PDF file');
     }
+  }
+
+  private static assertFileReady(appFile: AppFile): void {
+    if (appFile.uploadStatus !== 'ready') {
+      throw new AppError(409, 'File upload is not ready');
+    }
+  }
+
+  private static isPendingUploadExpired(appFile: AppFile): boolean {
+    return Date.now() - new Date(appFile.createdAt).getTime() > PENDING_UPLOAD_TTL_MS;
   }
 
   private static async assertCanRead(appFile: AppFile, userId: string): Promise<void> {
