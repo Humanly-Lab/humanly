@@ -44,7 +44,7 @@ describe('admin registration profile names', () => {
     await user.click(screen.getByRole('button', { name: /^create account$/i }));
 
     await waitFor(() => {
-      expect(mockRegister).toHaveBeenCalledWith('admin@example.com', 'Password123!', 'admin');
+      expect(mockRegister).toHaveBeenCalledWith('admin@example.com', 'Password123!');
     });
 
     act(() => {

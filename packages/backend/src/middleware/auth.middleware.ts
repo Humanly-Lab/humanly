@@ -79,23 +79,6 @@ export function requireAuth(
 }
 
 /**
- * Middleware to require one of the provided authenticated user roles.
- */
-export function requireRole(...allowedRoles: Array<NonNullable<TokenPayload['role']>>) {
-  return (req: Request, res: Response, next: NextFunction): void => {
-    if (!req.user) {
-      return next(new AppError(401, 'Authentication required'));
-    }
-
-    if (!req.user.role || !allowedRoles.includes(req.user.role)) {
-      return next(new AppError(403, 'Insufficient permissions'));
-    }
-
-    next();
-  };
-}
-
-/**
  * Optional authentication middleware
  * Attaches user to request if token is valid, but doesn't fail if missing
  */

@@ -29,12 +29,8 @@ describe('password reset email helpers', () => {
 });
 
 describe('welcome email helpers', () => {
-  it('routes verified users to the user portal documents page', () => {
-    expect(buildWelcomeUrl('user')).toBe('http://localhost:3002/documents');
-  });
-
-  it('routes verified admins to the admin portal task dashboard', () => {
-    expect(buildWelcomeUrl('admin')).toBe('http://localhost:3000/tasks');
+  it('routes verified accounts to the user portal documents page', () => {
+    expect(buildWelcomeUrl()).toBe('http://localhost:3002/documents');
   });
 
   it('renders a concrete welcome destination without the stale dashboard route', () => {

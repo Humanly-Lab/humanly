@@ -10,14 +10,12 @@ const mockPush = jest.fn();
 	let mockPathname = '/documents';
 	let mockUser: {
 	  email: string;
-	  role?: 'admin' | 'user';
 	  name?: string | null;
 	  firstName?: string | null;
 	  lastName?: string | null;
 	  profileCompleted?: boolean;
 	} | null = {
 	  email: 'writer@mail.com',
-	  role: 'user',
 	};
 
 jest.mock('next/navigation', () => ({
@@ -49,7 +47,6 @@ describe('user navbar', () => {
     mockPathname = '/documents';
     mockUser = {
       email: 'writer@mail.com',
-      role: 'user',
       profileCompleted: true,
     };
 
@@ -82,7 +79,6 @@ describe('user navbar', () => {
     process.env.NEXT_PUBLIC_ADMIN_APP_ORIGIN = 'https://admin.writehumanly.net';
     mockUser = {
       email: 'admin@mail.com',
-      role: 'admin',
     };
     const user = userEvent.setup();
 
@@ -100,7 +96,6 @@ describe('user navbar', () => {
 	      name: 'Writer One',
 	      firstName: 'Writer',
 	      lastName: 'One',
-	      role: 'user',
 	      profileCompleted: true,
 	    };
     const user = userEvent.setup();
@@ -131,7 +126,6 @@ describe('user navbar', () => {
     mockUser = {
       email: 'writer@mail.com',
       name: 'Writer One',
-      role: 'user',
       profileCompleted: true,
     };
     const user = userEvent.setup();
@@ -166,7 +160,6 @@ describe('user navbar', () => {
   it('renders guest mode as a disabled account button without account actions', async () => {
     mockUser = {
       email: 'public-task-guest@guest.humanly.local',
-      role: 'user',
     };
     const user = userEvent.setup();
 
@@ -186,7 +179,6 @@ describe('user navbar', () => {
   it('does not link the wordmark back to the workspace for public task guests', () => {
     mockUser = {
       email: 'public-task-guest@guest.humanly.local',
-      role: 'user',
     };
 
     render(<Navbar />);

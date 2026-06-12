@@ -19,11 +19,10 @@ import { generateAccessToken } from '../../utils/jwt';
 const MockTaskService = TaskService as jest.Mocked<typeof TaskService>;
 const app = createApp();
 
-function tokenFor(role: 'admin' | 'user'): string {
+function tokenFor(userId = 'user-1', email = 'user@example.com'): string {
   return generateAccessToken({
-    userId: `${role}-1`,
-    email: `${role}@example.com`,
-    role,
+    userId,
+    email,
   });
 }
 
@@ -50,7 +49,7 @@ describe('task route authenticated owner boundaries', () => {
     expect(MockTaskService.getTask).not.toHaveBeenCalled();
   });
 
-  it('allows user-role tokens to access authenticated task owner routes', async () => {
+  it('allows authenticated accounts to access task owner routes', async () => {
     MockTaskService.listTasks.mockResolvedValue({
       tasks: [],
       page: 1,
@@ -83,7 +82,7 @@ describe('task route authenticated owner boundaries', () => {
       updatedAt: new Date(),
     } as any);
 
-    const userToken = tokenFor('user');
+    const userToken = tokenFor();
 
     const listResponse = await request(app)
       .get('/api/v1/tasks')
@@ -119,7 +118,7 @@ describe('task route authenticated owner boundaries', () => {
     );
   });
 
-  it('keeps user enrollment endpoints available to user-role tokens', async () => {
+  it('keeps user enrollment endpoints available to authenticated accounts', async () => {
     MockTaskService.joinTaskByInviteCode.mockResolvedValue({
       id: 'task-1',
       name: 'Enrollment Task',
@@ -133,7 +132,7 @@ describe('task route authenticated owner boundaries', () => {
 
     const response = await request(app)
       .post('/api/v1/tasks/join')
-      .set('Authorization', `Bearer ${tokenFor('user')}`)
+      .set('Authorization', `Bearer ${tokenFor()}`)
       .send({ inviteCode: 'ABCDEF' });
 
     expect(response.status).toBe(200);

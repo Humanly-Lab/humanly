@@ -1,11 +1,10 @@
 import { query, queryOne, transaction } from '../config/database';
-import { User, UserRole, UserWithPassword } from '@humanly/shared';
+import { User, UserWithPassword } from '@humanly/shared';
 import { PASSWORD_RESET_TOKEN_TTL_MS } from '../constants/auth';
 
 const USER_SELECT = `
   id,
   email,
-  role,
   name,
   first_name as "firstName",
   last_name as "lastName",
@@ -30,7 +29,6 @@ export interface CreateUserData {
   passwordHash: string;
   firstName?: string | null;
   lastName?: string | null;
-  role?: UserRole;
   emailVerificationToken: string;
   emailVerificationExpires: Date;
 }
@@ -63,7 +61,6 @@ export class UserModel {
       INSERT INTO users (
         email,
         password_hash,
-        role,
         name,
         first_name,
         last_name,
@@ -71,13 +68,12 @@ export class UserModel {
         email_verification_expires,
         profile_completed
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING ${USER_SELECT}
     `;
     const user = await queryOne<User>(sql, [
       data.email,
       data.passwordHash,
-      data.role || 'user',
       name,
       firstName,
       lastName,
@@ -95,17 +91,15 @@ export class UserModel {
   static async createOAuthUser(data: {
     email: string;
     passwordHash: string;
-    role?: UserRole;
   }): Promise<User> {
     const sql = `
-      INSERT INTO users (email, password_hash, role, email_verified, profile_completed)
-      VALUES ($1, $2, $3, TRUE, FALSE)
+      INSERT INTO users (email, password_hash, email_verified, profile_completed)
+      VALUES ($1, $2, TRUE, FALSE)
       RETURNING ${USER_SELECT}
     `;
     const user = await queryOne<User>(sql, [
       data.email,
       data.passwordHash,
-      data.role || 'user',
     ]);
     if (!user) throw new Error('Failed to create OAuth user');
     return user;
@@ -146,7 +140,6 @@ export class UserModel {
       SELECT
         u.id,
         u.email,
-        u.role,
         u.name,
         u.first_name as "firstName",
         u.last_name as "lastName",

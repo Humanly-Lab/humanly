@@ -1,5 +1,4 @@
 import crypto from 'crypto';
-import { UserRole } from '@humanly/shared';
 import { env } from '../config/env';
 import { AppError } from '../middleware/error-handler';
 
@@ -13,7 +12,6 @@ export interface OAuthProfile {
 
 interface OAuthStatePayload {
   provider: OAuthProvider;
-  role: UserRole;
   next: string;
   expiresAt: number;
   nonce: string;
@@ -115,16 +113,13 @@ export class OAuthService {
 
   static getAuthorizationUrl(
     rawProvider: string,
-    rawRole: unknown,
     rawNext: unknown
   ): string {
     const provider = assertProvider(rawProvider);
     const config = getProviderConfig(provider);
-    const role = rawRole === 'admin' ? 'admin' : 'user';
-    const next = safeNextPath(rawNext, role === 'admin' ? '/tasks' : '/documents');
+    const next = safeNextPath(rawNext);
     const statePayload: OAuthStatePayload = {
       provider,
-      role,
       next,
       expiresAt: Date.now() + 10 * 60 * 1000,
       nonce: crypto.randomUUID(),
@@ -172,13 +167,10 @@ export class OAuthService {
     }
 
     assertProvider(payload.provider);
-    if (payload.role !== 'admin' && payload.role !== 'user') {
-      throw new AppError(400, 'Invalid OAuth role');
-    }
     if (payload.expiresAt < Date.now()) {
       throw new AppError(400, 'OAuth state expired');
     }
-    payload.next = safeNextPath(payload.next, payload.role === 'admin' ? '/tasks' : '/documents');
+    payload.next = safeNextPath(payload.next);
     return payload;
   }
 

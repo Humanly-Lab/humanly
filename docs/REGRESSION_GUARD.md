@@ -41,7 +41,7 @@ Run this sequence:
    security-sensitive.
 2. Capture the exact surface:
    - UI URL or API endpoint.
-   - User role.
+   - Account type: registered or public guest.
    - Mode: personal document or enroll task.
    - Provider/model, if AI-related.
    - Expected vs actual result.
@@ -140,7 +140,7 @@ selection, uploads, and visual confirmation.
 Treat UI QA as browser-agent-assisted manual evidence:
 
 - Run the scripted phase checklist.
-- Capture URLs, screenshots, console/network errors, and exact user role.
+- Capture URLs, screenshots, console/network errors, and exact account type.
 - Convert every stable app bug into a lower-level regression lock when possible.
 - Keep brittle visual/browser steps in the playbook instead of pretending they
   are reliable CI gates.

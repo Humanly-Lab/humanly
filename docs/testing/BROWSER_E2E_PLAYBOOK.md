@@ -17,7 +17,7 @@ harnesses.
 - Use the Codex in-app browser for localhost and production browser checks.
 - Keep a QA control issue for any full production pass.
 - Update the control issue after each phase, not only at the end.
-- Capture the current URL, role, mode, provider/model, and screenshot path for
+- Capture the current URL, account type, mode, provider/model, and screenshot path for
   every failure.
 - Check `docs/REGRESSION_LEDGER.md` before filing a bug.
 - File confirmed bugs with `docs/ISSUE_AUTHORING_GUIDE.md`.

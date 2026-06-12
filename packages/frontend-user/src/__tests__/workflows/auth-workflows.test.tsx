@@ -109,7 +109,7 @@ describe('user auth workflows', () => {
     await user.click(screen.getByRole('button', { name: /^sign in$/i }));
 
     await waitFor(() => {
-      expect(mockLogin).toHaveBeenLastCalledWith('user@example.com', 'Password123!', 'user');
+      expect(mockLogin).toHaveBeenLastCalledWith('user@example.com', 'Password123!');
       expect(mockPush).toHaveBeenCalledWith('/documents');
     });
   });
@@ -210,7 +210,7 @@ describe('user auth workflows', () => {
     await user.click(screen.getByRole('button', { name: /^create account$/i }));
 
     expect(await screen.findByText(/check your email/i)).toBeInTheDocument();
-    expect(mockRegister).toHaveBeenCalledWith('qa@example.com', 'Password123!', 'user');
+    expect(mockRegister).toHaveBeenCalledWith('qa@example.com', 'Password123!');
     expect(window.localStorage.getItem('pendingVerificationEmail')).toBe('qa@example.com');
 
     act(() => {

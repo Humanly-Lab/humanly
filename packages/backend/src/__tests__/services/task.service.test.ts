@@ -461,7 +461,6 @@ describe('TaskService.startPublicTaskDocument', () => {
     const user = {
       id: 'user-1',
       email: 'writer@example.com',
-      role: 'user',
       emailVerified: true,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -536,7 +535,6 @@ describe('TaskService.startPublicTaskDocument', () => {
     const user = {
       id: 'user-1',
       email: 'writer@example.com',
-      role: 'user',
       emailVerified: true,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -611,7 +609,6 @@ describe('TaskService.startPublicTaskDocument', () => {
     const user = {
       id: 'user-1',
       email: 'writer@example.com',
-      role: 'user',
       emailVerified: true,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -670,7 +667,6 @@ describe('TaskService.startPublicTaskDocument', () => {
     MockUserModel.findByEmail.mockResolvedValue({
       id: 'guest-user-1',
       email: 'public-task-1-browser-session-1@guest.humanly.local',
-      role: 'user',
       passwordHash: 'hash',
       emailVerified: false,
       createdAt: new Date(),
@@ -736,7 +732,6 @@ describe('TaskService.startPublicTaskDocument', () => {
     MockUserModel.findByEmail.mockResolvedValue({
       id: 'guest-user-1',
       email: 'public-task-1-browser-session-1@guest.humanly.local',
-      role: 'user',
       passwordHash: 'hash',
       emailVerified: false,
       createdAt: new Date(),

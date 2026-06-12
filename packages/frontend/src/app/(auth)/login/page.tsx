@@ -51,7 +51,7 @@ export default function LoginPage() {
       setResendSuccess(false);
       setUserEmail(data.email);
       
-      await login(data.email, data.password, 'admin');
+      await login(data.email, data.password);
 
       // Redirect to tasks on success
       router.push('/tasks');

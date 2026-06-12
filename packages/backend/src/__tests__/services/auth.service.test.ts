@@ -50,7 +50,6 @@ async function makeUserWithPassword(overrides: Partial<any> = {}) {
     id: 'user-1',
     email: 'alice@example.com',
     passwordHash,
-    role: 'user',
     name: 'Alice Writer',
     firstName: 'Alice',
     lastName: 'Writer',
@@ -66,7 +65,6 @@ function makeUser(overrides: Partial<any> = {}) {
   return {
     id: 'user-1',
     email: 'alice@example.com',
-    role: 'user',
     name: 'Alice Writer',
     firstName: 'Alice',
     lastName: 'Writer',
@@ -205,39 +203,15 @@ describe('AuthService.login', () => {
     expect(result.refreshToken).toBeTruthy();
   });
 
-  it('allows an admin account to authenticate through the user portal', async () => {
+  it('does not expose legacy persisted role through the active auth user', async () => {
     const userWithPw = await makeUserWithPassword({ role: 'admin' });
     MockUserModel.findByEmail.mockResolvedValue(userWithPw as any);
     MockRefreshTokenModel.create.mockResolvedValue({} as any);
     MockRefreshTokenModel.deleteExpired.mockResolvedValue(undefined);
 
-    const result = await AuthService.login('alice@example.com', 'password123', 'user');
+    const result = await AuthService.login('alice@example.com', 'password123');
 
-    expect(result.user.role).toBe('admin');
-    expect(result.accessToken).toBeTruthy();
-    expect(result.refreshToken).toBeTruthy();
-  });
-
-  it('allows an admin account to authenticate through the admin portal', async () => {
-    const userWithPw = await makeUserWithPassword({ role: 'admin' });
-    MockUserModel.findByEmail.mockResolvedValue(userWithPw as any);
-    MockRefreshTokenModel.create.mockResolvedValue({} as any);
-    MockRefreshTokenModel.deleteExpired.mockResolvedValue(undefined);
-
-    const result = await AuthService.login('alice@example.com', 'password123', 'admin');
-
-    expect(result.user.role).toBe('admin');
-  });
-
-  it('allows a user account to authenticate through the admin portal', async () => {
-    const userWithPw = await makeUserWithPassword({ role: 'user' });
-    MockUserModel.findByEmail.mockResolvedValue(userWithPw as any);
-    MockRefreshTokenModel.create.mockResolvedValue({} as any);
-    MockRefreshTokenModel.deleteExpired.mockResolvedValue(undefined);
-
-    const result = await AuthService.login('alice@example.com', 'password123', 'admin');
-
-    expect(result.user.role).toBe('user');
+    expect(result.user).not.toHaveProperty('role');
     expect(result.accessToken).toBeTruthy();
     expect(result.refreshToken).toBeTruthy();
   });
@@ -293,8 +267,9 @@ describe('AuthService.loginWithOAuth', () => {
     expect(result.accessToken).toBeTruthy();
     expect(result.refreshToken).toBeTruthy();
     expect(MockUserModel.createOAuthUser).toHaveBeenCalledWith(
-      expect.objectContaining({ email: 'alice@example.com', role: 'user' })
+      expect.objectContaining({ email: 'alice@example.com' })
     );
+    expect(MockUserModel.createOAuthUser.mock.calls[0][0]).not.toHaveProperty('role');
     expect(MockUserModel.createOAuthAccount).toHaveBeenCalledWith(
       'oauth-user',
       expect.objectContaining({
@@ -327,7 +302,7 @@ describe('AuthService.loginWithOAuth', () => {
     );
   });
 
-  it('allows an existing admin email account to OAuth login through the user portal', async () => {
+  it('does not expose legacy persisted role for existing OAuth email accounts', async () => {
     MockUserModel.findByOAuthAccount.mockResolvedValue(null);
     MockUserModel.findByEmail.mockResolvedValue(
       (await makeUserWithPassword({ role: 'admin' })) as any
@@ -336,64 +311,51 @@ describe('AuthService.loginWithOAuth', () => {
     MockRefreshTokenModel.create.mockResolvedValue({} as any);
     MockRefreshTokenModel.deleteExpired.mockResolvedValue(undefined);
 
-    const result = await AuthService.loginWithOAuth(
-      {
-        provider: 'google',
-        providerUserId: 'google-123',
-        email: 'alice@example.com',
-      },
-      'user'
-    );
+    const result = await AuthService.loginWithOAuth({
+      provider: 'google',
+      providerUserId: 'google-123',
+      email: 'alice@example.com',
+    });
 
-    expect(result.user.role).toBe('admin');
+    expect(result.user).not.toHaveProperty('role');
     expect(MockUserModel.createOAuthAccount).toHaveBeenCalledWith(
       'user-1',
       expect.objectContaining({ provider: 'google', providerUserId: 'google-123' })
     );
   });
 
-  it('allows an existing user OAuth email account to login through the admin portal', async () => {
+  it('links an existing OAuth email account without a requested role', async () => {
     MockUserModel.findByOAuthAccount.mockResolvedValue(null);
-    MockUserModel.findByEmail.mockResolvedValue(
-      (await makeUserWithPassword({ role: 'user' })) as any
-    );
+    MockUserModel.findByEmail.mockResolvedValue((await makeUserWithPassword()) as any);
     MockUserModel.createOAuthAccount.mockResolvedValue(undefined);
     MockRefreshTokenModel.create.mockResolvedValue({} as any);
     MockRefreshTokenModel.deleteExpired.mockResolvedValue(undefined);
 
-    const result = await AuthService.loginWithOAuth(
-      {
-        provider: 'google',
-        providerUserId: 'google-123',
-        email: 'alice@example.com',
-      },
-      'admin'
-    );
+    const result = await AuthService.loginWithOAuth({
+      provider: 'google',
+      providerUserId: 'google-123',
+      email: 'alice@example.com',
+    });
 
-    expect(result.user.role).toBe('user');
+    expect(result.user).not.toHaveProperty('role');
     expect(MockUserModel.createOAuthAccount).toHaveBeenCalledWith(
       'user-1',
       expect.objectContaining({ provider: 'google', providerUserId: 'google-123' })
     );
   });
 
-  it('allows a linked user OAuth account to login through the admin portal', async () => {
-    MockUserModel.findByOAuthAccount.mockResolvedValue(
-      (await makeUserWithPassword({ role: 'user' })) as any
-    );
+  it('allows a linked OAuth account to login without portal role input', async () => {
+    MockUserModel.findByOAuthAccount.mockResolvedValue((await makeUserWithPassword()) as any);
     MockRefreshTokenModel.create.mockResolvedValue({} as any);
     MockRefreshTokenModel.deleteExpired.mockResolvedValue(undefined);
 
-    const result = await AuthService.loginWithOAuth(
-      {
-        provider: 'google',
-        providerUserId: 'google-123',
-        email: 'alice@example.com',
-      },
-      'admin'
-    );
+    const result = await AuthService.loginWithOAuth({
+      provider: 'google',
+      providerUserId: 'google-123',
+      email: 'alice@example.com',
+    });
 
-    expect(result.user.role).toBe('user');
+    expect(result.user).not.toHaveProperty('role');
   });
 });
 
@@ -519,10 +481,7 @@ describe('AuthService.verifyEmail', () => {
 
     const result = await AuthService.verifyEmail('123456');
     expect(result.emailVerified).toBe(true);
-    expect(MockEmailService.sendWelcomeEmail).toHaveBeenCalledWith(
-      'alice@example.com',
-      'user'
-    );
+    expect(MockEmailService.sendWelcomeEmail).toHaveBeenCalledWith('alice@example.com');
   });
 
   it('throws 400 for invalid verification code', async () => {

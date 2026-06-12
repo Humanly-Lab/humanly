@@ -1,5 +1,5 @@
 import nodemailer, { Transporter } from 'nodemailer';
-import { getBrandText, UserRole } from '@humanly/shared';
+import { getBrandText } from '@humanly/shared';
 import { env } from '../config/env';
 import { logger } from '../utils/logger';
 import { PASSWORD_RESET_TOKEN_TTL_MINUTES } from '../constants/auth';
@@ -51,10 +51,8 @@ export function buildPasswordResetUrl(token: string): string {
   return `${env.frontendUserUrl.replace(/\/$/, '')}/reset-password?token=${encodeURIComponent(token)}`;
 }
 
-export function buildWelcomeUrl(role: UserRole): string {
-  const baseUrl = role === 'admin' ? env.frontendAdminUrl : env.frontendUserUrl;
-  const path = role === 'admin' ? '/tasks' : '/documents';
-  return `${baseUrl.replace(/\/$/, '')}${path}`;
+export function buildWelcomeUrl(): string {
+  return `${env.frontendUserUrl.replace(/\/$/, '')}/documents`;
 }
 
 export function buildPasswordResetEmailHtml(resetUrl: string): string {
@@ -328,8 +326,8 @@ class EmailService {
   /**
    * Send welcome email after verification
    */
-  async sendWelcomeEmail(email: string, role: UserRole): Promise<void> {
-    const html = buildWelcomeEmailHtml(buildWelcomeUrl(role));
+  async sendWelcomeEmail(email: string): Promise<void> {
+    const html = buildWelcomeEmailHtml(buildWelcomeUrl());
 
     await this.send(email, getBrandText().emailSubjects.welcome, html);
   }

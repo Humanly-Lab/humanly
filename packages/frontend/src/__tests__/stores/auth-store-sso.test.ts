@@ -30,7 +30,6 @@ import { useAuthStore } from '@/stores/auth-store';
 const user = {
   id: 'user-1',
   email: 'writer@example.com',
-  role: 'user' as const,
   emailVerified: true,
   createdAt: '2026-05-19T00:00:00.000Z',
   updatedAt: '2026-05-19T00:00:00.000Z',
@@ -146,7 +145,7 @@ describe('admin auth store cross-portal session restore', () => {
     });
   });
 
-  it('registers an admin account without sending profile names', async () => {
+  it('registers an account without sending profile names or role', async () => {
     mockApiPost.mockResolvedValueOnce({
       data: {
         user: {
@@ -158,12 +157,11 @@ describe('admin auth store cross-portal session restore', () => {
       },
     });
 
-    await useAuthStore.getState().register('admin@example.com', 'Password123!', 'admin');
+    await useAuthStore.getState().register('admin@example.com', 'Password123!');
 
     expect(mockApiPost).toHaveBeenCalledWith('/api/v1/auth/register', {
       email: 'admin@example.com',
       password: 'Password123!',
-      role: 'admin',
     });
     expect(useAuthStore.getState()).toMatchObject({
       user: null,

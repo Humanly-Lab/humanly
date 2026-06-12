@@ -64,7 +64,7 @@ export default function LoginPage() {
       setResendSuccess(false);
       setUserEmail(data.email);
       
-      await login(data.email, data.password, 'user');
+      await login(data.email, data.password);
 
       router.push(safeNext);
     } catch (err: any) {

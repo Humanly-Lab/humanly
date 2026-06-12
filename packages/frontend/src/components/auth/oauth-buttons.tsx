@@ -62,7 +62,6 @@ export function OAuthButtons({
   const startLogin = (provider: 'google' | 'github') => {
     setLoadingProvider(provider);
     const params = new URLSearchParams({
-      role: 'admin',
       next,
     });
     window.location.href = getApiUrl(`/api/v1/auth/oauth/${provider}/start?${params.toString()}`);

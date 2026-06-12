@@ -84,7 +84,7 @@ describe('admin OAuth workflow', () => {
     });
 
     expect(window.location.href).toBe(
-      'http://localhost:3001/api/v1/auth/oauth/google/start?role=admin&next=%2Ftasks'
+      'http://localhost:3001/api/v1/auth/oauth/google/start?next=%2Ftasks'
     );
   });
 

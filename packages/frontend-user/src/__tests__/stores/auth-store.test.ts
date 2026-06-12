@@ -34,7 +34,6 @@ import { useAuthStore } from '@/stores/auth-store';
 const user = {
   id: 'user-1',
   email: 'writer@example.com',
-  role: 'user' as const,
   emailVerified: true,
   createdAt: '2026-05-19T00:00:00.000Z',
   updatedAt: '2026-05-19T00:00:00.000Z',
@@ -44,7 +43,6 @@ const switchedAdminUser = {
   ...user,
   id: 'admin-b',
   email: 'admin-b@example.com',
-  role: 'admin' as const,
 };
 
 describe('user auth store session restore', () => {
@@ -215,7 +213,7 @@ describe('user auth store session restore', () => {
     });
   });
 
-  it('registers without sending profile names', async () => {
+  it('registers without sending profile names or role', async () => {
     mockApiPost.mockResolvedValueOnce({
       data: {
         user: {
@@ -227,12 +225,11 @@ describe('user auth store session restore', () => {
       },
     });
 
-    await useAuthStore.getState().register('writer@example.com', 'Password123!', 'user');
+    await useAuthStore.getState().register('writer@example.com', 'Password123!');
 
     expect(mockApiPost).toHaveBeenCalledWith('/auth/register', {
       email: 'writer@example.com',
       password: 'Password123!',
-      role: 'user',
     });
     expect(useAuthStore.getState()).toMatchObject({
       user: null,

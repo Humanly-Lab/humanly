@@ -117,7 +117,7 @@ export default function RegisterPage() {
   async function onSubmit(values: RegisterFormValues) {
     try {
       setError(null);
-      await register(values.email, values.password, 'admin');
+      await register(values.email, values.password);
       setRegistrationSuccess(true);
 
       if (typeof window !== 'undefined') {

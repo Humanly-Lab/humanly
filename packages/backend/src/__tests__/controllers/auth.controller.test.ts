@@ -65,7 +65,6 @@ describe('auth controller cookies and profile names', () => {
     const createdUser = {
       id: 'user-1',
       email: 'writer@mail.com',
-      role: 'user',
       name: null,
       firstName: null,
       lastName: null,
@@ -80,14 +79,13 @@ describe('auth controller cookies and profile names', () => {
       body: {
         email: 'writer@mail.com',
         password: 'Password123!',
-        role: 'user',
       },
     });
     const res = makeRes();
 
     await runController(register, req, res);
 
-    expect(MockAuthService.register).toHaveBeenCalledWith('writer@mail.com', 'Password123!', 'user');
+    expect(MockAuthService.register).toHaveBeenCalledWith('writer@mail.com', 'Password123!');
     expect(res.status).toHaveBeenCalledWith(201);
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
       success: true,
@@ -100,7 +98,6 @@ describe('auth controller cookies and profile names', () => {
       user: {
         id: 'admin-1',
         email: 'admin@mail.com',
-        role: 'admin',
         profileCompleted: true,
         emailVerified: true,
         createdAt: new Date(),
@@ -114,7 +111,6 @@ describe('auth controller cookies and profile names', () => {
       body: {
         email: 'admin@mail.com',
         password: 'Password123!',
-        role: 'admin',
       },
     });
     const res = makeRes();
@@ -146,7 +142,6 @@ describe('auth controller cookies and profile names', () => {
   it('redirects admin OAuth callbacks to the admin portal callback', async () => {
     MockOAuthService.parseState.mockReturnValue({
       provider: 'google',
-      role: 'admin',
       next: '/tasks',
       expiresAt: Date.now() + 60000,
       nonce: 'nonce-1',
@@ -160,7 +155,6 @@ describe('auth controller cookies and profile names', () => {
       user: {
         id: 'admin-1',
         email: 'admin@mail.com',
-        role: 'admin',
         profileCompleted: true,
         emailVerified: true,
         createdAt: new Date(),
@@ -179,8 +173,7 @@ describe('auth controller cookies and profile names', () => {
     await runController(handleOAuthCallback, req, res);
 
     expect(MockAuthService.loginWithOAuth).toHaveBeenCalledWith(
-      expect.objectContaining({ provider: 'google', email: 'admin@mail.com' }),
-      'admin'
+      expect.objectContaining({ provider: 'google', email: 'admin@mail.com' })
     );
     expect(res.cookie).toHaveBeenCalledWith('refreshToken', 'refresh-token-1', expect.any(Object));
     expect(res.redirect).toHaveBeenCalledWith(
@@ -195,7 +188,6 @@ describe('auth controller cookies and profile names', () => {
   it('redirects user OAuth callbacks to the user portal callback', async () => {
     MockOAuthService.parseState.mockReturnValue({
       provider: 'github',
-      role: 'user',
       next: '/documents',
       expiresAt: Date.now() + 60000,
       nonce: 'nonce-2',
@@ -209,7 +201,6 @@ describe('auth controller cookies and profile names', () => {
       user: {
         id: 'user-1',
         email: 'writer@mail.com',
-        role: 'user',
         profileCompleted: true,
         emailVerified: true,
         createdAt: new Date(),
@@ -228,8 +219,7 @@ describe('auth controller cookies and profile names', () => {
     await runController(handleOAuthCallback, req, res);
 
     expect(MockAuthService.loginWithOAuth).toHaveBeenCalledWith(
-      expect.objectContaining({ provider: 'github', email: 'writer@mail.com' }),
-      'user'
+      expect.objectContaining({ provider: 'github', email: 'writer@mail.com' })
     );
     expect(res.redirect).toHaveBeenCalledWith(
       expect.stringMatching(/^http:\/\/localhost:3002\/auth\/callback#/)
@@ -272,7 +262,6 @@ describe('auth controller cookies and profile names', () => {
     const updatedUser = {
       id: 'user-1',
       email: 'writer@mail.com',
-      role: 'user',
       name: 'Writer Two',
       firstName: 'Writer',
       lastName: 'Two',

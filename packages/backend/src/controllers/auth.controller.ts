@@ -22,8 +22,12 @@ const AUTH_COOKIE_BASE_OPTIONS = {
   ...(env.authCookieDomain ? { domain: env.authCookieDomain } : {}),
 };
 
-function getOAuthCallbackFrontendUrl(role: 'admin' | 'user'): string {
-  return role === 'admin' ? env.frontendAdminUrl : env.frontendUserUrl;
+function isAdminPortalNextPath(next: string): boolean {
+  return next === '/tasks' || (next.startsWith('/tasks/') && !next.startsWith('/tasks/public/'));
+}
+
+function getOAuthCallbackFrontendUrl(next: string): string {
+  return isAdminPortalNextPath(next) ? env.frontendAdminUrl : env.frontendUserUrl;
 }
 
 function setAuthCookies(res: Response, accessToken: string, refreshToken: string): void {
@@ -49,10 +53,10 @@ function clearAuthCookies(res: Response): void {
  */
 export const register = asyncHandler(async (req: Request, res: Response) => {
   // Validate request body
-  const { email, password, role } = registerSchema.parse(req.body);
+  const { email, password } = registerSchema.parse(req.body);
 
   // Register user
-  const user = await AuthService.register(email, password, role);
+  const user = await AuthService.register(email, password);
 
   res.status(201).json({
     success: true,
@@ -110,10 +114,10 @@ export const resendVerificationEmail = asyncHandler(async (req: Request, res: Re
  */
 export const login = asyncHandler(async (req: Request, res: Response) => {
   // Validate request body
-  const { email, password, role } = loginSchema.parse(req.body);
+  const { email, password } = loginSchema.parse(req.body);
 
   // Login user
-  const { user, accessToken, refreshToken } = await AuthService.login(email, password, role);
+  const { user, accessToken, refreshToken } = await AuthService.login(email, password);
 
   setAuthCookies(res, accessToken, refreshToken);
 
@@ -333,7 +337,6 @@ export const getOAuthProviders = asyncHandler(async (_req: Request, res: Respons
 export const startOAuth = asyncHandler(async (req: Request, res: Response) => {
   const url = OAuthService.getAuthorizationUrl(
     req.params.provider,
-    req.query.role,
     req.query.next
   );
   res.redirect(url);
@@ -348,14 +351,14 @@ export const handleOAuthCallback = asyncHandler(async (req: Request, res: Respon
 
   try {
     const state = OAuthService.parseState(req.query.state);
-    redirectUrl = new URL('/auth/callback', getOAuthCallbackFrontendUrl(state.role));
+    redirectUrl = new URL('/auth/callback', getOAuthCallbackFrontendUrl(state.next));
 
     if (req.query.error) {
       throw new Error(String(req.query.error_description || req.query.error));
     }
 
     const profile = await OAuthService.exchangeCodeForProfile(state.provider, req.query.code);
-    const { accessToken, refreshToken } = await AuthService.loginWithOAuth(profile, state.role);
+    const { accessToken, refreshToken } = await AuthService.loginWithOAuth(profile);
 
     setAuthCookies(res, accessToken, refreshToken);
 

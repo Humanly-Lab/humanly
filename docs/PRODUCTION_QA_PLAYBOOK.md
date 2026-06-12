@@ -159,7 +159,7 @@ Check:
 - Register fresh user.
 - Register fresh admin.
 - Login user/admin.
-- Wrong role rejected.
+- Same registered account can switch between user/admin ports.
 - Wrong password rejected.
 - Refresh works before logout.
 - Logout invalidates old refresh flow.
@@ -167,7 +167,7 @@ Check:
 
 Pass condition:
 
-- Correct roles authenticate and incorrect credentials/roles fail cleanly.
+- Registered accounts authenticate on both ports and incorrect credentials fail cleanly.
 
 ### Phase 2: Personal Document Mode
 

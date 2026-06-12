@@ -206,18 +206,17 @@ export class TaskService {
     }
   }
 
-	  private static toPublicUser(user: User | (User & { passwordHash?: string })): User {
-	    return {
-	      id: user.id,
-	      email: user.email,
-	      role: user.role,
-	      name: user.name || null,
-	      firstName: user.firstName || null,
-	      lastName: user.lastName || null,
-	      profileCompleted: user.profileCompleted,
-	      emailVerified: user.emailVerified,
-	      createdAt: user.createdAt,
-	      updatedAt: user.updatedAt,
+  private static toPublicUser(user: User | (User & { passwordHash?: string })): User {
+    return {
+      id: user.id,
+      email: user.email,
+      name: user.name || null,
+      firstName: user.firstName || null,
+      lastName: user.lastName || null,
+      profileCompleted: user.profileCompleted,
+      emailVerified: user.emailVerified,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
     };
   }
 
@@ -229,15 +228,14 @@ export class TaskService {
       return this.toPublicUser(existingGuest);
     }
 
-	    return UserModel.create({
-	      email: guestEmail,
-	      passwordHash: await hashPassword(generateToken(32)),
-	      firstName: 'guest',
-	      lastName: 'user',
-	      role: 'user',
-	      emailVerificationToken: generateToken(16),
-	      emailVerificationExpires: new Date(Date.now() + 24 * 60 * 60 * 1000),
-	    });
+    return UserModel.create({
+      email: guestEmail,
+      passwordHash: await hashPassword(generateToken(32)),
+      firstName: 'guest',
+      lastName: 'user',
+      emailVerificationToken: generateToken(16),
+      emailVerificationExpires: new Date(Date.now() + 24 * 60 * 60 * 1000),
+    });
   }
 
   private static async issuePublicGuestTokens(user: User): Promise<{
@@ -247,7 +245,6 @@ export class TaskService {
     const payload: TokenPayload = {
       userId: user.id,
       email: user.email,
-      role: user.role,
     };
 
     const accessToken = generateAccessToken(payload);

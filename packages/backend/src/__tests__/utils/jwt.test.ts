@@ -24,6 +24,7 @@ describe('jwt utils', () => {
       const decoded = jwt.decode(token) as TokenPayload;
       expect(decoded.userId).toBe(payload.userId);
       expect(decoded.email).toBe(payload.email);
+      expect(decoded).not.toHaveProperty('role');
     });
   });
 

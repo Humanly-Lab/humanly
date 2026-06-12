@@ -59,7 +59,6 @@ describe('createApp integration', () => {
     const token = generateAccessToken({
       userId: 'user-1',
       email: 'owner@example.com',
-      role: 'admin',
     });
     const legacy = await request(app)
       .get('/api/v1/task-1/export/json')

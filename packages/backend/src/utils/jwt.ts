@@ -4,7 +4,6 @@ import { env } from '../config/env';
 export interface TokenPayload {
   userId: string;
   email: string;
-  role?: 'admin' | 'user';
 }
 
 export function generateAccessToken(payload: TokenPayload): string {

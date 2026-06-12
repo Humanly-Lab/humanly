@@ -1,4 +1,4 @@
-import { User, UserRole } from '@humanly/shared';
+import { User } from '@humanly/shared';
 import { UserModel } from '../models/user.model';
 import { RefreshTokenModel } from '../models/refresh-token.model';
 import { emailService } from './email.service';
@@ -45,12 +45,8 @@ export class AuthService {
   /**
    * Register a new user
    */
-  static async register(
-    email: string,
-    password: string,
-    role: UserRole = 'user'
-  ): Promise<User> {
-    logger.info('Attempting to register user', { email, role });
+  static async register(email: string, password: string): Promise<User> {
+    logger.info('Attempting to register user', { email });
 
     // Check if user already exists
     const existingUser = await UserModel.findByEmail(email);
@@ -69,7 +65,6 @@ export class AuthService {
     const user = await UserModel.create({
       email,
       passwordHash,
-      role,
       emailVerificationToken: verificationToken,
       emailVerificationExpires: verificationExpires,
     });
@@ -105,7 +100,6 @@ export class AuthService {
   private static toPublicUser(userWithPassword: {
     id: string;
     email: string;
-    role?: UserRole;
     name?: string | null;
     firstName?: string | null;
     lastName?: string | null;
@@ -117,7 +111,6 @@ export class AuthService {
     return {
       id: userWithPassword.id,
       email: userWithPassword.email,
-      role: userWithPassword.role || 'user',
       name: userWithPassword.name || null,
       firstName: userWithPassword.firstName || null,
       lastName: userWithPassword.lastName || null,
@@ -134,7 +127,6 @@ export class AuthService {
     const payload: TokenPayload = {
       userId: user.id,
       email: user.email,
-      role: user.role,
     };
 
     const accessToken = generateAccessToken(payload);
@@ -174,7 +166,7 @@ export class AuthService {
 
     // Send welcome email (don't await to avoid blocking)
     emailService
-      .sendWelcomeEmail(user.email, user.role || 'user')
+      .sendWelcomeEmail(user.email)
       .catch((error) => {
         logger.error('Failed to send welcome email', { email: user.email, error });
       });
@@ -188,10 +180,9 @@ export class AuthService {
    */
   static async login(
     email: string,
-    password: string,
-    requestedRole?: UserRole
+    password: string
   ): Promise<{ user: User; accessToken: string; refreshToken: string }> {
-    logger.info('Attempting login', { email, requestedRole });
+    logger.info('Attempting login', { email });
 
     // Find user by email
     const userWithPassword = await UserModel.findByEmail(email);
@@ -219,13 +210,11 @@ export class AuthService {
    * Login or create a user through a trusted OAuth provider.
    */
   static async loginWithOAuth(
-    profile: OAuthProfile,
-    requestedRole: UserRole = 'user'
+    profile: OAuthProfile
   ): Promise<{ user: User; accessToken: string; refreshToken: string }> {
     logger.info('Attempting OAuth login', {
       provider: profile.provider,
       email: profile.email,
-      requestedRole,
     });
 
     let userWithPassword = await UserModel.findByOAuthAccount(
@@ -251,7 +240,6 @@ export class AuthService {
         const user = await UserModel.createOAuthUser({
           email: profile.email,
           passwordHash,
-          role: requestedRole,
         });
         await this.initializeDefaultAISettings(user.id);
         userWithPassword = {
@@ -337,7 +325,6 @@ export class AuthService {
     const newPayload: TokenPayload = {
       userId: user.id,
       email: user.email,
-      role: user.role,
     };
 
     const accessToken = generateAccessToken(newPayload);
