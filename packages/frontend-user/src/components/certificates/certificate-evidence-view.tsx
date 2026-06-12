@@ -38,6 +38,11 @@ import {
 import { DocumentReplay } from '@/components/certificates/document-replay';
 
 const SECTION_TITLE_CLASS = 'text-lg font-semibold tracking-normal';
+const COMPOSITION_COLORS = {
+  typed: '#7B8C9E',
+  pasted: '#B2A189',
+  aiImprovement: '#9B8FA6',
+} as const;
 
 export interface CertificateEvidenceRecord {
   id: string;
@@ -388,23 +393,29 @@ export function CertificateEvidenceView({
                 </p>
               </div>
               <div className="mt-3 flex h-3 overflow-hidden rounded-full bg-secondary">
-                <div className="bg-[#6fa8dc]" style={{ width: `${typedEventPercentage}%` }} />
-                <div className="bg-[#f4b266]" style={{ width: `${pastedEventPercentage}%` }} />
-                <div className="bg-[#a895d3]" style={{ width: `${aiImprovementEventPercentage}%` }} />
+                {typedEventPercentage > 0 && (
+                  <div style={{ width: `${typedEventPercentage}%`, backgroundColor: COMPOSITION_COLORS.typed }} />
+                )}
+                {pastedEventPercentage > 0 && (
+                  <div style={{ width: `${pastedEventPercentage}%`, backgroundColor: COMPOSITION_COLORS.pasted }} />
+                )}
+                {aiImprovementEventPercentage > 0 && (
+                  <div style={{ width: `${aiImprovementEventPercentage}%`, backgroundColor: COMPOSITION_COLORS.aiImprovement }} />
+                )}
               </div>
               <div className="mt-3 grid gap-2 text-sm sm:grid-cols-3">
                 <div className="flex items-center gap-2">
-                  <span className="h-2.5 w-2.5 rounded-full bg-[#6fa8dc]" />
+                  <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: COMPOSITION_COLORS.typed }} />
                   <span className="text-muted-foreground">Typed</span>
                   <span className="font-medium">{formatPercentage(typedEventPercentage)}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="h-2.5 w-2.5 rounded-full bg-[#f4b266]" />
+                  <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: COMPOSITION_COLORS.pasted }} />
                   <span className="text-muted-foreground">Pasted</span>
                   <span className="font-medium">{formatPercentage(pastedEventPercentage)}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="h-2.5 w-2.5 rounded-full bg-[#a895d3]" />
+                  <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: COMPOSITION_COLORS.aiImprovement }} />
                   <span className="text-muted-foreground">AI improvements</span>
                   <span className="font-medium">{formatPercentage(aiImprovementEventPercentage)}</span>
                 </div>
