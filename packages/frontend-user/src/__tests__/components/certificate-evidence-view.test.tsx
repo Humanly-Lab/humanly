@@ -105,8 +105,9 @@ describe('CertificateEvidenceView', () => {
     expect(screen.getByText('Certificate seal')).toBeInTheDocument();
     expect(screen.getByText('Seal verified')).toBeInTheDocument();
     expect(screen.getByText('Server-issued seal matches this certificate record.')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Activity Flags' })).toBeInTheDocument();
-    expect(screen.getByText('No advisory activity flags were detected for this certificate.')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Activity Flags' })).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Abnormal Behavior Review' })).toBeInTheDocument();
+    expect(screen.queryByText('No abnormal behavior signals were detected for this certificate.')).not.toBeInTheDocument();
     expect(screen.queryByText('Payload hash')).not.toBeInTheDocument();
     expect(screen.queryByText('1234567890ab...567890abcdef')).not.toBeInTheDocument();
     expect(screen.queryByText('Algorithm')).not.toBeInTheDocument();
@@ -128,6 +129,7 @@ describe('CertificateEvidenceView', () => {
     const sectionTitles = [
       screen.getByRole('heading', { name: 'Authorship Statistics' }),
       screen.getByRole('heading', { name: 'Replay' }),
+      screen.getByRole('heading', { name: 'Abnormal Behavior Review' }),
       screen.getByRole('heading', { name: 'Environment' }),
     ];
     sectionTitles.forEach((title) => {
@@ -142,6 +144,12 @@ describe('CertificateEvidenceView', () => {
     expect(screen.queryByText('Submission mode')).not.toBeInTheDocument();
     expect(screen.queryByText('Multiple submissions')).not.toBeInTheDocument();
     expect(screen.getByText('See more')).toBeInTheDocument();
+    expect(
+      sectionTitles[1].compareDocumentPosition(sectionTitles[2]) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+    expect(
+      sectionTitles[2].compareDocumentPosition(sectionTitles[3]) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
 
     await user.click(screen.getByRole('button', { name: 'Show certificate seal details' }));
 
@@ -180,6 +188,10 @@ describe('CertificateEvidenceView', () => {
     await user.click(screen.getByRole('button', { name: 'Show replay section' }));
 
     expect(screen.getByTestId('document-replay')).toHaveTextContent('certificate-token');
+
+    await user.click(screen.getByRole('button', { name: 'Show abnormal behavior review section' }));
+
+    expect(screen.getByText('No abnormal behavior signals were detected for this certificate.')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Show environment section' }));
 
@@ -330,7 +342,9 @@ describe('CertificateEvidenceView', () => {
     expect(screen.queryByText('Pasted 0%')).not.toBeInTheDocument();
   });
 
-  it('renders advisory anomaly flags with evidence', () => {
+  it('renders abnormal behavior review signals with evidence after expansion', async () => {
+    const user = userEvent.setup();
+
     render(
       <CertificateEvidenceView
         certificate={{
@@ -365,7 +379,12 @@ describe('CertificateEvidenceView', () => {
       />
     );
 
-    expect(screen.getByRole('heading', { name: 'Activity Flags' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Abnormal Behavior Review' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Activity Flags' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Uniform key cadence')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Show abnormal behavior review section' }));
+
     expect(screen.getByText('Uniform key cadence')).toBeInTheDocument();
     expect(screen.getByText('warning')).toBeInTheDocument();
     expect(screen.getByText('Interval Count')).toBeInTheDocument();

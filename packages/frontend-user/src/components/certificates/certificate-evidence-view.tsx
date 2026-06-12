@@ -299,6 +299,7 @@ export function CertificateEvidenceView({
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [sealDetailsOpen, setSealDetailsOpen] = useState(false);
   const [replayOpen, setReplayOpen] = useState(false);
+  const [behaviorReviewOpen, setBehaviorReviewOpen] = useState(false);
   const [environmentOpen, setEnvironmentOpen] = useState(false);
   const textImprovementTotal = aiStats?.selectionActions.total || 0;
   const aiChatTotal = aiStats?.aiQuestions.total || 0;
@@ -411,49 +412,6 @@ export function CertificateEvidenceView({
               </CollapsibleContent>
             </Collapsible>
           </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className={SECTION_TITLE_CLASS}>Activity Flags</CardTitle>
-          <CardDescription>
-            Advisory signals from write-time event analysis. These flags are evidence for review, not automatic verdicts.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {anomalyFlags.length === 0 ? (
-            <div className="rounded-lg border border-border/60 bg-muted/25 p-4 text-sm text-muted-foreground">
-              No advisory activity flags were detected for this certificate.
-            </div>
-          ) : (
-            <div className="grid gap-3 md:grid-cols-2">
-              {anomalyFlags.map((flag) => (
-                <div key={flag.code} className="rounded-lg border border-border/70 bg-muted/20 p-4">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge
-                      variant="outline"
-                      className={`capitalize ${getFlagSeverityClass(flag.severity)}`}
-                    >
-                      {flag.severity}
-                    </Badge>
-                    <p className="font-medium">{flag.label}</p>
-                  </div>
-                  <p className="mt-2 text-sm text-muted-foreground">{flag.description}</p>
-                  <div className="mt-3 grid gap-2 text-xs sm:grid-cols-2">
-                    {Object.entries(flag.evidence || {}).slice(0, 6).map(([key, value]) => (
-                      <div key={key} className="rounded-md bg-background/70 px-2 py-1.5">
-                        <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                          {formatEvidenceKey(key)}
-                        </p>
-                        <p className="mt-0.5 break-words font-medium">{formatEvidenceValue(value)}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
         </CardContent>
       </Card>
 
@@ -663,6 +621,73 @@ export function CertificateEvidenceView({
           </Collapsible>
         </Card>
       )}
+
+      <Card>
+        <Collapsible open={behaviorReviewOpen} onOpenChange={setBehaviorReviewOpen}>
+          <CardHeader className="pb-3">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <CardTitle className={SECTION_TITLE_CLASS}>Abnormal Behavior Review</CardTitle>
+                <CardDescription>
+                  Review write-time signals that may need attention. These are evidence for review, not automatic verdicts.
+                </CardDescription>
+              </div>
+              <CollapsibleTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="shrink-0 gap-1"
+                  aria-label={
+                    behaviorReviewOpen
+                      ? 'Hide abnormal behavior review section'
+                      : 'Show abnormal behavior review section'
+                  }
+                >
+                  {behaviorReviewOpen ? 'Hide' : 'Show'}
+                  <ChevronDown className={`h-4 w-4 transition-transform ${behaviorReviewOpen ? 'rotate-180' : ''}`} />
+                </Button>
+              </CollapsibleTrigger>
+            </div>
+          </CardHeader>
+          <CollapsibleContent>
+            <CardContent>
+              {anomalyFlags.length === 0 ? (
+                <div className="rounded-lg border border-border/60 bg-muted/25 p-4 text-sm text-muted-foreground">
+                  No abnormal behavior signals were detected for this certificate.
+                </div>
+              ) : (
+                <div className="grid gap-3 md:grid-cols-2">
+                  {anomalyFlags.map((flag) => (
+                    <div key={flag.code} className="rounded-lg border border-border/70 bg-muted/20 p-4">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge
+                          variant="outline"
+                          className={`capitalize ${getFlagSeverityClass(flag.severity)}`}
+                        >
+                          {flag.severity}
+                        </Badge>
+                        <p className="font-medium">{flag.label}</p>
+                      </div>
+                      <p className="mt-2 text-sm text-muted-foreground">{flag.description}</p>
+                      <div className="mt-3 grid gap-2 text-xs sm:grid-cols-2">
+                        {Object.entries(flag.evidence || {}).slice(0, 6).map(([key, value]) => (
+                          <div key={key} className="rounded-md bg-background/70 px-2 py-1.5">
+                            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                              {formatEvidenceKey(key)}
+                            </p>
+                            <p className="mt-0.5 break-words font-medium">{formatEvidenceValue(value)}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </CollapsibleContent>
+        </Collapsible>
+      </Card>
 
       <Card>
         <Collapsible open={environmentOpen} onOpenChange={setEnvironmentOpen}>
