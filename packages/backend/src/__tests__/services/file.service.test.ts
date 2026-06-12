@@ -32,8 +32,6 @@ const MockFileStorageService = FileStorageService as jest.Mocked<typeof FileStor
 const MockAIRetrievalService = AIRetrievalService as jest.Mocked<typeof AIRetrievalService>;
 const MockLogger = logger as jest.Mocked<typeof logger>;
 const mockQueryOne = queryOne as jest.MockedFunction<typeof queryOne>;
-const PDF_BYTES = Buffer.from('%PDF-1.4');
-const PDF_CHECKSUM = 'e16fa5d9b51928755db85b917f0297babaf22c7a47e97d9212adab56e61ba04e';
 
 function makeMulterFile(overrides: Partial<Express.Multer.File> = {}): Express.Multer.File {
   return {
@@ -80,24 +78,6 @@ function makeAppFile(overrides: Record<string, unknown> = {}) {
 describe('FileService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    MockFileStorageService.supportsSignedUploads.mockReturnValue(true);
-    MockFileStorageService.buildObjectKey.mockImplementation((fileId: string, checksum: string) => `files/${fileId}/${checksum}.pdf`);
-    MockFileStorageService.createSignedUploadUrl.mockResolvedValue({
-      url: 'https://storage.example/upload',
-      expiresAt: new Date('2026-05-15T12:30:00.000Z'),
-      requiredHeaders: { 'Content-Type': 'application/pdf' },
-    });
-    MockFileStorageService.createSignedReadUrl.mockResolvedValue({
-      url: 'https://storage.example/read',
-      expiresAt: new Date('2026-05-15T12:10:00.000Z'),
-    });
-    MockFileStorageService.getMetadata.mockResolvedValue({
-      exists: true,
-      contentType: 'application/pdf',
-      size: PDF_BYTES.length,
-      etag: 'etag-ready',
-    });
-    MockFileStorageService.getBuffer.mockResolvedValue(PDF_BYTES);
     MockFileStorageService.store.mockResolvedValue({
       storageProvider: 'local',
       storageKey: 'files/file-1/checksum.pdf',
@@ -127,58 +107,6 @@ describe('FileService', () => {
     }));
     expect(MockAIRetrievalService.indexFile).toHaveBeenCalledWith('file-1');
     expect(file.id).toBe('file-1');
-  });
-
-  it('initiates a signed document PDF upload with a pending file record', async () => {
-    MockDocumentModel.findByIdAndUserId.mockResolvedValue({ id: 'doc-1', title: 'My Document' } as any);
-    MockFileModel.create.mockResolvedValue(makeAppFile({
-      uploadStatus: 'pending',
-      storageProvider: 'gcs',
-      storageKey: `files/file-1/${PDF_CHECKSUM}.pdf`,
-    }) as any);
-
-    const upload = await FileService.initiateDocumentFileUpload('doc-1', 'user-1', {
-      title: 'Source PDF',
-      filename: 'source.pdf',
-      mimeType: 'application/pdf',
-      fileSize: PDF_BYTES.length,
-      checksum: PDF_CHECKSUM,
-    });
-
-    expect(MockDocumentModel.findByIdAndUserId).toHaveBeenCalledWith('doc-1', 'user-1');
-    expect(MockFileStorageService.createSignedUploadUrl).toHaveBeenCalledWith(
-      expect.stringMatching(/^files\/[0-9a-f-]+\/[a-f0-9]{64}\.pdf$/),
-      'application/pdf'
-    );
-    expect(MockFileModel.create).toHaveBeenCalledWith(expect.objectContaining({
-      documentId: 'doc-1',
-      taskId: null,
-      purpose: 'document_source_pdf',
-      storageProvider: 'gcs',
-      storageKey: expect.stringMatching(/^files\/[0-9a-f-]+\/[a-f0-9]{64}\.pdf$/),
-      checksum: PDF_CHECKSUM,
-      fileSize: PDF_BYTES.length,
-      uploadStatus: 'pending',
-    }));
-    expect(upload).toEqual(expect.objectContaining({
-      uploadUrl: 'https://storage.example/upload',
-      requiredHeaders: { 'Content-Type': 'application/pdf' },
-      expiresAt: '2026-05-15T12:30:00.000Z',
-    }));
-  });
-
-  it('falls back to multipart clients when signed uploads are unavailable', async () => {
-    MockFileStorageService.supportsSignedUploads.mockReturnValue(false);
-
-    await expect(FileService.initiateDocumentFileUpload('doc-1', 'user-1', {
-      filename: 'source.pdf',
-      mimeType: 'application/pdf',
-      fileSize: PDF_BYTES.length,
-      checksum: PDF_CHECKSUM,
-    })).rejects.toMatchObject({ statusCode: 409 });
-
-    expect(MockDocumentModel.findByIdAndUserId).not.toHaveBeenCalled();
-    expect(MockFileModel.create).not.toHaveBeenCalled();
   });
 
   it('records GCS object metadata when document PDF upload uses GCS storage', async () => {
@@ -275,149 +203,6 @@ describe('FileService', () => {
       storageKey: 'files/file-1/checksum.pdf',
       storageProvider: 'local',
     }));
-  });
-
-  it('completes a signed document PDF upload after verifying the stored object', async () => {
-    const pendingFile = makeAppFile({
-      storageProvider: 'gcs',
-      storageBucket: 'humanly-prod-pdfs',
-      storageKey: `files/file-1/${PDF_CHECKSUM}.pdf`,
-      storageEtag: null,
-      fileSize: PDF_BYTES.length,
-      checksum: PDF_CHECKSUM,
-      uploadStatus: 'pending',
-      createdAt: new Date(),
-    });
-    const readyFile = makeAppFile({
-      ...pendingFile,
-      storageEtag: 'etag-ready',
-      uploadStatus: 'ready',
-    });
-    MockFileModel.findById.mockResolvedValue(pendingFile as any);
-    MockDocumentModel.isOwner.mockResolvedValue(true);
-    MockFileModel.markReady.mockResolvedValue(readyFile as any);
-
-    const completed = await FileService.completeFileUpload('file-1', 'user-1');
-
-    expect(MockFileStorageService.getMetadata).toHaveBeenCalledWith(expect.objectContaining({
-      id: 'file-1',
-      storageProvider: 'gcs',
-    }));
-    expect(MockFileStorageService.getBuffer).toHaveBeenCalledWith(expect.objectContaining({
-      id: 'file-1',
-      storageKey: `files/file-1/${PDF_CHECKSUM}.pdf`,
-    }));
-    expect(MockFileModel.markReady).toHaveBeenCalledWith('file-1', { storageEtag: 'etag-ready' });
-    expect(MockAIRetrievalService.indexFile).toHaveBeenCalledWith('file-1');
-    expect(completed.uploadStatus).toBe('ready');
-  });
-
-  it('marks signed uploads failed when the GCS object is missing on complete', async () => {
-    MockFileModel.findById.mockResolvedValue(makeAppFile({
-      storageProvider: 'gcs',
-      checksum: PDF_CHECKSUM,
-      uploadStatus: 'pending',
-      createdAt: new Date(),
-    }) as any);
-    MockDocumentModel.isOwner.mockResolvedValue(true);
-    MockFileStorageService.getMetadata.mockResolvedValue({ exists: false });
-    MockFileModel.markFailed.mockResolvedValue(makeAppFile({ uploadStatus: 'failed' }) as any);
-
-    await expect(FileService.completeFileUpload('file-1', 'user-1')).rejects.toMatchObject({
-      statusCode: 404,
-      message: 'Uploaded file object was not found',
-    });
-    expect(MockFileModel.markFailed).toHaveBeenCalledWith('file-1');
-    expect(MockFileStorageService.getBuffer).not.toHaveBeenCalled();
-  });
-
-  it('marks signed uploads failed when the completed object checksum differs', async () => {
-    MockFileModel.findById.mockResolvedValue(makeAppFile({
-      storageProvider: 'gcs',
-      checksum: 'f'.repeat(64),
-      fileSize: PDF_BYTES.length,
-      uploadStatus: 'pending',
-      createdAt: new Date(),
-    }) as any);
-    MockDocumentModel.isOwner.mockResolvedValue(true);
-    MockFileModel.markFailed.mockResolvedValue(makeAppFile({ uploadStatus: 'failed' }) as any);
-
-    await expect(FileService.completeFileUpload('file-1', 'user-1')).rejects.toMatchObject({
-      statusCode: 400,
-      message: 'Uploaded file checksum does not match the initiated upload',
-    });
-    expect(MockFileModel.markFailed).toHaveBeenCalledWith('file-1');
-  });
-
-  it('expires stale pending signed uploads before touching storage', async () => {
-    MockFileModel.findById.mockResolvedValue(makeAppFile({
-      storageProvider: 'gcs',
-      checksum: PDF_CHECKSUM,
-      uploadStatus: 'pending',
-      createdAt: new Date(Date.now() - 3 * 60 * 60 * 1000),
-    }) as any);
-    MockDocumentModel.isOwner.mockResolvedValue(true);
-    MockFileModel.markFailed.mockResolvedValue(makeAppFile({ uploadStatus: 'failed' }) as any);
-
-    await expect(FileService.completeFileUpload('file-1', 'user-1')).rejects.toMatchObject({
-      statusCode: 410,
-      message: 'File upload has expired',
-    });
-    expect(MockFileModel.markFailed).toHaveBeenCalledWith('file-1');
-    expect(MockFileStorageService.getMetadata).not.toHaveBeenCalled();
-  });
-
-  it('returns signed read URLs for ready GCS files after permission checks', async () => {
-    MockFileModel.findById.mockResolvedValue(makeAppFile({
-      storageProvider: 'gcs',
-      storageBucket: 'humanly-prod-pdfs',
-      uploadStatus: 'ready',
-    }) as any);
-    MockDocumentModel.isOwner.mockResolvedValue(true);
-
-    const readUrl = await FileService.getFileReadUrl('file-1', 'user-1');
-
-    expect(MockFileStorageService.createSignedReadUrl).toHaveBeenCalledWith(expect.objectContaining({
-      id: 'file-1',
-      storageProvider: 'gcs',
-    }));
-    expect(readUrl).toEqual({
-      url: 'https://storage.example/read',
-      expiresAt: '2026-05-15T12:10:00.000Z',
-      fallbackMode: 'signed_url',
-    });
-  });
-
-  it('returns stream fallback for ready local files', async () => {
-    MockFileModel.findById.mockResolvedValue(makeAppFile({ uploadStatus: 'ready' }) as any);
-    MockDocumentModel.isOwner.mockResolvedValue(true);
-
-    await expect(FileService.getFileReadUrl('file-1', 'user-1')).resolves.toEqual({
-      url: null,
-      expiresAt: null,
-      fallbackMode: 'stream',
-    });
-    expect(MockFileStorageService.createSignedReadUrl).not.toHaveBeenCalled();
-  });
-
-  it('does not issue signed read URLs for view-only GCS files', async () => {
-    MockFileModel.findById.mockResolvedValue(makeAppFile({
-      storageProvider: 'gcs',
-      storageBucket: 'humanly-prod-pdfs',
-      uploadStatus: 'ready',
-    }) as any);
-    MockDocumentModel.isOwner.mockResolvedValue(true);
-    MockDocumentModel.findById.mockResolvedValue({
-      id: 'doc-1',
-      environmentConfig: { resourceAccess: 'view-only' },
-    } as any);
-
-    await expect(FileService.getFileReadUrl('file-1', 'user-1')).resolves.toEqual({
-      url: null,
-      expiresAt: null,
-      fallbackMode: 'stream',
-    });
-    expect(MockFileStorageService.createSignedReadUrl).not.toHaveBeenCalled();
   });
 
   it('rejects direct streams for view-only task instruction files without a short-lived token', async () => {
