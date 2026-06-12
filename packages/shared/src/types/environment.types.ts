@@ -5,6 +5,7 @@ export type WritingAiUsageLimitMode = 'unlimited' | 'max_requests' | 'max_tokens
 export type WritingLateSubmissionPolicy = 'allowed' | 'not_allowed';
 export type WritingSubmissionMode = 'single' | 'multiple';
 export type CopyPastePolicy = 'allowed' | 'blocked';
+export type ResourceAccessPolicy = 'downloadable' | 'view-only';
 export type WritingEnvironmentPreset = 'default_writing' | 'no_ai' | 'ai_assisted' | 'timed_writing' | 'custom';
 export type WritingAiProvider = 'together' | 'openrouter' | 'openai' | 'claude' | 'custom';
 
@@ -53,6 +54,7 @@ export interface WritingEnvironmentConfig {
     trackCopyPaste: boolean;
     trackFocusBlur: boolean;
   };
+  resourceAccess?: ResourceAccessPolicy;
   copyPastePolicy: CopyPastePolicy;
 }
 
@@ -100,6 +102,10 @@ export const normalizeCopyPastePolicy = (policy?: string | null): CopyPastePolic
   policy === 'blocked' ? 'blocked' : 'allowed'
 );
 
+export const normalizeResourceAccessPolicy = (policy?: string | null): ResourceAccessPolicy => (
+  policy === 'view-only' ? 'view-only' : 'downloadable'
+);
+
 export const DEFAULT_WRITING_ENVIRONMENT_CONFIG: WritingEnvironmentConfig = {
   preset: 'default_writing',
   taskType: 'personal',
@@ -129,6 +135,7 @@ export const DEFAULT_WRITING_ENVIRONMENT_CONFIG: WritingEnvironmentConfig = {
     trackCopyPaste: false,
     trackFocusBlur: true,
   },
+  resourceAccess: 'downloadable',
   copyPastePolicy: 'allowed',
 };
 

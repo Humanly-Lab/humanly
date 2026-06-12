@@ -84,6 +84,7 @@ export const writingEnvironmentConfigSchema = z.object({
     trackCopyPaste: z.boolean(),
     trackFocusBlur: z.boolean(),
   }),
+  resourceAccess: z.enum(['downloadable', 'view-only']).optional().default('downloadable'),
   copyPastePolicy: z.enum(['allowed', 'blocked']),
 }).superRefine((config, ctx) => {
   if (config.aiProvider?.provider === 'custom') {
@@ -236,6 +237,7 @@ export const validateWritingEnvironmentImportTemplate = (
   return {
     ...parsed,
     customModels,
+    resourceAccess: parsed.resourceAccess || 'downloadable',
   };
 };
 

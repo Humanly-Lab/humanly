@@ -80,6 +80,7 @@ import {
   isTaskStartDateTooFarInPast,
   normalizeWritingAiAccess,
   normalizeCopyPastePolicy,
+  normalizeResourceAccessPolicy,
   validateWritingEnvironmentImportTemplate,
   type Task,
   type UserAISettings,
@@ -218,6 +219,7 @@ const getAdminEnvironmentConfig = (preset: WritingEnvironmentPreset = 'default_w
   taskType: 'admin_assigned',
   preset,
   copyPastePolicy: normalizeCopyPastePolicy(WRITING_ENVIRONMENT_PRESETS[preset].copyPastePolicy),
+  resourceAccess: normalizeResourceAccessPolicy(WRITING_ENVIRONMENT_PRESETS[preset].resourceAccess),
   aiAccess: preset === 'default_writing' ? 'off' : normalizeWritingAiAccess(WRITING_ENVIRONMENT_PRESETS[preset].aiAccess),
   allowedModels: preset === 'default_writing' ? [] : WRITING_ENVIRONMENT_PRESETS[preset].allowedModels,
   customModels: preset === 'default_writing' ? [] : WRITING_ENVIRONMENT_PRESETS[preset].customModels,
@@ -261,6 +263,7 @@ const normalizeImportedEnvironmentConfig = (value: unknown): WritingEnvironmentC
   const imported = validateWritingEnvironmentImportTemplate(value, 'admin_assigned');
   const aiAccess: WritingAiAccess = normalizeWritingAiAccess(imported.aiAccess);
   const copyPastePolicy = normalizeCopyPastePolicy(imported.copyPastePolicy);
+  const resourceAccess = normalizeResourceAccessPolicy(imported.resourceAccess);
 
   return {
     ...imported,
@@ -275,6 +278,7 @@ const normalizeImportedEnvironmentConfig = (value: unknown): WritingEnvironmentC
       trackAiUsage: aiAccess !== 'off',
       trackCopyPaste: copyPastePolicy === 'allowed',
     },
+    resourceAccess,
     copyPastePolicy,
   };
 };
@@ -373,6 +377,15 @@ const buildAdminEnvironmentSummary = ({
         ? 'Paste blocked'
         : 'Paste allowed',
       detail: formatAdminCharacterBounds(config),
+    },
+    {
+      label: 'Resource access',
+      value: normalizeResourceAccessPolicy(config.resourceAccess) === 'view-only'
+        ? 'View-only'
+        : 'Downloadable',
+      detail: normalizeResourceAccessPolicy(config.resourceAccess) === 'view-only'
+        ? 'Short-lived in-workspace PDF access'
+        : 'Standard file access',
     },
     {
       label: 'AI limit',
@@ -910,6 +923,7 @@ export default function NewTaskPage() {
             trackAiUsage: aiAccess !== 'off',
             trackCopyPaste: normalizeCopyPastePolicy(environmentConfig.copyPastePolicy) === 'allowed',
           },
+          resourceAccess: normalizeResourceAccessPolicy(environmentConfig.resourceAccess),
         },
       };
 
@@ -1226,6 +1240,27 @@ export default function NewTaskPage() {
               <SelectItem value="blocked">Blocked</SelectItem>
             </SelectContent>
           </Select>
+        </div>
+
+        <div className="grid gap-2">
+          <FormLabel>PDF Resource Access</FormLabel>
+          <Select
+            value={normalizeResourceAccessPolicy(environmentConfig.resourceAccess)}
+            onValueChange={(value) => updateEnvironment({
+              resourceAccess: normalizeResourceAccessPolicy(value),
+            })}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="PDF resource access" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="downloadable">Downloadable</SelectItem>
+              <SelectItem value="view-only">View-only</SelectItem>
+            </SelectContent>
+          </Select>
+          <FormDescription>
+            View-only instruction PDFs load through short-lived viewer access and hide file-saving affordances.
+          </FormDescription>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">

@@ -24,6 +24,7 @@ import {
   isWritingAiPolishEnabled,
   normalizeWritingAiAccess,
   normalizeCopyPastePolicy,
+  normalizeResourceAccessPolicy,
   validateWritingEnvironmentImportTemplate,
   type UserAISettings,
   type WritingAiAccess,
@@ -99,6 +100,7 @@ const getPresetConfig = (preset: WritingEnvironmentPreset): WritingEnvironmentCo
   ...WRITING_ENVIRONMENT_PRESETS[preset],
   taskType: 'personal',
   aiAccess: normalizeWritingAiAccess(WRITING_ENVIRONMENT_PRESETS[preset].aiAccess),
+  resourceAccess: normalizeResourceAccessPolicy(WRITING_ENVIRONMENT_PRESETS[preset].resourceAccess),
   copyPastePolicy: normalizeCopyPastePolicy(WRITING_ENVIRONMENT_PRESETS[preset].copyPastePolicy),
 });
 
@@ -135,6 +137,7 @@ const normalizeImportedEnvironmentConfig = (value: unknown): WritingEnvironmentC
   const imported = validateWritingEnvironmentImportTemplate(value, 'personal');
   const aiAccess: WritingAiAccess = normalizeWritingAiAccess(imported.aiAccess);
   const copyPastePolicy = normalizeCopyPastePolicy(imported.copyPastePolicy);
+  const resourceAccess = normalizeResourceAccessPolicy(imported.resourceAccess);
 
   return {
     ...imported,
@@ -153,6 +156,7 @@ const normalizeImportedEnvironmentConfig = (value: unknown): WritingEnvironmentC
       trackAiUsage: aiAccess !== 'off',
       trackCopyPaste: copyPastePolicy === 'allowed',
     },
+    resourceAccess,
     copyPastePolicy,
   };
 };
@@ -216,6 +220,15 @@ const buildPersonalEnvironmentSummary = (
         ? 'Paste blocked'
         : 'Paste allowed',
       detail: config.traceability.trackCopyPaste ? 'Clipboard events tracked' : 'Clipboard tracking off',
+    },
+    {
+      label: 'Resource access',
+      value: normalizeResourceAccessPolicy(config.resourceAccess) === 'view-only'
+        ? 'View-only'
+        : 'Downloadable',
+      detail: normalizeResourceAccessPolicy(config.resourceAccess) === 'view-only'
+        ? 'PDF opens through short-lived viewer access'
+        : 'PDF keeps standard file access',
     },
     {
       label: 'Time limit',
@@ -536,6 +549,7 @@ export default function NewDocumentPage() {
         ...environmentConfig,
         taskType: 'personal',
         copyPastePolicy: normalizeCopyPastePolicy(environmentConfig.copyPastePolicy),
+        resourceAccess: normalizeResourceAccessPolicy(environmentConfig.resourceAccess),
         instructions: {
           ...environmentConfig.instructions,
           hasInstructionPdf: !!pdfFile,
@@ -812,6 +826,30 @@ export default function NewDocumentPage() {
               <SelectItem value="blocked">Blocked</SelectItem>
             </SelectContent>
           </Select>
+        </div>
+
+        <div className="humanly-field">
+          <Label>PDF Resource Access</Label>
+          <Select
+            value={normalizeResourceAccessPolicy(environmentConfig.resourceAccess)}
+            onValueChange={(value) => {
+              markCustom((current) => ({
+                ...current,
+                resourceAccess: normalizeResourceAccessPolicy(value),
+              }));
+            }}
+          >
+            <SelectTrigger aria-label="PDF resource access">
+              <SelectValue placeholder="PDF resource access" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="downloadable">Downloadable</SelectItem>
+              <SelectItem value="view-only">View-only</SelectItem>
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">
+            View-only PDFs load through short-lived viewer access and hide file-saving affordances.
+          </p>
         </div>
 
         <div className="grid gap-3">

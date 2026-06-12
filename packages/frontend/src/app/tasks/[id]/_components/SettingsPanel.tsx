@@ -33,6 +33,7 @@ import {
   isTaskStartDateTooFarInPast,
   normalizeWritingAiAccess,
   normalizeCopyPastePolicy,
+  normalizeResourceAccessPolicy,
   type Task,
   type UserAISettings,
   type WritingAiAccess,
@@ -352,6 +353,7 @@ const mergeEnvironmentConfig = (config?: WritingEnvironmentConfig | null): Writi
   ...DEFAULT_WRITING_ENVIRONMENT_CONFIG,
   ...(config || {}),
   aiAccess: normalizeWritingAiAccess(config?.aiAccess),
+  resourceAccess: normalizeResourceAccessPolicy(config?.resourceAccess),
   copyPastePolicy: normalizeCopyPastePolicy(config?.copyPastePolicy),
   taskType: 'admin_assigned',
   preset: 'custom',
@@ -919,6 +921,7 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
         trackAiUsage: aiAccess !== 'off',
         trackCopyPaste: normalizeCopyPastePolicy(environmentConfig.copyPastePolicy) === 'allowed',
       },
+      resourceAccess: normalizeResourceAccessPolicy(environmentConfig.resourceAccess),
     };
   };
 
@@ -1106,6 +1109,15 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
         ? 'Paste blocked'
         : 'Paste allowed',
       detail: formatCharacterBounds(environmentConfig.submission),
+    },
+    {
+      label: 'Resource Access',
+      value: normalizeResourceAccessPolicy(environmentConfig.resourceAccess) === 'view-only'
+        ? 'View-only'
+        : 'Downloadable',
+      detail: normalizeResourceAccessPolicy(environmentConfig.resourceAccess) === 'view-only'
+        ? 'Short-lived in-workspace PDF access'
+        : 'Standard file access',
     },
   ];
 
@@ -1646,6 +1658,21 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
                       ]}
                       onValueChange={(value) => updateEnvironment({
                         copyPastePolicy: normalizeCopyPastePolicy(value),
+                      })}
+                    />
+                  </SettingRow>
+
+                  <SettingRow label="PDF Resource Access">
+                    <SegmentedControl
+                      ariaLabel="PDF Resource Access"
+                      value={normalizeResourceAccessPolicy(environmentConfig.resourceAccess)}
+                      disabled={isSubmitting}
+                      options={[
+                        { value: 'downloadable', label: 'Downloadable' },
+                        { value: 'view-only', label: 'View-only' },
+                      ]}
+                      onValueChange={(value) => updateEnvironment({
+                        resourceAccess: normalizeResourceAccessPolicy(value),
                       })}
                     />
                   </SettingRow>

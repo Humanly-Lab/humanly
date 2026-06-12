@@ -21,6 +21,7 @@ import {
   isWritingAiChatEnabled,
   isWritingAiPolishEnabled,
   normalizeCopyPastePolicy,
+  normalizeResourceAccessPolicy,
   type AIAuthorshipStats,
   type CertificateSeal,
   type CertificateSealStatus,
@@ -212,6 +213,10 @@ function getEnvironmentRows(config?: WritingEnvironmentConfig | null) {
   rows.push([
     'Copy / paste',
     normalizeCopyPastePolicy(config.copyPastePolicy) === 'blocked' ? 'Blocked' : 'Allowed',
+  ]);
+  rows.push([
+    'PDF resource access',
+    normalizeResourceAccessPolicy(config.resourceAccess) === 'view-only' ? 'View-only' : 'Downloadable',
   ]);
 
   if (isAdminAssigned) {

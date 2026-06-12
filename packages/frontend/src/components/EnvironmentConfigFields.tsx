@@ -14,6 +14,7 @@ import {
   isWritingAiPolishEnabled,
   normalizeWritingAiAccess,
   normalizeCopyPastePolicy,
+  normalizeResourceAccessPolicy,
   WritingEnvironmentConfig,
 } from '@humanly/shared';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -85,6 +86,7 @@ export default function EnvironmentConfigFields({
       ...value.traceability,
     },
     aiAccess: normalizeWritingAiAccess(value.aiAccess),
+    resourceAccess: normalizeResourceAccessPolicy(value.resourceAccess),
     copyPastePolicy: normalizeCopyPastePolicy(value.copyPastePolicy),
   };
   const shortcutTokensEnabled = isWritingAiPolishEnabled(config.aiAccess);
@@ -352,6 +354,24 @@ export default function EnvironmentConfigFields({
             <option value="allowed">Allowed</option>
             <option value="blocked">Blocked</option>
           </select>
+        </div>
+
+        <div className="space-y-2">
+          <Label>PDF Resource Access</Label>
+          <select
+            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            value={normalizeResourceAccessPolicy(config.resourceAccess)}
+            disabled={disabled}
+            onChange={(event) => onChange(setNested(config, {
+              resourceAccess: normalizeResourceAccessPolicy(event.target.value),
+            }))}
+          >
+            <option value="downloadable">Downloadable</option>
+            <option value="view-only">View-only</option>
+          </select>
+          <p className="text-xs text-muted-foreground">
+            View-only PDFs load through short-lived in-workspace access.
+          </p>
         </div>
       </div>
 

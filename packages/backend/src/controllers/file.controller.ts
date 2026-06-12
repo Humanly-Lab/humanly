@@ -70,8 +70,20 @@ export async function listAccessibleTaskInstructionFiles(req: Request, res: Resp
   });
 }
 
+export async function issueFileViewToken(req: Request, res: Response): Promise<void> {
+  const token = await FileService.issueViewOnlyFileToken(req.params.fileId, req.user!.userId);
+
+  res.json({
+    success: true,
+    data: token,
+  });
+}
+
 export async function streamFileContent(req: Request, res: Response): Promise<void> {
-  const stream = await FileService.streamFile(req.params.fileId, req.user!.userId);
+  const viewToken = typeof req.query.viewToken === 'string'
+    ? req.query.viewToken
+    : req.get('X-File-View-Token') || undefined;
+  const stream = await FileService.streamFile(req.params.fileId, req.user!.userId, { viewToken });
 
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', 'inline');
