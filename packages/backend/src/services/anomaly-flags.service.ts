@@ -1,5 +1,6 @@
 import {
   normalizeCopyPastePolicy,
+  normalizeResourceAccessPolicy,
   type WritingAnomalyFlag,
   type WritingAnomalyThresholds,
   type WritingEnvironmentConfig,
@@ -19,6 +20,8 @@ export const DEFAULT_ANOMALY_THRESHOLDS: WritingAnomalyThresholds = {
   uniformCadenceMaximumMeanMs: 220,
   textInfluxMinimumCharacters: 250,
   focusInfluxWindowSeconds: 8,
+  focusAnomalyMinimumBursts: 3,
+  focusAnomalyMaximumBlurSeconds: 6,
   clockSkewMinimumEvents: 80,
   clockSkewMinimumClientSpanSeconds: 120,
   clockSkewMaximumServerSpanSeconds: 5,
@@ -106,6 +109,31 @@ export function computeWritingAnomalyFlags(
         windowSeconds: thresholds.focusInfluxWindowSeconds,
         addedCharacters: features.focusInflux.addedCharacters,
         thresholdCharacters: thresholds.textInfluxMinimumCharacters,
+      },
+    });
+  }
+
+  if (
+    environmentConfig?.captureDeterrence === true
+    && normalizeResourceAccessPolicy(environmentConfig.resourceAccess) === 'view-only'
+    && features.focusAnomaly.shortBlurEvents >= thresholds.focusAnomalyMinimumBursts
+  ) {
+    flags.push({
+      code: 'focus_anomaly',
+      severity: 'warning',
+      label: 'Repeated short focus changes',
+      description: 'The editor repeatedly lost and regained focus while a view-only resource was active.',
+      evidence: {
+        shortBlurEvents: features.focusAnomaly.shortBlurEvents,
+        firstBlurTimestamp: features.focusAnomaly.firstBlurTimestamp?.toISOString() || null,
+        lastFocusTimestamp: features.focusAnomaly.lastFocusTimestamp?.toISOString() || null,
+        maximumBlurSeconds: features.focusAnomaly.maximumBlurSeconds === null
+          ? null
+          : round(features.focusAnomaly.maximumBlurSeconds),
+        thresholdBlurEvents: thresholds.focusAnomalyMinimumBursts,
+        thresholdMaximumBlurSeconds: thresholds.focusAnomalyMaximumBlurSeconds,
+        resourceAccess: 'view-only',
+        captureDeterrence: true,
       },
     });
   }

@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 
 import EnvironmentConfigFields from '@/components/EnvironmentConfigFields';
 import {
@@ -71,5 +71,24 @@ describe('EnvironmentConfigFields token budgets', () => {
 
     expect(screen.getByLabelText(/ai policy enforcement/i)).toHaveValue('guard');
     expect(screen.getByLabelText(/ai rejection rule/i)).toHaveValue('Refuse evaluative claims.');
+  });
+
+  it('emits capture deterrence changes', () => {
+    const onChange = jest.fn();
+    render(
+      <EnvironmentConfigFields
+        value={{
+          ...DEFAULT_WRITING_ENVIRONMENT_CONFIG,
+          captureDeterrence: false,
+        }}
+        onChange={onChange}
+      />
+    );
+
+    fireEvent.click(screen.getByLabelText(/capture deterrence/i));
+
+    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({
+      captureDeterrence: true,
+    }));
   });
 });

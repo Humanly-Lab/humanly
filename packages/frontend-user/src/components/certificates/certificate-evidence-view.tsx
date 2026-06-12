@@ -225,6 +225,10 @@ function getEnvironmentRows(config?: WritingEnvironmentConfig | null) {
     'PDF resource access',
     normalizeResourceAccessPolicy(config.resourceAccess) === 'view-only' ? 'View-only' : 'Downloadable',
   ]);
+  rows.push([
+    'Capture deterrence',
+    config.captureDeterrence ? 'On' : 'Off',
+  ]);
 
   if (isAdminAssigned) {
     rows.push(['Availability window', formatAvailabilityWindow(config)]);

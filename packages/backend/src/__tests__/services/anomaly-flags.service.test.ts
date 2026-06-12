@@ -34,6 +34,12 @@ function makeFeatures(
       focusTimestamp: null,
       addedCharacters: 0,
     },
+    focusAnomaly: {
+      shortBlurEvents: 0,
+      firstBlurTimestamp: null,
+      lastFocusTimestamp: null,
+      maximumBlurSeconds: null,
+    },
     clockSkew: {
       sessionId: 'session-1',
       eventCount: 80,
@@ -46,6 +52,11 @@ function makeFeatures(
 
 const pasteBlockedEnvironment = {
   copyPastePolicy: 'blocked',
+} as WritingEnvironmentConfig;
+
+const deterrenceViewOnlyEnvironment = {
+  captureDeterrence: true,
+  resourceAccess: 'view-only',
 } as WritingEnvironmentConfig;
 
 describe('computeWritingAnomalyFlags', () => {
@@ -122,5 +133,36 @@ describe('computeWritingAnomalyFlags', () => {
       'clock_skew_anomaly',
     ]);
     expect(flags.every((flag) => flag.description.toLowerCase().includes('verdict'))).toBe(false);
+  });
+
+  it('flags repeated short focus changes only when capture deterrence is enabled for view-only resources', () => {
+    const features = makeFeatures({
+      focusAnomaly: {
+        shortBlurEvents: 4,
+        firstBlurTimestamp: new Date('2026-06-12T12:00:00.000Z'),
+        lastFocusTimestamp: new Date('2026-06-12T12:00:18.000Z'),
+        maximumBlurSeconds: 5.2,
+      },
+    });
+
+    expect(computeWritingAnomalyFlags(features).map((flag) => flag.code)).not.toContain('focus_anomaly');
+    expect(computeWritingAnomalyFlags(
+      features,
+      { captureDeterrence: true, resourceAccess: 'downloadable' } as WritingEnvironmentConfig
+    ).map((flag) => flag.code)).not.toContain('focus_anomaly');
+
+    const flags = computeWritingAnomalyFlags(features, deterrenceViewOnlyEnvironment);
+
+    expect(flags).toHaveLength(1);
+    expect(flags[0]).toMatchObject({
+      code: 'focus_anomaly',
+      severity: 'warning',
+      evidence: {
+        shortBlurEvents: 4,
+        maximumBlurSeconds: 5.2,
+        resourceAccess: 'view-only',
+        captureDeterrence: true,
+      },
+    });
   });
 });

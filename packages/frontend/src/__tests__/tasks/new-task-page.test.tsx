@@ -232,7 +232,7 @@ describe('admin new task page', () => {
 
     expect(screen.queryByRole('dialog', { name: /custom environment/i })).not.toBeInTheDocument();
     expect(screen.getByText('Custom Environment')).toBeInTheDocument();
-    expect(screen.getByText('Off')).toBeInTheDocument();
+    expect(screen.getAllByText('Off').length).toBeGreaterThan(0);
     expect(screen.getByText('Task window')).toBeInTheDocument();
     expect(screen.getByText('Session timer')).toBeInTheDocument();
     expect(screen.getByText('AI limit')).toBeInTheDocument();
