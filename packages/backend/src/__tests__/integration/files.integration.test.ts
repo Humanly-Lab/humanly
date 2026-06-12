@@ -129,7 +129,38 @@ describe('file routes integration', () => {
     expect(response.status).toBe(200);
     expect(response.headers['content-type']).toContain('application/pdf');
     expect(response.headers['content-disposition']).toBe('inline');
-    expect(MockFileService.streamFile).toHaveBeenCalledWith('file-1', 'user-1');
+    expect(MockFileService.streamFile).toHaveBeenCalledWith('file-1', 'user-1', { viewToken: undefined });
+  });
+
+  it('issues a view-only file token for authenticated readers', async () => {
+    MockFileService.issueViewOnlyFileToken.mockResolvedValue({
+      token: 'view-token-1',
+      expiresAt: '2026-05-15T12:01:00.000Z',
+      expiresInSeconds: 60,
+    });
+
+    const response = await request(app)
+      .get('/api/v1/files/file-1/view-token')
+      .set('Authorization', authHeader());
+
+    expect(response.status).toBe(200);
+    expect(MockFileService.issueViewOnlyFileToken).toHaveBeenCalledWith('file-1', 'user-1');
+    expect(response.body.data).toEqual({
+      token: 'view-token-1',
+      expiresAt: '2026-05-15T12:01:00.000Z',
+      expiresInSeconds: 60,
+    });
+  });
+
+  it('passes a view-only token into file streaming', async () => {
+    MockFileService.streamFile.mockResolvedValue(Readable.from(Buffer.from('%PDF-1.4')) as any);
+
+    const response = await request(app)
+      .get('/api/v1/files/file-1/content?viewToken=view-token-1')
+      .set('Authorization', authHeader());
+
+    expect(response.status).toBe(200);
+    expect(MockFileService.streamFile).toHaveBeenCalledWith('file-1', 'user-1', { viewToken: 'view-token-1' });
   });
 
   it('requires authentication before streaming file content', async () => {

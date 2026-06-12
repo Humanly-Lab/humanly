@@ -41,4 +41,35 @@ describe('EnvironmentConfigFields token budgets', () => {
     expect(screen.getByLabelText('Shortcut Tokens')).toBeEnabled();
     expect(screen.getByLabelText('Chat Tokens')).toBeEnabled();
   });
+
+  it('shows AI policy guard controls only when chat is enabled', () => {
+    const { rerender } = render(
+      <EnvironmentConfigFields
+        value={{
+          ...DEFAULT_WRITING_ENVIRONMENT_CONFIG,
+          aiAccess: 'polish',
+        }}
+        onChange={jest.fn()}
+      />
+    );
+
+    expect(screen.queryByLabelText(/ai policy enforcement/i)).not.toBeInTheDocument();
+
+    rerender(
+      <EnvironmentConfigFields
+        value={{
+          ...DEFAULT_WRITING_ENVIRONMENT_CONFIG,
+          aiAccess: 'chat',
+          aiPolicy: {
+            mode: 'guard',
+            rejectionRule: 'Refuse evaluative claims.',
+          },
+        }}
+        onChange={jest.fn()}
+      />
+    );
+
+    expect(screen.getByLabelText(/ai policy enforcement/i)).toHaveValue('guard');
+    expect(screen.getByLabelText(/ai rejection rule/i)).toHaveValue('Refuse evaluative claims.');
+  });
 });

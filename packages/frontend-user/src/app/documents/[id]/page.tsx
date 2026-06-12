@@ -51,6 +51,7 @@ import {
   isWritingAiPolishEnabled,
   normalizeWritingAiAccess,
   normalizeCopyPastePolicy,
+  normalizeResourceAccessPolicy,
   type WritingAiProviderConfig,
   type WritingEnvironmentConfig,
 } from '@humanly/shared';
@@ -347,6 +348,7 @@ export default function DocumentEditorPage() {
         ...DEFAULT_WRITING_ENVIRONMENT_CONFIG.traceability,
         ...(sourceConfig.traceability || {}),
       },
+      resourceAccess: normalizeResourceAccessPolicy(sourceConfig.resourceAccess),
       copyPastePolicy: normalizeCopyPastePolicy(sourceConfig.copyPastePolicy),
     };
   }, [document?.environmentConfig, isTaskDocument, taskEnvironmentConfig]);
@@ -1135,6 +1137,7 @@ export default function DocumentEditorPage() {
     taskInstructionFiles.find((file) => file.id === selectedInstructionFileId) ||
     taskInstructionFile;
   const displayFile = selectedInstructionFile || linkedFile;
+  const isResourceViewOnly = normalizeResourceAccessPolicy(currentEnvironmentConfig.resourceAccess) === 'view-only';
   const lockedAiModel = currentEnvironmentConfig.allowedModels?.[0] || (taskEnrollment ? 'Task model' : undefined);
   const lockedAiBaseUrl = currentEnvironmentConfig.aiProvider?.baseUrl;
 
@@ -1401,6 +1404,7 @@ export default function DocumentEditorPage() {
                       key={displayFile.id}
                       fileId={displayFile.id}
                       documentId={documentId}
+                      viewOnly={isResourceViewOnly}
                     />
                   </div>
                 </div>

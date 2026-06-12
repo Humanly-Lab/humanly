@@ -3,6 +3,7 @@ import {
   DocumentEvent,
   DocumentEventInsertData,
   DocumentEventQueryFilters,
+  WritingAnomalyThresholds,
 } from '@humanly/shared';
 
 export interface EventMetrics {
@@ -14,6 +15,50 @@ export interface EventMetrics {
   firstEvent: Date | null;
   lastEvent: Date | null;
   editingDurationSeconds: number;
+}
+
+export interface AnomalyTypingSpeedFeature {
+  maxCharsInWindow: number;
+  windowSeconds: number;
+  charsPerMinute: number;
+}
+
+export interface AnomalyCadenceFeature {
+  intervalCount: number;
+  meanIntervalMs: number | null;
+  stddevIntervalMs: number | null;
+  minIntervalMs: number | null;
+  maxIntervalMs: number | null;
+}
+
+export interface AnomalyTextInfluxFeature {
+  eventType: string | null;
+  timestamp: Date | null;
+  addedCharacters: number;
+}
+
+export interface AnomalyFocusInfluxFeature {
+  blurTimestamp: Date | null;
+  focusTimestamp: Date | null;
+  addedCharacters: number;
+}
+
+export interface AnomalyClockSkewFeature {
+  sessionId: string | null;
+  eventCount: number;
+  clientSpanSeconds: number;
+  serverSpanSeconds: number;
+}
+
+export interface DocumentAnomalyAnalysisFeatures {
+  totalEvents: number;
+  typingEvents: number;
+  pasteEvents: number;
+  speed: AnomalyTypingSpeedFeature;
+  cadence: AnomalyCadenceFeature;
+  textInflux: AnomalyTextInfluxFeature;
+  focusInflux: AnomalyFocusInfluxFeature;
+  clockSkew: AnomalyClockSkewFeature;
 }
 
 export class DocumentEventModel {
@@ -299,6 +344,276 @@ export class DocumentEventModel {
       firstEvent: result.first_event,
       lastEvent: result.last_event,
       editingDurationSeconds: parseFloat(result.editing_duration_seconds || '0'),
+    };
+  }
+
+  static async getAnomalyAnalysisFeatures(
+    documentId: string,
+    thresholds: WritingAnomalyThresholds
+  ): Promise<DocumentAnomalyAnalysisFeatures> {
+    const [metrics, speed, cadence, textInflux, focusInflux, clockSkew] = await Promise.all([
+      this.getEventMetrics(documentId),
+      this.getTypingSpeedFeature(documentId, thresholds.highSpeedWindowSeconds),
+      this.getCadenceFeature(documentId),
+      this.getTextInfluxFeature(documentId, thresholds.textInfluxMinimumCharacters),
+      this.getFocusInfluxFeature(documentId, thresholds.focusInfluxWindowSeconds),
+      this.getClockSkewFeature(documentId, thresholds.clockSkewMinimumEvents),
+    ]);
+
+    return {
+      totalEvents: metrics.totalEvents,
+      typingEvents: metrics.typingEvents,
+      pasteEvents: metrics.pasteEvents,
+      speed,
+      cadence,
+      textInflux,
+      focusInflux,
+      clockSkew,
+    };
+  }
+
+  private static async getTypingSpeedFeature(
+    documentId: string,
+    windowSeconds: number
+  ): Promise<AnomalyTypingSpeedFeature> {
+    const sql = `
+      WITH typing_events AS (
+        SELECT
+          timestamp,
+          GREATEST(
+            CASE
+              WHEN text_after IS NOT NULL AND text_before IS NOT NULL
+                THEN char_length(text_after) - char_length(text_before)
+              ELSE 0
+            END,
+            CASE
+              WHEN event_type = 'keydown' AND key_char IS NOT NULL AND char_length(key_char) = 1
+                THEN 1
+              ELSE 0
+            END
+          ) as added_chars
+        FROM document_events
+        WHERE document_id = $1
+          AND event_type IN ('keydown', 'input')
+      ),
+      positive_typing_events AS (
+        SELECT timestamp, added_chars
+        FROM typing_events
+        WHERE added_chars > 0
+      ),
+      windowed AS (
+        SELECT
+          timestamp,
+          SUM(added_chars) OVER (
+            ORDER BY timestamp
+            RANGE BETWEEN ($2::int * INTERVAL '1 second') PRECEDING AND CURRENT ROW
+          ) as chars_in_window
+        FROM positive_typing_events
+      )
+      SELECT COALESCE(MAX(chars_in_window), 0)::int as max_chars_in_window
+      FROM windowed
+    `;
+
+    const result = await queryOne<{ max_chars_in_window: number | string }>(sql, [
+      documentId,
+      windowSeconds,
+    ]);
+    const maxCharsInWindow = parseInt(String(result?.max_chars_in_window || '0'), 10);
+
+    return {
+      maxCharsInWindow,
+      windowSeconds,
+      charsPerMinute: windowSeconds > 0 ? Math.round((maxCharsInWindow / windowSeconds) * 60) : 0,
+    };
+  }
+
+  private static async getCadenceFeature(documentId: string): Promise<AnomalyCadenceFeature> {
+    const sql = `
+      WITH key_events AS (
+        SELECT timestamp
+        FROM document_events
+        WHERE document_id = $1
+          AND event_type = 'keydown'
+          AND key_char IS NOT NULL
+        ORDER BY timestamp ASC, created_at ASC, id ASC
+      ),
+      deltas AS (
+        SELECT
+          EXTRACT(EPOCH FROM (timestamp - LAG(timestamp) OVER (ORDER BY timestamp ASC))) * 1000 as interval_ms
+        FROM key_events
+      ),
+      usable_deltas AS (
+        SELECT interval_ms
+        FROM deltas
+        WHERE interval_ms > 0 AND interval_ms <= 5000
+      )
+      SELECT
+        COUNT(*)::int as interval_count,
+        AVG(interval_ms) as mean_interval_ms,
+        STDDEV_POP(interval_ms) as stddev_interval_ms,
+        MIN(interval_ms) as min_interval_ms,
+        MAX(interval_ms) as max_interval_ms
+      FROM usable_deltas
+    `;
+
+    const result = await queryOne<any>(sql, [documentId]);
+
+    return {
+      intervalCount: parseInt(result?.interval_count || '0', 10),
+      meanIntervalMs: result?.mean_interval_ms === null || result?.mean_interval_ms === undefined
+        ? null
+        : parseFloat(result.mean_interval_ms),
+      stddevIntervalMs: result?.stddev_interval_ms === null || result?.stddev_interval_ms === undefined
+        ? null
+        : parseFloat(result.stddev_interval_ms),
+      minIntervalMs: result?.min_interval_ms === null || result?.min_interval_ms === undefined
+        ? null
+        : parseFloat(result.min_interval_ms),
+      maxIntervalMs: result?.max_interval_ms === null || result?.max_interval_ms === undefined
+        ? null
+        : parseFloat(result.max_interval_ms),
+    };
+  }
+
+  private static async getTextInfluxFeature(
+    documentId: string,
+    minimumCharacters: number
+  ): Promise<AnomalyTextInfluxFeature> {
+    const sql = `
+      WITH deltas AS (
+        SELECT
+          event_type,
+          timestamp,
+          GREATEST(char_length(COALESCE(text_after, '')) - char_length(COALESCE(text_before, '')), 0) as added_chars
+        FROM document_events
+        WHERE document_id = $1
+          AND text_after IS NOT NULL
+      )
+      SELECT
+        event_type,
+        timestamp,
+        added_chars::int
+      FROM deltas
+      WHERE added_chars >= $2
+        AND event_type NOT IN (
+          'keydown',
+          'input',
+          'paste',
+          'ai_modification_applied',
+          'ai_insert_from_chat',
+          'ai_selection_action',
+          'replace',
+          'replace-all'
+        )
+      ORDER BY added_chars DESC, timestamp ASC
+      LIMIT 1
+    `;
+
+    const result = await queryOne<{
+      event_type: string;
+      timestamp: Date;
+      added_chars: number | string;
+    }>(sql, [documentId, minimumCharacters]);
+
+    return {
+      eventType: result?.event_type || null,
+      timestamp: result?.timestamp || null,
+      addedCharacters: parseInt(String(result?.added_chars || '0'), 10),
+    };
+  }
+
+  private static async getFocusInfluxFeature(
+    documentId: string,
+    windowSeconds: number
+  ): Promise<AnomalyFocusInfluxFeature> {
+    const sql = `
+      WITH focus_events AS (
+        SELECT
+          focus_event.timestamp as focus_timestamp,
+          (
+            SELECT MAX(blur_event.timestamp)
+            FROM document_events blur_event
+            WHERE blur_event.document_id = $1
+              AND blur_event.event_type = 'blur'
+              AND blur_event.timestamp < focus_event.timestamp
+          ) as blur_timestamp
+        FROM document_events focus_event
+        WHERE focus_event.document_id = $1
+          AND focus_event.event_type = 'focus'
+      ),
+      focus_windows AS (
+        SELECT *
+        FROM focus_events
+        WHERE blur_timestamp IS NOT NULL
+      ),
+      influx AS (
+        SELECT
+          focus_windows.blur_timestamp,
+          focus_windows.focus_timestamp,
+          COALESCE(SUM(GREATEST(
+            char_length(COALESCE(event.text_after, '')) - char_length(COALESCE(event.text_before, '')),
+            0
+          )), 0)::int as added_chars
+        FROM focus_windows
+        LEFT JOIN document_events event
+          ON event.document_id = $1
+          AND event.timestamp >= focus_windows.focus_timestamp
+          AND event.timestamp <= focus_windows.focus_timestamp + ($2::int * INTERVAL '1 second')
+          AND event.event_type IN ('keydown', 'input', 'paste')
+        GROUP BY focus_windows.blur_timestamp, focus_windows.focus_timestamp
+      )
+      SELECT blur_timestamp, focus_timestamp, added_chars
+      FROM influx
+      ORDER BY added_chars DESC, focus_timestamp ASC
+      LIMIT 1
+    `;
+
+    const result = await queryOne<{
+      blur_timestamp: Date;
+      focus_timestamp: Date;
+      added_chars: number | string;
+    }>(sql, [documentId, windowSeconds]);
+
+    return {
+      blurTimestamp: result?.blur_timestamp || null,
+      focusTimestamp: result?.focus_timestamp || null,
+      addedCharacters: parseInt(String(result?.added_chars || '0'), 10),
+    };
+  }
+
+  private static async getClockSkewFeature(
+    documentId: string,
+    minimumEvents: number
+  ): Promise<AnomalyClockSkewFeature> {
+    const sql = `
+      WITH session_spans AS (
+        SELECT
+          session_id,
+          COUNT(*)::int as event_count,
+          COALESCE(EXTRACT(EPOCH FROM (MAX(timestamp) - MIN(timestamp))), 0) as client_span_seconds,
+          COALESCE(EXTRACT(EPOCH FROM (MAX(created_at) - MIN(created_at))), 0) as server_span_seconds
+        FROM document_events
+        WHERE document_id = $1
+        GROUP BY session_id
+      )
+      SELECT
+        session_id,
+        event_count,
+        client_span_seconds,
+        server_span_seconds
+      FROM session_spans
+      WHERE event_count >= $2
+      ORDER BY (client_span_seconds - server_span_seconds) DESC, event_count DESC
+      LIMIT 1
+    `;
+
+    const result = await queryOne<any>(sql, [documentId, minimumEvents]);
+
+    return {
+      sessionId: result?.session_id || null,
+      eventCount: parseInt(result?.event_count || '0', 10),
+      clientSpanSeconds: parseFloat(result?.client_span_seconds || '0'),
+      serverSpanSeconds: parseFloat(result?.server_span_seconds || '0'),
     };
   }
 

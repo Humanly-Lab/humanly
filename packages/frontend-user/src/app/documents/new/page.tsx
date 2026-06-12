@@ -17,16 +17,20 @@ import {
   AI_SHORTCUT_MAX_TOKENS_DEFAULT,
   SUBMISSION_MAX_CHARACTERS_MAX,
   WRITING_AI_ACCESS_OPTIONS,
+  WRITING_AI_POLICY_OPTIONS,
   WRITING_AI_MODELS,
   WRITING_ENVIRONMENT_PRESETS,
   formatWritingAiAccess,
   isWritingAiChatEnabled,
   isWritingAiPolishEnabled,
+  normalizeWritingAiPolicy,
   normalizeWritingAiAccess,
   normalizeCopyPastePolicy,
+  normalizeResourceAccessPolicy,
   validateWritingEnvironmentImportTemplate,
   type UserAISettings,
   type WritingAiAccess,
+  type WritingAiPolicyMode,
   type WritingAiProviderConfig,
   type WritingEnvironmentConfig,
   type WritingEnvironmentPreset,
@@ -99,6 +103,7 @@ const getPresetConfig = (preset: WritingEnvironmentPreset): WritingEnvironmentCo
   ...WRITING_ENVIRONMENT_PRESETS[preset],
   taskType: 'personal',
   aiAccess: normalizeWritingAiAccess(WRITING_ENVIRONMENT_PRESETS[preset].aiAccess),
+  resourceAccess: normalizeResourceAccessPolicy(WRITING_ENVIRONMENT_PRESETS[preset].resourceAccess),
   copyPastePolicy: normalizeCopyPastePolicy(WRITING_ENVIRONMENT_PRESETS[preset].copyPastePolicy),
 });
 
@@ -135,6 +140,7 @@ const normalizeImportedEnvironmentConfig = (value: unknown): WritingEnvironmentC
   const imported = validateWritingEnvironmentImportTemplate(value, 'personal');
   const aiAccess: WritingAiAccess = normalizeWritingAiAccess(imported.aiAccess);
   const copyPastePolicy = normalizeCopyPastePolicy(imported.copyPastePolicy);
+  const resourceAccess = normalizeResourceAccessPolicy(imported.resourceAccess);
 
   return {
     ...imported,
@@ -153,6 +159,7 @@ const normalizeImportedEnvironmentConfig = (value: unknown): WritingEnvironmentC
       trackAiUsage: aiAccess !== 'off',
       trackCopyPaste: copyPastePolicy === 'allowed',
     },
+    resourceAccess,
     copyPastePolicy,
   };
 };
@@ -202,9 +209,9 @@ const buildPersonalEnvironmentSummary = (
   selectedAiModel: string
 ): EnvironmentSummaryItem[] => {
   const aiAccess = normalizeWritingAiAccess(config.aiAccess);
+  const aiPolicy = normalizeWritingAiPolicy(config.aiPolicy);
   const model = config.allowedModels[0] || selectedAiModel;
-
-  return [
+  const items: EnvironmentSummaryItem[] = [
     {
       label: 'AI access',
       value: formatWritingAiAccess(aiAccess),
@@ -216,6 +223,15 @@ const buildPersonalEnvironmentSummary = (
         ? 'Paste blocked'
         : 'Paste allowed',
       detail: config.traceability.trackCopyPaste ? 'Clipboard events tracked' : 'Clipboard tracking off',
+    },
+    {
+      label: 'Resource access',
+      value: normalizeResourceAccessPolicy(config.resourceAccess) === 'view-only'
+        ? 'View-only'
+        : 'Downloadable',
+      detail: normalizeResourceAccessPolicy(config.resourceAccess) === 'view-only'
+        ? 'PDF opens through short-lived viewer access'
+        : 'PDF keeps standard file access',
     },
     {
       label: 'Time limit',
@@ -238,6 +254,18 @@ const buildPersonalEnvironmentSummary = (
       detail: 'Captured evidence',
     },
   ];
+
+  if (isWritingAiChatEnabled(aiAccess)) {
+    items.splice(1, 0, {
+      label: 'AI policy',
+      value: aiPolicy.mode === 'guard' ? 'Guard' : 'Off',
+      detail: aiPolicy.mode === 'guard'
+        ? 'Custom rejection rule active'
+        : 'No chat constitution',
+    });
+  }
+
+  return items;
 };
 
 export default function NewDocumentPage() {
@@ -443,6 +471,28 @@ export default function NewDocumentPage() {
     }));
   };
 
+  const setAiPolicyMode = (mode: WritingAiPolicyMode) => {
+    markCustom((current) => ({
+      ...current,
+      aiPolicy: mode === 'guard'
+        ? {
+            mode: 'guard',
+            rejectionRule: normalizeWritingAiPolicy(current.aiPolicy).rejectionRule || '',
+          }
+        : { mode: 'off' },
+    }));
+  };
+
+  const setAiPolicyRejectionRule = (rejectionRule: string) => {
+    markCustom((current) => ({
+      ...current,
+      aiPolicy: {
+        mode: 'guard',
+        rejectionRule,
+      },
+    }));
+  };
+
   const setSubmissionMaximumCharacters = (value: string) => {
     const maxCharacters = parseOptionalMaxCharacters(value);
     markCustom((current) => ({
@@ -470,6 +520,9 @@ export default function NewDocumentPage() {
           ? current.allowedModels
           : [defaultModel],
       customModels: aiAccess === 'off' ? [] : current.customModels,
+      aiPolicy: isWritingAiChatEnabled(aiAccess)
+        ? normalizeWritingAiPolicy(current.aiPolicy)
+        : { mode: 'off' },
       traceability: {
         ...current.traceability,
         trackAiUsage: aiAccess !== 'off',
@@ -536,6 +589,7 @@ export default function NewDocumentPage() {
         ...environmentConfig,
         taskType: 'personal',
         copyPastePolicy: normalizeCopyPastePolicy(environmentConfig.copyPastePolicy),
+        resourceAccess: normalizeResourceAccessPolicy(environmentConfig.resourceAccess),
         instructions: {
           ...environmentConfig.instructions,
           hasInstructionPdf: !!pdfFile,
@@ -559,6 +613,26 @@ export default function NewDocumentPage() {
             timeLimitSeconds: minutes * 60,
           },
         };
+      }
+
+      configToCreate = {
+        ...configToCreate,
+        aiPolicy: isWritingAiChatEnabled(configToCreate.aiAccess)
+          ? normalizeWritingAiPolicy(configToCreate.aiPolicy)
+          : { mode: 'off' },
+      };
+
+      if (
+        isWritingAiChatEnabled(configToCreate.aiAccess)
+        && configToCreate.aiPolicy?.mode === 'guard'
+        && !configToCreate.aiPolicy.rejectionRule?.trim()
+      ) {
+        toast({
+          title: 'AI policy rule required',
+          description: 'Enter a rejection rule or turn AI policy enforcement off.',
+          variant: 'destructive',
+        });
+        return;
       }
 
       if (environmentConfig.aiAccess !== 'off') {
@@ -783,6 +857,46 @@ export default function NewDocumentPage() {
                 </p>
               </div>
             </div>
+
+            {chatTokensEnabled && (
+              <div className="grid gap-4 rounded-lg border border-border/70 bg-background p-3">
+                <div className="humanly-field">
+                  <Label>AI Policy Enforcement</Label>
+                  <Select
+                    value={normalizeWritingAiPolicy(environmentConfig.aiPolicy).mode}
+                    onValueChange={(value) => setAiPolicyMode(value as WritingAiPolicyMode)}
+                  >
+                    <SelectTrigger aria-label="AI policy enforcement">
+                      <SelectValue placeholder="AI policy enforcement" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {WRITING_AI_POLICY_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {normalizeWritingAiPolicy(environmentConfig.aiPolicy).mode === 'guard' && (
+                  <div className="humanly-field">
+                    <Label htmlFor="ai-policy-rejection-rule">Rejection Rule</Label>
+                    <Textarea
+                      id="ai-policy-rejection-rule"
+                      aria-label="AI rejection rule"
+                      value={normalizeWritingAiPolicy(environmentConfig.aiPolicy).rejectionRule || ''}
+                      onChange={(event) => setAiPolicyRejectionRule(event.target.value)}
+                      placeholder="Example: Refuse to produce evaluative claims; only help with grammar, wording, or understanding references."
+                      className="min-h-24"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Applies only to agent chat in Chat or Full mode.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -812,6 +926,30 @@ export default function NewDocumentPage() {
               <SelectItem value="blocked">Blocked</SelectItem>
             </SelectContent>
           </Select>
+        </div>
+
+        <div className="humanly-field">
+          <Label>PDF Resource Access</Label>
+          <Select
+            value={normalizeResourceAccessPolicy(environmentConfig.resourceAccess)}
+            onValueChange={(value) => {
+              markCustom((current) => ({
+                ...current,
+                resourceAccess: normalizeResourceAccessPolicy(value),
+              }));
+            }}
+          >
+            <SelectTrigger aria-label="PDF resource access">
+              <SelectValue placeholder="PDF resource access" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="downloadable">Downloadable</SelectItem>
+              <SelectItem value="view-only">View-only</SelectItem>
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">
+            View-only PDFs load through short-lived viewer access and hide file-saving affordances.
+          </p>
         </div>
 
         <div className="grid gap-3">

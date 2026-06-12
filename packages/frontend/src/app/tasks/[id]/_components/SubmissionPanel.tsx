@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Award, BarChart3, ChevronRight, FileText, Loader2, RefreshCcw, Users } from 'lucide-react';
+import { Award, BarChart3, ChevronRight, FileText, Loader2, RefreshCcw, ShieldAlert, Users } from 'lucide-react';
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -38,6 +38,18 @@ const sortSubmissions = (submissions: AdminSubmission[]) => (
 const formatSubmissionCount = (count: number) => {
   if (count === 0) return 'No submissions yet';
   return `${count.toLocaleString()} ${count === 1 ? 'submission' : 'submissions'}`;
+};
+
+const severityRank = {
+  info: 0,
+  warning: 1,
+  critical: 2,
+} as const;
+
+const getFlagBadgeClass = (severity: keyof typeof severityRank) => {
+  if (severity === 'critical') return 'border-[#d6c5c7] bg-[#f2edee] text-[#6f5d61]';
+  if (severity === 'warning') return 'border-[#d8ccba] bg-[#f2efe8] text-[#6a6256]';
+  return 'border-[#c8d1dc] bg-[#eef1f4] text-[#576777]';
 };
 
 export function SubmissionPanel({
@@ -98,6 +110,25 @@ export function SubmissionPanel({
           Issued
         </a>
       </Button>
+    );
+  };
+
+  const renderFlagsCell = (submission: AdminSubmission) => {
+    const flags = submission.anomalyFlags || [];
+
+    if (flags.length === 0) {
+      return <span className="text-sm text-muted-foreground">None</span>;
+    }
+
+    const highestSeverity = flags.reduce((current, flag) => (
+      severityRank[flag.severity] > severityRank[current] ? flag.severity : current
+    ), flags[0].severity);
+
+    return (
+      <Badge variant="outline" className={`gap-1 capitalize ${getFlagBadgeClass(highestSeverity)}`}>
+        <ShieldAlert className="h-3 w-3" />
+        {highestSeverity} · {flags.length}
+      </Badge>
     );
   };
 
@@ -226,6 +257,7 @@ export function SubmissionPanel({
                       <TableHead>User</TableHead>
                       <TableHead>Latest Submission</TableHead>
                       <TableHead>Submitted</TableHead>
+                      <TableHead>Activity Flags</TableHead>
                       <TableHead className="text-right">Certificate</TableHead>
                       <TableHead className="text-right">Analytics</TableHead>
                     </TableRow>
@@ -244,6 +276,7 @@ export function SubmissionPanel({
                             </div>
                           </TableCell>
                           <TableCell>{formatDateTime(submission.submittedAt)}</TableCell>
+                          <TableCell>{renderFlagsCell(submission)}</TableCell>
                           <TableCell className="text-right">{renderCertificateCell(submission)}</TableCell>
                           <TableCell className="text-right">
                             <Button
@@ -280,6 +313,7 @@ export function SubmissionPanel({
                   <TableRow>
                     <TableHead>Document</TableHead>
                     <TableHead>Submitted</TableHead>
+                    <TableHead>Activity Flags</TableHead>
                     <TableHead className="text-right">Certificate</TableHead>
                     <TableHead className="text-right">Analytics</TableHead>
                   </TableRow>
@@ -294,6 +328,7 @@ export function SubmissionPanel({
                         </div>
                       </TableCell>
                       <TableCell>{formatDateTime(submission.submittedAt)}</TableCell>
+                      <TableCell>{renderFlagsCell(submission)}</TableCell>
                       <TableCell className="text-right">{renderCertificateCell(submission)}</TableCell>
                       <TableCell className="text-right">
                         <Button

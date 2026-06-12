@@ -20,6 +20,7 @@ import { usePDFTextStore } from '@/stores/pdf-text-store'
 interface PDFViewerProps {
   fileId: string
   documentId?: string
+  viewOnly?: boolean
 }
 
 interface SearchMatch {
@@ -56,7 +57,7 @@ function getTextItemHighlightRect(item: any, matchStart: number, matchLength: nu
   }
 }
 
-export default function PDFViewer({ fileId, documentId }: PDFViewerProps) {
+export default function PDFViewer({ fileId, documentId, viewOnly = false }: PDFViewerProps) {
   const [numPages, setNumPages] = useState<number>(0)
   const [currentPage, setCurrentPage] = useState<number>(1)
   const [textExtractionError, setTextExtractionError] = useState<string | null>(null)
@@ -244,7 +245,7 @@ export default function PDFViewer({ fileId, documentId }: PDFViewerProps) {
         }
         if (!window.pdfjsLib) throw new Error('PDF.js failed to load')
 
-        const url = await fileApi.getPdfBlob(fileId)
+        const url = await fileApi.getPdfBlob(fileId, { viewOnly })
         if (cancelled) return
         blobUrl = url
 
@@ -255,7 +256,7 @@ export default function PDFViewer({ fileId, documentId }: PDFViewerProps) {
         setFitToWidth(true)
         setLoading(false)
 
-        if (documentId && !cancelled) {
+        if (documentId && !viewOnly && !cancelled) {
           extractPDFTextInBackground(pdf, documentId, fileId)
         }
       } catch (err: any) {
@@ -279,7 +280,7 @@ export default function PDFViewer({ fileId, documentId }: PDFViewerProps) {
       }
       pdfDocRef.current = null
     }
-  }, [fileId, documentId, extractPDFTextInBackground, cancelCurrentRenderGeneration])
+  }, [fileId, documentId, viewOnly, extractPDFTextInBackground, cancelCurrentRenderGeneration])
 
   // Re-render all pages on scale change
   useEffect(() => {
@@ -468,7 +469,7 @@ export default function PDFViewer({ fileId, documentId }: PDFViewerProps) {
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+      if (!viewOnly && (e.ctrlKey || e.metaKey) && e.key === 'f') {
         e.preventDefault()
         openSearch()
       }
@@ -478,7 +479,7 @@ export default function PDFViewer({ fileId, documentId }: PDFViewerProps) {
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [showSearch, openSearch, closeSearch])
+  }, [showSearch, viewOnly, openSearch, closeSearch])
 
   // Ctrl+scroll zoom
   useEffect(() => {
@@ -542,6 +543,12 @@ export default function PDFViewer({ fileId, documentId }: PDFViewerProps) {
           </span>
         )}
 
+        {viewOnly && !showSearch && (
+          <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+            View-only
+          </span>
+        )}
+
         {!showSearch && <div className="border-l h-5 mx-1" />}
 
         {/* Zoom Controls */}
@@ -565,7 +572,7 @@ export default function PDFViewer({ fileId, documentId }: PDFViewerProps) {
         {!showSearch && <div className="border-l h-5 mx-1" />}
 
         {/* Search — inline */}
-        {showSearch ? (
+        {!viewOnly && showSearch ? (
           <div className="flex items-center gap-1 flex-1">
             <Input
               ref={searchInputRef}
@@ -599,11 +606,11 @@ export default function PDFViewer({ fileId, documentId }: PDFViewerProps) {
               <X className="h-3.5 w-3.5" />
             </Button>
           </div>
-        ) : (
+        ) : !viewOnly ? (
           <Button variant="ghost" size="icon" onClick={openSearch} title="Search (Ctrl+F)" className="h-7 w-7">
             <Search className="h-4 w-4" />
           </Button>
-        )}
+        ) : null}
       </div>
 
       {/* PDF text extraction error */}

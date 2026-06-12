@@ -23,12 +23,14 @@ import { TaskModel } from '../../models/task.model';
 import { AIRetrievalService } from '../../services/ai-retrieval.service';
 import { FileService } from '../../services/file.service';
 import { FileStorageService } from '../../services/file-storage.service';
+import { logger } from '../../utils/logger';
 
 const MockDocumentModel = DocumentModel as jest.Mocked<typeof DocumentModel>;
 const MockFileModel = FileModel as jest.Mocked<typeof FileModel>;
 const MockTaskModel = TaskModel as jest.Mocked<typeof TaskModel>;
 const MockFileStorageService = FileStorageService as jest.Mocked<typeof FileStorageService>;
 const MockAIRetrievalService = AIRetrievalService as jest.Mocked<typeof AIRetrievalService>;
+const MockLogger = logger as jest.Mocked<typeof logger>;
 const mockQueryOne = queryOne as jest.MockedFunction<typeof queryOne>;
 
 function makeMulterFile(overrides: Partial<Express.Multer.File> = {}): Express.Multer.File {
@@ -200,6 +202,85 @@ describe('FileService', () => {
     expect(MockFileStorageService.getStream).toHaveBeenCalledWith(expect.objectContaining({
       storageKey: 'files/file-1/checksum.pdf',
       storageProvider: 'local',
+    }));
+  });
+
+  it('rejects direct streams for view-only task instruction files without a short-lived token', async () => {
+    MockFileModel.findById.mockResolvedValue(makeAppFile({
+      documentId: null,
+      taskId: 'task-1',
+      purpose: 'task_instruction_pdf',
+    }) as any);
+    MockTaskModel.findById.mockResolvedValue({
+      id: 'task-1',
+      userId: 'owner-1',
+      environmentConfig: { resourceAccess: 'view-only' },
+    } as any);
+    MockTaskModel.hasEnrollment.mockResolvedValue(true);
+
+    await expect(FileService.streamFile('file-1', 'user-1')).rejects.toMatchObject({
+      statusCode: 403,
+      message: 'View-only file token is required',
+    });
+
+    expect(MockFileStorageService.getStream).not.toHaveBeenCalled();
+    expect(MockLogger.warn).toHaveBeenCalledWith('Rejected view-only file access', expect.objectContaining({
+      fileId: 'file-1',
+      userId: 'user-1',
+      reason: 'missing_token',
+    }));
+  });
+
+  it('issues a short-lived token and streams view-only files when the token matches the user and file', async () => {
+    MockFileModel.findById.mockResolvedValue(makeAppFile({
+      documentId: null,
+      taskId: 'task-1',
+      purpose: 'task_instruction_pdf',
+    }) as any);
+    MockTaskModel.findById.mockResolvedValue({
+      id: 'task-1',
+      userId: 'owner-1',
+      environmentConfig: { resourceAccess: 'view-only' },
+    } as any);
+    MockTaskModel.hasEnrollment.mockResolvedValue(true);
+    MockFileStorageService.getStream.mockResolvedValue(Readable.from(Buffer.from('%PDF-1.4')) as any);
+
+    const { token, expiresInSeconds } = await FileService.issueViewOnlyFileToken('file-1', 'user-1');
+    await FileService.streamFile('file-1', 'user-1', { viewToken: token });
+
+    expect(expiresInSeconds).toBe(60);
+    expect(token).toEqual(expect.any(String));
+    expect(MockFileStorageService.getStream).toHaveBeenCalledWith(expect.objectContaining({
+      storageKey: 'files/file-1/checksum.pdf',
+      storageProvider: 'local',
+    }));
+  });
+
+  it('rejects invalid or expired view-only tokens before opening file storage streams', async () => {
+    MockFileModel.findById.mockResolvedValue(makeAppFile({
+      documentId: null,
+      taskId: 'task-1',
+      purpose: 'task_instruction_pdf',
+    }) as any);
+    MockTaskModel.findById.mockResolvedValue({
+      id: 'task-1',
+      userId: 'owner-1',
+      environmentConfig: { resourceAccess: 'view-only' },
+    } as any);
+    MockTaskModel.hasEnrollment.mockResolvedValue(true);
+
+    await expect(
+      FileService.streamFile('file-1', 'user-1', { viewToken: 'not-a-valid-token' })
+    ).rejects.toMatchObject({
+      statusCode: 403,
+      message: 'View-only file token is invalid or expired',
+    });
+
+    expect(MockFileStorageService.getStream).not.toHaveBeenCalled();
+    expect(MockLogger.warn).toHaveBeenCalledWith('Rejected view-only file access', expect.objectContaining({
+      fileId: 'file-1',
+      userId: 'user-1',
+      reason: 'invalid_or_expired_token',
     }));
   });
 

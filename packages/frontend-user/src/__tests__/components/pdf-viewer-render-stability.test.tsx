@@ -159,4 +159,19 @@ describe('PDFViewer render stability', () => {
       transform: [2, 0, 0, 2, 0, 0],
     }))
   })
+
+  it('uses view-only file access without extracting client-side PDF text', async () => {
+    render(<PDFViewer fileId="file-123" documentId="doc-1" viewOnly />)
+
+    await waitFor(() => {
+      expect(fileApi.getPdfBlob).toHaveBeenCalledWith('file-123', { viewOnly: true })
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText('View-only')).toBeInTheDocument()
+    })
+
+    expect(screen.queryByTitle('Search (Ctrl+F)')).not.toBeInTheDocument()
+    expect(mockSetPDFText).not.toHaveBeenCalled()
+  })
 })

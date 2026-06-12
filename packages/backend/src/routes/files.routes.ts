@@ -7,6 +7,7 @@ import {
   listAccessibleTaskInstructionFiles,
   listDocumentFiles,
   listTaskInstructionFiles,
+  issueFileViewToken,
   streamFileContent,
   uploadDocumentFile,
   uploadTaskInstructionFile,
@@ -33,6 +34,7 @@ router.get('/documents/:documentId/files', asyncHandler(listDocumentFiles));
 router.post('/tasks/:taskId/files', upload.single('pdf'), asyncHandler(uploadTaskInstructionFile));
 router.get('/tasks/:taskId/files', asyncHandler(listTaskInstructionFiles));
 router.get('/tasks/enrollments/:taskId/instruction-files', asyncHandler(listAccessibleTaskInstructionFiles));
+router.get('/files/:fileId/view-token', asyncHandler(issueFileViewToken));
 router.get('/files/:fileId/content', asyncHandler(streamFileContent));
 router.delete('/files/:fileId', asyncHandler(deleteFile));
 

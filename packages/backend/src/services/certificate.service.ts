@@ -23,6 +23,7 @@ import {
   CertificateSealVerification,
   CertificateSealService,
 } from './certificate-seal.service';
+import { AnomalyFlagsService } from './anomaly-flags.service';
 
 export class CertificateService {
   /**
@@ -60,6 +61,10 @@ export class CertificateService {
 
       // Calculate certificate metrics
       const metrics = await this.calculateCertificateMetrics(documentId, userId);
+      const anomalyFlags = await AnomalyFlagsService.analyzeDocument(
+        documentId,
+        document.environmentConfig || null
+      );
 
       // Generate verification token
       const verificationToken = this.generateVerificationToken();
@@ -93,6 +98,7 @@ export class CertificateService {
         typedCharacters: metrics.typedCharacters,
         pastedCharacters: metrics.pastedCharacters,
         editingTimeSeconds: Math.round(metrics.editingTimeSeconds),
+        anomalyFlags,
         verificationToken,
         signerName: signerName || null,
         includeFullText,
@@ -118,6 +124,7 @@ export class CertificateService {
         typedCharacters: metrics.typedCharacters,
         pastedCharacters: metrics.pastedCharacters,
         editingTimeSeconds: Math.round(metrics.editingTimeSeconds),
+        anomalyFlags,
         signature,
         verificationToken,
         signerName,
@@ -252,7 +259,7 @@ export class CertificateService {
     const integrity = this.verifyCertificateIntegrity(certificate);
 
     const jsonCertificate: JSONCertificate = {
-      version: '1.1',
+      version: '1.2',
       certificateId: certificate.id,
       certificateUrl: `${env.frontendUserUrl}/verify/${certificate.verificationToken}`,
       submissionId: certificate.submissionId || undefined,
@@ -276,6 +283,7 @@ export class CertificateService {
         editingTimeMinutes: Math.round(certificate.editingTimeSeconds / 60),
       },
       aiAuthorshipStats: aiStats,
+      anomalyFlags: certificate.anomalyFlags || [],
       environmentConfig: certificate.environmentConfig
         ?? (await this.withEnvironmentConfig(certificate)).environmentConfig
         ?? null,
@@ -453,6 +461,7 @@ export class CertificateService {
       typedCharacters: certificate.typedCharacters,
       pastedCharacters: certificate.pastedCharacters,
       editingTimeSeconds: certificate.editingTimeSeconds,
+      anomalyFlags: certificate.anomalyFlags || [],
       verificationToken: certificate.verificationToken,
       signerName: certificate.signerName || null,
       includeFullText: certificate.includeFullText,

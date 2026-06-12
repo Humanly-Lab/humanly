@@ -40,6 +40,18 @@ type ExportRow = [
   userId: string | null,
 ];
 
+interface ExportSubmissionSummary {
+  id: string;
+  taskId: string;
+  userId: string;
+  documentId: string;
+  certificateId: string | null;
+  certificateVerificationToken: string | null;
+  submittedAt: Date;
+  status: string;
+  anomalyFlags: Record<string, any>[];
+}
+
 /**
  * Service for exporting task activity in various formats.
  *
@@ -60,6 +72,7 @@ export class ExportService {
       const task = await this.verifyTaskAccess(taskId, userId);
       const { sql, params } = this.buildExportQuery(taskId, filters);
       const totalEvents = await this.getEventCount(taskId, filters);
+      const submissions = await this.fetchSubmissionSummaries(taskId);
 
       const metadata: ExportMetadata = {
         taskId: task.id,
@@ -81,6 +94,10 @@ export class ExportService {
         `  "exportDate": "${metadata.exportDate}",\n`,
         `  "filters": ${JSON.stringify(filters)},\n`,
         `  "totalEvents": ${totalEvents},\n`,
+        `  "submissions": ${JSON.stringify(submissions.map((submission) => ({
+          ...submission,
+          submittedAt: submission.submittedAt.toISOString(),
+        })))},\n`,
         '  "events": [\n',
       ];
 
@@ -196,6 +213,32 @@ export class ExportService {
         rowMode: 'array',
       });
       return result.rows as ExportRow[];
+    } finally {
+      client.release();
+    }
+  }
+
+  private static async fetchSubmissionSummaries(taskId: string): Promise<ExportSubmissionSummary[]> {
+    const client = await pool.connect();
+    try {
+      const result = await client.query(`
+        SELECT
+          s.id::text as "id",
+          s.task_id::text as "taskId",
+          s.user_id::text as "userId",
+          s.document_id::text as "documentId",
+          s.certificate_id::text as "certificateId",
+          c.verification_token as "certificateVerificationToken",
+          s.submitted_at as "submittedAt",
+          s.status,
+          COALESCE(s.anomaly_flags, c.anomaly_flags, '[]'::jsonb) as "anomalyFlags"
+        FROM submissions s
+        LEFT JOIN certificates c ON c.id = s.certificate_id
+        WHERE s.task_id = $1
+        ORDER BY s.submitted_at ASC, s.created_at ASC
+      `, [taskId]);
+
+      return result.rows as ExportSubmissionSummary[];
     } finally {
       client.release();
     }
