@@ -105,6 +105,8 @@ describe('CertificateEvidenceView', () => {
     expect(screen.getByText('Certificate seal')).toBeInTheDocument();
     expect(screen.getByText('Seal verified')).toBeInTheDocument();
     expect(screen.getByText('Server-issued seal matches this certificate record.')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Activity Flags' })).toBeInTheDocument();
+    expect(screen.getByText('No advisory activity flags were detected for this certificate.')).toBeInTheDocument();
     expect(screen.queryByText('Payload hash')).not.toBeInTheDocument();
     expect(screen.queryByText('1234567890ab...567890abcdef')).not.toBeInTheDocument();
     expect(screen.queryByText('Algorithm')).not.toBeInTheDocument();
@@ -326,5 +328,49 @@ describe('CertificateEvidenceView', () => {
 
     expect(screen.getByText('<1%')).toBeInTheDocument();
     expect(screen.queryByText('Pasted 0%')).not.toBeInTheDocument();
+  });
+
+  it('renders advisory anomaly flags with evidence', () => {
+    render(
+      <CertificateEvidenceView
+        certificate={{
+          id: 'certificate-5',
+          documentId: 'document-5',
+          title: 'Flagged Draft',
+          certificateType: 'full_authorship',
+          generatedAt: '2026-06-10T12:00:00.000Z',
+          totalCharacters: 1000,
+          typedCharacters: 1000,
+          pastedCharacters: 0,
+          totalEvents: 140,
+          typingEvents: 140,
+          pasteEvents: 0,
+          editingTimeSeconds: 45,
+          includeEditHistory: false,
+          anomalyFlags: [
+            {
+              code: 'uniform_key_cadence',
+              severity: 'warning',
+              label: 'Uniform key cadence',
+              description: 'Key intervals were unusually uniform, which can indicate scripted or agent-driven input.',
+              evidence: {
+                intervalCount: 139,
+                stddevIntervalMs: 4.5,
+              },
+            },
+          ],
+          environmentConfig,
+        }}
+        aiStats={aiStats}
+      />
+    );
+
+    expect(screen.getByRole('heading', { name: 'Activity Flags' })).toBeInTheDocument();
+    expect(screen.getByText('Uniform key cadence')).toBeInTheDocument();
+    expect(screen.getByText('warning')).toBeInTheDocument();
+    expect(screen.getByText('Interval Count')).toBeInTheDocument();
+    expect(screen.getByText('139')).toBeInTheDocument();
+    expect(screen.getByText('Stddev Interval Ms')).toBeInTheDocument();
+    expect(screen.getByText('4.5')).toBeInTheDocument();
   });
 });

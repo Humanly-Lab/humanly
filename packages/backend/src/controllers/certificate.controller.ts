@@ -101,6 +101,7 @@ async function buildPublicCertificateResponse(
       typingEvents: certificate.typingEvents,
       pasteEvents: certificate.pasteEvents,
       editingTimeSeconds: certificate.editingTimeSeconds,
+      anomalyFlags: certificate.anomalyFlags || [],
       isProtected: certificate.isProtected,
       includeFullText: certificate.includeFullText,
       includeEditHistory: certificate.includeEditHistory,

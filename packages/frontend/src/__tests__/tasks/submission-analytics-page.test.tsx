@@ -38,6 +38,15 @@ const submissionFixture = {
   documentTitle: 'Latest Essay',
   certificateVerificationToken: 'cert-token-123',
   submittedAt: '2026-05-15T01:58:00.000Z',
+  anomalyFlags: [
+    {
+      code: 'uniform_key_cadence',
+      severity: 'warning',
+      label: 'Uniform key cadence',
+      description: 'Key intervals were unusually uniform.',
+      evidence: { intervalCount: 42 },
+    },
+  ],
   status: 'active' as const,
 };
 
@@ -179,6 +188,8 @@ describe('admin submission analytics page', () => {
     expect(screen.getByText(/user@example.com/)).toBeInTheDocument();
     expect(screen.getByText(/Latest Essay/)).toBeInTheDocument();
     expect(screen.getByText('Events before submit')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Activity Flags' })).toBeInTheDocument();
+    expect(screen.getByText('warning · Uniform key cadence')).toBeInTheDocument();
     expect(screen.getByText('Editing duration')).toBeInTheDocument();
     expect(screen.getByText('Typed characters')).toBeInTheDocument();
     expect(screen.getByText('Paste share')).toBeInTheDocument();

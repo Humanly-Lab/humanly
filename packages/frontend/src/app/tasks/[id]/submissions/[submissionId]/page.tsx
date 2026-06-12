@@ -15,6 +15,7 @@ import {
   Loader2,
   RefreshCcw,
   RefreshCw,
+  ShieldAlert,
   Sparkles,
   TrendingUp,
   Trash2,
@@ -31,6 +32,7 @@ import {
 
 import api, { ApiError } from '@/lib/api-client';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ANALYTICS_CHART_COLORS } from '@/lib/analytics-palette';
@@ -39,6 +41,7 @@ import type {
   AIInteractionLog,
   DocumentEventTimelineItem,
   DocumentEventTimelineRawEvent,
+  WritingAnomalyFlag,
 } from '@humanly/shared';
 
 interface Submission {
@@ -48,6 +51,7 @@ interface Submission {
   documentTitle?: string | null;
   certificateVerificationToken?: string | null;
   submittedAt: string;
+  anomalyFlags?: WritingAnomalyFlag[] | null;
   status: 'active' | 'historical';
 }
 
@@ -100,6 +104,12 @@ const AI_LOG_BADGE_COLOR: CSSProperties = {
   backgroundColor: '#F0EDF2',
   borderColor: '#D0C8D7',
   color: '#655D70',
+};
+
+const FLAG_BADGE_STYLES: Record<WritingAnomalyFlag['severity'], string> = {
+  info: 'border-[#c8d1dc] bg-[#eef1f4] text-[#576777]',
+  warning: 'border-[#d8ccba] bg-[#f2efe8] text-[#6a6256]',
+  critical: 'border-[#d6c5c7] bg-[#f2edee] text-[#6f5d61]',
 };
 
 const TIMELINE_ICONS: Partial<Record<DocumentEventTimelineItem['kind'], JSX.Element>> = {
@@ -960,6 +970,37 @@ export default function TaskSubmissionAnalyticsPage() {
           <AlertTitle>Error loading analytics</AlertTitle>
           <AlertDescription>{error}</AlertDescription>
         </Alert>
+      )}
+
+      {!error && submission && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <ShieldAlert className="h-4 w-4 text-muted-foreground" />
+              Activity Flags
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {(submission.anomalyFlags || []).length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No advisory activity flags were detected for this submission certificate.
+              </p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {(submission.anomalyFlags || []).map((flag) => (
+                  <Badge
+                    key={flag.code}
+                    variant="outline"
+                    className={`capitalize ${FLAG_BADGE_STYLES[flag.severity]}`}
+                    title={flag.description}
+                  >
+                    {flag.severity} · {flag.label}
+                  </Badge>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
       )}
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">

@@ -1,4 +1,4 @@
-import type { AnalyticsSummary } from '@humanly/shared';
+import type { AnalyticsSummary, WritingAnomalyFlag } from '@humanly/shared';
 
 export type TaskDetailTab = 'overview' | 'submission' | 'users' | 'analytics' | 'setting';
 
@@ -48,5 +48,6 @@ export interface AdminSubmission {
   certificateId?: string | null;
   certificateVerificationToken?: string | null;
   submittedAt: string;
+  anomalyFlags?: WritingAnomalyFlag[] | null;
   status: 'active' | 'historical';
 }

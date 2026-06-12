@@ -13,6 +13,7 @@ const SUBMISSION_SELECT_FIELDS = `
   plain_text_snapshot as "plainTextSnapshot",
   supersedes_submission_id as "supersedesSubmissionId",
   status,
+  anomaly_flags as "anomalyFlags",
   created_at as "createdAt"
 `;
 
@@ -30,6 +31,7 @@ const SUBMISSION_WITH_CERTIFICATE_SELECT_FIELDS = `
   s.plain_text_snapshot as "plainTextSnapshot",
   s.supersedes_submission_id as "supersedesSubmissionId",
   s.status,
+  COALESCE(s.anomaly_flags, c.anomaly_flags, '[]'::jsonb) as "anomalyFlags",
   s.created_at as "createdAt"
 `;
 
@@ -43,9 +45,10 @@ export class SubmissionModel {
         payload_snapshot,
         plain_text_snapshot,
         supersedes_submission_id,
+        anomaly_flags,
         status
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING ${SUBMISSION_SELECT_FIELDS}
     `;
 
@@ -56,6 +59,7 @@ export class SubmissionModel {
       JSON.stringify(data.payloadSnapshot),
       data.plainTextSnapshot,
       data.supersedesSubmissionId || null,
+      JSON.stringify(data.anomalyFlags || []),
       data.status || 'active',
     ]);
 
@@ -144,7 +148,9 @@ export class SubmissionModel {
   static async attachCertificate(submissionId: string, certificateId: string): Promise<Submission | null> {
     const sql = `
       UPDATE submissions
-      SET certificate_id = $2
+      SET
+        certificate_id = $2,
+        anomaly_flags = COALESCE((SELECT anomaly_flags FROM certificates WHERE id = $2), '[]'::jsonb)
       WHERE id = $1
       RETURNING ${SUBMISSION_SELECT_FIELDS}
     `;

@@ -88,6 +88,7 @@ export interface Submission {
   plainTextSnapshot: string;
   supersedesSubmissionId?: string | null;
   status: SubmissionStatus;
+  anomalyFlags?: WritingAnomalyFlag[] | null;
   createdAt: Date;
 }
 
@@ -98,6 +99,7 @@ export interface SubmissionInsertData {
   payloadSnapshot: Record<string, any>;
   plainTextSnapshot: string;
   supersedesSubmissionId?: string | null;
+  anomalyFlags?: WritingAnomalyFlag[];
   status?: SubmissionStatus;
 }
 
@@ -209,6 +211,46 @@ export type CertificateType = 'full_authorship' | 'partial_authorship';
 export type CertificateStatus = 'active' | 'superseded' | 'historical';
 export type CertificateSealStatus = 'valid' | 'invalid' | 'legacy_valid' | 'missing';
 
+export type WritingAnomalyFlagCode =
+  | 'sustained_high_typing_speed'
+  | 'uniform_key_cadence'
+  | 'text_influx_without_input'
+  | 'focus_text_influx'
+  | 'paste_policy_violation'
+  | 'clock_skew_anomaly';
+
+export type WritingAnomalyFlagSeverity = 'info' | 'warning' | 'critical';
+
+export type WritingAnomalyFlagEvidenceValue =
+  | string
+  | number
+  | boolean
+  | null
+  | string[]
+  | number[];
+
+export interface WritingAnomalyFlag {
+  code: WritingAnomalyFlagCode;
+  severity: WritingAnomalyFlagSeverity;
+  label: string;
+  description: string;
+  evidence: Record<string, WritingAnomalyFlagEvidenceValue>;
+}
+
+export interface WritingAnomalyThresholds {
+  highSpeedWindowSeconds: number;
+  highSpeedCharsPerMinute: number;
+  highSpeedMinimumCharacters: number;
+  uniformCadenceMinimumEvents: number;
+  uniformCadenceMaximumStddevMs: number;
+  uniformCadenceMaximumMeanMs: number;
+  textInfluxMinimumCharacters: number;
+  focusInfluxWindowSeconds: number;
+  clockSkewMinimumEvents: number;
+  clockSkewMinimumClientSpanSeconds: number;
+  clockSkewMaximumServerSpanSeconds: number;
+}
+
 export interface CertificateSeal {
   version: string;
   algorithm: string;
@@ -239,6 +281,7 @@ export interface Certificate {
   typedCharacters: number;
   pastedCharacters: number;
   editingTimeSeconds: number;
+  anomalyFlags?: WritingAnomalyFlag[];
 
   // Verification
   signature: string;
@@ -278,6 +321,7 @@ export interface CertificateInsertData {
   typedCharacters: number;
   pastedCharacters: number;
   editingTimeSeconds: number;
+  anomalyFlags?: WritingAnomalyFlag[];
   signature: string;
   verificationToken: string;
   signerName?: string;
@@ -377,6 +421,7 @@ export interface JSONCertificate {
     editingTimeMinutes: number;
   };
   aiAuthorshipStats?: AIAuthorshipStats;
+  anomalyFlags?: WritingAnomalyFlag[];
   environmentConfig?: WritingEnvironmentConfig | null;
   evidence: {
     replayAvailable: boolean;

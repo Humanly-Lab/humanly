@@ -34,12 +34,16 @@ describe('ExportService', () => {
     } as any);
   });
 
-  function mockClient(rows: any[][] = []) {
+  function mockClient(rows: any[][] = [], options: { submissions?: Record<string, any>[] } = {}) {
+    const query = jest.fn();
+    query.mockResolvedValueOnce({ rows: [{ count: String(rows.length) }] });
+    if (options.submissions) {
+      query.mockResolvedValueOnce({ rows: options.submissions });
+    }
+    query.mockResolvedValueOnce({ rows });
+
     const client = {
-      query: jest
-        .fn()
-        .mockResolvedValueOnce({ rows: [{ count: String(rows.length) }] })
-        .mockResolvedValueOnce({ rows }),
+      query,
       release: jest.fn(),
     };
     mockPool.connect.mockResolvedValue(client as any);
@@ -50,7 +54,29 @@ describe('ExportService', () => {
     const client = mockClient([
       ['tracker', 'event-1', 'session-1', 'task-1', 'student-1', 'keydown', new Date('2026-05-16T12:00:00.000Z'), 'editor', '65', 'a', '', 'a', 1, 0, 1, { source: 'qa' }, null, null],
       ['document', 'doc-event-1', 'session-1', 'task-1', 'student@example.com', 'input', new Date('2026-05-16T12:01:00.000Z'), null, null, null, 'a', 'ab', 2, 0, 2, { source: 'editor' }, 'document-1', 'user-1'],
-    ]);
+    ], {
+      submissions: [
+        {
+          id: 'submission-1',
+          taskId: 'task-1',
+          userId: 'user-1',
+          documentId: 'document-1',
+          certificateId: 'certificate-1',
+          certificateVerificationToken: 'token-1',
+          submittedAt: new Date('2026-05-16T12:02:00.000Z'),
+          status: 'active',
+          anomalyFlags: [
+            {
+              code: 'uniform_key_cadence',
+              severity: 'warning',
+              label: 'Uniform key cadence',
+              description: 'Key intervals were unusually uniform.',
+              evidence: { intervalCount: 40 },
+            },
+          ],
+        },
+      ],
+    });
 
     const { stream, metadata } = await ExportService.exportToJSON('task-1', 'owner-1');
     const text = await streamToString(stream);
@@ -58,6 +84,17 @@ describe('ExportService', () => {
 
     expect(metadata.totalEvents).toBe(2);
     expect(json.task.id).toBe('task-1');
+    expect(json.submissions).toHaveLength(1);
+    expect(json.submissions[0]).toEqual(expect.objectContaining({
+      id: 'submission-1',
+      certificateVerificationToken: 'token-1',
+      anomalyFlags: [
+        expect.objectContaining({
+          code: 'uniform_key_cadence',
+          severity: 'warning',
+        }),
+      ],
+    }));
     expect(json.events[0]).toEqual(expect.objectContaining({
       id: 'event-1',
       eventSource: 'tracker',
@@ -70,7 +107,7 @@ describe('ExportService', () => {
       documentId: 'document-1',
       externalUserId: 'student@example.com',
     }));
-    expect(client.release).toHaveBeenCalledTimes(2);
+    expect(client.release).toHaveBeenCalledTimes(3);
   });
 
   it('exports CSV without relying on pg query-stream events', async () => {
@@ -89,18 +126,20 @@ describe('ExportService', () => {
   });
 
   it('builds exports from tracker and document event stores', async () => {
-    const client = mockClient([]);
+    const client = mockClient([], { submissions: [] });
 
     await ExportService.exportToJSON('task-1', 'owner-1', {
       userIds: ['student@example.com'],
     });
 
     const countSql = client.query.mock.calls[0][0] as string;
-    const exportQuery = client.query.mock.calls[1][0] as { text: string; values: unknown[] };
+    const submissionQuery = client.query.mock.calls[1][0] as string;
+    const exportQuery = client.query.mock.calls[2][0] as { text: string; values: unknown[] };
 
     expect(countSql).toContain('UNION ALL');
     expect(countSql).toContain('document_events');
     expect(countSql).toContain('task_enrollments');
+    expect(submissionQuery).toContain('COALESCE(s.anomaly_flags, c.anomaly_flags');
     expect(exportQuery.text).toContain("'tracker'::text as event_source");
     expect(exportQuery.text).toContain("'document'::text as event_source");
     expect(exportQuery.values).toEqual(['task-1', ['student@example.com']]);

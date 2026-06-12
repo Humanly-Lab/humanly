@@ -26,6 +26,7 @@ import {
   type CertificateSeal,
   type CertificateSealStatus,
   type CertificateType,
+  type WritingAnomalyFlag,
   type WritingEnvironmentConfig,
 } from '@humanly/shared';
 import { Badge } from '@/components/ui/badge';
@@ -58,6 +59,7 @@ export interface CertificateEvidenceRecord {
   typingEvents: number;
   pasteEvents: number;
   editingTimeSeconds: number;
+  anomalyFlags?: WritingAnomalyFlag[] | null;
   includeEditHistory?: boolean;
   signerName?: string | null;
   environmentConfig?: WritingEnvironmentConfig | null;
@@ -240,6 +242,31 @@ function getEnvironmentRows(config?: WritingEnvironmentConfig | null) {
   return rows;
 }
 
+function getFlagSeverityClass(severity: WritingAnomalyFlag['severity']) {
+  if (severity === 'critical') {
+    return 'border-[#d6c5c7] bg-[#f2edee] text-[#6f5d61]';
+  }
+
+  if (severity === 'warning') {
+    return 'border-[#d8ccba] bg-[#f2efe8] text-[#6a6256]';
+  }
+
+  return 'border-[#c8d1dc] bg-[#eef1f4] text-[#576777]';
+}
+
+function formatEvidenceValue(value: unknown) {
+  if (value === null || value === undefined) return 'Unavailable';
+  if (Array.isArray(value)) return value.join(', ');
+  if (typeof value === 'number') return Number.isInteger(value) ? value.toLocaleString() : value.toFixed(1);
+  return String(value);
+}
+
+function formatEvidenceKey(key: string) {
+  return key
+    .replace(/([A-Z])/g, ' $1')
+    .replace(/^./, (char) => char.toUpperCase());
+}
+
 function downloadEnvironmentConfig(certificateId: string, config?: WritingEnvironmentConfig | null) {
   if (!config || typeof window === 'undefined') return;
 
@@ -293,6 +320,7 @@ export function CertificateEvidenceView({
   const SealStatusIcon = sealPresentation.Icon;
   const showReplay = Boolean(certificate.includeEditHistory && replayToken);
   const environmentRows = getEnvironmentRows(certificate.environmentConfig);
+  const anomalyFlags = certificate.anomalyFlags || [];
 
   return (
     <div className="space-y-4">
@@ -378,6 +406,49 @@ export function CertificateEvidenceView({
               </CollapsibleContent>
             </Collapsible>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className={SECTION_TITLE_CLASS}>Activity Flags</CardTitle>
+          <CardDescription>
+            Advisory signals from write-time event analysis. These flags are evidence for review, not automatic verdicts.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {anomalyFlags.length === 0 ? (
+            <div className="rounded-lg border border-border/60 bg-muted/25 p-4 text-sm text-muted-foreground">
+              No advisory activity flags were detected for this certificate.
+            </div>
+          ) : (
+            <div className="grid gap-3 md:grid-cols-2">
+              {anomalyFlags.map((flag) => (
+                <div key={flag.code} className="rounded-lg border border-border/70 bg-muted/20 p-4">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge
+                      variant="outline"
+                      className={`capitalize ${getFlagSeverityClass(flag.severity)}`}
+                    >
+                      {flag.severity}
+                    </Badge>
+                    <p className="font-medium">{flag.label}</p>
+                  </div>
+                  <p className="mt-2 text-sm text-muted-foreground">{flag.description}</p>
+                  <div className="mt-3 grid gap-2 text-xs sm:grid-cols-2">
+                    {Object.entries(flag.evidence || {}).slice(0, 6).map(([key, value]) => (
+                      <div key={key} className="rounded-md bg-background/70 px-2 py-1.5">
+                        <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                          {formatEvidenceKey(key)}
+                        </p>
+                        <p className="mt-0.5 break-words font-medium">{formatEvidenceValue(value)}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 
