@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "Text provenance service for tracking typing activities in external forms and surveys",
   "private": true,
+  "license": "MIT",
   "packageManager": "pnpm@9.0.0",
   "workspaces": [
     "packages/*"
