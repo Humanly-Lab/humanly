@@ -10,10 +10,12 @@ import {
   Download,
   FileText,
   Loader2,
+  Monitor,
   PanelLeft,
   PanelLeftClose,
   RefreshCw,
   Upload,
+  Video,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -356,6 +358,29 @@ export default function DocumentEditorPage() {
   const aiPolishEnabled = isWritingAiPolishEnabled(aiAccessMode);
   const aiChatEnabled = isWritingAiChatEnabled(aiAccessMode);
   const isAIPanelVisible = aiChatEnabled && isAIPanelOpen;
+  const recordingNoticeItems = [
+    currentEnvironmentConfig.traceability.requireScreenRecording
+      ? {
+          key: 'screen',
+          Icon: Monitor,
+          label: 'Screen recording expected',
+          description: 'This environment expects screen recording evidence.',
+        }
+      : null,
+    currentEnvironmentConfig.traceability.requireCameraRecording
+      ? {
+          key: 'camera',
+          Icon: Video,
+          label: 'Camera recording expected',
+          description: 'This environment expects camera recording evidence.',
+        }
+      : null,
+  ].filter(Boolean) as Array<{
+    key: string;
+    Icon: typeof Monitor;
+    label: string;
+    description: string;
+  }>;
 
   const editorInitialContent = useMemo(
     () => normalizeEditorInitialContent(document?.content),
@@ -1432,6 +1457,22 @@ export default function DocumentEditorPage() {
                     <div className="mb-4 rounded-lg border border-border/70 bg-muted/40 p-4 text-sm text-muted-foreground">
                       The writing time limit has ended. This document is now read-only.
                       {taskEnrollment ? ' Humanly is submitting the task automatically.' : null}
+                    </div>
+                  )}
+                  {recordingNoticeItems.length > 0 && (
+                    <div className="mb-4 grid gap-2 sm:grid-cols-2">
+                      {recordingNoticeItems.map(({ key, Icon, label, description }) => (
+                        <div
+                          key={key}
+                          className="flex items-start gap-3 rounded-lg border border-border/70 bg-muted/35 p-3 text-sm"
+                        >
+                          <Icon className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                          <div>
+                            <p className="font-medium">{label}</p>
+                            <p className="text-xs text-muted-foreground">{description}</p>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   )}
                   <LexicalEditor

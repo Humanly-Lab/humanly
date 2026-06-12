@@ -52,6 +52,8 @@ export interface WritingEnvironmentConfig {
     trackTyping: boolean;
     trackCopyPaste: boolean;
     trackFocusBlur: boolean;
+    requireScreenRecording?: boolean;
+    requireCameraRecording?: boolean;
   };
   copyPastePolicy: CopyPastePolicy;
 }
@@ -128,6 +130,8 @@ export const DEFAULT_WRITING_ENVIRONMENT_CONFIG: WritingEnvironmentConfig = {
     trackTyping: true,
     trackCopyPaste: false,
     trackFocusBlur: true,
+    requireScreenRecording: false,
+    requireCameraRecording: false,
   },
   copyPastePolicy: 'allowed',
 };

@@ -920,6 +920,8 @@ describe('admin task overview invite code copy button', () => {
       target: { value: '20' },
     });
     fireEvent.click(within(dialog).getByRole('radio', { name: 'Blocked' }));
+    fireEvent.click(within(dialog).getByRole('checkbox', { name: /screen recording/i }));
+    fireEvent.click(within(dialog).getByRole('checkbox', { name: /camera recording/i }));
     fireEvent.click(within(dialog).getByRole('button', { name: /apply/i }));
     fireEvent.click(screen.getByRole('button', { name: /save settings/i }));
 
@@ -955,6 +957,8 @@ describe('admin task overview invite code copy button', () => {
     expect(payload.environmentConfig.traceability).toEqual(expect.objectContaining({
       trackAiUsage: true,
       trackCopyPaste: false,
+      requireScreenRecording: true,
+      requireCameraRecording: true,
     }));
   });
 });

@@ -652,6 +652,25 @@ describe('editor and logs workflows', () => {
     expect(screen.queryByText(/application error|setEditorState/i)).not.toBeInTheDocument();
   });
 
+  it('shows configured screen and camera recording notices in the editor workspace', async () => {
+    mockDocumentEnvironmentConfig = {
+      aiAccess: 'off',
+      copyPastePolicy: 'allowed',
+      traceability: {
+        requireScreenRecording: true,
+        requireCameraRecording: true,
+      },
+    };
+
+    render(<DocumentEditorPage />);
+
+    expect(await screen.findByText('Workflow Document')).toBeInTheDocument();
+    expect(screen.getByText('Screen recording expected')).toBeInTheDocument();
+    expect(screen.getByText('This environment expects screen recording evidence.')).toBeInTheDocument();
+    expect(screen.getByText('Camera recording expected')).toBeInTheDocument();
+    expect(screen.getByText('This environment expects camera recording evidence.')).toBeInTheDocument();
+  });
+
   it('shows a configured writing time limit in the editor header', async () => {
     mockDocumentEnvironmentConfig = {
       aiAccess: 'off',

@@ -4,6 +4,7 @@ import {
   TASK_START_DATE_PAST_ERROR_MESSAGE,
   SUBMISSION_MAX_CHARACTERS_MAX,
   SUBMISSION_MIN_CHARACTERS_MAX,
+  validateWritingEnvironmentImportTemplate,
 } from '@humanly/shared';
 
 describe('writing environment validators', () => {
@@ -29,6 +30,28 @@ describe('writing environment validators', () => {
 
     expect(result.environmentConfig?.submission.minCharacters).toBe(1000);
     expect(result.environmentConfig?.submission.maxCharacters).toBe(3000);
+  });
+
+  it('defaults optional screen and camera recording policy during environment import', () => {
+    const legacyEnvironment = {
+      ...DEFAULT_WRITING_ENVIRONMENT_CONFIG,
+      taskType: 'admin_assigned',
+      aiUsageLimit: {
+        mode: 'max_requests',
+        maxRequests: 100,
+      },
+      traceability: {
+        trackAiUsage: false,
+        trackTyping: true,
+        trackCopyPaste: true,
+        trackFocusBlur: true,
+      },
+    };
+
+    const result = validateWritingEnvironmentImportTemplate(legacyEnvironment, 'admin_assigned');
+
+    expect(result.traceability.requireScreenRecording).toBe(false);
+    expect(result.traceability.requireCameraRecording).toBe(false);
   });
 
   it('rejects minimum submission character counts above the supported maximum', () => {

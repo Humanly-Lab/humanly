@@ -33,6 +33,7 @@ import {
 } from '@humanly/shared';
 
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Card,
   CardContent,
@@ -197,6 +198,15 @@ const formatPersonalTraceability = (config: WritingEnvironmentConfig): string =>
   return enabled.length ? enabled.join(', ') : 'Minimal';
 };
 
+const formatPersonalRecordingNotices = (config: WritingEnvironmentConfig): string => {
+  const enabled = [
+    config.traceability.requireScreenRecording ? 'Screen' : null,
+    config.traceability.requireCameraRecording ? 'Camera' : null,
+  ].filter(Boolean);
+
+  return enabled.length ? enabled.join(', ') : 'Not requested';
+};
+
 const buildPersonalEnvironmentSummary = (
   config: WritingEnvironmentConfig,
   selectedAiModel: string
@@ -236,6 +246,11 @@ const buildPersonalEnvironmentSummary = (
       label: 'Traceability',
       value: formatPersonalTraceability(config),
       detail: 'Captured evidence',
+    },
+    {
+      label: 'Recording',
+      value: formatPersonalRecordingNotices(config),
+      detail: 'Optional notices',
     },
   ];
 };
@@ -910,6 +925,55 @@ export default function NewDocumentPage() {
             />
           </div>
         )}
+      </div>
+
+      <div className="space-y-4 rounded-lg border border-border/70 bg-card p-4">
+        <SectionHeading
+          title="Recording Notices"
+          description="Show optional evidence notices in the writer workspace and certificate."
+        />
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="flex items-start gap-3 rounded-md border border-border/70 bg-muted/25 p-3 text-sm">
+            <Checkbox
+              checked={Boolean(environmentConfig.traceability.requireScreenRecording)}
+              onCheckedChange={(checked) => markCustom((current) => ({
+                ...current,
+                traceability: {
+                  ...current.traceability,
+                  requireScreenRecording: checked === true,
+                },
+              }))}
+              disabled={isCreating}
+            />
+            <span>
+              <span className="block font-medium">Screen recording</span>
+              <span className="block text-xs text-muted-foreground">
+                Tell writers this environment expects screen recording evidence.
+              </span>
+            </span>
+          </label>
+
+          <label className="flex items-start gap-3 rounded-md border border-border/70 bg-muted/25 p-3 text-sm">
+            <Checkbox
+              checked={Boolean(environmentConfig.traceability.requireCameraRecording)}
+              onCheckedChange={(checked) => markCustom((current) => ({
+                ...current,
+                traceability: {
+                  ...current.traceability,
+                  requireCameraRecording: checked === true,
+                },
+              }))}
+              disabled={isCreating}
+            />
+            <span>
+              <span className="block font-medium">Camera recording</span>
+              <span className="block text-xs text-muted-foreground">
+                Tell writers this environment expects camera recording evidence.
+              </span>
+            </span>
+          </label>
+        </div>
       </div>
     </div>
   );

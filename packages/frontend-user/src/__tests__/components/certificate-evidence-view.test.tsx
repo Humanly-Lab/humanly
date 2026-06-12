@@ -192,6 +192,8 @@ describe('CertificateEvidenceView', () => {
     expect(screen.getByText('Writing time limit')).toBeInTheDocument();
     expect(screen.getByText('30min')).toBeInTheDocument();
     expect(screen.getByText('Maximum characters')).toBeInTheDocument();
+    expect(screen.queryByText('Screen recording')).not.toBeInTheDocument();
+    expect(screen.queryByText('Camera recording')).not.toBeInTheDocument();
   });
 
   it('shows assignment-only environment rows for admin-assigned certificates', async () => {
@@ -248,6 +250,45 @@ describe('CertificateEvidenceView', () => {
     expect(screen.getByText('Submission mode')).toBeInTheDocument();
     expect(screen.getByText('Single submission')).toBeInTheDocument();
     expect(screen.queryByText('Maximum characters')).not.toBeInTheDocument();
+  });
+
+  it('shows recording environment rows only when recording notices were configured', async () => {
+    const user = userEvent.setup();
+
+    render(
+      <CertificateEvidenceView
+        certificate={{
+          id: 'certificate-recording',
+          documentId: 'document-recording',
+          title: 'Recorded Environment',
+          certificateType: 'full_authorship',
+          generatedAt: '2026-06-10T12:00:00.000Z',
+          totalCharacters: 100,
+          typedCharacters: 80,
+          pastedCharacters: 20,
+          totalEvents: 10,
+          typingEvents: 8,
+          pasteEvents: 2,
+          editingTimeSeconds: 1820,
+          includeEditHistory: false,
+          environmentConfig: {
+            ...environmentConfig,
+            traceability: {
+              ...environmentConfig.traceability,
+              requireScreenRecording: true,
+              requireCameraRecording: true,
+            },
+          },
+        }}
+        aiStats={aiStats}
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Show environment section' }));
+
+    expect(screen.getByText('Screen recording')).toBeInTheDocument();
+    expect(screen.getByText('Camera recording')).toBeInTheDocument();
+    expect(screen.getAllByText('Expected by environment')).toHaveLength(2);
   });
 
   it('does not show AI token budget rows when AI access is off', async () => {

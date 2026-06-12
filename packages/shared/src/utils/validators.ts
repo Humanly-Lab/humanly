@@ -83,6 +83,8 @@ export const writingEnvironmentConfigSchema = z.object({
     trackTyping: z.boolean(),
     trackCopyPaste: z.boolean(),
     trackFocusBlur: z.boolean(),
+    requireScreenRecording: z.boolean().optional().default(false),
+    requireCameraRecording: z.boolean().optional().default(false),
   }),
   copyPastePolicy: z.enum(['allowed', 'blocked']),
 }).superRefine((config, ctx) => {

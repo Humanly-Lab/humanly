@@ -327,6 +327,15 @@ const formatAdminTraceability = (config: WritingEnvironmentConfig): string => {
   return enabled.length ? enabled.join(', ') : 'Minimal';
 };
 
+const formatAdminRecordingNotices = (config: WritingEnvironmentConfig): string => {
+  const enabled = [
+    config.traceability.requireScreenRecording ? 'Screen' : null,
+    config.traceability.requireCameraRecording ? 'Camera' : null,
+  ].filter(Boolean);
+
+  return enabled.length ? enabled.join(', ') : 'Not requested';
+};
+
 const buildAdminEnvironmentSummary = ({
   config,
   aiAccess,
@@ -388,6 +397,11 @@ const buildAdminEnvironmentSummary = ({
       label: 'Traceability',
       value: formatAdminTraceability(config),
       detail: 'Captured evidence',
+    },
+    {
+      label: 'Recording',
+      value: formatAdminRecordingNotices(config),
+      detail: 'Optional notices',
     },
   ];
 };
@@ -1451,6 +1465,55 @@ export default function NewTaskPage() {
             </FormDescription>
           </div>
         )}
+      </div>
+
+      <div className="space-y-4 rounded-md border p-4">
+        <SectionHeading
+          title="Recording Notices"
+          description="Show optional evidence notices in enrolled writers' workspaces and certificates."
+        />
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="flex items-start gap-3 rounded-md border border-border/70 bg-muted/25 p-3 text-sm">
+            <Checkbox
+              checked={Boolean(environmentConfig.traceability.requireScreenRecording)}
+              disabled={isSubmitting}
+              onCheckedChange={(checked) => markCustom((current) => ({
+                ...current,
+                traceability: {
+                  ...current.traceability,
+                  requireScreenRecording: checked === true,
+                },
+              }))}
+            />
+            <span>
+              <span className="block font-medium">Screen recording</span>
+              <span className="block text-xs text-muted-foreground">
+                Tell enrolled writers this task expects screen recording evidence.
+              </span>
+            </span>
+          </label>
+
+          <label className="flex items-start gap-3 rounded-md border border-border/70 bg-muted/25 p-3 text-sm">
+            <Checkbox
+              checked={Boolean(environmentConfig.traceability.requireCameraRecording)}
+              disabled={isSubmitting}
+              onCheckedChange={(checked) => markCustom((current) => ({
+                ...current,
+                traceability: {
+                  ...current.traceability,
+                  requireCameraRecording: checked === true,
+                },
+              }))}
+            />
+            <span>
+              <span className="block font-medium">Camera recording</span>
+              <span className="block text-xs text-muted-foreground">
+                Tell enrolled writers this task expects camera recording evidence.
+              </span>
+            </span>
+          </label>
+        </div>
       </div>
     </div>
   );

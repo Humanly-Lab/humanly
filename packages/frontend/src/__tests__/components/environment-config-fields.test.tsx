@@ -41,4 +41,11 @@ describe('EnvironmentConfigFields token budgets', () => {
     expect(screen.getByLabelText('Shortcut Tokens')).toBeEnabled();
     expect(screen.getByLabelText('Chat Tokens')).toBeEnabled();
   });
+
+  it('exposes optional recording notice controls', () => {
+    renderFields({});
+
+    expect(screen.getByText('Show screen recording notice')).toBeInTheDocument();
+    expect(screen.getByText('Show camera recording notice')).toBeInTheDocument();
+  });
 });

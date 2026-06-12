@@ -363,10 +363,12 @@ export default function EnvironmentConfigFields({
             ['trackTyping', 'Track typing behavior'],
             ['trackCopyPaste', 'Track copy-paste behavior'],
             ['trackFocusBlur', 'Track focus/blur events'],
+            ['requireScreenRecording', 'Show screen recording notice'],
+            ['requireCameraRecording', 'Show camera recording notice'],
           ].map(([key, label]) => (
             <label key={key} className="flex items-center gap-2 text-sm">
               <Checkbox
-                checked={config.traceability[key as keyof WritingEnvironmentConfig['traceability']]}
+                checked={Boolean(config.traceability[key as keyof WritingEnvironmentConfig['traceability']])}
                 disabled={disabled}
                 onCheckedChange={(checked) => onChange(setNested(config, {
                   traceability: {

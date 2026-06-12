@@ -160,9 +160,41 @@ describe('document creation workflow', () => {
     expect(screen.getByText('Character cap')).toBeInTheDocument();
     expect(screen.getByText('AI token budget')).toBeInTheDocument();
     expect(screen.getByText('Traceability')).toBeInTheDocument();
+    expect(screen.getByText('Recording')).toBeInTheDocument();
+    expect(screen.getByText('Not requested')).toBeInTheDocument();
     expect(screen.getByText('Typing, Focus')).toBeInTheDocument();
     expect(screen.queryByText('Submission')).not.toBeInTheDocument();
     expect(screen.queryByText('Choose Custom to configure AI access, copy-paste rules, or a time limit.')).not.toBeInTheDocument();
+  });
+
+  it('persists optional screen and camera recording notices for personal writing', async () => {
+    const user = userEvent.setup();
+    mockCreateDocument.mockResolvedValueOnce({ id: 'doc-recording', title: 'Recorded Writing' });
+
+    render(<NewDocumentPage />);
+
+    await screen.findByRole('heading', { name: /create writing/i });
+    await user.type(screen.getByLabelText(/document name/i), 'Recorded Writing');
+    await user.click(screen.getByRole('combobox', { name: /environment/i }));
+    await user.click(await screen.findByRole('option', { name: 'Custom' }));
+    await user.click(screen.getByRole('checkbox', { name: /screen recording/i }));
+    await user.click(screen.getByRole('checkbox', { name: /camera recording/i }));
+    await user.click(screen.getByRole('button', { name: /^done$/i }));
+    await user.click(screen.getByRole('button', { name: /^create writing$/i }));
+
+    await waitFor(() => {
+      expect(mockCreateDocument).toHaveBeenCalledWith(
+        'Recorded Writing',
+        undefined,
+        expect.objectContaining({
+          traceability: expect.objectContaining({
+            requireScreenRecording: true,
+            requireCameraRecording: true,
+          }),
+        }),
+        ''
+      );
+    });
   });
 
   it('shows only the import box until a JSON environment is applied', async () => {

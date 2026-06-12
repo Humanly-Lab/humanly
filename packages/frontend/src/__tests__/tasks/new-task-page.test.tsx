@@ -239,6 +239,8 @@ describe('admin new task page', () => {
     expect(screen.getByText('Submission')).toBeInTheDocument();
     expect(screen.getByText('Multiple submissions')).toBeInTheDocument();
     expect(screen.getByText('Guests allowed')).toBeInTheDocument();
+    expect(screen.getByText('Recording')).toBeInTheDocument();
+    expect(screen.getByText('Not requested')).toBeInTheDocument();
     expect(screen.queryByLabelText(/AI Usage Limit/i)).not.toBeInTheDocument();
 
     await act(async () => {
@@ -248,6 +250,42 @@ describe('admin new task page', () => {
     const reopenedDialog = screen.getByRole('dialog', { name: /custom environment/i });
     expect(within(reopenedDialog).getByText('Control whether enrolled users can use assistant support.')).toBeInTheDocument();
     expect(within(reopenedDialog).getByRole('option', { name: 'Full' })).toBeInTheDocument();
+  });
+
+  it('persists optional screen and camera recording notices for admin-created tasks', async () => {
+    render(<NewTaskPage />);
+
+    expect(await screen.findByRole('heading', { name: 'New Task' })).toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText(/Task Name/i), {
+        target: { value: 'Recorded Task' },
+      });
+    });
+    const dialog = await openCustomEnvironmentDialog();
+    await act(async () => {
+      fireEvent.click(within(dialog).getByRole('checkbox', { name: /screen recording/i }));
+      fireEvent.click(within(dialog).getByRole('checkbox', { name: /camera recording/i }));
+    });
+    await closeCustomEnvironmentDialog();
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /^Create Task$/i }));
+    });
+
+    await waitFor(() => {
+      expect(mockApiPost).toHaveBeenCalledWith(
+        '/api/v1/tasks',
+        expect.objectContaining({
+          name: 'Recorded Task',
+          environmentConfig: expect.objectContaining({
+            traceability: expect.objectContaining({
+              requireScreenRecording: true,
+              requireCameraRecording: true,
+            }),
+          }),
+        })
+      );
+    });
   });
 
   it('edits custom task availability in a dialog before creating the task', async () => {

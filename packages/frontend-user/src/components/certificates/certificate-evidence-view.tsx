@@ -231,6 +231,12 @@ function getEnvironmentRows(config?: WritingEnvironmentConfig | null) {
   }
 
   rows.push(['Traceability', formatTraceability(config)]);
+  if (config.traceability?.requireScreenRecording) {
+    rows.push(['Screen recording', 'Expected by environment']);
+  }
+  if (config.traceability?.requireCameraRecording) {
+    rows.push(['Camera recording', 'Expected by environment']);
+  }
 
   return rows;
 }
