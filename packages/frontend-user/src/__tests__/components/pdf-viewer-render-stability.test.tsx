@@ -206,7 +206,7 @@ describe('PDFViewer render stability', () => {
     fireEvent.keyDown(window, { key: 'c', ctrlKey: true })
 
     await waitFor(() => {
-      expect(api.post).toHaveBeenCalledWith('/api/v1/documents/doc-1/events', expect.objectContaining({
+      expect(api.post).toHaveBeenCalledWith('/documents/doc-1/events', expect.objectContaining({
         events: [expect.objectContaining({
           eventType: 'contextmenu',
           metadata: expect.objectContaining({
@@ -216,7 +216,7 @@ describe('PDFViewer render stability', () => {
           }),
         })],
       }))
-      expect(api.post).toHaveBeenCalledWith('/api/v1/documents/doc-1/events', expect.objectContaining({
+      expect(api.post).toHaveBeenCalledWith('/documents/doc-1/events', expect.objectContaining({
         events: [expect.objectContaining({
           eventType: 'copy',
           metadata: expect.objectContaining({

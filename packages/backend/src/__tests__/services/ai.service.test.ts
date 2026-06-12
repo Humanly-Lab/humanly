@@ -1140,16 +1140,17 @@ describe('AIService.chat', () => {
       expect.objectContaining({
         documentId: 'doc-1',
         userId: 'user-1',
-        sessionId: 'session-1',
         eventType: 'ai_policy_refusal',
         metadata: expect.objectContaining({
           source: 'chat',
+          aiChatSessionId: 'session-1',
           logId: 'log-1',
           modelVersion: 'Qwen/Qwen3.5-397B-A17B',
           policyHash: expect.stringMatching(/^[a-f0-9]{64}$/),
         }),
       }),
     ]);
+    expect(MockDocumentEventModel.batchInsert.mock.calls[0][0][0].sessionId).toBeUndefined();
   });
 
   it('records a structured policy refusal event after stream assembly', async () => {
@@ -1189,16 +1190,17 @@ describe('AIService.chat', () => {
       expect.objectContaining({
         documentId: 'doc-1',
         userId: 'user-1',
-        sessionId: 'session-1',
         eventType: 'ai_policy_refusal',
         metadata: expect.objectContaining({
           source: 'stream_chat',
+          aiChatSessionId: 'session-1',
           logId: 'log-1',
           modelVersion: 'Qwen/Qwen3.5-397B-A17B',
           policyHash: expect.stringMatching(/^[a-f0-9]{64}$/),
         }),
       }),
     ]);
+    expect(MockDocumentEventModel.batchInsert.mock.calls[0][0][0].sessionId).toBeUndefined();
   });
 
   it('answers no-reference context questions without dispatching to the provider', async () => {

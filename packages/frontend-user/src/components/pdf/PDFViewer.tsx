@@ -520,7 +520,7 @@ export default function PDFViewer({ fileId, documentId, viewOnly = false }: PDFV
     if (!viewOnly || !documentId) return
 
     try {
-      await api.post(`/api/v1/documents/${documentId}/events`, {
+      await api.post(`/documents/${documentId}/events`, {
         events: [{
           eventType,
           timestamp: new Date().toISOString(),

@@ -2200,7 +2200,7 @@ export class AIService {
     responseContent: string;
     documentId: string;
     userId: string;
-    sessionId: string;
+    aiChatSessionId: string;
     logId: string;
     modelVersion: string;
     policyHash: string | null;
@@ -2213,11 +2213,11 @@ export class AIService {
     await DocumentEventModel.batchInsert([{
       documentId: options.documentId,
       userId: options.userId,
-      sessionId: options.sessionId,
       eventType: 'ai_policy_refusal',
       timestamp: new Date(),
       metadata: {
         source: options.source,
+        aiChatSessionId: options.aiChatSessionId,
         logId: options.logId,
         modelVersion: options.modelVersion,
         policyHash: options.policyHash,
@@ -2921,7 +2921,7 @@ export class AIService {
           responseContent: noReferenceAnswer,
           documentId: request.documentId,
           userId,
-          sessionId: session.id,
+          aiChatSessionId: session.id,
           logId: log.id,
           modelVersion,
           policyHash: policyHashForChat,
@@ -3020,7 +3020,7 @@ export class AIService {
         responseContent: response.content,
         documentId: request.documentId,
         userId,
-        sessionId: session.id,
+        aiChatSessionId: session.id,
         logId: log.id,
         modelVersion,
         policyHash: policyHashForChat,
@@ -3191,7 +3191,7 @@ export class AIService {
           responseContent: noReferenceAnswer,
           documentId: request.documentId,
           userId,
-          sessionId: session.id,
+          aiChatSessionId: session.id,
           logId: log.id,
           modelVersion,
           policyHash,
@@ -3308,7 +3308,7 @@ export class AIService {
         responseContent: response.content,
         documentId: request.documentId,
         userId,
-        sessionId: session.id,
+        aiChatSessionId: session.id,
         logId: log.id,
         modelVersion,
         policyHash,
