@@ -46,6 +46,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { ANALYTICS_CHART_COLORS } from '@/lib/analytics-palette';
 
 import type { AdminSubmission, TaskEnrollment } from './types';
 
@@ -65,15 +66,6 @@ interface AnalyticsPanelProps {
   isLoadingEnrollments: boolean;
   isLoadingSubmissions: boolean;
 }
-
-const EVENT_TYPE_COLORS = [
-  'hsl(var(--primary))',
-  '#f59e0b',
-  '#14b8a6',
-  '#64748b',
-  '#ec4899',
-  '#8b5cf6',
-] as const;
 
 const EXPECTED_EDITING_SPAN_SECONDS = 60 * 60;
 const MAX_DAILY_SUBMISSION_TIMELINE_DAYS = 120;
@@ -289,7 +281,7 @@ export function AnalyticsPanel({
       .map((item, index) => ({
         ...item,
         percentage: totalEventTypeCount > 0 ? (item.count / totalEventTypeCount) * 100 : 0,
-        color: EVENT_TYPE_COLORS[index % EVENT_TYPE_COLORS.length],
+        color: ANALYTICS_CHART_COLORS.eventTypes[index % ANALYTICS_CHART_COLORS.eventTypes.length],
       }))
   ), [eventTypeDistribution, totalEventTypeCount]);
   const totalSubmissions = submissions.length;
@@ -547,12 +539,12 @@ export function AnalyticsPanel({
                   {submissionDeadlineKey ? (
                     <ReferenceLine
                       x={submissionDeadlineKey}
-                      stroke="hsl(var(--muted-foreground))"
+                      stroke={ANALYTICS_CHART_COLORS.reference}
                       strokeDasharray="4 4"
                       label={{
                         value: 'Deadline',
                         position: 'insideTopRight',
-                        fill: 'hsl(var(--muted-foreground))',
+                        fill: ANALYTICS_CHART_COLORS.reference,
                         fontSize: 12,
                       }}
                     />
@@ -560,14 +552,14 @@ export function AnalyticsPanel({
                   <Bar
                     dataKey="submissions"
                     name="Submissions"
-                    fill="#14b8a6"
+                    fill={ANALYTICS_CHART_COLORS.submissions}
                     radius={[4, 4, 0, 0]}
                   />
                   <Line
                     type="monotone"
                     dataKey="cumulativeSubmittedUsers"
                     name="Submitted users"
-                    stroke="hsl(var(--primary))"
+                    stroke={ANALYTICS_CHART_COLORS.submittedUsers}
                     strokeWidth={2}
                     dot={false}
                     activeDot={{ r: 4 }}
@@ -596,8 +588,8 @@ export function AnalyticsPanel({
                 <AreaChart data={eventsTimeline}>
                   <defs>
                     <linearGradient id="analyticsActivity" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.16} />
-                      <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                      <stop offset="5%" stopColor={ANALYTICS_CHART_COLORS.activityFill} stopOpacity={0.14} />
+                      <stop offset="95%" stopColor={ANALYTICS_CHART_COLORS.activityFill} stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <XAxis
@@ -623,7 +615,7 @@ export function AnalyticsPanel({
                   <Area
                     type="monotone"
                     dataKey="eventCount"
-                    stroke="hsl(var(--primary))"
+                    stroke={ANALYTICS_CHART_COLORS.activity}
                     strokeWidth={2}
                     fill="url(#analyticsActivity)"
                     name="Events"

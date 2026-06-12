@@ -1,6 +1,6 @@
 'use client';
 
-import { Fragment, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import {
   AlertCircle,
@@ -33,6 +33,7 @@ import api, { ApiError } from '@/lib/api-client';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { ANALYTICS_CHART_COLORS } from '@/lib/analytics-palette';
 import { formatDateTime } from '@/lib/utils';
 import type {
   AIInteractionLog,
@@ -82,13 +83,23 @@ const FOLD_POINT_MIN_RAW_EVENT_COUNT = 4;
 const LONG_TEXT_PREVIEW_THRESHOLD = 110;
 const LINE_BREAK_COLLAPSE_THRESHOLD = 4;
 
-const TIMELINE_COLORS: Partial<Record<DocumentEventTimelineItem['kind'], string>> = {
-  typing_burst: 'bg-teal-100 text-teal-800',
-  line_break: 'bg-sky-100 text-sky-800',
-  ai_insert: 'bg-violet-100 text-violet-800',
-  replace: 'bg-indigo-100 text-indigo-800',
-  paste: 'bg-yellow-100 text-yellow-800',
-  delete: 'bg-red-100 text-red-800',
+const TIMELINE_COLORS: Partial<Record<DocumentEventTimelineItem['kind'], CSSProperties>> = {
+  typing_burst: { backgroundColor: '#F2EDE6', borderColor: '#D8C8B8', color: '#6B553E' },
+  line_break: { backgroundColor: '#EEF0EA', borderColor: '#CFD4C6', color: '#59664F' },
+  ai_insert: { backgroundColor: '#F0EAE9', borderColor: '#D6C2BD', color: '#76594F' },
+  replace: { backgroundColor: '#ECEDEF', borderColor: '#C9CED2', color: '#56626A' },
+  paste: { backgroundColor: '#F4EADB', borderColor: '#DDC79F', color: '#7A5E34' },
+  delete: { backgroundColor: '#F1E8E4', borderColor: '#D4BBB1', color: '#75584D' },
+};
+const DEFAULT_TIMELINE_COLOR: CSSProperties = {
+  backgroundColor: '#EFEEE9',
+  borderColor: '#D4D0C7',
+  color: '#625D54',
+};
+const AI_LOG_BADGE_COLOR: CSSProperties = {
+  backgroundColor: '#EFE8E6',
+  borderColor: '#D8C2BA',
+  color: '#73584F',
 };
 
 const TIMELINE_ICONS: Partial<Record<DocumentEventTimelineItem['kind'], JSX.Element>> = {
@@ -993,8 +1004,8 @@ export default function TaskSubmissionAnalyticsPage() {
                 <AreaChart data={activityTimeline}>
                   <defs>
                     <linearGradient id="submissionActivity" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.16} />
-                      <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                      <stop offset="5%" stopColor={ANALYTICS_CHART_COLORS.activityFill} stopOpacity={0.14} />
+                      <stop offset="95%" stopColor={ANALYTICS_CHART_COLORS.activityFill} stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <XAxis
@@ -1020,7 +1031,7 @@ export default function TaskSubmissionAnalyticsPage() {
                   <Area
                     type="monotone"
                     dataKey="eventCount"
-                    stroke="hsl(var(--primary))"
+                    stroke={ANALYTICS_CHART_COLORS.activity}
                     strokeWidth={2}
                     fill="url(#submissionActivity)"
                     name="Events"
@@ -1162,7 +1173,7 @@ export default function TaskSubmissionAnalyticsPage() {
 
                     if (historyItem.kind === 'timeline') {
                       const item = historyItem.item;
-                      const colorClass = TIMELINE_COLORS[item.kind] || 'bg-gray-100 text-gray-700';
+                      const colorStyle = TIMELINE_COLORS[item.kind] || DEFAULT_TIMELINE_COLOR;
                       const icon = TIMELINE_ICONS[item.kind] || null;
                       const canExpandText = canExpandTimelineText(item);
                       const isExpanded = expandedIds.has(item.id);
@@ -1174,7 +1185,10 @@ export default function TaskSubmissionAnalyticsPage() {
                               {formatTimeRange(item)}
                             </td>
                             <td className="px-4 py-3">
-                              <span className={`inline-flex whitespace-nowrap items-center gap-1 rounded px-2 py-0.5 text-xs font-medium ${colorClass}`}>
+                              <span
+                                className="inline-flex whitespace-nowrap items-center gap-1 rounded border px-2 py-0.5 text-xs font-medium"
+                                style={colorStyle}
+                              >
                                 {icon}
                                 {getTimelineActivityLabel(item)}
                               </span>
@@ -1276,7 +1290,10 @@ export default function TaskSubmissionAnalyticsPage() {
                             </div>
                           </td>
                           <td className="px-4 py-3">
-                            <span className="inline-flex whitespace-nowrap items-center gap-1 rounded bg-violet-100 px-2 py-0.5 text-xs font-medium text-violet-800">
+                            <span
+                              className="inline-flex whitespace-nowrap items-center gap-1 rounded border px-2 py-0.5 text-xs font-medium"
+                              style={AI_LOG_BADGE_COLOR}
+                            >
                               <Sparkles className="h-3 w-3" />
                               {label}
                             </span>
