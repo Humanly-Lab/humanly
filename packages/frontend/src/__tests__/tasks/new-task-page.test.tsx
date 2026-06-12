@@ -520,6 +520,72 @@ describe('admin new task page', () => {
     expect(screen.getByLabelText(/Shortcut Tokens/i)).toBeDisabled();
     expect(screen.getByLabelText(/Chat Tokens/i)).toBeEnabled();
     expect(screen.getByText(/not available when ai access is chat only/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/AI policy enforcement/i).length).toBeGreaterThan(0);
+  });
+
+  it('persists guarded chat policy for admin-created tasks', async () => {
+    mockApiPost.mockImplementation(async (url: string) => {
+      if (url === '/api/v1/ai/settings/test') {
+        return {
+          success: true,
+          message: 'Connection successful.',
+          models: ['gpt-5.4-mini'],
+        };
+      }
+      if (url === '/api/v1/tasks') {
+        return {
+          success: true,
+          data: { id: 'created-guarded-task' },
+          message: 'Task created',
+        };
+      }
+      throw new Error(`Unexpected POST ${url}`);
+    });
+    mockApiPut.mockResolvedValue({ success: true });
+
+    render(<NewTaskPage />);
+
+    expect(await screen.findByRole('heading', { name: 'New Task' })).toBeInTheDocument();
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText(/Task Name/i), {
+        target: { value: 'Guarded Task' },
+      });
+    });
+    await openCustomEnvironmentDialog();
+    await act(async () => {
+      fireEvent.click(screen.getByRole('option', { name: 'Only agent chat' }));
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('option', { name: 'Guard' }));
+    });
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText(/AI rejection rule/i), {
+        target: { value: 'Refuse to produce evaluative claims about the paper.' },
+      });
+      fireEvent.change(screen.getByLabelText(/AI API Key/i), {
+        target: { value: 'sk-guard-test' },
+      });
+    });
+    await closeCustomEnvironmentDialog();
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /^Create Task$/i }));
+    });
+
+    await waitFor(() => {
+      expect(mockApiPost).toHaveBeenCalledWith(
+        '/api/v1/tasks',
+        expect.objectContaining({
+          name: 'Guarded Task',
+          environmentConfig: expect.objectContaining({
+            aiAccess: 'chat',
+            aiPolicy: {
+              mode: 'guard',
+              rejectionRule: 'Refuse to produce evaluative claims about the paper.',
+            },
+          }),
+        })
+      );
+    });
   });
 
   it('creates AI-enabled tasks with the selected OpenAI provider and model whitelist', async () => {

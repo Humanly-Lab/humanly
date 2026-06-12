@@ -10,10 +10,15 @@ import {
 } from './constants';
 import type {
   WritingAiAccess,
+  WritingAiPolicyConfig,
   WritingEnvironmentConfig,
   WritingTaskType,
 } from '../types/environment.types';
-import { normalizeWritingAiAccess } from '../types/environment.types';
+import {
+  isWritingAiChatEnabled,
+  normalizeWritingAiAccess,
+  normalizeWritingAiPolicy,
+} from '../types/environment.types';
 
 export const TASK_START_DATE_PAST_GRACE_MS = 2 * 60 * 1000;
 export const TASK_START_DATE_PAST_ERROR_MESSAGE = 'Task start date cannot be in the past.';
@@ -47,6 +52,11 @@ const writingSubmissionConfigSchema = z.object({
 const writingAiAccessSchema = z.enum(['off', 'polish', 'chat', 'full', 'readonly', 'on'])
   .transform((value): WritingAiAccess => normalizeWritingAiAccess(value)) as z.ZodType<WritingAiAccess>;
 
+const writingAiPolicySchema = z.any()
+  .transform((value): WritingAiPolicyConfig => (
+    normalizeWritingAiPolicy(value as Partial<WritingAiPolicyConfig> | null | undefined)
+  ));
+
 export const writingEnvironmentConfigSchema = z.object({
   preset: z.enum(['default_writing', 'no_ai', 'ai_assisted', 'timed_writing', 'custom']).optional(),
   taskType: z.enum(['personal', 'admin_assigned']),
@@ -66,6 +76,7 @@ export const writingEnvironmentConfigSchema = z.object({
     shortcutMaxTokens: z.number().int().min(256).max(16384).optional(),
     chatMaxTokens: z.number().int().min(256).max(16384).optional(),
   }).optional(),
+  aiPolicy: writingAiPolicySchema,
   aiUsageLimit: z.object({
     mode: z.enum(['unlimited', 'max_requests', 'max_tokens', 'time_restricted']),
     maxRequests: z.number().int().positive().max(1000000).optional(),
@@ -101,6 +112,35 @@ export const writingEnvironmentConfigSchema = z.object({
       path: ['customModels'],
       message: 'Custom AI models are temporarily disabled.',
     });
+  }
+
+  const aiPolicy = normalizeWritingAiPolicy(config.aiPolicy);
+  if ((aiPolicy.rejectionRule || '').length > 2000) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.too_big,
+      type: 'string',
+      maximum: 2000,
+      inclusive: true,
+      exact: false,
+      path: ['aiPolicy', 'rejectionRule'],
+      message: 'AI policy rejection rule must be at most 2000 characters.',
+    });
+  }
+  if (aiPolicy.mode === 'guard') {
+    if (!isWritingAiChatEnabled(config.aiAccess)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['aiPolicy', 'mode'],
+        message: 'AI policy guard is only available when AI access is Only agent chat or Full.',
+      });
+    }
+    if (!aiPolicy.rejectionRule) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['aiPolicy', 'rejectionRule'],
+        message: 'AI policy guard requires a rejection rule.',
+      });
+    }
   }
 });
 
@@ -237,6 +277,7 @@ export const validateWritingEnvironmentImportTemplate = (
   return {
     ...parsed,
     customModels,
+    aiPolicy: normalizeWritingAiPolicy(parsed.aiPolicy),
     resourceAccess: parsed.resourceAccess || 'downloadable',
   };
 };

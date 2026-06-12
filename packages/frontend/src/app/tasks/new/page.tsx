@@ -72,12 +72,14 @@ import {
   SUBMISSION_MIN_CHARACTERS_MAX,
   TASK_START_DATE_PAST_ERROR_MESSAGE,
   WRITING_AI_ACCESS_OPTIONS,
+  WRITING_AI_POLICY_OPTIONS,
   WRITING_AI_MODELS,
   WRITING_ENVIRONMENT_PRESETS,
   formatWritingAiAccess,
   isWritingAiChatEnabled,
   isWritingAiPolishEnabled,
   isTaskStartDateTooFarInPast,
+  normalizeWritingAiPolicy,
   normalizeWritingAiAccess,
   normalizeCopyPastePolicy,
   normalizeResourceAccessPolicy,
@@ -85,6 +87,7 @@ import {
   type Task,
   type UserAISettings,
   type WritingAiAccess,
+  type WritingAiPolicyMode,
   type WritingAiProvider,
   type WritingAiProviderConfig,
   type WritingEnvironmentConfig,
@@ -349,9 +352,9 @@ const buildAdminEnvironmentSummary = ({
   allowGuestSubmissions: boolean;
 }): EnvironmentSummaryItem[] => {
   const normalizedAiAccess = normalizeWritingAiAccess(aiAccess);
+  const aiPolicy = normalizeWritingAiPolicy(config.aiPolicy);
   const model = config.allowedModels[0] || selectedAiModel;
-
-  return [
+  const items: EnvironmentSummaryItem[] = [
     {
       label: 'AI access',
       value: formatWritingAiAccess(normalizedAiAccess),
@@ -403,6 +406,18 @@ const buildAdminEnvironmentSummary = ({
       detail: 'Captured evidence',
     },
   ];
+
+  if (isWritingAiChatEnabled(normalizedAiAccess)) {
+    items.splice(1, 0, {
+      label: 'AI policy',
+      value: aiPolicy.mode === 'guard' ? 'Guard' : 'Off',
+      detail: aiPolicy.mode === 'guard'
+        ? 'Custom rejection rule active'
+        : 'No chat constitution',
+    });
+  }
+
+  return items;
 };
 
 export default function NewTaskPage() {
@@ -657,6 +672,28 @@ export default function NewTaskPage() {
     }));
   };
 
+  const setAiPolicyMode = (mode: WritingAiPolicyMode) => {
+    markCustom((current) => ({
+      ...current,
+      aiPolicy: mode === 'guard'
+        ? {
+            mode: 'guard',
+            rejectionRule: normalizeWritingAiPolicy(current.aiPolicy).rejectionRule || '',
+          }
+        : { mode: 'off' },
+    }));
+  };
+
+  const setAiPolicyRejectionRule = (rejectionRule: string) => {
+    markCustom((current) => ({
+      ...current,
+      aiPolicy: {
+        mode: 'guard',
+        rejectionRule,
+      },
+    }));
+  };
+
   const setSubmissionMinimumCharacters = (value: string) => {
     const minCharacters = parseOptionalMinCharacters(value);
     markCustom((current) => ({
@@ -754,6 +791,9 @@ export default function NewTaskPage() {
           ? current.allowedModels
           : [defaultModel],
       customModels: nextAccess === 'off' ? [] : current.customModels,
+      aiPolicy: isWritingAiChatEnabled(nextAccess)
+        ? normalizeWritingAiPolicy(current.aiPolicy)
+        : { mode: 'off' },
       traceability: {
         ...current.traceability,
         trackAiUsage: nextAccess !== 'off',
@@ -859,6 +899,13 @@ export default function NewTaskPage() {
         });
       }
 
+      const effectiveAiPolicy = isWritingAiChatEnabled(aiAccess)
+        ? normalizeWritingAiPolicy(environmentConfig.aiPolicy)
+        : { mode: 'off' as const };
+      if (effectiveAiPolicy.mode === 'guard' && !effectiveAiPolicy.rejectionRule?.trim()) {
+        throw new Error('Enter an AI policy rejection rule or turn AI policy enforcement off.');
+      }
+
       const allowedModels = aiAccess === 'off' ? [] : [selectedAiModel];
       const resolvedAiProvider = aiAccess === 'off'
         ? undefined
@@ -903,6 +950,7 @@ export default function NewTaskPage() {
           aiProvider: resolvedAiProvider,
           allowedModels,
           customModels: [],
+          aiPolicy: effectiveAiPolicy,
           instructions: {
             ...environmentConfig.instructions,
             hasInstructionPdf: instructionFiles.length > 0,
@@ -1189,6 +1237,46 @@ export default function NewTaskPage() {
                 </FormDescription>
               </div>
             </div>
+
+            {chatTokensEnabled && (
+              <div className="grid gap-4 rounded-md border bg-background p-3">
+                <div className="grid gap-2">
+                  <FormLabel>AI Policy Enforcement</FormLabel>
+                  <Select
+                    value={normalizeWritingAiPolicy(environmentConfig.aiPolicy).mode}
+                    onValueChange={(value) => setAiPolicyMode(value as WritingAiPolicyMode)}
+                  >
+                    <SelectTrigger aria-label="AI policy enforcement">
+                      <SelectValue placeholder="AI policy enforcement" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {WRITING_AI_POLICY_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {normalizeWritingAiPolicy(environmentConfig.aiPolicy).mode === 'guard' && (
+                  <div className="grid gap-2">
+                    <FormLabel htmlFor="ai-policy-rejection-rule">Rejection Rule</FormLabel>
+                    <Textarea
+                      id="ai-policy-rejection-rule"
+                      aria-label="AI rejection rule"
+                      value={normalizeWritingAiPolicy(environmentConfig.aiPolicy).rejectionRule || ''}
+                      onChange={(event) => setAiPolicyRejectionRule(event.target.value)}
+                      placeholder="Example: Refuse to produce evaluative claims; only help with grammar, wording, or understanding references."
+                      className="min-h-24"
+                    />
+                    <FormDescription>
+                      Applies only to agent chat in Chat or Full mode.
+                    </FormDescription>
+                  </div>
+                )}
+              </div>
+            )}
 
             <FormField
               control={form.control}

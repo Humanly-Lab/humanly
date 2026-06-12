@@ -18,6 +18,7 @@ import { format } from 'date-fns';
 import {
   formatCompactDuration,
   formatWritingAiAccess,
+  formatWritingAiPolicy,
   isWritingAiChatEnabled,
   isWritingAiPolishEnabled,
   normalizeCopyPastePolicy,
@@ -206,6 +207,10 @@ function getEnvironmentRows(config?: WritingEnvironmentConfig | null) {
 
   if (isWritingAiChatEnabled(config.aiAccess)) {
     rows.push(['Agent chat token limit', formatTokenLimit(config.aiTokenBudget?.chatMaxTokens)]);
+    rows.push([
+      'AI policy',
+      formatWritingAiPolicy(config) === 'Guard' ? 'Guarded by custom rejection rule' : 'Off',
+    ]);
   }
 
   if (isAdminAssigned) {

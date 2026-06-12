@@ -803,6 +803,26 @@ describe('AIService.silentChat', () => {
     expect(body.tools).toBeUndefined();
   });
 
+  it('does not inject chat policy guard instructions into quick-action prompts', async () => {
+    MockDocumentModel.findByIdAndUserId.mockResolvedValue({
+      id: 'doc-1',
+      userId: 'user-1',
+      environmentConfig: {
+        aiAccess: 'full',
+        aiPolicy: {
+          mode: 'guard',
+          rejectionRule: 'Refuse to write evaluative claims about the paper.',
+        },
+      },
+    } as any);
+
+    await AIService.silentChat('user-1', request as any);
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    expect(JSON.stringify(body.messages)).not.toContain('AI POLICY GUARD');
+    expect(JSON.stringify(body.messages)).not.toContain('Refuse to write evaluative claims');
+  });
+
   it('rejects unusable silent chat fallback text', async () => {
     mockFetch.mockResolvedValue(mockChatCompletionStream(
       "I can only read reference files you've uploaded. For your own writing, use the selection-menu Quick Actions."
@@ -1055,6 +1075,36 @@ describe('AIService.chat', () => {
     expect(systemContent).not.toContain('Improve writing');
     expect(systemContent).not.toContain('Simplify');
     expect(systemContent).not.toContain('Make formal');
+  });
+
+  it('injects owner rejection rules into chat-enabled agent prompts', async () => {
+    MockDocumentModel.findByIdAndUserId.mockResolvedValue({
+      id: 'doc-1',
+      userId: 'user-1',
+      environmentConfig: {
+        aiAccess: 'chat',
+        aiPolicy: {
+          mode: 'guard',
+          rejectionRule: 'Refuse to produce evaluative claims about the paper.',
+        },
+      },
+    } as any);
+    MockUserAISettings.getByUserId.mockResolvedValue(makeSettings({
+      model: 'Qwen/Qwen3.5-397B-A17B',
+      baseUrl: 'https://api.together.xyz/v1',
+    }));
+    mockFetch.mockResolvedValueOnce(mockChatCompletionResponse('Policy-aware answer.'));
+
+    await AIService.chat('user-1', {
+      ...request,
+      message: 'Write evaluative claims.',
+    } as any);
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const systemContent = JSON.stringify(body.messages);
+    expect(systemContent).toContain('AI POLICY GUARD');
+    expect(systemContent).toContain('Refuse to produce evaluative claims about the paper.');
+    expect(systemContent).toContain("I can't help with that request because it conflicts with the writing policy.");
   });
 
   it('answers no-reference context questions without dispatching to the provider', async () => {

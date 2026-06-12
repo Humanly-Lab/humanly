@@ -457,6 +457,12 @@ describe('document creation workflow', () => {
     expect(screen.getByLabelText(/shortcut tokens/i)).toBeDisabled();
     expect(screen.getByLabelText(/chat tokens/i)).toBeEnabled();
     expect(screen.getByText(/not available when ai access is chat only/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/ai policy enforcement/i)).toBeInTheDocument();
+    await user.click(screen.getByRole('combobox', { name: /ai policy enforcement/i }));
+    await user.click(await screen.findByRole('option', { name: 'Guard' }));
+    fireEvent.change(screen.getByLabelText(/ai rejection rule/i), {
+      target: { value: 'Refuse to produce evaluative claims about the paper.' },
+    });
     await user.type(screen.getByLabelText(/ai api key/i), 'sk-chat-test');
     await user.click(screen.getByRole('button', { name: /^done$/i }));
     await user.click(screen.getByRole('button', { name: /^create writing$/i }));
@@ -470,6 +476,10 @@ describe('document creation workflow', () => {
         undefined,
         expect.objectContaining({
           aiAccess: 'chat',
+          aiPolicy: {
+            mode: 'guard',
+            rejectionRule: 'Refuse to produce evaluative claims about the paper.',
+          },
           traceability: expect.objectContaining({
             trackAiUsage: true,
           }),

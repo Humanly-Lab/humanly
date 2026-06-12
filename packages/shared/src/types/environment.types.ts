@@ -1,6 +1,7 @@
 export type WritingTaskType = 'personal' | 'admin_assigned';
 export type WritingAiAccess = 'off' | 'polish' | 'chat' | 'full';
 export type LegacyWritingAiAccess = WritingAiAccess | 'readonly' | 'on';
+export type WritingAiPolicyMode = 'off' | 'guard';
 export type WritingAiUsageLimitMode = 'unlimited' | 'max_requests' | 'max_tokens' | 'time_restricted';
 export type WritingLateSubmissionPolicy = 'allowed' | 'not_allowed';
 export type WritingSubmissionMode = 'single' | 'multiple';
@@ -19,6 +20,11 @@ export interface WritingAiTokenBudget {
   chatMaxTokens?: number;
 }
 
+export interface WritingAiPolicyConfig {
+  mode: WritingAiPolicyMode;
+  rejectionRule?: string;
+}
+
 export interface WritingEnvironmentConfig {
   preset?: WritingEnvironmentPreset;
   taskType: WritingTaskType;
@@ -32,6 +38,7 @@ export interface WritingEnvironmentConfig {
   allowedModels: string[];
   customModels?: string[];
   aiTokenBudget?: WritingAiTokenBudget;
+  aiPolicy?: WritingAiPolicyConfig;
   aiUsageLimit: {
     mode: WritingAiUsageLimitMode;
     maxRequests?: number;
@@ -67,6 +74,11 @@ export const WRITING_AI_ACCESS_OPTIONS: Array<{ value: WritingAiAccess; label: s
   { value: 'full', label: 'Full' },
 ];
 
+export const WRITING_AI_POLICY_OPTIONS: Array<{ value: WritingAiPolicyMode; label: string }> = [
+  { value: 'off', label: 'Off' },
+  { value: 'guard', label: 'Guard' },
+];
+
 export const normalizeWritingAiAccess = (value?: string | null): WritingAiAccess => {
   if (value === 'off' || value === 'polish' || value === 'chat' || value === 'full') {
     return value;
@@ -98,6 +110,42 @@ export const isWritingAiChatEnabled = (value?: string | null): boolean => {
   return access === 'chat' || access === 'full';
 };
 
+export const normalizeWritingAiPolicyMode = (value?: string | null): WritingAiPolicyMode => (
+  value === 'guard' ? 'guard' : 'off'
+);
+
+export const normalizeWritingAiPolicy = (
+  value?: Partial<WritingAiPolicyConfig> | null
+): WritingAiPolicyConfig => {
+  const mode = normalizeWritingAiPolicyMode(value?.mode);
+  const rejectionRule = typeof value?.rejectionRule === 'string'
+    ? value.rejectionRule.trim()
+    : '';
+
+  return mode === 'guard'
+    ? { mode, rejectionRule }
+    : { mode: 'off' };
+};
+
+export const getEffectiveWritingAiPolicy = (
+  config?: Pick<WritingEnvironmentConfig, 'aiAccess' | 'aiPolicy'> | null
+): WritingAiPolicyConfig => {
+  if (!config || !isWritingAiChatEnabled(config.aiAccess)) {
+    return { mode: 'off' };
+  }
+
+  const policy = normalizeWritingAiPolicy(config.aiPolicy);
+  return policy.mode === 'guard' && policy.rejectionRule
+    ? policy
+    : { mode: 'off' };
+};
+
+export const formatWritingAiPolicy = (
+  config?: Pick<WritingEnvironmentConfig, 'aiAccess' | 'aiPolicy'> | null
+): string => (
+  getEffectiveWritingAiPolicy(config).mode === 'guard' ? 'Guard' : 'Off'
+);
+
 export const normalizeCopyPastePolicy = (policy?: string | null): CopyPastePolicy => (
   policy === 'blocked' ? 'blocked' : 'allowed'
 );
@@ -119,6 +167,9 @@ export const DEFAULT_WRITING_ENVIRONMENT_CONFIG: WritingEnvironmentConfig = {
   aiTokenBudget: {
     shortcutMaxTokens: 1024,
     chatMaxTokens: 4096,
+  },
+  aiPolicy: {
+    mode: 'off',
   },
   aiUsageLimit: {
     mode: 'unlimited',

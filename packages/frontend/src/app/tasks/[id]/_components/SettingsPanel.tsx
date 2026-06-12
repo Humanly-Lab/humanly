@@ -26,17 +26,20 @@ import {
   SUBMISSION_MIN_CHARACTERS_MAX,
   TASK_START_DATE_PAST_ERROR_MESSAGE,
   WRITING_AI_ACCESS_OPTIONS,
+  WRITING_AI_POLICY_OPTIONS,
   WRITING_AI_MODELS,
   formatWritingAiAccess,
   isWritingAiChatEnabled,
   isWritingAiPolishEnabled,
   isTaskStartDateTooFarInPast,
+  normalizeWritingAiPolicy,
   normalizeWritingAiAccess,
   normalizeCopyPastePolicy,
   normalizeResourceAccessPolicy,
   type Task,
   type UserAISettings,
   type WritingAiAccess,
+  type WritingAiPolicyMode,
   type WritingAiProvider,
   type WritingAiProviderConfig,
   type WritingEnvironmentConfig,
@@ -369,6 +372,7 @@ const mergeEnvironmentConfig = (config?: WritingEnvironmentConfig | null): Writi
     shortcutMaxTokens: config?.aiTokenBudget?.shortcutMaxTokens || AI_SHORTCUT_MAX_TOKENS_DEFAULT,
     chatMaxTokens: config?.aiTokenBudget?.chatMaxTokens || AI_CHAT_MAX_TOKENS_DEFAULT,
   },
+  aiPolicy: normalizeWritingAiPolicy(config?.aiPolicy),
   time: {
     ...DEFAULT_WRITING_ENVIRONMENT_CONFIG.time,
     ...(config?.time || {}),
@@ -749,9 +753,34 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
           ? current.allowedModels
           : [defaultModel],
       customModels: nextAccess === 'off' ? [] : current.customModels,
+      aiPolicy: isWritingAiChatEnabled(nextAccess)
+        ? normalizeWritingAiPolicy(current.aiPolicy)
+        : { mode: 'off' },
       traceability: {
         ...current.traceability,
         trackAiUsage: nextAccess !== 'off',
+      },
+    }));
+  };
+
+  const setAiPolicyMode = (mode: WritingAiPolicyMode) => {
+    setEnvironmentConfig((current) => ({
+      ...current,
+      aiPolicy: mode === 'guard'
+        ? {
+            mode: 'guard',
+            rejectionRule: normalizeWritingAiPolicy(current.aiPolicy).rejectionRule || '',
+          }
+        : { mode: 'off' },
+    }));
+  };
+
+  const setAiPolicyRejectionRule = (rejectionRule: string) => {
+    setEnvironmentConfig((current) => ({
+      ...current,
+      aiPolicy: {
+        mode: 'guard',
+        rejectionRule,
       },
     }));
   };
@@ -892,6 +921,9 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
         ) * 60
       : undefined;
     const hasInstructionPdf = currentInstructionFiles.length > 0 || instructionFiles.length > 0;
+    const effectiveAiPolicy = isWritingAiChatEnabled(aiAccess)
+      ? normalizeWritingAiPolicy(environmentConfig.aiPolicy)
+      : { mode: 'off' as const };
 
     return {
       ...environmentConfig,
@@ -901,6 +933,7 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
       aiProvider: resolvedAiProvider,
       allowedModels,
       customModels: [],
+      aiPolicy: effectiveAiPolicy,
       instructions: {
         ...environmentConfig.instructions,
         hasInstructionPdf,
@@ -967,6 +1000,13 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
           shortcutMaxTokens: environmentConfig.aiTokenBudget?.shortcutMaxTokens || AI_SHORTCUT_MAX_TOKENS_DEFAULT,
           chatMaxTokens: environmentConfig.aiTokenBudget?.chatMaxTokens || AI_CHAT_MAX_TOKENS_DEFAULT,
         });
+      }
+
+      const effectiveAiPolicy = isWritingAiChatEnabled(aiAccess)
+        ? normalizeWritingAiPolicy(environmentConfig.aiPolicy)
+        : { mode: 'off' as const };
+      if (effectiveAiPolicy.mode === 'guard' && !effectiveAiPolicy.rejectionRule?.trim()) {
+        throw new Error('Enter an AI policy rejection rule or turn AI policy enforcement off.');
       }
 
       if (timeLimitEnabled && (!data.startDate || !data.endDate)) {
@@ -1487,6 +1527,46 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
                           <p className={aiConnectionResult.success ? 'text-emerald-700' : 'text-destructive'}>
                             {aiConnectionResult.message}
                           </p>
+                        </div>
+                      )}
+
+                      {chatTokensEnabled && (
+                        <div className="grid gap-4 rounded-md border border-border/70 bg-background p-4">
+                          <div className="space-y-2">
+                            <FormLabel htmlFor="ai-policy-enforcement">AI Policy Enforcement</FormLabel>
+                            <select
+                              id="ai-policy-enforcement"
+                              aria-label="AI policy enforcement"
+                              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                              value={normalizeWritingAiPolicy(environmentConfig.aiPolicy).mode}
+                              disabled={isSubmitting}
+                              onChange={(event) => setAiPolicyMode(event.target.value as WritingAiPolicyMode)}
+                            >
+                              {WRITING_AI_POLICY_OPTIONS.map((option) => (
+                                <option key={option.value} value={option.value}>
+                                  {option.label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          {normalizeWritingAiPolicy(environmentConfig.aiPolicy).mode === 'guard' && (
+                            <div className="space-y-2">
+                              <FormLabel htmlFor="ai-policy-rejection-rule">Rejection Rule</FormLabel>
+                              <Textarea
+                                id="ai-policy-rejection-rule"
+                                aria-label="AI rejection rule"
+                                value={normalizeWritingAiPolicy(environmentConfig.aiPolicy).rejectionRule || ''}
+                                onChange={(event) => setAiPolicyRejectionRule(event.target.value)}
+                                placeholder="Example: Refuse to produce evaluative claims; only help with grammar, wording, or understanding references."
+                                className="min-h-24"
+                                disabled={isSubmitting}
+                              />
+                              <FormDescription>
+                                Applies only to agent chat in Chat or Full mode.
+                              </FormDescription>
+                            </div>
+                          )}
                         </div>
                       )}
 
