@@ -14,6 +14,7 @@ const SUBMISSION_SELECT_FIELDS = `
   supersedes_submission_id as "supersedesSubmissionId",
   status,
   anomaly_flags as "anomalyFlags",
+  0::int as "aiPolicyRefusalCount",
   created_at as "createdAt"
 `;
 
@@ -32,6 +33,13 @@ const SUBMISSION_WITH_CERTIFICATE_SELECT_FIELDS = `
   s.supersedes_submission_id as "supersedesSubmissionId",
   s.status,
   COALESCE(s.anomaly_flags, c.anomaly_flags, '[]'::jsonb) as "anomalyFlags",
+  COALESCE((
+    SELECT COUNT(*)::int
+    FROM document_events de
+    WHERE de.document_id = s.document_id
+      AND de.event_type = 'ai_policy_refusal'
+      AND de.timestamp <= s.submitted_at
+  ), 0) as "aiPolicyRefusalCount",
   s.created_at as "createdAt"
 `;
 

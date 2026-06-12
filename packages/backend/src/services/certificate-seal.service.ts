@@ -12,6 +12,7 @@ export const CERTIFICATE_SEAL_ALGORITHM = 'HMAC-SHA256';
 export const CERTIFICATE_SEAL_KEY_ID = 'humanly-server-v1';
 export const CERTIFICATE_SEAL_SIGNATURE_PREFIX = `${CERTIFICATE_SEAL_VERSION}.`;
 export const LEGACY_CERTIFICATE_SEAL_SIGNATURE_PREFIX = `${LEGACY_CERTIFICATE_SEAL_VERSION}.`;
+const CERTIFICATE_SEAL_POLICY_HASH_FIELD = 'policyHash';
 
 // The seal protects the server-issued certificate record and current display
 // controls. It intentionally does not protect plaintext access codes, access
@@ -62,6 +63,7 @@ export interface CertificateSealInput {
   pastedCharacters: number;
   editingTimeSeconds: number;
   anomalyFlags?: WritingAnomalyFlag[];
+  policyHash?: string | null;
   verificationToken: string;
   signerName?: string | null;
   includeFullText: boolean;
@@ -175,13 +177,30 @@ export class CertificateSealService {
     };
 
     if (version === CERTIFICATE_SEAL_VERSION) {
-      return {
+      const v2Payload: Record<string, unknown> = {
         ...payload,
         anomalyFlags: input.anomalyFlags || [],
       };
+      if (input.policyHash) {
+        v2Payload.policyHash = input.policyHash;
+      }
+      return v2Payload;
     }
 
     return payload;
+  }
+
+  private static getSignedFieldsForVersion(
+    input: CertificateSealInput,
+    version: typeof CERTIFICATE_SEAL_VERSION | typeof LEGACY_CERTIFICATE_SEAL_VERSION
+  ): string[] {
+    if (version === LEGACY_CERTIFICATE_SEAL_VERSION) {
+      return [...LEGACY_CERTIFICATE_SEAL_SIGNED_FIELDS];
+    }
+
+    return input.policyHash
+      ? [...CERTIFICATE_SEAL_SIGNED_FIELDS, CERTIFICATE_SEAL_POLICY_HASH_FIELD]
+      : [...CERTIFICATE_SEAL_SIGNED_FIELDS];
   }
 
   static buildPayload(input: CertificateSealInput) {
@@ -206,9 +225,7 @@ export class CertificateSealService {
       keyId: CERTIFICATE_SEAL_KEY_ID,
       payloadHash,
       signature: `${version}.${signatureBody}`,
-      signedFields: version === CERTIFICATE_SEAL_VERSION
-        ? [...CERTIFICATE_SEAL_SIGNED_FIELDS]
-        : [...LEGACY_CERTIFICATE_SEAL_SIGNED_FIELDS],
+      signedFields: this.getSignedFieldsForVersion(input, version),
     };
   }
 

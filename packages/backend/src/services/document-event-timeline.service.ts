@@ -451,6 +451,7 @@ function eventLabel(event: DocumentEvent): string {
     select: 'Text selected',
     copy: 'Copied text',
     cut: 'Cut text',
+    contextmenu: 'Context menu attempt',
     paste: 'Pasted text',
     delete: 'Deleted text',
     keydown: event.keyCode === 'Enter' ? 'Line break' : 'Typed text',

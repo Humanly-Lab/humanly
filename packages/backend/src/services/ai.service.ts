@@ -3,6 +3,7 @@ import { AIModel, AIChatSessionMissingError } from '../models/ai.model';
 import { AIChatAttachmentModel } from '../models/ai-chat-attachment.model';
 import { resolveCapabilitiesOrSafeDefault } from './ai-model-capabilities';
 import { DocumentModel } from '../models/document.model';
+import { DocumentEventModel } from '../models/document-event.model';
 import { TaskModel } from '../models/task.model';
 import { AIRetrievalService } from './ai-retrieval.service';
 import {
@@ -36,6 +37,11 @@ import { logger } from '../utils/logger';
 import { env } from '../config/env';
 import { UserAISettingsModel } from '../models/user-ai-settings.model';
 import { FileStorageService } from './file-storage.service';
+import {
+  AI_POLICY_REFUSAL_PREFIX,
+  computeAiPolicyTextHash,
+  isAiPolicyRefusalText,
+} from '../utils/ai-policy-hash';
 
 /**
  * Optional callback that observes every step of the tool-calling loop.
@@ -650,6 +656,7 @@ interface AIExecutionSettings {
   chatMaxTokens: number;
   allowPolishActions: boolean;
   aiPolicy: WritingAiPolicyConfig;
+  policyHash: string | null;
   /**
    * Raw provider base URL. Used by capability gating (#93) to look up the
    * resolved model's input modalities so the websocket layer can refuse
@@ -2129,6 +2136,7 @@ export class AIService {
       }
       const baseUrl = document.environmentConfig?.aiProvider?.baseUrl || settings.baseUrl;
       const tokenBudget = resolveEffectiveTokenBudget(settings, document.environmentConfig);
+      const aiPolicy = getEffectiveWritingAiPolicy(document.environmentConfig);
 
       return {
         provider: new OpenAIProvider({
@@ -2142,7 +2150,8 @@ export class AIService {
         allowPolishActions: document.environmentConfig
           ? isWritingAiPolishEnabled(document.environmentConfig.aiAccess)
           : true,
-        aiPolicy: getEffectiveWritingAiPolicy(document.environmentConfig),
+        aiPolicy,
+        policyHash: computeAiPolicyTextHash(aiPolicy),
         baseUrl,
       };
     }
@@ -2169,6 +2178,7 @@ export class AIService {
     }
     const tokenBudget = resolveEffectiveTokenBudget(ownerSettings, taskConfig);
     const baseUrl = taskConfig.aiProvider?.baseUrl || ownerSettings.baseUrl;
+    const aiPolicy = getEffectiveWritingAiPolicy(taskConfig);
 
     return {
       provider: new OpenAIProvider({
@@ -2180,9 +2190,40 @@ export class AIService {
       shortcutMaxTokens: tokenBudget.shortcutMaxTokens,
       chatMaxTokens: tokenBudget.chatMaxTokens,
       allowPolishActions: isWritingAiPolishEnabled(taskConfig.aiAccess),
-      aiPolicy: getEffectiveWritingAiPolicy(taskConfig),
+      aiPolicy,
+      policyHash: computeAiPolicyTextHash(aiPolicy),
       baseUrl,
     };
+  }
+
+  private static async recordPolicyRefusalEventIfNeeded(options: {
+    responseContent: string;
+    documentId: string;
+    userId: string;
+    sessionId: string;
+    logId: string;
+    modelVersion: string;
+    policyHash: string | null;
+    source: 'chat' | 'stream_chat';
+  }): Promise<void> {
+    if (!isAiPolicyRefusalText(options.responseContent)) {
+      return;
+    }
+
+    await DocumentEventModel.batchInsert([{
+      documentId: options.documentId,
+      userId: options.userId,
+      sessionId: options.sessionId,
+      eventType: 'ai_policy_refusal',
+      timestamp: new Date(),
+      metadata: {
+        source: options.source,
+        logId: options.logId,
+        modelVersion: options.modelVersion,
+        policyHash: options.policyHash,
+        refusalPrefix: AI_POLICY_REFUSAL_PREFIX,
+      },
+    }]);
   }
 
   private static async buildNoReferencePreflightAnswer(
@@ -2762,6 +2803,7 @@ export class AIService {
       chatMaxTokens: chatMaxTokensForChat,
       allowPolishActions: allowPolishActionsForChat,
       aiPolicy: aiPolicyForChat,
+      policyHash: policyHashForChat,
     } =
       await this.getExecutionSettingsForDocument(userId, request.documentId, 'chat');
     const capabilitiesForChat = resolveCapabilitiesOrSafeDefault(
@@ -2875,6 +2917,16 @@ export class AIService {
           modelVersion,
           status: 'success',
         });
+        await this.recordPolicyRefusalEventIfNeeded({
+          responseContent: noReferenceAnswer,
+          documentId: request.documentId,
+          userId,
+          sessionId: session.id,
+          logId: log.id,
+          modelVersion,
+          policyHash: policyHashForChat,
+          source: 'chat',
+        });
 
         logger.info('AI chat completed with no-reference preflight answer', {
           userId,
@@ -2964,6 +3016,16 @@ export class AIService {
         modelVersion,
         status: 'success',
       });
+      await this.recordPolicyRefusalEventIfNeeded({
+        responseContent: response.content,
+        documentId: request.documentId,
+        userId,
+        sessionId: session.id,
+        logId: log.id,
+        modelVersion,
+        policyHash: policyHashForChat,
+        source: 'chat',
+      });
 
       logger.info('AI chat completed', {
         userId,
@@ -3024,7 +3086,7 @@ export class AIService {
       // Resolve provider + model first so the session snapshot can be
       // captured at creation and capability gating (#93) runs before any
       // DB writes or provider calls.
-      const { provider, modelVersion, baseUrl, shortcutMaxTokens, chatMaxTokens, allowPolishActions, aiPolicy } =
+      const { provider, modelVersion, baseUrl, shortcutMaxTokens, chatMaxTokens, allowPolishActions, aiPolicy, policyHash } =
         await this.getExecutionSettingsForDocument(userId, request.documentId, 'chat');
       const capabilities = resolveCapabilitiesOrSafeDefault(baseUrl, modelVersion);
 
@@ -3124,6 +3186,16 @@ export class AIService {
           responseTimeMs,
           modelVersion,
           status: 'success',
+        });
+        await this.recordPolicyRefusalEventIfNeeded({
+          responseContent: noReferenceAnswer,
+          documentId: request.documentId,
+          userId,
+          sessionId: session.id,
+          logId: log.id,
+          modelVersion,
+          policyHash,
+          source: 'stream_chat',
         });
 
         logger.info('AI stream chat completed with no-reference preflight answer', {
@@ -3231,6 +3303,16 @@ export class AIService {
         tokensUsed: response.tokensUsed,
         modelVersion,
         status: 'success',
+      });
+      await this.recordPolicyRefusalEventIfNeeded({
+        responseContent: response.content,
+        documentId: request.documentId,
+        userId,
+        sessionId: session.id,
+        logId: log.id,
+        modelVersion,
+        policyHash,
+        source: 'stream_chat',
       });
 
       logger.info('AI stream chat completed', {

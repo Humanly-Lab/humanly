@@ -44,6 +44,7 @@ export const EVENT_TYPES = [
   'paste',
   'copy',
   'cut',
+  'contextmenu',
   'focus',
   'blur',
   'input',

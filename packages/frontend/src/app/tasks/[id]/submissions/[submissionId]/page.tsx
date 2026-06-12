@@ -52,6 +52,7 @@ interface Submission {
   certificateVerificationToken?: string | null;
   submittedAt: string;
   anomalyFlags?: WritingAnomalyFlag[] | null;
+  aiPolicyRefusalCount?: number;
   status: 'active' | 'historical';
 }
 
@@ -977,13 +978,13 @@ export default function TaskSubmissionAnalyticsPage() {
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-base">
               <ShieldAlert className="h-4 w-4 text-muted-foreground" />
-              Activity Flags
+              Review Signals
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {(submission.anomalyFlags || []).length === 0 ? (
+            {(submission.anomalyFlags || []).length === 0 && !(submission.aiPolicyRefusalCount || 0) ? (
               <p className="text-sm text-muted-foreground">
-                No advisory activity flags were detected for this submission certificate.
+                No advisory review signals were detected for this submission certificate.
               </p>
             ) : (
               <div className="flex flex-wrap gap-2">
@@ -997,6 +998,15 @@ export default function TaskSubmissionAnalyticsPage() {
                     {flag.severity} · {flag.label}
                   </Badge>
                 ))}
+                {(submission.aiPolicyRefusalCount || 0) > 0 && (
+                  <Badge
+                    variant="outline"
+                    className="border-[#B56F5C]/35 bg-[#B56F5C]/10 text-[#6E3F35]"
+                    title="In-platform AI refused a request because it conflicted with the writing policy."
+                  >
+                    AI policy refusals · {submission.aiPolicyRefusalCount}
+                  </Badge>
+                )}
               </div>
             )}
           </CardContent>

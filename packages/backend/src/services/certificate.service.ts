@@ -14,6 +14,7 @@ import {
   JSONCertificate,
   AIAuthorshipStats,
   PaginatedResult,
+  getEffectiveWritingAiPolicy,
 } from '@humanly/shared';
 import { AppError } from '../middleware/error-handler';
 import { logger } from '../utils/logger';
@@ -24,6 +25,7 @@ import {
   CertificateSealService,
 } from './certificate-seal.service';
 import { AnomalyFlagsService } from './anomaly-flags.service';
+import { computeAiPolicyTextHash } from '../utils/ai-policy-hash';
 
 export class CertificateService {
   /**
@@ -70,6 +72,9 @@ export class CertificateService {
       const verificationToken = this.generateVerificationToken();
       const certificateId = crypto.randomUUID();
       const generatedAt = new Date();
+      const policyHash = computeAiPolicyTextHash(
+        getEffectiveWritingAiPolicy(document.environmentConfig)
+      );
 
       // Hash access code if provided
       let accessCodeHash: string | undefined;
@@ -99,6 +104,7 @@ export class CertificateService {
         pastedCharacters: metrics.pastedCharacters,
         editingTimeSeconds: Math.round(metrics.editingTimeSeconds),
         anomalyFlags,
+        policyHash,
         verificationToken,
         signerName: signerName || null,
         includeFullText,
@@ -125,6 +131,7 @@ export class CertificateService {
         pastedCharacters: metrics.pastedCharacters,
         editingTimeSeconds: Math.round(metrics.editingTimeSeconds),
         anomalyFlags,
+        policyHash,
         signature,
         verificationToken,
         signerName,
@@ -462,6 +469,7 @@ export class CertificateService {
       pastedCharacters: certificate.pastedCharacters,
       editingTimeSeconds: certificate.editingTimeSeconds,
       anomalyFlags: certificate.anomalyFlags || [],
+      policyHash: certificate.policyHash || null,
       verificationToken: certificate.verificationToken,
       signerName: certificate.signerName || null,
       includeFullText: certificate.includeFullText,

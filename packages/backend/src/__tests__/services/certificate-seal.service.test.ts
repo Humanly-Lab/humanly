@@ -65,6 +65,22 @@ describe('CertificateSealService', () => {
     expect(verification.valid).toBe(true);
     expect(verification.sealStatus).toBe('valid');
     expect(verification.seal?.payloadHash).toBe(seal.payloadHash);
+    expect(seal.signedFields).not.toContain('policyHash');
+  });
+
+  it('protects policy hash when present on new v2 certificate seals', () => {
+    const input = makeSealInput({ policyHash: 'policy-hash-1' });
+    const seal = CertificateSealService.createSeal(input, SECRET);
+
+    expect(seal.signedFields).toContain('policyHash');
+
+    const verification = CertificateSealService.verifySeal(input, SECRET, seal.signature);
+    expect(verification.valid).toBe(true);
+
+    const tampered = makeSealInput({ policyHash: 'policy-hash-2' });
+    const tamperedVerification = CertificateSealService.verifySeal(tampered, SECRET, seal.signature);
+    expect(tamperedVerification.valid).toBe(false);
+    expect(tamperedVerification.sealStatus).toBe('invalid');
   });
 
   it('fails verification when protected metrics are changed', () => {

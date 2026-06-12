@@ -1,7 +1,8 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
 import PDFViewer from '@/components/pdf/PDFViewer'
+import { api } from '@/lib/api-client'
 import { fileApi } from '@/lib/file-api'
 
 const mockSetPDFText = jest.fn()
@@ -11,6 +12,12 @@ const mockSetPDFError = jest.fn()
 jest.mock('@/lib/file-api', () => ({
   fileApi: {
     getPdfBlob: jest.fn(),
+  },
+}))
+
+jest.mock('@/lib/api-client', () => ({
+  api: {
+    post: jest.fn(),
   },
 }))
 
@@ -49,6 +56,7 @@ describe('PDFViewer render stability', () => {
     mockSetPDFText.mockClear()
     mockSetExtracting.mockClear()
     mockSetPDFError.mockClear()
+    ;(api.post as jest.Mock).mockResolvedValue({})
     ;(fileApi.getPdfBlob as jest.Mock).mockResolvedValue('blob:pdf-file')
 
     Object.defineProperty(window, 'devicePixelRatio', {
@@ -173,7 +181,52 @@ describe('PDFViewer render stability', () => {
 
     expect(screen.queryByTitle('Search (Ctrl+F)')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /download pdf/i })).not.toBeInTheDocument()
+    expect(document.querySelector('.textLayer')).not.toBeInTheDocument()
     expect(mockSetPDFText).not.toHaveBeenCalled()
+  })
+
+  it('logs copy and context menu attempts inside the view-only viewer pane', async () => {
+    render(<PDFViewer fileId="file-123" documentId="doc-1" viewOnly />)
+
+    await waitFor(() => {
+      expect(screen.getByText('View-only')).toBeInTheDocument()
+    })
+
+    const canvas = await waitFor(() => {
+      const renderedCanvas = document.querySelector('canvas')
+      expect(renderedCanvas).toBeInTheDocument()
+      return renderedCanvas as HTMLCanvasElement
+    })
+
+    const viewerPane = canvas.closest('[tabindex="0"]') as HTMLElement
+    expect(viewerPane).toBeInTheDocument()
+
+    fireEvent.contextMenu(viewerPane)
+    fireEvent.mouseEnter(viewerPane)
+    fireEvent.keyDown(window, { key: 'c', ctrlKey: true })
+
+    await waitFor(() => {
+      expect(api.post).toHaveBeenCalledWith('/api/v1/documents/doc-1/events', expect.objectContaining({
+        events: [expect.objectContaining({
+          eventType: 'contextmenu',
+          metadata: expect.objectContaining({
+            source: 'pdf_viewer',
+            fileId: 'file-123',
+            viewOnly: true,
+          }),
+        })],
+      }))
+      expect(api.post).toHaveBeenCalledWith('/api/v1/documents/doc-1/events', expect.objectContaining({
+        events: [expect.objectContaining({
+          eventType: 'copy',
+          metadata: expect.objectContaining({
+            source: 'pdf_viewer',
+            fileId: 'file-123',
+            viewOnly: true,
+          }),
+        })],
+      }))
+    })
   })
 
   it('shows a download affordance for downloadable PDFs', async () => {

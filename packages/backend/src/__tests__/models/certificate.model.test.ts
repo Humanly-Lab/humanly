@@ -33,6 +33,7 @@ describe('CertificateModel', () => {
       pastedCharacters: 0,
       editingTimeSeconds: 2,
       anomalyFlags: [],
+      policyHash: 'policy-hash',
       signature: 'hly-seal-v1.signature',
       verificationToken: 'verification-token',
       signerName: null,
@@ -54,8 +55,10 @@ describe('CertificateModel', () => {
     const sql = mockQueryOne.mock.calls[0][0];
     const params = mockQueryOne.mock.calls[0][1] as unknown[];
 
-    expect(sql).toContain('COALESCE($26::timestamptz, NOW())');
-    expect(sql).not.toContain('$26::timestamp,');
-    expect(params[25]).toBe(generatedAt);
+    expect(sql).toContain('policy_hash');
+    expect(sql).toContain('COALESCE($27::timestamptz, NOW())');
+    expect(sql).not.toContain('$27::timestamp,');
+    expect(params[17]).toBe('policy-hash');
+    expect(params[26]).toBe(generatedAt);
   });
 });

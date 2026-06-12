@@ -89,6 +89,7 @@ export interface Submission {
   supersedesSubmissionId?: string | null;
   status: SubmissionStatus;
   anomalyFlags?: WritingAnomalyFlag[] | null;
+  aiPolicyRefusalCount?: number;
   createdAt: Date;
 }
 
@@ -282,6 +283,7 @@ export interface Certificate {
   pastedCharacters: number;
   editingTimeSeconds: number;
   anomalyFlags?: WritingAnomalyFlag[];
+  policyHash?: string | null;
 
   // Verification
   signature: string;
@@ -322,6 +324,7 @@ export interface CertificateInsertData {
   pastedCharacters: number;
   editingTimeSeconds: number;
   anomalyFlags?: WritingAnomalyFlag[];
+  policyHash?: string | null;
   signature: string;
   verificationToken: string;
   signerName?: string;

@@ -113,22 +113,35 @@ export function SubmissionPanel({
     );
   };
 
-  const renderFlagsCell = (submission: AdminSubmission) => {
+  const renderSignalsCell = (submission: AdminSubmission) => {
     const flags = submission.anomalyFlags || [];
+    const refusalCount = submission.aiPolicyRefusalCount || 0;
 
-    if (flags.length === 0) {
+    if (flags.length === 0 && refusalCount === 0) {
       return <span className="text-sm text-muted-foreground">None</span>;
     }
 
-    const highestSeverity = flags.reduce((current, flag) => (
-      severityRank[flag.severity] > severityRank[current] ? flag.severity : current
-    ), flags[0].severity);
+    const highestSeverity = flags.length > 0
+      ? flags.reduce((current, flag) => (
+        severityRank[flag.severity] > severityRank[current] ? flag.severity : current
+      ), flags[0].severity)
+      : null;
 
     return (
-      <Badge variant="outline" className={`gap-1 capitalize ${getFlagBadgeClass(highestSeverity)}`}>
-        <ShieldAlert className="h-3 w-3" />
-        {highestSeverity} · {flags.length}
-      </Badge>
+      <div className="flex flex-wrap gap-2">
+        {highestSeverity && (
+          <Badge variant="outline" className={`gap-1 capitalize ${getFlagBadgeClass(highestSeverity)}`}>
+            <ShieldAlert className="h-3 w-3" />
+            {highestSeverity} · {flags.length}
+          </Badge>
+        )}
+        {refusalCount > 0 && (
+          <Badge variant="outline" className="gap-1 border-[#B56F5C]/35 bg-[#B56F5C]/10 text-[#6E3F35]">
+            <ShieldAlert className="h-3 w-3" />
+            AI refusals · {refusalCount}
+          </Badge>
+        )}
+      </div>
     );
   };
 
@@ -257,7 +270,7 @@ export function SubmissionPanel({
                       <TableHead>User</TableHead>
                       <TableHead>Latest Submission</TableHead>
                       <TableHead>Submitted</TableHead>
-                      <TableHead>Activity Flags</TableHead>
+                      <TableHead>Review Signals</TableHead>
                       <TableHead className="text-right">Certificate</TableHead>
                       <TableHead className="text-right">Analytics</TableHead>
                     </TableRow>
@@ -276,7 +289,7 @@ export function SubmissionPanel({
                             </div>
                           </TableCell>
                           <TableCell>{formatDateTime(submission.submittedAt)}</TableCell>
-                          <TableCell>{renderFlagsCell(submission)}</TableCell>
+                          <TableCell>{renderSignalsCell(submission)}</TableCell>
                           <TableCell className="text-right">{renderCertificateCell(submission)}</TableCell>
                           <TableCell className="text-right">
                             <Button
@@ -313,7 +326,7 @@ export function SubmissionPanel({
                   <TableRow>
                     <TableHead>Document</TableHead>
                     <TableHead>Submitted</TableHead>
-                    <TableHead>Activity Flags</TableHead>
+                    <TableHead>Review Signals</TableHead>
                     <TableHead className="text-right">Certificate</TableHead>
                     <TableHead className="text-right">Analytics</TableHead>
                   </TableRow>
@@ -328,7 +341,7 @@ export function SubmissionPanel({
                         </div>
                       </TableCell>
                       <TableCell>{formatDateTime(submission.submittedAt)}</TableCell>
-                      <TableCell>{renderFlagsCell(submission)}</TableCell>
+                      <TableCell>{renderSignalsCell(submission)}</TableCell>
                       <TableCell className="text-right">{renderCertificateCell(submission)}</TableCell>
                       <TableCell className="text-right">
                         <Button

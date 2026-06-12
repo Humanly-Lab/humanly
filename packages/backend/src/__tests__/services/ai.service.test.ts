@@ -11,6 +11,7 @@ const mockValidPngBuffer = () => Buffer.from(mockValidPngBase64, 'base64');
 
 jest.mock('../../models/ai.model');
 jest.mock('../../models/document.model');
+jest.mock('../../models/document-event.model');
 jest.mock('../../models/task.model');
 jest.mock('../../models/user-ai-settings.model');
 jest.mock('../../models/ai-chat-attachment.model', () => ({
@@ -70,12 +71,14 @@ import {
 } from '../../services/ai.service';
 import { AIModel } from '../../models/ai.model';
 import { DocumentModel } from '../../models/document.model';
+import { DocumentEventModel } from '../../models/document-event.model';
 import { TaskModel } from '../../models/task.model';
 import { UserAISettingsModel } from '../../models/user-ai-settings.model';
 import { AIRetrievalService } from '../../services/ai-retrieval.service';
 
 const MockAIModel = AIModel as jest.Mocked<typeof AIModel>;
 const MockDocumentModel = DocumentModel as jest.Mocked<typeof DocumentModel>;
+const MockDocumentEventModel = DocumentEventModel as jest.Mocked<typeof DocumentEventModel>;
 const MockTaskModel = TaskModel as jest.Mocked<typeof TaskModel>;
 const MockUserAISettings = UserAISettingsModel as jest.Mocked<typeof UserAISettingsModel>;
 
@@ -1002,6 +1005,7 @@ describe('AIService.chat', () => {
     MockAIModel.createLog.mockResolvedValue(makeLog());
     MockAIModel.addMessage.mockResolvedValue(makeMessage());
     MockAIModel.updateLogWithResponse.mockResolvedValue(makeLog());
+    MockDocumentEventModel.batchInsert.mockResolvedValue(undefined);
     mockFetch.mockResolvedValue(mockResponsesResponse('Here is the improved text.'));
   });
 
@@ -1105,6 +1109,96 @@ describe('AIService.chat', () => {
     expect(systemContent).toContain('AI POLICY GUARD');
     expect(systemContent).toContain('Refuse to produce evaluative claims about the paper.');
     expect(systemContent).toContain("I can't help with that request because it conflicts with the writing policy.");
+  });
+
+  it('records a structured policy refusal event for non-stream chat responses', async () => {
+    MockDocumentModel.findByIdAndUserId.mockResolvedValue({
+      id: 'doc-1',
+      userId: 'user-1',
+      environmentConfig: {
+        aiAccess: 'chat',
+        aiPolicy: {
+          mode: 'guard',
+          rejectionRule: 'Do not write evaluative claims.',
+        },
+      },
+    } as any);
+    MockUserAISettings.getByUserId.mockResolvedValue(makeSettings({
+      model: 'Qwen/Qwen3.5-397B-A17B',
+      baseUrl: 'https://api.together.xyz/v1',
+    }));
+    mockFetch.mockResolvedValueOnce(mockChatCompletionResponse(
+      "I can't help with that request because it conflicts with the writing policy. I can help revise your own notes instead."
+    ));
+
+    await AIService.chat('user-1', {
+      ...request,
+      message: 'Write evaluative claims.',
+    } as any);
+
+    expect(MockDocumentEventModel.batchInsert).toHaveBeenCalledWith([
+      expect.objectContaining({
+        documentId: 'doc-1',
+        userId: 'user-1',
+        sessionId: 'session-1',
+        eventType: 'ai_policy_refusal',
+        metadata: expect.objectContaining({
+          source: 'chat',
+          logId: 'log-1',
+          modelVersion: 'Qwen/Qwen3.5-397B-A17B',
+          policyHash: expect.stringMatching(/^[a-f0-9]{64}$/),
+        }),
+      }),
+    ]);
+  });
+
+  it('records a structured policy refusal event after stream assembly', async () => {
+    MockDocumentModel.findByIdAndUserId.mockResolvedValue({
+      id: 'doc-1',
+      userId: 'user-1',
+      environmentConfig: {
+        aiAccess: 'chat',
+        aiPolicy: {
+          mode: 'guard',
+          rejectionRule: 'Do not write evaluative claims.',
+        },
+      },
+    } as any);
+    MockUserAISettings.getByUserId.mockResolvedValue(makeSettings({
+      model: 'Qwen/Qwen3.5-397B-A17B',
+      baseUrl: 'https://api.together.xyz/v1',
+    }));
+    mockFetch.mockResolvedValueOnce(mockChatCompletionResponse(
+      "I can't help with that request because it conflicts with the writing policy. Please draft it yourself."
+    ));
+
+    await new Promise<void>((resolve, reject) => {
+      AIService.streamChat(
+        'user-1',
+        {
+          ...request,
+          message: 'Write evaluative claims.',
+        } as any,
+        () => {},
+        () => resolve(),
+        error => reject(error),
+      );
+    });
+
+    expect(MockDocumentEventModel.batchInsert).toHaveBeenCalledWith([
+      expect.objectContaining({
+        documentId: 'doc-1',
+        userId: 'user-1',
+        sessionId: 'session-1',
+        eventType: 'ai_policy_refusal',
+        metadata: expect.objectContaining({
+          source: 'stream_chat',
+          logId: 'log-1',
+          modelVersion: 'Qwen/Qwen3.5-397B-A17B',
+          policyHash: expect.stringMatching(/^[a-f0-9]{64}$/),
+        }),
+      }),
+    ]);
   });
 
   it('answers no-reference context questions without dispatching to the provider', async () => {

@@ -16,6 +16,7 @@ import {
   Download,
 } from 'lucide-react'
 import { fileApi } from '@/lib/file-api'
+import { api } from '@/lib/api-client'
 import { usePDFTextStore } from '@/stores/pdf-text-store'
 
 interface PDFViewerProps {
@@ -85,6 +86,7 @@ export default function PDFViewer({ fileId, documentId, viewOnly = false }: PDFV
   const scaleRef = useRef<number>(1.0)
   const renderTasksRef = useRef<Map<number, any>>(new Map())
   const renderGenerationRef = useRef<number>(0)
+  const pointerInsideViewerRef = useRef<boolean>(false)
 
   // Keep scaleRef in sync
   useEffect(() => {
@@ -514,22 +516,71 @@ export default function PDFViewer({ fileId, documentId, viewOnly = false }: PDFV
     anchor.remove()
   }, [fileId, pdfBlobUrl, viewOnly])
 
+  const logViewOnlyViewerAttempt = useCallback(async (eventType: 'copy' | 'contextmenu') => {
+    if (!viewOnly || !documentId) return
+
+    try {
+      await api.post(`/api/v1/documents/${documentId}/events`, {
+        events: [{
+          eventType,
+          timestamp: new Date().toISOString(),
+          targetElement: 'pdf-viewer',
+          metadata: {
+            source: 'pdf_viewer',
+            fileId,
+            viewOnly: true,
+            action: eventType === 'copy' ? 'copy_attempt' : 'contextmenu_attempt',
+          },
+        }],
+      })
+    } catch (err) {
+      console.warn('Failed to log view-only PDF viewer attempt:', err)
+    }
+  }, [documentId, fileId, viewOnly])
+
   // Disable right-click / Ctrl+S / Ctrl+P for view-only resources only.
   useEffect(() => {
-    if (!viewOnly) return
+    if (!viewOnly || loading) return
 
-    const noContext = (e: MouseEvent) => e.preventDefault()
+    const noContext = (e: MouseEvent) => {
+      e.preventDefault()
+      void logViewOnlyViewerAttempt('contextmenu')
+    }
+    const noCopy = (e: ClipboardEvent) => {
+      e.preventDefault()
+      void logViewOnlyViewerAttempt('copy')
+    }
     const noSave = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'p')) e.preventDefault()
+      const key = e.key.toLowerCase()
+      if ((e.ctrlKey || e.metaKey) && (key === 's' || key === 'p')) {
+        e.preventDefault()
+      }
+
+      if ((e.ctrlKey || e.metaKey) && key === 'c') {
+        const container = containerRef.current
+        const activeElement = document.activeElement
+        const isViewerTarget = Boolean(
+          container && (
+            pointerInsideViewerRef.current ||
+            (activeElement instanceof Node && container.contains(activeElement))
+          )
+        )
+        if (isViewerTarget) {
+          e.preventDefault()
+          void logViewOnlyViewerAttempt('copy')
+        }
+      }
     }
     const container = containerRef.current
     container?.addEventListener('contextmenu', noContext)
+    container?.addEventListener('copy', noCopy)
     window.addEventListener('keydown', noSave)
     return () => {
       container?.removeEventListener('contextmenu', noContext)
+      container?.removeEventListener('copy', noCopy)
       window.removeEventListener('keydown', noSave)
     }
-  }, [viewOnly])
+  }, [loading, logViewOnlyViewerAttempt, viewOnly])
 
   if (loading) {
     return (
@@ -656,7 +707,13 @@ export default function PDFViewer({ fileId, documentId, viewOnly = false }: PDFV
       )}
 
       {/* Continuous scroll canvas area */}
-      <div ref={containerRef} className="flex-1 overflow-auto py-4">
+      <div
+        ref={containerRef}
+        className="flex-1 overflow-auto py-4"
+        tabIndex={viewOnly ? 0 : undefined}
+        onMouseEnter={() => { pointerInsideViewerRef.current = true }}
+        onMouseLeave={() => { pointerInsideViewerRef.current = false }}
+      >
         {Array.from({ length: numPages }, (_, i) => i + 1).map((pageNum) => (
           <div
             key={pageNum}

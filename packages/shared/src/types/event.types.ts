@@ -5,6 +5,7 @@ export type EventType =
   | 'paste'
   | 'copy'
   | 'cut'
+  | 'contextmenu'
   | 'focus'
   | 'blur'
   | 'input'
@@ -58,7 +59,9 @@ export type EventType =
   // AI Selection Menu events (inline quick actions)
   | 'ai_selection_action'
   // AI chat insert events
-  | 'ai_insert_from_chat';
+  | 'ai_insert_from_chat'
+  // AI policy enforcement events
+  | 'ai_policy_refusal';
 
 export type TextRenderMode = 'plain' | 'markdown';
 

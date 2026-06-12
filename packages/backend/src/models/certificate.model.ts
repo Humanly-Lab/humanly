@@ -24,6 +24,7 @@ const CERTIFICATE_SELECT_FIELDS = `
   pasted_characters as "pastedCharacters",
   editing_time_seconds as "editingTimeSeconds",
   anomaly_flags as "anomalyFlags",
+  policy_hash as "policyHash",
   signature,
   verification_token as "verificationToken",
   signer_name as "signerName",
@@ -50,7 +51,7 @@ export class CertificateModel {
         title, document_snapshot, plain_text_snapshot,
         total_events, typing_events, paste_events,
         total_characters, typed_characters, pasted_characters,
-        editing_time_seconds, anomaly_flags, signature, verification_token,
+        editing_time_seconds, anomaly_flags, policy_hash, signature, verification_token,
         signer_name, include_full_text, include_edit_history,
         access_code, access_code_hash, is_protected, generated_at
       )
@@ -59,9 +60,9 @@ export class CertificateModel {
         $7, $8, $9,
         $10, $11, $12,
         $13, $14, $15,
-        $16, $17, $18, $19,
-        $20, $21, $22,
-        $23, $24, $25, COALESCE($26::timestamptz, NOW())
+        $16, $17, $18, $19, $20,
+        $21, $22, $23,
+        $24, $25, $26, COALESCE($27::timestamptz, NOW())
       )
       RETURNING ${CERTIFICATE_SELECT_FIELDS}
     `;
@@ -84,6 +85,7 @@ export class CertificateModel {
       data.pastedCharacters,
       data.editingTimeSeconds,
       JSON.stringify(data.anomalyFlags || []),
+      data.policyHash || null,
       data.signature,
       data.verificationToken,
       data.signerName || null,

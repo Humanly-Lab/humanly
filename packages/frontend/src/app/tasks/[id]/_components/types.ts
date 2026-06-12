@@ -49,5 +49,6 @@ export interface AdminSubmission {
   certificateVerificationToken?: string | null;
   submittedAt: string;
   anomalyFlags?: WritingAnomalyFlag[] | null;
+  aiPolicyRefusalCount?: number;
   status: 'active' | 'historical';
 }
