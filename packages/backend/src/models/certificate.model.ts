@@ -61,7 +61,7 @@ export class CertificateModel {
         $13, $14, $15,
         $16, $17, $18, $19,
         $20, $21, $22,
-        $23, $24, $25, COALESCE($26::timestamp, NOW())
+        $23, $24, $25, COALESCE($26::timestamptz, NOW())
       )
       RETURNING ${CERTIFICATE_SELECT_FIELDS}
     `;
