@@ -83,43 +83,6 @@ describe('file routes integration', () => {
     }));
   });
 
-  it('initiates a signed document PDF upload through the unified file API', async () => {
-    MockFileService.initiateDocumentFileUpload.mockResolvedValue({
-      fileId: 'file-1',
-      storageKey: 'files/file-1/checksum.pdf',
-      uploadUrl: 'https://storage.example/upload',
-      requiredHeaders: { 'Content-Type': 'application/pdf' },
-      expiresAt: '2026-05-15T12:30:00.000Z',
-    } as any);
-
-    const response = await request(app)
-      .post('/api/v1/documents/doc-1/files/uploads')
-      .set('Authorization', authHeader())
-      .send({
-        title: 'Source PDF',
-        filename: 'source.pdf',
-        mimeType: 'application/pdf',
-        fileSize: 10,
-        checksum: 'a'.repeat(64),
-      });
-
-    expect(response.status).toBe(201);
-    expect(MockFileService.initiateDocumentFileUpload).toHaveBeenCalledWith(
-      'doc-1',
-      'user-1',
-      expect.objectContaining({
-        title: 'Source PDF',
-        filename: 'source.pdf',
-        checksum: 'a'.repeat(64),
-      })
-    );
-    expect(response.body.data).toEqual(expect.objectContaining({
-      fileId: 'file-1',
-      uploadUrl: 'https://storage.example/upload',
-      requiredHeaders: { 'Content-Type': 'application/pdf' },
-    }));
-  });
-
   it('rejects non-PDF uploads before the service layer', async () => {
     const response = await request(app)
       .post('/api/v1/documents/doc-1/files')
@@ -198,44 +161,6 @@ describe('file routes integration', () => {
 
     expect(response.status).toBe(200);
     expect(MockFileService.streamFile).toHaveBeenCalledWith('file-1', 'user-1', { viewToken: 'view-token-1' });
-  });
-
-  it('completes a signed PDF upload', async () => {
-    MockFileService.completeFileUpload.mockResolvedValue(makeFile({
-      storageProvider: 'gcs',
-      uploadStatus: 'ready',
-    }) as any);
-
-    const response = await request(app)
-      .post('/api/v1/files/file-1/complete')
-      .set('Authorization', authHeader());
-
-    expect(response.status).toBe(200);
-    expect(MockFileService.completeFileUpload).toHaveBeenCalledWith('file-1', 'user-1');
-    expect(response.body.data.file).toEqual(expect.objectContaining({
-      id: 'file-1',
-      uploadStatus: 'ready',
-    }));
-  });
-
-  it('returns a signed file read URL when storage supports it', async () => {
-    MockFileService.getFileReadUrl.mockResolvedValue({
-      url: 'https://storage.example/read',
-      expiresAt: '2026-05-15T12:10:00.000Z',
-      fallbackMode: 'signed_url',
-    } as any);
-
-    const response = await request(app)
-      .get('/api/v1/files/file-1/read-url')
-      .set('Authorization', authHeader());
-
-    expect(response.status).toBe(200);
-    expect(MockFileService.getFileReadUrl).toHaveBeenCalledWith('file-1', 'user-1');
-    expect(response.body.data).toEqual({
-      url: 'https://storage.example/read',
-      expiresAt: '2026-05-15T12:10:00.000Z',
-      fallbackMode: 'signed_url',
-    });
   });
 
   it('requires authentication before streaming file content', async () => {

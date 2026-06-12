@@ -274,7 +274,7 @@ export default function PDFViewer({ fileId, documentId, viewOnly = false }: PDFV
     return () => {
       cancelled = true
       cancelCurrentRenderGeneration()
-      if (blobUrl?.startsWith('blob:')) URL.revokeObjectURL(blobUrl)
+      if (blobUrl) URL.revokeObjectURL(blobUrl)
       if (pdfDocRef.current) {
         try {
           pdfDocRef.current.destroy()
