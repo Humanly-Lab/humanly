@@ -2,6 +2,7 @@
   "name": "@humanly/shared",
   "version": "1.0.0",
   "description": "Shared types and utilities for humanly",
+  "license": "MIT",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {

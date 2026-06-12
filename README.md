@@ -10,6 +10,13 @@ Production:
 - Admin dashboard: https://admin.writehumanly.net/
 - Direct API/tracker host: https://api.writehumanly.net/
 
+Paper and repository:
+
+- Paper: Humanly is being prepared for the EMNLP 2026 System Demonstrations
+  track. The archival PDF link will be added here when it becomes public.
+- License: [MIT](LICENSE).
+- Source repository: https://github.com/ShenzheZhu/humanly
+
 ## Monorepo Layout
 
 ```text
