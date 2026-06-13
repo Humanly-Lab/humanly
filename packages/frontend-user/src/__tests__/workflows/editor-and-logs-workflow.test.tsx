@@ -1188,6 +1188,60 @@ describe('editor and logs workflows', () => {
     expect(mockTrackEvents.mock.invocationCallOrder[0]).toBeLessThan(submissionCallOrder);
   });
 
+  it('keeps task submit locked while the submission request is pending', async () => {
+    const user = userEvent.setup();
+    const submitDeferred = createDeferred<{ data: { data: { certificate: { id: string } } } }>();
+    mockTaskEnrollments = [{
+      id: 'enroll-1',
+      documentId: 'doc-1',
+      name: 'Submit Task',
+      inviteCode: 'ABC123',
+      joinedAt: '2026-05-19T12:00:00.000Z',
+      environmentConfig: {
+        aiAccess: 'off',
+        copyPastePolicy: 'allowed',
+      },
+    }];
+    mockApiPost.mockImplementation(async (path: string) => {
+      if (path === '/tasks/enrollments/enroll-1/submission-sessions') {
+        return { data: { data: { sessionId: 'session-1' } } };
+      }
+      if (path === '/tasks/enrollments/enroll-1/submissions') {
+        return submitDeferred.promise;
+      }
+      throw new Error(`Unexpected POST ${path}`);
+    });
+
+    render(<DocumentEditorPage />);
+
+    expect(await screen.findByText('Workflow Document')).toBeInTheDocument();
+    const submitButton = screen.getByRole('button', { name: /submit/i });
+
+    await user.click(submitButton);
+
+    await waitFor(() => {
+      expect(mockApiPost).toHaveBeenCalledWith(
+        '/tasks/enrollments/enroll-1/submissions',
+        { documentId: 'doc-1' }
+      );
+    });
+    expect(submitButton).toBeDisabled();
+
+    await user.click(submitButton);
+    expect(mockApiPost.mock.calls.filter(([path]) => (
+      path === '/tasks/enrollments/enroll-1/submissions'
+    ))).toHaveLength(1);
+
+    await act(async () => {
+      submitDeferred.resolve({ data: { data: { certificate: { id: 'certificate-1' } } } });
+      await submitDeferred.promise;
+    });
+
+    await waitFor(() => {
+      expect(mockPush).toHaveBeenCalledWith('/certificates/certificate-1');
+    });
+  });
+
   it('shows writing events with in-place fold points for less important logs', async () => {
     render(<DocumentLogsPage />);
 
