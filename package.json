@@ -19,6 +19,7 @@
     "qa:ai:usage": "node scripts/qa/ai-usage.mjs",
     "qa:deploy:smoke": "node scripts/qa/deploy-smoke.mjs",
     "qa:browser:guide": "node scripts/qa/browser-guide.mjs",
+    "qa:submit:concurrency": "node scripts/qa/submit-concurrency.mjs",
     "qa:stress:backend": "node scripts/backend-stress-test.mjs",
     "build:shared": "pnpm --filter @humanly/shared build",
     "build:editor": "pnpm --filter @humanly/editor build",

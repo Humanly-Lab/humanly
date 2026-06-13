@@ -71,6 +71,9 @@ import {
   ENVIRONMENT_CONFIG_ACCEPT,
   SUBMISSION_MAX_CHARACTERS_MAX,
   SUBMISSION_MIN_CHARACTERS_MAX,
+  TASK_DESCRIPTION_MAX_LENGTH,
+  TASK_INSTRUCTION_PDF_MAX_FILES,
+  TASK_NAME_MAX_LENGTH,
   TASK_START_DATE_PAST_ERROR_MESSAGE,
   WRITING_AI_ACCESS_OPTIONS,
   WRITING_AI_POLICY_OPTIONS,
@@ -101,10 +104,10 @@ const taskFormSchema = z.object({
   name: z
     .string()
     .min(3, 'Task name must be at least 3 characters')
-    .max(100, 'Task name must not exceed 100 characters'),
+    .max(TASK_NAME_MAX_LENGTH, `Task name must not exceed ${TASK_NAME_MAX_LENGTH} characters`),
   description: z
     .string()
-    .max(500, 'Description must not exceed 500 characters')
+    .max(TASK_DESCRIPTION_MAX_LENGTH, `Description must not exceed ${TASK_DESCRIPTION_MAX_LENGTH} characters`)
     .optional()
     .or(z.literal('')),
   aiUsageLimit: z.coerce.number().int().min(1, 'AI usage limit must be at least 1'),
@@ -1035,6 +1038,16 @@ export default function NewTaskPage() {
       return;
     }
 
+    if (files.length > TASK_INSTRUCTION_PDF_MAX_FILES) {
+      event.target.value = '';
+      toast({
+        title: 'Too many files',
+        description: `Upload at most ${TASK_INSTRUCTION_PDF_MAX_FILES} instruction PDFs for a task.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setInstructionFiles(files);
   };
 
@@ -1608,6 +1621,7 @@ export default function NewTaskPage() {
                         <Input
                           placeholder="Research Reflection Assignment"
                           {...field}
+                          maxLength={TASK_NAME_MAX_LENGTH}
                           disabled={isSubmitting}
                         />
                       </FormControl>
@@ -1627,9 +1641,13 @@ export default function NewTaskPage() {
                           placeholder="Describe the writing task, deadline, evaluation criteria, or class context..."
                           className="resize-none"
                           {...field}
+                          maxLength={TASK_DESCRIPTION_MAX_LENGTH}
                           disabled={isSubmitting}
                         />
                       </FormControl>
+                      <FormDescription>
+                        Up to {TASK_DESCRIPTION_MAX_LENGTH.toLocaleString()} characters.
+                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -1641,7 +1659,7 @@ export default function NewTaskPage() {
                     Files
                   </div>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Upload one or more PDF instruction files for this task.
+                    Upload up to {TASK_INSTRUCTION_PDF_MAX_FILES} PDF instruction files for this task.
                   </p>
                   <Input
                     type="file"
