@@ -33,6 +33,7 @@ let mockAuthUserEmail = 'user@example.com';
 let mockAiLogs: any[] = [];
 let mockTimelineSummary: any;
 let mockTimelineItems: any[] = [];
+let mockCertificateAnomalyFlags: any[] = [];
 let mockLatestEditorProps: any;
 let mockEditorBufferedEvents: any[] = [];
 let mockFlushEditorEvents: (() => Promise<void>) | null = null;
@@ -315,6 +316,7 @@ describe('editor and logs workflows', () => {
     mockTaskEnrollments = [];
     mockAuthUserEmail = 'user@example.com';
     mockAiLogs = [];
+    mockCertificateAnomalyFlags = [];
     mockTimelineSummary = {
       rawEventTotal: 40,
       timelineItemTotal: 2,
@@ -416,6 +418,18 @@ describe('editor and logs workflows', () => {
       }
       if (path === '/ai/logs?documentId=doc-1&limit=50&offset=0') {
         return { data: { data: mockAiLogs } };
+      }
+      if (path === '/certificates/certificate-1') {
+        return {
+          data: {
+            data: {
+              certificate: {
+                id: 'certificate-1',
+                anomalyFlags: mockCertificateAnomalyFlags,
+              },
+            },
+          },
+        };
       }
       throw new Error(`Unexpected GET ${path}`);
     });
@@ -2384,6 +2398,59 @@ describe('editor and logs workflows', () => {
 
     expect(screen.getByText('Refused chat request')).toBeInTheDocument();
     expect(screen.getByText(refusalPrompt)).toBeInTheDocument();
+  });
+
+  it('maps sealed rapid text accumulation flags onto matching raw log events', async () => {
+    mockSearchParams = new URLSearchParams('returnTo=certificate&certificateId=certificate-1');
+    mockCertificateAnomalyFlags = [
+      {
+        code: 'rapid_text_accumulation',
+        severity: 'warning',
+        label: 'Rapid text accumulation',
+        description: 'A large amount of text appeared within a short time window.',
+        evidence: {
+          sources: ['untracked_input'],
+          untrackedEventType: 'select',
+          untrackedTimestamp: '2026-05-14T12:00:04.000Z',
+          untrackedAddedCharacters: 419,
+          thresholdCharacters: 250,
+        },
+      },
+    ];
+    mockTimelineItems = [
+      {
+        id: 'raw-selection-burst',
+        kind: 'event',
+        label: 'Text selected',
+        timestamp: '2026-05-14T12:00:04.000Z',
+        startTimestamp: '2026-05-14T12:00:04.000Z',
+        endTimestamp: '2026-05-14T12:00:04.000Z',
+        text: '',
+        rawEventCount: 1,
+        rawEvents: [
+          {
+            id: 'raw-selection-burst-event',
+            eventType: 'select',
+            timestamp: '2026-05-14T12:00:04.000Z',
+            cursorPosition: 419,
+            metadata: {
+              selectedText: 'x'.repeat(419),
+            },
+          },
+        ],
+      },
+    ];
+    mockAiLogs = [];
+
+    render(<DocumentLogsPage />);
+
+    const rapidRow = await screen.findByRole('row', {
+      name: /anomaly rapid_text_accumulation a large amount of text appeared within a short time window\. 419 chars/i,
+    });
+    expect(rapidRow).toBeInTheDocument();
+    expect(within(rapidRow).queryByText('raw event')).not.toBeInTheDocument();
+    expect(within(rapidRow).queryByText('select')).not.toBeInTheDocument();
+    expect(within(rapidRow).getByText('rapid_text_accumulation')).toBeInTheDocument();
   });
 
   it('treats timezone-less AI log timestamps as UTC before displaying local time', async () => {

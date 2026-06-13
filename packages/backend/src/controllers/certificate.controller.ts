@@ -559,6 +559,7 @@ export async function getPublicCertificateLogs(req: Request, res: Response): Pro
       certificateId: certificate.id,
       documentId: certificate.documentId,
       title: certificate.title,
+      anomalyFlags: certificate.anomalyFlags || [],
       timeline: buildDocumentEventTimeline(events, rawEventTotal),
       aiLogs: aiLogResult.logs,
       aiLogTotal: aiLogResult.total,

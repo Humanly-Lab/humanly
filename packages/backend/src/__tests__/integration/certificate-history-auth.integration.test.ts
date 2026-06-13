@@ -126,9 +126,27 @@ describe('GET /api/v1/certificates/verify/:token/history access control', () => 
   });
 
   it('returns public logs for an unprotected certificate without an access code', async () => {
+    const anomalyFlags = [
+      {
+        code: 'rapid_text_accumulation',
+        severity: 'warning',
+        label: 'Rapid text accumulation',
+        description: 'A large amount of text appeared within a short time window.',
+        evidence: {
+          sources: ['untracked_input'],
+          untrackedEventType: 'select',
+          untrackedTimestamp: '2026-05-14T12:00:04.000Z',
+          untrackedAddedCharacters: 419,
+        },
+      },
+    ];
     MockCertificateService.verifyCertificate.mockResolvedValue({
       valid: true,
-      certificate: makeCertificate({ isProtected: false, title: 'Shared certificate' }),
+      certificate: makeCertificate({
+        isProtected: false,
+        title: 'Shared certificate',
+        anomalyFlags,
+      }),
     } as any);
 
     const response = await request(app).get(`/api/v1/certificates/verify/${TOKEN}/logs`);
@@ -136,6 +154,7 @@ describe('GET /api/v1/certificates/verify/:token/history access control', () => 
     expect(response.status).toBe(200);
     expect(response.body.success).toBe(true);
     expect(response.body.data.title).toBe('Shared certificate');
+    expect(response.body.data.anomalyFlags).toEqual(anomalyFlags);
     expect(response.body.data.timeline.summary.rawEventTotal).toBe(0);
     expect(MockDocumentEventModel.findByDocumentId).toHaveBeenCalledWith('doc-1', expect.any(Object));
     expect(MockDocumentEventModel.countByDocumentId).toHaveBeenCalledWith('doc-1');

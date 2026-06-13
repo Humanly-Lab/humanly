@@ -28,6 +28,7 @@ import type {
   DocumentEventTimelineRawEvent,
   DocumentEventTimelineSummary,
   TextRenderMode,
+  WritingAnomalyFlag,
 } from '@humanly/shared';
 
 const EMPTY_SUMMARY: DocumentEventTimelineSummary = {
@@ -160,10 +161,20 @@ type RawEventDisplayItem = {
   kind: 'raw';
   id: string;
   timestamp: string | Date;
-  event: DocumentEventTimelineRawEvent;
+  event: DisplayRawEvent;
 };
 
 type TimelineDisplayItem = HistoryItem | FoldPointItem | RawEventDisplayItem;
+
+type RawEventDisplayOverride = {
+  code: 'rapid_text_accumulation';
+  detail: string;
+  count: string;
+};
+
+type DisplayRawEvent = DocumentEventTimelineRawEvent & {
+  displayAnomaly?: RawEventDisplayOverride;
+};
 
 function getSelectionText(log: AIInteractionLog) {
   return log.modifications?.[0]?.before || log.contextSnapshot?.selection?.text || '';
@@ -512,7 +523,7 @@ function isBlockedCopyPasteAttempt(event: DocumentEventTimelineRawEvent) {
 }
 
 function isAnomalyRawEvent(event: DocumentEventTimelineRawEvent) {
-  return isPolicyRefusalEvent(event) || isBlockedCopyPasteAttempt(event);
+  return Boolean((event as DisplayRawEvent).displayAnomaly) || isPolicyRefusalEvent(event) || isBlockedCopyPasteAttempt(event);
 }
 
 function getBlockedCopyPasteAction(event: DocumentEventTimelineRawEvent) {
@@ -541,6 +552,70 @@ function getPolicyRefusalQuestion(
 function canExpandRawEvent(event: DocumentEventTimelineRawEvent, aiLogsById?: Map<string, AIInteractionLog>) {
   if (!isPolicyRefusalEvent(event)) return false;
   return normalizeVisibleText(getPolicyRefusalQuestion(event, aiLogsById)).length > LONG_TEXT_PREVIEW_THRESHOLD;
+}
+
+function getFlagEvidenceString(flag: WritingAnomalyFlag, key: string) {
+  const value = flag.evidence?.[key];
+  return typeof value === 'string' ? value : '';
+}
+
+function getFlagEvidenceNumber(flag: WritingAnomalyFlag, key: string) {
+  const value = flag.evidence?.[key];
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function getRapidTextCount(flag: WritingAnomalyFlag) {
+  return (
+    getFlagEvidenceNumber(flag, 'untrackedAddedCharacters') ??
+    getFlagEvidenceNumber(flag, 'refocusAddedCharacters') ??
+    getFlagEvidenceNumber(flag, 'maxCharactersInWindow')
+  );
+}
+
+function isSameTimestamp(a?: string | Date, b?: string | Date) {
+  if (!a || !b) return false;
+  const aTime = new Date(a).getTime();
+  const bTime = new Date(b).getTime();
+  return Number.isFinite(aTime) && Number.isFinite(bTime) && aTime === bTime;
+}
+
+function matchesRapidTextFlag(event: DocumentEventTimelineRawEvent, flag: WritingAnomalyFlag) {
+  if (flag.code !== 'rapid_text_accumulation') return false;
+
+  const untrackedEventType = getFlagEvidenceString(flag, 'untrackedEventType');
+  const untrackedTimestamp = getFlagEvidenceString(flag, 'untrackedTimestamp');
+  if (untrackedEventType && untrackedTimestamp) {
+    return event.eventType === untrackedEventType && isSameTimestamp(event.timestamp, untrackedTimestamp);
+  }
+
+  const focusTimestamp = getFlagEvidenceString(flag, 'focusTimestamp');
+  if (focusTimestamp) {
+    return event.eventType === 'focus' && isSameTimestamp(event.timestamp, focusTimestamp);
+  }
+
+  return false;
+}
+
+function annotateRawEventForAnomaly(
+  event: DocumentEventTimelineRawEvent,
+  anomalyFlags: WritingAnomalyFlag[]
+): DisplayRawEvent {
+  const rapidTextFlag = anomalyFlags.find((flag) => matchesRapidTextFlag(event, flag));
+  if (!rapidTextFlag) return event;
+
+  const addedCharacters = getRapidTextCount(rapidTextFlag);
+  const count = addedCharacters == null
+    ? '—'
+    : `${addedCharacters.toLocaleString()} char${addedCharacters === 1 ? '' : 's'}`;
+
+  return {
+    ...event,
+    displayAnomaly: {
+      code: 'rapid_text_accumulation',
+      detail: rapidTextFlag.description || 'A large amount of text appeared within a short time window.',
+      count,
+    },
+  };
 }
 
 function getRawEventFullText(event: DocumentEventTimelineRawEvent, aiLogsById?: Map<string, AIInteractionLog>) {
@@ -799,6 +874,10 @@ function renderRawDetail(
   event: DocumentEventTimelineRawEvent,
   aiLogsById?: Map<string, AIInteractionLog>
 ) {
+  if ((event as DisplayRawEvent).displayAnomaly) {
+    return (event as DisplayRawEvent).displayAnomaly?.detail || null;
+  }
+
   if (isPolicyRefusalEvent(event)) {
     const question = getPolicyRefusalQuestion(event, aiLogsById);
     return question
@@ -878,6 +957,9 @@ function renderRawDetail(
 }
 
 function getRawEventDisplayType(event: DocumentEventTimelineRawEvent) {
+  if ((event as DisplayRawEvent).displayAnomaly) {
+    return (event as DisplayRawEvent).displayAnomaly?.code || event.eventType;
+  }
   if (isPolicyRefusalEvent(event)) return 'chat_refusal';
   if (isBlockedCopyPasteAttempt(event)) return 'blocked_copy_paste_attempt';
   if (event.eventType === 'page_hidden') return 'Left page';
@@ -915,6 +997,9 @@ function getRawEventActivityStyle(event: DocumentEventTimelineRawEvent): CSSProp
 }
 
 function getRawEventCount(event: DocumentEventTimelineRawEvent) {
+  if ((event as DisplayRawEvent).displayAnomaly) {
+    return (event as DisplayRawEvent).displayAnomaly?.count || '—';
+  }
   if (isPolicyRefusalEvent(event)) return '1 refusal';
   if (isBlockedCopyPasteAttempt(event)) return '1 attempt';
   return event.cursorPosition == null ? '—' : `Cursor ${event.cursorPosition}`;
@@ -1122,6 +1207,7 @@ export default function DocumentLogsPage() {
   const [timelineItems, setTimelineItems] = useState<DocumentEventTimelineItem[]>([]);
   const [timelineSummary, setTimelineSummary] = useState<DocumentEventTimelineSummary>(EMPTY_SUMMARY);
   const [aiLogs, setAiLogs] = useState<AIInteractionLog[]>([]);
+  const [certificateAnomalyFlags, setCertificateAnomalyFlags] = useState<WritingAnomalyFlag[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
@@ -1166,15 +1252,19 @@ export default function DocumentLogsPage() {
         setTimelineItems(Array.isArray(timelineData.items) ? timelineData.items : []);
         setTimelineSummary(timelineData.summary || EMPTY_SUMMARY);
         setAiLogs(Array.isArray(payload.aiLogs) ? payload.aiLogs : []);
+        setCertificateAnomalyFlags(Array.isArray(payload.anomalyFlags) ? payload.anomalyFlags : []);
         return;
       }
 
-      const [docRes, timelineRes, aiLogsRes] = await Promise.all([
+      const [docRes, timelineRes, aiLogsRes, certificateRes] = await Promise.all([
         apiClient.get(`/documents/${documentId}`),
         apiClient.get(`/documents/${documentId}/events/timeline?limit=10000`),
         apiClient
           .get(`/ai/logs?documentId=${documentId}&limit=50&offset=0`)
           .catch(() => ({ data: { data: [] } })),
+        certificateId
+          ? apiClient.get(`/certificates/${certificateId}`).catch(() => null)
+          : Promise.resolve(null),
       ]);
 
       setDocumentTitle(docRes.data.data?.document?.title || 'Document');
@@ -1185,12 +1275,14 @@ export default function DocumentLogsPage() {
 
       const aiLogData = aiLogsRes.data.data || [];
       setAiLogs(Array.isArray(aiLogData) ? aiLogData : []);
+      const certificate = certificateRes?.data?.data?.certificate;
+      setCertificateAnomalyFlags(Array.isArray(certificate?.anomalyFlags) ? certificate.anomalyFlags : []);
     } catch (err: any) {
       setError(err.response?.data?.message || err.message || 'Failed to load logs');
     } finally {
       setIsLoading(false);
     }
-  }, [certificateToken, documentId, isPublicCertificateLogs, publicCertificateId]);
+  }, [certificateId, certificateToken, documentId, isPublicCertificateLogs, publicCertificateId]);
 
   useEffect(() => {
     fetchLogs();
@@ -1288,6 +1380,7 @@ export default function DocumentLogsPage() {
       const rawEvents = hiddenBuffer
         .flatMap((item) => item.rawEvents)
         .filter((event) => !isDuplicateAIQueryRawEvent(event, visibleAILogIds))
+        .map((event) => annotateRawEventForAnomaly(event, certificateAnomalyFlags))
         .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
       if (rawEvents.length === 0) {
@@ -1324,7 +1417,7 @@ export default function DocumentLogsPage() {
     flushHiddenBuffer();
 
     return displayItems;
-  }, [timelineItems, visibleAILogs]);
+  }, [certificateAnomalyFlags, timelineItems, visibleAILogs]);
 
   const toggleExpanded = (id: string) => {
     setExpandedIds((prev) => {
