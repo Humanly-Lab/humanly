@@ -58,10 +58,6 @@ import { AdminEnvironmentSectionHeading as SectionHeading } from '@/components/a
 import { api } from '@/lib/api-client';
 import { MODEL_WHITELIST, getWhitelist } from '@/lib/ai-models';
 import {
-  ENVIRONMENT_CONFIG_ACCEPT,
-  parseEnvironmentConfigFile,
-} from '@/lib/environment-config-file';
-import {
   formatDateTime,
   getLocalTimeZoneLabel,
   localDateTimeInputToISOString,
@@ -72,6 +68,7 @@ import {
   AI_MAX_TOKENS_MAX,
   AI_MAX_TOKENS_MIN,
   AI_SHORTCUT_MAX_TOKENS_DEFAULT,
+  ENVIRONMENT_CONFIG_ACCEPT,
   SUBMISSION_MAX_CHARACTERS_MAX,
   SUBMISSION_MIN_CHARACTERS_MAX,
   TASK_START_DATE_PAST_ERROR_MESSAGE,
@@ -87,6 +84,7 @@ import {
   normalizeWritingAiAccess,
   normalizeCopyPastePolicy,
   normalizeResourceAccessPolicy,
+  parseEnvironmentConfigContent,
   validateWritingEnvironmentImportTemplate,
   type Task,
   type UserAISettings,
@@ -626,7 +624,7 @@ export default function NewTaskPage() {
     if (!file) return;
 
     try {
-      const parsed = await parseEnvironmentConfigFile(file);
+      const parsed = parseEnvironmentConfigContent(file.name, await file.text());
       const config = normalizeImportedEnvironmentConfig(parsed);
       if (config.aiProvider?.baseUrl) {
         setAiBaseUrl(config.aiProvider.baseUrl);

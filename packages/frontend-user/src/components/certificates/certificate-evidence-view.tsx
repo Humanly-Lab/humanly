@@ -23,16 +23,25 @@ import {
   isWritingAiPolishEnabled,
   normalizeCopyPastePolicy,
   normalizeResourceAccessPolicy,
+  getEnvironmentConfigExtension,
+  serializeEnvironmentConfig,
   type AIAuthorshipStats,
   type CertificateSeal,
   type CertificateSealStatus,
   type CertificateType,
+  type EnvironmentConfigFileFormat,
   type WritingAnomalyFlag,
   type WritingEnvironmentConfig,
 } from '@humanly/shared';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
   Collapsible,
   CollapsibleContent,
@@ -349,14 +358,19 @@ function formatEvidenceKey(key: string) {
     .replace(/^./, (char) => char.toUpperCase());
 }
 
-function downloadEnvironmentConfig(certificateId: string, config?: WritingEnvironmentConfig | null) {
+function downloadEnvironmentConfig(
+  certificateId: string,
+  config: WritingEnvironmentConfig | null | undefined,
+  format: EnvironmentConfigFileFormat
+) {
   if (!config || typeof window === 'undefined') return;
 
-  const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
+  const { content, contentType } = serializeEnvironmentConfig(config, format);
+  const blob = new Blob([content], { type: contentType });
   const url = window.URL.createObjectURL(blob);
   const anchor = window.document.createElement('a');
   anchor.href = url;
-  anchor.download = `humanly-environment-${certificateId}.json`;
+  anchor.download = `humanly-environment-${certificateId}.${getEnvironmentConfigExtension(format)}`;
   window.document.body.appendChild(anchor);
   anchor.click();
   anchor.remove();
@@ -792,16 +806,28 @@ export function CertificateEvidenceView({
             <CardContent className="space-y-3">
               {certificate.environmentConfig && (
                 <div className="flex justify-end">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="w-fit"
-                    onClick={() => downloadEnvironmentConfig(certificate.id, certificate.environmentConfig)}
-                  >
-                    <Download className="mr-2 h-4 w-4" />
-                    Download Config
-                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="w-fit"
+                      >
+                        <Download className="mr-2 h-4 w-4" />
+                        Download Config
+                        <ChevronDown className="ml-1 h-3.5 w-3.5" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => downloadEnvironmentConfig(certificate.id, certificate.environmentConfig, 'json')}>
+                        Download as JSON
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => downloadEnvironmentConfig(certificate.id, certificate.environmentConfig, 'yaml')}>
+                        Download as YAML
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               )}
               {environmentRows.length > 0 ? (

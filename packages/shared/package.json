@@ -12,6 +12,7 @@
     "test": "echo \"No tests in shared package\" && exit 0"
   },
   "dependencies": {
+    "yaml": "^2.9.0",
     "zod": "^3.22.4"
   },
   "devDependencies": {

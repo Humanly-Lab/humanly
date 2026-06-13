@@ -1,5 +1,13 @@
+/**
+ * @jest-environment-options {"customExportConditions":["node"]}
+ */
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import {
+  ENVIRONMENT_CONFIG_ACCEPT,
+  serializeEnvironmentConfig,
+  type WritingEnvironmentConfig,
+} from '@humanly/shared';
 
 import NewDocumentPage from '@/app/documents/new/page';
 
@@ -165,6 +173,10 @@ describe('document creation workflow', () => {
     expect(screen.queryByText('Choose Custom to configure AI access, copy-paste rules, or a time limit.')).not.toBeInTheDocument();
   });
 
+  const getEnvironmentConfigInput = () => (
+    document.querySelector(`input[type="file"][accept="${ENVIRONMENT_CONFIG_ACCEPT}"]`) as HTMLInputElement
+  );
+
   it('shows only the import box until a JSON environment is applied', async () => {
     const user = userEvent.setup();
     render(<NewDocumentPage />);
@@ -173,11 +185,11 @@ describe('document creation workflow', () => {
     await user.click(screen.getByRole('combobox', { name: /environment/i }));
     await user.click(await screen.findByRole('option', { name: 'Import Environment' }));
 
-    expect(screen.getByText('Import JSON Configuration')).toBeInTheDocument();
+    expect(screen.getByText('Import Configuration')).toBeInTheDocument();
     expect(screen.queryByText('Custom Environment')).not.toBeInTheDocument();
     expect(screen.queryByText('Default Environment')).not.toBeInTheDocument();
 
-    const fileInput = document.querySelector<HTMLInputElement>('input[type="file"][accept="application/json,.json"]');
+    const fileInput = getEnvironmentConfigInput();
     expect(fileInput).toBeTruthy();
 
     const environmentJson = JSON.stringify(createPersonalEnvironmentJson({
@@ -206,13 +218,71 @@ describe('document creation workflow', () => {
     expect(screen.getByText('Copy-paste blocked')).toBeInTheDocument();
     expect(screen.getByText('Max 123')).toBeInTheDocument();
     expect(screen.getByText('Clipboard tracking off')).toBeInTheDocument();
-    expect(screen.queryByText('Import JSON Configuration')).not.toBeInTheDocument();
+    expect(screen.queryByText('Import Configuration')).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('combobox', { name: /environment/i }));
     await user.click(await screen.findByRole('option', { name: 'Import Environment' }));
 
-    expect(screen.getByText('Import JSON Configuration')).toBeInTheDocument();
+    expect(screen.getByText('Import Configuration')).toBeInTheDocument();
     expect(screen.queryByText('Custom Environment')).not.toBeInTheDocument();
+  });
+
+  it('imports YAML environment configuration automatically', async () => {
+    const user = userEvent.setup();
+    mockCreateDocument.mockResolvedValueOnce({ id: 'doc-yaml', title: 'YAML Environment Document' });
+    render(<NewDocumentPage />);
+
+    await screen.findByRole('heading', { name: /create writing/i });
+    await user.type(screen.getByLabelText(/document name/i), 'YAML Environment Document');
+    await user.click(screen.getByRole('combobox', { name: /environment/i }));
+    await user.click(await screen.findByRole('option', { name: 'Import Environment' }));
+
+    const fileInput = getEnvironmentConfigInput();
+    expect(fileInput).toBeTruthy();
+
+    const { content: environmentYaml } = serializeEnvironmentConfig(createPersonalEnvironmentJson({
+      copyPastePolicy: 'blocked',
+      resourceAccess: 'view-only',
+      submission: { mode: 'multiple', maxCharacters: 456 },
+      traceability: {
+        trackAiUsage: false,
+        trackTyping: true,
+        trackCopyPaste: false,
+        trackFocusBlur: true,
+      },
+    }) as WritingEnvironmentConfig, 'yaml');
+    const environmentFile = new File([environmentYaml], 'environment.yaml', { type: 'application/yaml' });
+    Object.defineProperty(environmentFile, 'text', {
+      value: jest.fn().mockResolvedValue(environmentYaml),
+    });
+
+    await user.upload(fileInput!, environmentFile);
+
+    await waitFor(() => {
+      expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({
+        title: 'Environment imported',
+        description: 'The YAML configuration was applied to this document.',
+      }));
+    });
+    expect(screen.getByText('Custom Environment')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /^create writing$/i }));
+
+    await waitFor(() => {
+      expect(mockCreateDocument).toHaveBeenCalledWith(
+        'YAML Environment Document',
+        undefined,
+        expect.objectContaining({
+          copyPastePolicy: 'blocked',
+          resourceAccess: 'view-only',
+          submission: expect.objectContaining({
+            maxCharacters: 456,
+          }),
+        }),
+        ''
+      );
+      expect(mockPush).toHaveBeenCalledWith('/documents/doc-yaml');
+    });
   });
 
   it('preserves imported AI-on environments with an explicit provider', async () => {
@@ -223,7 +293,7 @@ describe('document creation workflow', () => {
     await user.click(screen.getByRole('combobox', { name: /environment/i }));
     await user.click(await screen.findByRole('option', { name: 'Import Environment' }));
 
-    const fileInput = document.querySelector<HTMLInputElement>('input[type="file"][accept="application/json,.json"]');
+    const fileInput = getEnvironmentConfigInput();
     expect(fileInput).toBeTruthy();
 
     const environmentJson = JSON.stringify(createPersonalEnvironmentJson({
@@ -272,7 +342,7 @@ describe('document creation workflow', () => {
     await user.click(screen.getByRole('combobox', { name: /environment/i }));
     await user.click(await screen.findByRole('option', { name: 'Import Environment' }));
 
-    const fileInput = document.querySelector<HTMLInputElement>('input[type="file"][accept="application/json,.json"]');
+    const fileInput = getEnvironmentConfigInput();
     expect(fileInput).toBeTruthy();
 
     const environment = createPersonalEnvironmentJson({
@@ -299,7 +369,7 @@ describe('document creation workflow', () => {
         variant: 'destructive',
       }));
     });
-    expect(screen.getByText('Import JSON Configuration')).toBeInTheDocument();
+    expect(screen.getByText('Import Configuration')).toBeInTheDocument();
     expect(screen.queryByText('Custom Environment')).not.toBeInTheDocument();
   });
 
@@ -311,7 +381,7 @@ describe('document creation workflow', () => {
     await user.click(screen.getByRole('combobox', { name: /environment/i }));
     await user.click(await screen.findByRole('option', { name: 'Import Environment' }));
 
-    const fileInput = document.querySelector<HTMLInputElement>('input[type="file"][accept="application/json,.json"]');
+    const fileInput = getEnvironmentConfigInput();
     expect(fileInput).toBeTruthy();
 
     const environment = createPersonalEnvironmentJson();
@@ -330,7 +400,7 @@ describe('document creation workflow', () => {
         variant: 'destructive',
       }));
     });
-    expect(screen.getByText('Import JSON Configuration')).toBeInTheDocument();
+    expect(screen.getByText('Import Configuration')).toBeInTheDocument();
     expect(screen.queryByText('Custom Environment')).not.toBeInTheDocument();
   });
 

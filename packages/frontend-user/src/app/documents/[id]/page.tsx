@@ -6,6 +6,7 @@ import {
   ArrowLeft,
   Award,
   CheckCircle2,
+  ChevronDown,
   Clock,
   Download,
   FileText,
@@ -45,13 +46,22 @@ import {
 import { formatDateTime } from '@/lib/utils';
 import { isGuestUserEmail } from '@/components/navigation/user-display';
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
   DEFAULT_WRITING_ENVIRONMENT_CONFIG,
+  buildEnvironmentConfigFilename,
   isWritingAiChatEnabled,
   isWritingAiEnabled,
   isWritingAiPolishEnabled,
   normalizeWritingAiAccess,
   normalizeCopyPastePolicy,
   normalizeResourceAccessPolicy,
+  serializeEnvironmentConfig,
+  type EnvironmentConfigFileFormat,
   type WritingAiProviderConfig,
   type WritingEnvironmentConfig,
 } from '@humanly/shared';
@@ -1141,16 +1151,12 @@ export default function DocumentEditorPage() {
   const lockedAiModel = currentEnvironmentConfig.allowedModels?.[0] || (taskEnrollment ? 'Task model' : undefined);
   const lockedAiBaseUrl = currentEnvironmentConfig.aiProvider?.baseUrl;
 
-  const handleExportConfig = () => {
+  const handleExportConfig = (format: EnvironmentConfigFileFormat) => {
     const configForExport = enrichEnvironmentConfigForExport(currentEnvironmentConfig);
-    const blob = new Blob(
-      [JSON.stringify(configForExport, null, 2)],
-      { type: 'application/json' }
-    );
-    downloadBlob(
-      blob,
-      `${(title || 'document').replace(/[^a-z0-9_-]+/gi, '_')}-environment-config.json`
-    );
+    const { content, contentType } = serializeEnvironmentConfig(configForExport, format);
+    const blob = new Blob([content], { type: contentType });
+
+    downloadBlob(blob, buildEnvironmentConfigFilename(title || 'document', format));
   };
 
   const effectiveSaveStatus: SaveStatus = isSaving ? 'saving' : saveStatus;
@@ -1314,15 +1320,27 @@ export default function DocumentEditorPage() {
               </Button>
 
               {!taskEnrollment && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleExportConfig}
-                  className="sm:size-default"
-                >
-                  <Download className="h-4 w-4 sm:mr-2" />
-                  <span className="hidden sm:inline">Export Config</span>
-                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="sm:size-default"
+                    >
+                      <Download className="h-4 w-4 sm:mr-2" />
+                      <span className="hidden sm:inline">Export Config</span>
+                      <ChevronDown className="ml-1 h-3.5 w-3.5" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => handleExportConfig('json')}>
+                      Export as JSON
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleExportConfig('yaml')}>
+                      Export as YAML
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               )}
 
               {taskEnrollment ? (

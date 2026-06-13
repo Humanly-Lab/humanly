@@ -3,10 +3,13 @@
  */
 import React from 'react';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { stringify as stringifyYaml } from 'yaml';
 
 import NewTaskPage from '@/app/tasks/new/page';
-import { ENVIRONMENT_CONFIG_ACCEPT } from '@/lib/environment-config-file';
+import {
+  ENVIRONMENT_CONFIG_ACCEPT,
+  serializeEnvironmentConfig,
+  type WritingEnvironmentConfig,
+} from '@humanly/shared';
 import { toLocalDateTimeInputValue } from '@/lib/utils';
 
 const mockPush = jest.fn();
@@ -866,7 +869,7 @@ describe('admin new task page', () => {
     const yamlInput = getEnvironmentConfigInput();
     expect(yamlInput).not.toBeNull();
 
-    const environmentYaml = stringifyYaml(createAdminEnvironmentJson({
+    const { content: environmentYaml } = serializeEnvironmentConfig(createAdminEnvironmentJson({
       aiAccess: 'off',
       aiUsageLimit: { mode: 'max_requests', maxRequests: 17 },
       submission: { mode: 'multiple', minCharacters: 250, maxCharacters: 750 },
@@ -877,7 +880,7 @@ describe('admin new task page', () => {
         trackCopyPaste: false,
         trackFocusBlur: true,
       },
-    }));
+    }) as WritingEnvironmentConfig, 'yaml');
     const environmentFile = new File([environmentYaml], 'environment.yaml', { type: 'application/yaml' });
     Object.defineProperty(environmentFile, 'text', {
       value: async () => environmentYaml,

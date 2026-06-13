@@ -1,7 +1,14 @@
+/**
+ * @jest-environment-options {"customExportConditions":["node"]}
+ */
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { CertificateEvidenceView } from '@/components/certificates/certificate-evidence-view';
-import type { AIAuthorshipStats, WritingEnvironmentConfig } from '@humanly/shared';
+import {
+  parseEnvironmentConfigContent,
+  type AIAuthorshipStats,
+  type WritingEnvironmentConfig,
+} from '@humanly/shared';
 
 jest.mock('@/components/certificates/document-replay', () => ({
   DocumentReplay: ({ token }: { token: string }) => (
@@ -65,7 +72,38 @@ const environmentConfig: WritingEnvironmentConfig = {
   copyPastePolicy: 'allowed',
 };
 
+const readBlobText = (blob: Blob) => new Promise<string>((resolve, reject) => {
+  const reader = new FileReader();
+  reader.onload = () => resolve(String(reader.result || ''));
+  reader.onerror = () => reject(reader.error);
+  reader.readAsText(blob);
+});
+
 describe('CertificateEvidenceView', () => {
+  const renderCertificateWithEnvironment = (id = 'certificate-download') => (
+    render(
+      <CertificateEvidenceView
+        certificate={{
+          id,
+          documentId: 'document-download',
+          title: 'Downloadable Evidence',
+          certificateType: 'full_authorship',
+          generatedAt: '2026-06-10T12:00:00.000Z',
+          totalCharacters: 100,
+          typedCharacters: 80,
+          pastedCharacters: 20,
+          totalEvents: 10,
+          typingEvents: 8,
+          pasteEvents: 2,
+          editingTimeSeconds: 1820,
+          includeEditHistory: false,
+          environmentConfig,
+        }}
+        aiStats={aiStats}
+      />
+    )
+  );
+
   it('renders the shared certificate evidence surface with collapsed authorship details and environment', async () => {
     const user = userEvent.setup();
 
@@ -209,6 +247,58 @@ describe('CertificateEvidenceView', () => {
     expect(screen.getByText('Writing time limit')).toBeInTheDocument();
     expect(screen.getByText('30min')).toBeInTheDocument();
     expect(screen.getByText('Maximum characters')).toBeInTheDocument();
+  });
+
+  it('downloads certificate environment config as JSON or YAML', async () => {
+    const user = userEvent.setup();
+    const createdAnchors: HTMLAnchorElement[] = [];
+    const originalCreateElement = document.createElement.bind(document);
+    const mockCreateObjectURL = jest.fn((_blob: Blob) => 'blob:environment-config');
+    const mockRevokeObjectURL = jest.fn();
+    const createElementSpy = jest.spyOn(document, 'createElement').mockImplementation((tagName, options) => {
+      const element = originalCreateElement(tagName, options);
+      if (tagName.toLowerCase() === 'a') {
+        createdAnchors.push(element as HTMLAnchorElement);
+      }
+      return element;
+    });
+    const clickSpy = jest.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    Object.defineProperty(window.URL, 'createObjectURL', {
+      configurable: true,
+      value: mockCreateObjectURL,
+    });
+    Object.defineProperty(window.URL, 'revokeObjectURL', {
+      configurable: true,
+      value: mockRevokeObjectURL,
+    });
+
+    try {
+      renderCertificateWithEnvironment();
+
+      await user.click(screen.getByRole('button', { name: 'Show environment section' }));
+      await user.click(screen.getByRole('button', { name: 'Download Config' }));
+      await user.click(await screen.findByRole('menuitem', { name: 'Download as JSON' }));
+
+      await user.click(screen.getByRole('button', { name: 'Download Config' }));
+      await user.click(await screen.findByRole('menuitem', { name: 'Download as YAML' }));
+
+      expect(createdAnchors.map((anchor) => anchor.download)).toEqual([
+        'humanly-environment-certificate-download.json',
+        'humanly-environment-certificate-download.yaml',
+      ]);
+      expect(clickSpy).toHaveBeenCalledTimes(2);
+      expect(mockRevokeObjectURL).toHaveBeenCalledTimes(2);
+
+      const jsonBlob = mockCreateObjectURL.mock.calls[0][0] as Blob;
+      const yamlBlob = mockCreateObjectURL.mock.calls[1][0] as Blob;
+      expect(jsonBlob.type).toBe('application/json');
+      expect(yamlBlob.type).toBe('application/yaml');
+      expect(JSON.parse(await readBlobText(jsonBlob))).toEqual(environmentConfig);
+      expect(parseEnvironmentConfigContent(createdAnchors[1].download, await readBlobText(yamlBlob))).toEqual(environmentConfig);
+    } finally {
+      createElementSpy.mockRestore();
+      clickSpy.mockRestore();
+    }
   });
 
   it('shows assignment-only environment rows for admin-assigned certificates', async () => {

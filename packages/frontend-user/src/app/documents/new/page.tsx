@@ -15,18 +15,21 @@ import {
   AI_MAX_TOKENS_MAX,
   AI_MAX_TOKENS_MIN,
   AI_SHORTCUT_MAX_TOKENS_DEFAULT,
+  ENVIRONMENT_CONFIG_ACCEPT,
   SUBMISSION_MAX_CHARACTERS_MAX,
   WRITING_AI_ACCESS_OPTIONS,
   WRITING_AI_POLICY_OPTIONS,
   WRITING_AI_MODELS,
   WRITING_ENVIRONMENT_PRESETS,
   formatWritingAiAccess,
+  getEnvironmentConfigFileFormat,
   isWritingAiChatEnabled,
   isWritingAiPolishEnabled,
   normalizeWritingAiPolicy,
   normalizeWritingAiAccess,
   normalizeCopyPastePolicy,
   normalizeResourceAccessPolicy,
+  parseEnvironmentConfigContent,
   validateWritingEnvironmentImportTemplate,
   type UserAISettings,
   type WritingAiAccess,
@@ -403,18 +406,10 @@ export default function NewDocumentPage() {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    if (!file.name.toLowerCase().endsWith('.json')) {
-      toast({
-        title: 'Invalid environment file',
-        description: 'Import Environment currently supports JSON files only.',
-        variant: 'destructive',
-      });
-      event.target.value = '';
-      return;
-    }
+    const format = getEnvironmentConfigFileFormat(file.name);
 
     try {
-      const parsed = JSON.parse(await file.text());
+      const parsed = parseEnvironmentConfigContent(file.name, await file.text());
       const config = normalizeImportedEnvironmentConfig(parsed);
       if (config.aiProvider?.baseUrl) {
         setAiBaseUrl(config.aiProvider.baseUrl);
@@ -424,12 +419,12 @@ export default function NewDocumentPage() {
       setEnvironmentConfig(config);
       toast({
         title: 'Environment imported',
-        description: 'The JSON configuration was applied to this document.',
+        description: `The ${(format || 'environment').toUpperCase()} configuration was applied to this document.`,
       });
     } catch (err: any) {
       toast({
         title: 'Invalid environment file',
-        description: err.message || 'Unable to import the environment JSON file.',
+        description: err.message || 'Unable to import the environment configuration file.',
         variant: 'destructive',
       });
     } finally {
@@ -1154,7 +1149,7 @@ export default function NewDocumentPage() {
           <div className="h-full space-y-4 rounded-lg border border-border/70 bg-background p-3">
             <SectionHeading
               title="Environment"
-              description="Choose a default, customize the modules below, or import a JSON configuration."
+              description="Choose a default, customize the modules below, or import a JSON or YAML configuration."
             />
 
             <div className="humanly-field">
@@ -1175,14 +1170,14 @@ export default function NewDocumentPage() {
               <div className="rounded-lg border border-dashed border-border/80 bg-muted/25 p-3">
                 <div className="flex items-center gap-2 text-sm font-medium">
                   <Upload className="h-4 w-4 text-accent" />
-                  Import JSON Configuration
+                  Import Configuration
                 </div>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Upload a JSON file that matches the writing environment configuration shape.
+                  Upload a JSON or YAML file that matches the writing environment configuration shape.
                 </p>
                 <Input
                   type="file"
-                  accept="application/json,.json"
+                  accept={ENVIRONMENT_CONFIG_ACCEPT}
                   className="mt-2"
                   onChange={handleEnvironmentImport}
                   disabled={isCreating}

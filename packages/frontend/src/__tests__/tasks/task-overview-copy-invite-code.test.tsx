@@ -3,7 +3,7 @@
  */
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { parse as parseYaml } from 'yaml';
+import { parseEnvironmentConfigContent } from '@humanly/shared';
 
 import TaskDetailPage from '@/app/tasks/[id]/page';
 import { getAnalyticsDateRange } from '@/app/tasks/[id]/_components/AnalyticsPanel';
@@ -762,7 +762,10 @@ describe('admin task overview invite code copy button', () => {
     });
 
     const [blob, filename] = mockDownloadBlob.mock.calls[0] as [Blob, string];
-    const exportedConfig = parseYaml(await readBlobAsText(blob));
+    const exportedConfig = parseEnvironmentConfigContent(
+      filename,
+      await readBlobAsText(blob)
+    ) as typeof taskFixture.environmentConfig;
 
     expect(filename).toBe('Clipboard_Task-environment-config.yaml');
     expect(exportedConfig).toEqual(expect.objectContaining({

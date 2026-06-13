@@ -17,6 +17,7 @@ import {
   AI_MAX_TOKENS_MIN,
   AI_SHORTCUT_MAX_TOKENS_DEFAULT,
   DEFAULT_WRITING_ENVIRONMENT_CONFIG,
+  buildEnvironmentConfigFilename,
   SUBMISSION_MAX_CHARACTERS_MAX,
   SUBMISSION_MIN_CHARACTERS_MAX,
   WRITING_AI_ACCESS_OPTIONS,
@@ -29,7 +30,9 @@ import {
   normalizeWritingAiAccess,
   normalizeCopyPastePolicy,
   normalizeResourceAccessPolicy,
+  serializeEnvironmentConfig,
   type Task,
+  type EnvironmentConfigFileFormat,
   type WritingAiAccess,
   type WritingAiPolicyMode,
   type WritingAiProvider,
@@ -40,11 +43,6 @@ import {
 import { api } from '@/lib/api-client';
 import { MODEL_WHITELIST, getWhitelist } from '@/lib/ai-models';
 import { downloadBlob } from '@/lib/download';
-import {
-  buildEnvironmentConfigFilename,
-  serializeEnvironmentConfig,
-  type EnvironmentConfigFileFormat,
-} from '@/lib/environment-config-file';
 import {
   cn,
   getLocalTimeZoneLabel,

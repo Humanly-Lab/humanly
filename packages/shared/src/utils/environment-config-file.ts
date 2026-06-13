@@ -1,4 +1,4 @@
-import type { WritingEnvironmentConfig } from '@humanly/shared';
+import type { WritingEnvironmentConfig } from '../types/environment.types';
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 
 export type EnvironmentConfigFileFormat = 'json' | 'yaml';
@@ -16,6 +16,10 @@ export const getEnvironmentConfigFileFormat = (filename: string): EnvironmentCon
   return null;
 };
 
+export const getEnvironmentConfigExtension = (format: EnvironmentConfigFileFormat) => (
+  format === 'json' ? 'json' : 'yaml'
+);
+
 export const buildEnvironmentConfigFilename = (
   name: string | null | undefined,
   format: EnvironmentConfigFileFormat
@@ -24,7 +28,7 @@ export const buildEnvironmentConfigFilename = (
     .trim()
     .replace(/[^a-z0-9_-]+/gi, '_')
     .replace(/^_+|_+$/g, '');
-  const extension = format === 'json' ? 'json' : 'yaml';
+  const extension = getEnvironmentConfigExtension(format);
 
   return `${normalized || 'task'}-${ENVIRONMENT_CONFIG_SUFFIX}.${extension}`;
 };
@@ -46,18 +50,16 @@ export const serializeEnvironmentConfig = (
   };
 };
 
-export const parseEnvironmentConfigFile = async (file: File): Promise<unknown> => {
-  const format = getEnvironmentConfigFileFormat(file.name);
+export const parseEnvironmentConfigContent = (filename: string, content: string): unknown => {
+  const format = getEnvironmentConfigFileFormat(filename);
 
   if (!format) {
     throw new Error('Import Environment supports JSON, YAML, and YML files.');
   }
 
-  const text = await file.text();
-
   if (format === 'json') {
-    return JSON.parse(text);
+    return JSON.parse(content);
   }
 
-  return parseYaml(text);
+  return parseYaml(content);
 };

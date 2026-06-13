@@ -1,5 +1,10 @@
+/**
+ * @jest-environment-options {"customExportConditions":["node"]}
+ */
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { format } from 'date-fns';
+import { parseEnvironmentConfigContent } from '@humanly/shared';
 
 import DocumentEditorPage from '@/app/documents/[id]/page';
 import DocumentLogsPage from '@/app/logs/[id]/page';
@@ -15,6 +20,7 @@ const mockApiPost = jest.fn();
 const mockUpdateDocument = jest.fn();
 const mockGenerateCertificate = jest.fn();
 const mockStartWritingSession = jest.fn();
+const mockDownloadBlob = jest.fn();
 let mockDocumentEnvironmentConfig: any = { aiAccess: 'off', copyPastePolicy: 'allowed' };
 let mockDocumentContent: any = {};
 let mockDocumentPlainText = '';
@@ -43,6 +49,13 @@ function createDeferred<T = void>() {
 
   return { promise, resolve, reject };
 }
+
+const readBlobText = (blob: Blob) => new Promise<string>((resolve, reject) => {
+  const reader = new FileReader();
+  reader.onload = () => resolve(String(reader.result || ''));
+  reader.onerror = () => reject(reader.error);
+  reader.readAsText(blob);
+});
 
 jest.mock('next/navigation', () => ({
   useRouter: () => ({
@@ -188,6 +201,10 @@ jest.mock('@/lib/document-pdf', () => ({
   validatePdfFile: jest.fn(() => null),
 }));
 
+jest.mock('@/lib/download', () => ({
+  downloadBlob: (...args: any[]) => mockDownloadBlob(...args),
+}));
+
 jest.mock('@/lib/api-client', () => ({
   apiClient: {
     get: (...args: any[]) => mockApiGet(...args),
@@ -285,6 +302,7 @@ describe('editor and logs workflows', () => {
     mockGenerateCertificate.mockReset();
     mockGenerateCertificate.mockResolvedValue({ id: 'certificate-1' });
     mockStartWritingSession.mockReset();
+    mockDownloadBlob.mockReset();
     mockUpdateDocument.mockReset();
     mockUpdateDocument.mockResolvedValue(undefined);
     mockDocumentEnvironmentConfig = { aiAccess: 'off', copyPastePolicy: 'allowed' };
@@ -455,6 +473,79 @@ describe('editor and logs workflows', () => {
       expect(mockPush).toHaveBeenCalledWith('/logs/doc-1');
     });
     expect(mockTrackEvents.mock.invocationCallOrder[0]).toBeLessThan(mockPush.mock.invocationCallOrder[0]);
+  });
+
+  it('exports personal document environment config as JSON or YAML', async () => {
+    const user = userEvent.setup();
+    mockDocumentEnvironmentConfig = {
+      aiAccess: 'full',
+      aiProvider: {
+        provider: 'openrouter',
+        baseUrl: 'https://openrouter.ai/api/v1',
+      },
+      allowedModels: ['qwen/qwen3.5-397b-a17b'],
+      customModels: [],
+      copyPastePolicy: 'blocked',
+      resourceAccess: 'view-only',
+      aiUsageLimit: { mode: 'unlimited' },
+      traceability: {
+        trackAiUsage: true,
+        trackTyping: true,
+        trackCopyPaste: false,
+        trackFocusBlur: true,
+      },
+    };
+
+    render(<DocumentEditorPage />);
+
+    expect(await screen.findByText('Workflow Document')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /export config/i }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Export as JSON' }));
+    await user.click(screen.getByRole('button', { name: /export config/i }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Export as YAML' }));
+
+    expect(mockDownloadBlob).toHaveBeenCalledTimes(2);
+    expect(mockDownloadBlob.mock.calls[0][1]).toBe('Workflow_Document-environment-config.json');
+    expect(mockDownloadBlob.mock.calls[1][1]).toBe('Workflow_Document-environment-config.yaml');
+
+    const jsonBlob = mockDownloadBlob.mock.calls[0][0] as Blob;
+    const yamlBlob = mockDownloadBlob.mock.calls[1][0] as Blob;
+    expect(jsonBlob.type).toBe('application/json');
+    expect(yamlBlob.type).toBe('application/yaml');
+
+    expect(JSON.parse(await readBlobText(jsonBlob))).toEqual(expect.objectContaining({
+      aiAccess: 'full',
+      allowedModels: ['qwen/qwen3.5-397b-a17b'],
+      copyPastePolicy: 'blocked',
+      resourceAccess: 'view-only',
+    }));
+    expect(parseEnvironmentConfigContent('document-environment-config.yaml', await readBlobText(yamlBlob))).toEqual(expect.objectContaining({
+      aiAccess: 'full',
+      allowedModels: ['qwen/qwen3.5-397b-a17b'],
+      copyPastePolicy: 'blocked',
+      resourceAccess: 'view-only',
+    }));
+  });
+
+  it('keeps personal environment export hidden for enrolled task documents', async () => {
+    mockTaskEnrollments = [{
+      id: 'enroll-1',
+      documentId: 'doc-1',
+      name: 'Assigned Draft',
+      inviteCode: 'ABC123',
+      joinedAt: '2026-05-19T12:00:00.000Z',
+      environmentConfig: {
+        aiAccess: 'off',
+        copyPastePolicy: 'allowed',
+      },
+    }];
+
+    render(<DocumentEditorPage />);
+
+    expect(await screen.findByText('Workflow Document')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /export config/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /submit/i })).toBeInTheDocument();
   });
 
   it('does not navigate to logs until a delayed activity log flush finishes', async () => {
