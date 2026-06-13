@@ -229,9 +229,11 @@ describe('document creation workflow', () => {
 
   it('imports YAML environment configuration automatically', async () => {
     const user = userEvent.setup();
+    mockCreateDocument.mockResolvedValueOnce({ id: 'doc-yaml', title: 'YAML Environment Document' });
     render(<NewDocumentPage />);
 
     await screen.findByRole('heading', { name: /create writing/i });
+    await user.type(screen.getByLabelText(/document name/i), 'YAML Environment Document');
     await user.click(screen.getByRole('combobox', { name: /environment/i }));
     await user.click(await screen.findByRole('option', { name: 'Import Environment' }));
 
@@ -263,9 +265,24 @@ describe('document creation workflow', () => {
       }));
     });
     expect(screen.getByText('Custom Environment')).toBeInTheDocument();
-    expect(screen.getByText('Paste blocked')).toBeInTheDocument();
-    expect(screen.getByText('View-only')).toBeInTheDocument();
-    expect(screen.getByText('Max 456')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /^create writing$/i }));
+
+    await waitFor(() => {
+      expect(mockCreateDocument).toHaveBeenCalledWith(
+        'YAML Environment Document',
+        undefined,
+        expect.objectContaining({
+          copyPastePolicy: 'blocked',
+          resourceAccess: 'view-only',
+          submission: expect.objectContaining({
+            maxCharacters: 456,
+          }),
+        }),
+        ''
+      );
+      expect(mockPush).toHaveBeenCalledWith('/documents/doc-yaml');
+    });
   });
 
   it('preserves imported AI-on environments with an explicit provider', async () => {
