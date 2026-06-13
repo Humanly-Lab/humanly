@@ -68,7 +68,6 @@ export function TaskCard({
   const nextIsActive = activeTab === 'archived';
   const activeStateAction = getTaskActiveStateAction(nextIsActive);
   const taskWindowStatus = activeTab === 'open' ? getTaskWindowStatus(task, nowMs) : null;
-  const canEditSettings = !task.isActive;
 
   const handleRowKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.key === 'Enter' || event.key === ' ') {
@@ -122,12 +121,10 @@ export function TaskCard({
           <Eye className="mr-2 h-4 w-4" />
           View Details
         </DropdownMenuItem>
-        {canEditSettings && (
-          <DropdownMenuItem onClick={() => onEditSetting(task)}>
-            <Settings className="mr-2 h-4 w-4" />
-            Edit Setting
-          </DropdownMenuItem>
-        )}
+        <DropdownMenuItem onClick={() => onEditSetting(task)}>
+          <Settings className="mr-2 h-4 w-4" />
+          View Setting
+        </DropdownMenuItem>
         <DropdownMenuItem
           disabled={isChangingActiveState}
           onClick={() => onActiveStateChange(task, nextIsActive)}

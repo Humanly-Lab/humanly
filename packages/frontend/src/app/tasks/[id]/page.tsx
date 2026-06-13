@@ -141,15 +141,8 @@ export default function TaskDetailPage() {
     }
   }, [fetchEnrollments, fetchStats, fetchSubmissions, fetchTask, taskId]);
 
-  const canEditSettings = task ? !task.isActive : true;
-  const activeTab: TaskDetailTab = requestedTab === 'setting' && !canEditSettings ? 'overview' : requestedTab;
-  const visibleTabs = useMemo(() => getTaskDetailTabs(canEditSettings), [canEditSettings]);
-
-  useEffect(() => {
-    if (task && requestedTab === 'setting' && !canEditSettings) {
-      router.replace(taskDetailTabHref(taskId, 'overview'), { scroll: false });
-    }
-  }, [canEditSettings, requestedTab, router, task, taskId]);
+  const activeTab: TaskDetailTab = requestedTab;
+  const visibleTabs = useMemo(() => getTaskDetailTabs(), []);
 
   if (isLoadingTask) {
     return (
@@ -218,7 +211,7 @@ export default function TaskDetailPage() {
           />
         );
       case 'setting':
-        return canEditSettings ? <SettingsPanel taskId={taskId} onTaskUpdated={setTask} /> : null;
+        return <SettingsPanel taskId={taskId} onTaskUpdated={setTask} />;
       case 'overview':
       default:
         return (
@@ -244,7 +237,7 @@ export default function TaskDetailPage() {
             <p className="mt-2 whitespace-pre-line text-muted-foreground">{task.description}</p>
           )}
         </div>
-        <Button variant="ghost" className="px-0 hover:bg-transparent" onClick={() => router.push('/tasks')}>
+        <Button variant="outline" size="sm" onClick={() => router.push('/tasks')}>
           Back to Tasks
         </Button>
       </div>

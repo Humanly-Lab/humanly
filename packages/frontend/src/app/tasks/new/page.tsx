@@ -382,13 +382,13 @@ const buildAdminEnvironmentSummary = ({
       detail: formatAdminCharacterBounds(config),
     },
     {
-      label: 'Resource access',
+      label: 'Instruction PDF access',
       value: normalizeResourceAccessPolicy(config.resourceAccess) === 'view-only'
-        ? 'View-only'
-        : 'Downloadable',
+        ? 'View only'
+        : 'View and download',
       detail: normalizeResourceAccessPolicy(config.resourceAccess) === 'view-only'
-        ? 'Short-lived in-workspace PDF access'
-        : 'Standard file access',
+        ? 'Writers can view instruction PDFs in the workspace.'
+        : 'Writers can view and download instruction PDFs.',
     },
     {
       label: 'AI limit',
@@ -975,38 +975,28 @@ export default function NewTaskPage() {
         },
       };
 
+      const requestBody = instructionFiles.length > 0
+        ? new FormData()
+        : payload;
+
+      if (requestBody instanceof FormData) {
+        requestBody.append('payload', JSON.stringify(payload));
+        for (const file of instructionFiles) {
+          requestBody.append('pdf', file);
+        }
+      }
+
       const response = await api.post<{
         success: boolean;
         data: Task;
         message: string;
-      }>('/api/v1/tasks', payload);
-
-      let instructionUploadFailed = false;
-      if (instructionFiles.length > 0) {
-        for (const file of instructionFiles) {
-          const formData = new FormData();
-          formData.append('pdf', file);
-          formData.append('title', file.name.replace(/\.pdf$/i, ''));
-
-          try {
-            await api.post(
-              `/api/v1/tasks/${response.data.id}/files`,
-              formData
-            );
-          } catch {
-            instructionUploadFailed = true;
-          }
-        }
-      }
+      }>('/api/v1/tasks', requestBody);
 
       toast({
-        title: instructionUploadFailed ? 'Task created' : 'Success!',
-        description: instructionUploadFailed
-          ? 'Task created, but the instruction file upload failed. You can upload it from the task dashboard later.'
-          : instructionFiles.length
-            ? 'Task created and instruction files uploaded successfully.'
-            : 'Task created successfully. Share the generated invite code from the task dashboard.',
-        variant: instructionUploadFailed ? 'destructive' : 'default',
+        title: 'Success!',
+        description: instructionFiles.length
+          ? 'Task created and instruction files uploaded successfully.'
+          : 'Task created successfully. Share the generated invite code from the task dashboard.',
       });
 
       // Redirect to the new task's page
@@ -1331,7 +1321,7 @@ export default function NewTaskPage() {
         </div>
 
         <div className="grid gap-2">
-          <FormLabel>PDF Resource Access</FormLabel>
+          <FormLabel>Instruction PDF Access</FormLabel>
           <Select
             value={normalizeResourceAccessPolicy(environmentConfig.resourceAccess)}
             onValueChange={(value) => updateEnvironment({
@@ -1339,15 +1329,15 @@ export default function NewTaskPage() {
             })}
           >
             <SelectTrigger>
-              <SelectValue placeholder="PDF resource access" />
+              <SelectValue placeholder="Instruction PDF access" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="downloadable">Downloadable</SelectItem>
-              <SelectItem value="view-only">View-only</SelectItem>
+              <SelectItem value="downloadable">View and download</SelectItem>
+              <SelectItem value="view-only">View only</SelectItem>
             </SelectContent>
           </Select>
           <FormDescription>
-            View-only instruction PDFs load through short-lived viewer access and hide file-saving affordances.
+            View-only instruction PDFs load through short-lived workspace access and hide file-saving affordances.
           </FormDescription>
         </div>
 

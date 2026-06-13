@@ -28,27 +28,15 @@ import { logger } from '../utils/logger';
 import { env } from '../config/env';
 import { cacheDelPattern } from '../config/redis';
 import { FileStorageService } from './file-storage.service';
+import { FileService } from './file.service';
 import { buildDocumentEventTimeline } from './document-event-timeline.service';
 import { generateToken, hashPassword, hashToken } from '../utils/crypto';
 import { generateAccessToken, generateRefreshToken, TokenPayload } from '../utils/jwt';
 
 const TASK_END_DATE_ERROR_MESSAGE = 'Task end date must be after start date';
+const TASK_SETTINGS_LOCK_MESSAGE = 'Task settings are read-only after task creation';
 
 const getDateMs = (value: Date | string | number): number => new Date(value).getTime();
-
-const areDatesInSameMinute = (
-  left: Date | string | number,
-  right: Date | string | number
-): boolean => {
-  const leftMs = getDateMs(left);
-  const rightMs = getDateMs(right);
-
-  if (!Number.isFinite(leftMs) || !Number.isFinite(rightMs)) {
-    return false;
-  }
-
-  return Math.floor(leftMs / 60_000) === Math.floor(rightMs / 60_000);
-};
 
 const assertTaskStartDateNotInPast = (startDate: Date | string | number): void => {
   if (isTaskStartDateTooFarInPast(startDate)) {
@@ -188,6 +176,27 @@ export interface SubmitTaskDocumentOptions {
   source?: 'manual' | 'time_limit_auto';
 }
 
+export interface CreateTaskOptions {
+  instructionFiles?: Express.Multer.File[];
+}
+
+const withInstructionPdfFlag = (data: CreateTaskData): CreateTaskData => {
+  if (!data.environmentConfig) {
+    return data;
+  }
+
+  return {
+    ...data,
+    environmentConfig: {
+      ...data.environmentConfig,
+      instructions: {
+        ...data.environmentConfig.instructions,
+        hasInstructionPdf: true,
+      },
+    },
+  };
+};
+
 export class TaskService {
   private static async invalidateAnalytics(taskId: string): Promise<void> {
     await cacheDelPattern(`analytics:${taskId}:*`);
@@ -262,15 +271,26 @@ export class TaskService {
    */
   static async createTask(
     userId: string,
-    data: CreateTaskData
+    data: CreateTaskData,
+    options: CreateTaskOptions = {}
   ): Promise<TaskWithSnippets> {
     try {
       logger.info('Creating task', { userId, taskName: data.name });
 
+      const instructionFiles = options.instructionFiles || [];
+      instructionFiles.forEach((file) => FileService.assertValidPdfUploadFile(file));
+
       assertTaskStartDateNotInPast(data.startDate);
       assertTaskEndDateAfterStartDate(data.startDate, data.endDate);
 
-      const task = await TaskModel.create(userId, data);
+      const task = await TaskModel.create(
+        userId,
+        instructionFiles.length ? withInstructionPdfFlag(data) : data
+      );
+
+      for (const file of instructionFiles) {
+        await FileService.attachTaskInstructionFileAtCreation(task.id, userId, file);
+      }
 
       // Generate tracking snippets
       const trackingSnippet = this.generateTrackingSnippet(
@@ -869,13 +889,14 @@ export class TaskService {
       throw new AppError(403, 'Access denied to this task');
     }
 
-    const nextStartDate = data.startDate ?? task.startDate;
-    const nextEndDate = data.endDate ?? task.endDate;
+    const providedFields = Object.entries(data)
+      .filter(([, value]) => value !== undefined)
+      .map(([key]) => key);
+    const isLifecycleOnlyUpdate = providedFields.length === 1 && providedFields[0] === 'isActive';
 
-    if (data.startDate && !areDatesInSameMinute(data.startDate, task.startDate)) {
-      assertTaskStartDateNotInPast(data.startDate);
+    if (!isLifecycleOnlyUpdate) {
+      throw new AppError(409, TASK_SETTINGS_LOCK_MESSAGE);
     }
-    assertTaskEndDateAfterStartDate(nextStartDate, nextEndDate);
 
     logger.info('Updating task', { taskId, userId });
 

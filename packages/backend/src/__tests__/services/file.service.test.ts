@@ -167,12 +167,51 @@ describe('FileService', () => {
     expect(MockFileStorageService.store).not.toHaveBeenCalled();
   });
 
+  it('attaches task instruction PDFs during task creation', async () => {
+    MockFileModel.create.mockResolvedValue(makeAppFile({
+      documentId: null,
+      taskId: 'task-1',
+      purpose: 'task_instruction_pdf',
+      title: 'Instructions',
+    }) as any);
+
+    const file = await FileService.attachTaskInstructionFileAtCreation(
+      'task-1',
+      'owner-1',
+      makeMulterFile(),
+      'Instructions'
+    );
+
+    expect(MockFileModel.create).toHaveBeenCalledWith(expect.objectContaining({
+      ownerUserId: 'owner-1',
+      documentId: null,
+      taskId: 'task-1',
+      purpose: 'task_instruction_pdf',
+      title: 'Instructions',
+    }));
+    expect(MockAIRetrievalService.indexFile).toHaveBeenCalledWith('file-1');
+    expect(file.taskId).toBe('task-1');
+  });
+
   it('rejects task instruction uploads by non-owners', async () => {
     MockTaskModel.findById.mockResolvedValue({ id: 'task-1', userId: 'owner-1' } as any);
 
     await expect(
       FileService.uploadTaskInstructionFile('task-1', 'user-1', makeMulterFile(), 'Instructions')
     ).rejects.toMatchObject({ statusCode: 403 });
+
+    expect(MockFileStorageService.store).not.toHaveBeenCalled();
+  });
+
+  it('rejects post-create task instruction uploads by owners', async () => {
+    MockTaskModel.findById.mockResolvedValue({ id: 'task-1', userId: 'owner-1' } as any);
+
+    await expect(
+      FileService.uploadTaskInstructionFile('task-1', 'owner-1', makeMulterFile(), 'Instructions')
+    ).rejects.toMatchObject({
+      statusCode: 409,
+      message: 'Task instruction files are read-only after task creation',
+    });
 
     expect(MockFileStorageService.store).not.toHaveBeenCalled();
   });
@@ -293,6 +332,23 @@ describe('FileService', () => {
 
     expect(MockFileStorageService.delete).not.toHaveBeenCalled();
     expect(MockFileModel.delete).toHaveBeenCalledWith('file-1');
+  });
+
+  it('rejects task instruction file deletes after creation', async () => {
+    MockFileModel.findById.mockResolvedValue(makeAppFile({
+      documentId: null,
+      taskId: 'task-1',
+      purpose: 'task_instruction_pdf',
+    }) as any);
+    MockTaskModel.findById.mockResolvedValue({ id: 'task-1', userId: 'owner-1' } as any);
+
+    await expect(FileService.deleteFile('file-1', 'owner-1')).rejects.toMatchObject({
+      statusCode: 409,
+      message: 'Task instruction files are read-only after task creation',
+    });
+
+    expect(MockFileStorageService.delete).not.toHaveBeenCalled();
+    expect(MockFileModel.delete).not.toHaveBeenCalled();
   });
 
   it('checks document-scoped AI file access through linked documents or enrolled tasks', async () => {

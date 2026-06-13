@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 
 import TaskDetailPage from '@/app/tasks/[id]/page';
 import { getAnalyticsDateRange } from '@/app/tasks/[id]/_components/AnalyticsPanel';
@@ -233,22 +233,6 @@ function readBlobAsText(blob: Blob) {
     reader.onerror = () => reject(reader.error);
     reader.readAsText(blob);
   });
-}
-
-async function openEnvironmentDialog() {
-  fireEvent.click(screen.getByRole('button', { name: /edit environment/i }));
-  return screen.findByRole('dialog', { name: /edit environment/i });
-}
-
-function createDeferred<T>() {
-  let resolve!: (value: T) => void;
-  let reject!: (reason?: unknown) => void;
-  const promise = new Promise<T>((promiseResolve, promiseReject) => {
-    resolve = promiseResolve;
-    reject = promiseReject;
-  });
-
-  return { promise, resolve, reject };
 }
 
 describe('admin task overview invite code copy button', () => {
@@ -666,21 +650,43 @@ describe('admin task overview invite code copy button', () => {
     expect(screen.queryByText(/session/i)).not.toBeInTheDocument();
   });
 
-  it('hides active task settings and falls direct setting URLs back to overview', async () => {
+  it('opens active task settings as a read-only view', async () => {
     mockSearchParams = new URLSearchParams('tab=setting');
 
     render(<TaskDetailPage />);
 
     await screen.findByRole('heading', { name: 'Clipboard Task' });
-    expect(await screen.findByText('Task Overview')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Setting' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: 'Task Settings' })).not.toBeInTheDocument();
-    expect(mockReplace).toHaveBeenCalledWith('/tasks/task-123', { scroll: false });
+    expect(await screen.findByRole('heading', { name: 'Task Settings' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Setting' })).toBeInTheDocument();
+    expect(screen.getByText(/Task settings are read-only after creation/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Task Name/i)).toHaveValue('Clipboard Task');
+    expect(screen.getByLabelText(/Task Name/i)).toBeDisabled();
+    expect(screen.getByLabelText(/Description/i)).toBeDisabled();
+    expect(screen.getByLabelText(/Allow guest submissions from public link/i)).toBeChecked();
+    expect(screen.getByLabelText(/Allow guest submissions from public link/i)).toBeDisabled();
+    expect(screen.getByRole('heading', { name: 'Environment' })).toBeInTheDocument();
+    expect(screen.getAllByText('Window on').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('30 min').length).toBeGreaterThan(0);
+    expect(screen.getByRole('button', { name: /view environment/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /edit environment/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /save settings/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /refresh/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /delete task/i })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /view environment/i }));
+
+    const dialog = await screen.findByRole('dialog', { name: /view environment/i });
+    expect(within(dialog).getByRole('combobox', { name: /^AI$/i })).toBeDisabled();
+    expect(within(dialog).getByText('Instruction PDF Access')).toBeInTheDocument();
+    expect(within(dialog).getByRole('radio', { name: /view and download/i })).toBeDisabled();
+    expect(within(dialog).queryByLabelText(/AI API Key/i)).not.toBeInTheDocument();
+    expect(within(dialog).queryByRole('button', { name: /test connection/i })).not.toBeInTheDocument();
+    expect(within(dialog).getAllByRole('button', { name: /close/i }).length).toBeGreaterThan(0);
+    expect(mockReplace).not.toHaveBeenCalledWith('/tasks/task-123', { scroll: false });
   });
 
-  it('exports the current setting form state as environment config JSON', async () => {
+  it('exports the read-only task environment config JSON', async () => {
     mockSearchParams = new URLSearchParams('tab=setting');
-    mockTaskOverviewResponses({ ...taskFixture, isActive: false });
 
     render(<TaskDetailPage />);
 
@@ -688,52 +694,10 @@ describe('admin task overview invite code copy button', () => {
     expect(await screen.findByRole('heading', { name: 'Task Settings' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /export config/i })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Task Details' })).toBeInTheDocument();
-    expect(screen.getByRole('checkbox', { name: /allow guest submissions/i })).toBeChecked();
     expect(screen.getByRole('heading', { name: 'Environment' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /edit environment/i })).toBeInTheDocument();
-    expect(screen.getByText('Window on')).toBeInTheDocument();
-    expect(screen.getByText('30 min')).toBeInTheDocument();
-    expect(screen.queryByLabelText(/AI API Key/i)).not.toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: 'Advanced AI Settings' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: 'Task Token' })).not.toBeInTheDocument();
-    expect(screen.queryByText(/Users see this in their own timezone/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/Saved as one absolute deadline/i)).not.toBeInTheDocument();
-    expect(screen.getByTestId('settings-sticky-actions')).toHaveClass('sticky');
-    expect(screen.getByRole('button', { name: /save settings/i })).toBeInTheDocument();
-
-    const dialog = await openEnvironmentDialog();
-    expect(within(dialog).getByRole('heading', { name: 'AI' })).toBeInTheDocument();
-    expect(within(dialog).getByRole('heading', { name: 'Task Availability' })).toBeInTheDocument();
-    expect(within(dialog).getByText(
-      `Set the task availability window shown to enrolled users. Times are shown in your local timezone: ${localTimeZoneLabel}.`
-    )).toBeInTheDocument();
-    expect(within(dialog).getByRole('heading', { name: 'Writing Session' })).toBeInTheDocument();
-    expect(within(dialog).getByRole('heading', { name: 'Writing Rules' })).toBeInTheDocument();
-    expect(within(dialog).getByRole('combobox', { name: /^AI$/i })).toHaveValue('full');
-    expect(within(dialog).getByLabelText(/AI API Key/i)).toBeInTheDocument();
-    expect(within(dialog).getByRole('combobox', { name: /Provider/i })).toHaveValue('https://api.together.xyz/v1');
-    expect(within(dialog).getByRole('option', { name: 'Anthropic' })).toBeInTheDocument();
-    expect(within(dialog).queryByRole('option', { name: 'Claude' })).not.toBeInTheDocument();
-    expect(within(dialog).getByRole('combobox', { name: /Model/i })).toHaveValue('moonshotai/Kimi-K2.6');
-    expect(within(dialog).getByRole('option', { name: 'moonshotai/Kimi-K2.6' })).toBeInTheDocument();
-    expect(within(dialog).getByRole('combobox', { name: /^Time$/i })).toHaveValue('time_limited');
-    expect(within(dialog).getByRole('option', { name: 'No limitations' })).toBeInTheDocument();
-    expect(within(dialog).getByRole('option', { name: 'Time limited' })).toBeInTheDocument();
-
-    fireEvent.change(within(dialog).getByLabelText(/AI Usage Limit/i), {
-      target: { value: '17' },
-    });
-    fireEvent.change(within(dialog).getByLabelText(/Task End Date/i), {
-      target: { value: '2026-05-20T09:30' },
-    });
-    expect(within(dialog).getByLabelText(/Time Limit \(minutes\)/i)).toHaveValue(30);
-    fireEvent.change(within(dialog).getByLabelText(/Time Limit \(minutes\)/i), {
-      target: { value: '45' },
-    });
-    fireEvent.click(within(dialog).getByRole('radio', { name: 'Blocked' }));
-    fireEvent.click(within(dialog).getByRole('button', { name: /apply/i }));
-
-    expect(mockApiPut).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: /view environment/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /edit environment/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /save settings/i })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /export config/i }));
 
@@ -750,21 +714,21 @@ describe('admin task overview invite code copy button', () => {
       aiAccess: 'full',
       allowedModels: ['moonshotai/Kimi-K2.6'],
       customModels: [],
-      copyPastePolicy: 'blocked',
+      copyPastePolicy: 'allowed',
       aiUsageLimit: {
         mode: 'max_requests',
-        maxRequests: 17,
+        maxRequests: 100,
       },
     }));
     expect(exportedConfig.time).toEqual(expect.objectContaining({
       startTime: taskFixture.environmentConfig.time.startTime,
-      endTime: new Date(2026, 4, 20, 9, 30).toISOString(),
-      timeLimitSeconds: 45 * 60,
+      endTime: taskFixture.environmentConfig.time.endTime,
+      timeLimitSeconds: 30 * 60,
       lateSubmission: 'not_allowed',
     }));
     expect(exportedConfig.traceability).toEqual(expect.objectContaining({
       trackAiUsage: true,
-      trackCopyPaste: false,
+      trackCopyPaste: true,
     }));
 
     const serializedConfig = JSON.stringify(exportedConfig);
@@ -773,189 +737,6 @@ describe('admin task overview invite code copy button', () => {
     expect(serializedConfig).not.toContain('apiKey');
     expect(serializedConfig).not.toContain('sk-');
     expect(serializedConfig).not.toContain('task_instruction_pdf');
-  });
-
-  it('shows AI key settings when no saved key exists', async () => {
-    mockSearchParams = new URLSearchParams('tab=setting');
-    mockAiSettings = null;
-    mockTaskOverviewResponses({ ...taskFixture, isActive: false });
-
-    render(<TaskDetailPage />);
-
-    await screen.findByRole('heading', { name: 'Clipboard Task' });
-    const dialog = await openEnvironmentDialog();
-    expect(within(dialog).getByLabelText(/AI API Key/i)).toBeInTheDocument();
-  });
-
-  it('keeps the task provider and model when saved user AI settings resolve later', async () => {
-    mockSearchParams = new URLSearchParams('tab=setting');
-    const aiSettings = createDeferred<{ success: boolean; data: any }>();
-    const openRouterTask = {
-      ...taskFixture,
-      isActive: false,
-      allowedLlmModels: ['qwen/qwen3.5-397b-a17b'],
-      environmentConfig: {
-        ...taskFixture.environmentConfig,
-        aiProvider: {
-          provider: 'openrouter',
-          baseUrl: 'https://openrouter.ai/api/v1',
-        },
-        allowedModels: ['qwen/qwen3.5-397b-a17b'],
-      },
-    };
-
-    mockApiGet.mockImplementation((url: string) => {
-      if (url === '/api/v1/ai/settings') {
-        return aiSettings.promise;
-      }
-
-      if (url.endsWith('/files')) {
-        return Promise.resolve({ success: true, data: [] });
-      }
-
-      if (url.endsWith('/analytics/summary')) {
-        return Promise.resolve({ success: true, data: statsFixture });
-      }
-
-      if (url.endsWith('/analytics/events-timeline')) {
-        return Promise.resolve({ success: true, data: { timeline: eventsTimelineFixture } });
-      }
-
-      if (url.endsWith('/analytics/event-types')) {
-        return Promise.resolve({ success: true, data: { eventTypes: eventTypesFixture } });
-      }
-
-      if (url.endsWith('/enrollments')) {
-        return Promise.resolve({ success: true, data: { enrollments: enrollmentsFixture } });
-      }
-
-      if (url.endsWith('/submissions')) {
-        return Promise.resolve({ success: true, data: { submissions: submissionsFixture } });
-      }
-
-      return Promise.resolve({ success: true, data: openRouterTask });
-    });
-
-    render(<TaskDetailPage />);
-
-    await screen.findByRole('heading', { name: 'Clipboard Task' });
-    const dialog = await openEnvironmentDialog();
-    expect(within(dialog).getByRole('combobox', { name: /Provider/i })).toHaveValue('https://openrouter.ai/api/v1');
-    expect(within(dialog).getByRole('combobox', { name: /Model/i })).toHaveValue('qwen/qwen3.5-397b-a17b');
-
-    await act(async () => {
-      aiSettings.resolve({
-        success: true,
-        data: {
-          hasApiKey: true,
-          maskedApiKey: 'tgp_...abcd',
-          baseUrl: 'https://api.together.xyz/v1',
-        },
-      });
-      await aiSettings.promise;
-    });
-
-    await waitFor(() => {
-      expect(within(dialog).getByLabelText(/AI API Key/i)).toHaveAttribute('placeholder', 'Current: tgp_...abcd');
-    });
-    expect(within(dialog).getByRole('combobox', { name: /Provider/i })).toHaveValue('https://openrouter.ai/api/v1');
-    expect(within(dialog).getByRole('combobox', { name: /Model/i })).toHaveValue('qwen/qwen3.5-397b-a17b');
-  });
-
-  it('keeps AI connection details visible after a connection failure', async () => {
-    mockSearchParams = new URLSearchParams('tab=setting');
-    mockApiPost.mockRejectedValueOnce(new Error('Connection test failed.'));
-    mockTaskOverviewResponses({ ...taskFixture, isActive: false });
-
-    render(<TaskDetailPage />);
-
-    await screen.findByRole('heading', { name: 'Clipboard Task' });
-    const dialog = await openEnvironmentDialog();
-    expect(within(dialog).getByLabelText(/AI API Key/i)).toBeInTheDocument();
-
-    fireEvent.click(within(dialog).getByRole('button', { name: /test connection/i }));
-
-    expect(await screen.findByText('Connection test failed.')).toBeInTheDocument();
-    expect(within(dialog).getByLabelText(/AI API Key/i)).toBeInTheDocument();
-  });
-
-  it('rejects changing task start date to the past in settings', async () => {
-    mockSearchParams = new URLSearchParams('tab=setting');
-    mockTaskOverviewResponses({ ...taskFixture, isActive: false });
-
-    render(<TaskDetailPage />);
-
-    await screen.findByRole('heading', { name: 'Clipboard Task' });
-    const dialog = await openEnvironmentDialog();
-
-    fireEvent.change(within(dialog).getByLabelText(/Task Start Date/i), {
-      target: { value: '2000-01-01T09:30' },
-    });
-    fireEvent.change(within(dialog).getByLabelText(/Task End Date/i), {
-      target: { value: '2000-01-02T09:30' },
-    });
-    fireEvent.click(within(dialog).getByRole('button', { name: /apply/i }));
-    fireEvent.click(screen.getByRole('button', { name: /save settings/i }));
-
-    const reopenedDialog = await screen.findByRole('dialog', { name: /edit environment/i });
-    expect(within(reopenedDialog).getByText('Task start date cannot be in the past.')).toBeInTheDocument();
-    expect(mockApiPut).not.toHaveBeenCalledWith('/api/v1/tasks/task-123', expect.anything());
-  });
-
-  it('saves grouped setting changes with the existing task payload shape', async () => {
-    mockSearchParams = new URLSearchParams('tab=setting');
-    mockTaskOverviewResponses({ ...taskFixture, isActive: false });
-
-    render(<TaskDetailPage />);
-
-    await screen.findByRole('heading', { name: 'Clipboard Task' });
-    const dialog = await openEnvironmentDialog();
-    fireEvent.change(within(dialog).getByLabelText(/AI Usage Limit/i), {
-      target: { value: '17' },
-    });
-    fireEvent.change(within(dialog).getByLabelText(/Task End Date/i), {
-      target: { value: '2026-05-20T09:30' },
-    });
-    fireEvent.change(within(dialog).getByLabelText(/Time Limit \(minutes\)/i), {
-      target: { value: '20' },
-    });
-    fireEvent.click(within(dialog).getByRole('radio', { name: 'Blocked' }));
-    fireEvent.click(within(dialog).getByRole('button', { name: /apply/i }));
-    fireEvent.click(screen.getByRole('button', { name: /save settings/i }));
-
-    await waitFor(() => {
-      expect(mockApiPost).toHaveBeenCalledWith('/api/v1/ai/settings/test', expect.objectContaining({
-        apiKey: '__use_existing__',
-      }));
-      expect(mockApiPut).toHaveBeenCalledWith('/api/v1/tasks/task-123', expect.objectContaining({
-        name: 'Clipboard Task',
-        description: 'Task details',
-        allowedLlmModels: ['moonshotai/Kimi-K2.6'],
-        aiUsageLimit: 17,
-      }));
-    });
-
-    const taskUpdateCall = mockApiPut.mock.calls.find(([url]) => url === '/api/v1/tasks/task-123');
-    const payload = taskUpdateCall?.[1];
-    expect(payload.environmentConfig).toEqual(expect.objectContaining({
-      aiAccess: 'full',
-      allowedModels: ['moonshotai/Kimi-K2.6'],
-      copyPastePolicy: 'blocked',
-      aiUsageLimit: {
-        mode: 'max_requests',
-        maxRequests: 17,
-      },
-    }));
-    expect(payload.environmentConfig.time).toEqual(expect.objectContaining({
-      startTime: taskFixture.environmentConfig.time.startTime,
-      endTime: new Date(2026, 4, 20, 9, 30).toISOString(),
-      timeLimitSeconds: 20 * 60,
-      lateSubmission: 'not_allowed',
-    }));
-    expect(payload.environmentConfig.traceability).toEqual(expect.objectContaining({
-      trackAiUsage: true,
-      trackCopyPaste: false,
-    }));
   });
 });
 

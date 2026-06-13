@@ -104,7 +104,8 @@ describe('task route authenticated owner boundaries', () => {
     expect(createResponse.body.success).toBe(true);
     expect(MockTaskService.createTask).toHaveBeenCalledWith(
       'user-1',
-      expect.objectContaining({ name: 'Owner Access Task' })
+      expect.objectContaining({ name: 'Owner Access Task' }),
+      { instructionFiles: [] }
     );
 
     const detailResponse = await request(app)
@@ -115,6 +116,48 @@ describe('task route authenticated owner boundaries', () => {
     expect(MockTaskService.getTask).toHaveBeenCalledWith(
       'task-1',
       'user-1'
+    );
+  });
+
+  it('passes multipart task creation payloads and instruction files to the service', async () => {
+    MockTaskService.createTask.mockResolvedValue({
+      id: 'task-1',
+      userId: 'user-1',
+      name: 'Multipart Task',
+      description: 'Created with PDFs',
+      taskToken: 'ABCDEF123456',
+      startDate: new Date(),
+      endDate: new Date(),
+      isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    } as any);
+
+    const response = await request(app)
+      .post('/api/v1/tasks')
+      .set('Authorization', `Bearer ${tokenFor()}`)
+      .field('payload', JSON.stringify({
+        ...validTaskPayload(),
+        name: 'Multipart Task',
+        description: 'Created with PDFs',
+      }))
+      .attach('pdf', Buffer.from('%PDF-1.4\ninstruction'), {
+        filename: 'instructions.pdf',
+        contentType: 'application/pdf',
+      });
+
+    expect(response.status).toBe(201);
+    expect(MockTaskService.createTask).toHaveBeenCalledWith(
+      'user-1',
+      expect.objectContaining({ name: 'Multipart Task' }),
+      {
+        instructionFiles: [
+          expect.objectContaining({
+            originalname: 'instructions.pdf',
+            mimetype: 'application/pdf',
+          }),
+        ],
+      }
     );
   });
 

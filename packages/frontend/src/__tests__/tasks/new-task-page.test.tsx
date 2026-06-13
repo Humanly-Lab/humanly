@@ -190,6 +190,50 @@ describe('admin new task page', () => {
     expect(payload.environmentConfig.time.timeLimitSeconds).toBeUndefined();
   });
 
+  it('creates tasks and instruction PDFs in one multipart request', async () => {
+    render(<NewTaskPage />);
+
+    expect(await screen.findByRole('heading', { name: 'New Task' })).toBeInTheDocument();
+
+    const pdfInput = document.querySelector('input[accept="application/pdf"]') as HTMLInputElement;
+    expect(pdfInput).not.toBeNull();
+
+    const instructionFile = new File(['%PDF-1.4\ninstruction'], 'instructions.pdf', {
+      type: 'application/pdf',
+    });
+
+    await act(async () => {
+      fireEvent.change(pdfInput, { target: { files: [instructionFile] } });
+    });
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText(/Task Name/i), {
+        target: { value: 'Task With PDF' },
+      });
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /^Create Task$/i }));
+    });
+
+    await waitFor(() => {
+      expect(mockApiPost).toHaveBeenCalledWith('/api/v1/tasks', expect.any(FormData));
+    });
+
+    const taskPostCall = mockApiPost.mock.calls.find(([url]) => url === '/api/v1/tasks');
+    const body = taskPostCall?.[1] as FormData;
+    const payload = JSON.parse(body.get('payload') as string);
+
+    expect(payload).toEqual(expect.objectContaining({
+      name: 'Task With PDF',
+      environmentConfig: expect.objectContaining({
+        instructions: expect.objectContaining({
+          hasInstructionPdf: true,
+        }),
+      }),
+    }));
+    expect(body.getAll('pdf')).toEqual([instructionFile]);
+    expect(mockApiPost.mock.calls.some(([url]) => String(url).includes('/files'))).toBe(false);
+  });
+
   it('can require sign-in for public share links when creating a task', async () => {
     render(<NewTaskPage />);
 

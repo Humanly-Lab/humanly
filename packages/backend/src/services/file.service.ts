@@ -15,6 +15,7 @@ import { AIRetrievalService } from './ai-retrieval.service';
 const VIEW_ONLY_FILE_TOKEN_AUDIENCE = 'humanly:file-view';
 const VIEW_ONLY_FILE_TOKEN_PURPOSE = 'view_only_file';
 const VIEW_ONLY_FILE_TOKEN_EXPIRES_IN_SECONDS = 60;
+const TASK_INSTRUCTION_FILE_LOCK_MESSAGE = 'Task instruction files are read-only after task creation';
 
 interface FileViewTokenPayload extends JwtPayload {
   purpose: typeof VIEW_ONLY_FILE_TOKEN_PURPOSE;
@@ -61,6 +62,15 @@ export class FileService {
       throw new AppError(403, 'Access denied to this task');
     }
 
+    throw new AppError(409, TASK_INSTRUCTION_FILE_LOCK_MESSAGE);
+  }
+
+  static async attachTaskInstructionFileAtCreation(
+    taskId: string,
+    userId: string,
+    file: Express.Multer.File,
+    title?: string
+  ): Promise<AppFile> {
     const appFile = await this.createFileRecord({
       file,
       userId,
@@ -71,6 +81,13 @@ export class FileService {
 
     await this.indexFileBestEffort(appFile);
     return appFile;
+  }
+
+  static assertValidPdfUploadFile(file: Express.Multer.File): void {
+    if (file.mimetype !== 'application/pdf') {
+      throw new AppError(400, 'PDF file is required');
+    }
+    this.assertValidPdfPayload(file);
   }
 
   static async listDocumentFiles(documentId: string, userId: string): Promise<AppFile[]> {
@@ -176,6 +193,10 @@ export class FileService {
     }
 
     await this.assertCanManage(appFile, userId);
+    if (appFile.taskId) {
+      throw new AppError(409, TASK_INSTRUCTION_FILE_LOCK_MESSAGE);
+    }
+
     if (!appFile.legacySourceId) {
       await FileStorageService.delete(appFile);
     }
@@ -215,10 +236,7 @@ export class FileService {
     taskId?: string;
     purpose: 'document_source_pdf' | 'task_instruction_pdf';
   }): Promise<AppFile> {
-    if (input.file.mimetype !== 'application/pdf') {
-      throw new AppError(400, 'PDF file is required');
-    }
-    this.assertValidPdfPayload(input.file);
+    this.assertValidPdfUploadFile(input.file);
 
     const fileId = crypto.randomUUID();
     const stored = await FileStorageService.store(input.file.buffer, fileId);

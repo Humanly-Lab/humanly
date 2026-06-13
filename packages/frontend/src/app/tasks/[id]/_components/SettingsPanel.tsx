@@ -1,20 +1,14 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState, type ChangeEvent, type ReactNode } from 'react';
-import { useRouter } from 'next/navigation';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import {
-  CheckCircle,
+  Check,
   Download,
   FileText,
   Loader2,
-  RefreshCcw,
-  Trash2,
-  Upload,
-  X,
-  XCircle,
 } from 'lucide-react';
 import {
   AI_CHAT_MAX_TOKENS_DEFAULT,
@@ -24,20 +18,17 @@ import {
   DEFAULT_WRITING_ENVIRONMENT_CONFIG,
   SUBMISSION_MAX_CHARACTERS_MAX,
   SUBMISSION_MIN_CHARACTERS_MAX,
-  TASK_START_DATE_PAST_ERROR_MESSAGE,
   WRITING_AI_ACCESS_OPTIONS,
   WRITING_AI_POLICY_OPTIONS,
   WRITING_AI_MODELS,
   formatWritingAiAccess,
   isWritingAiChatEnabled,
   isWritingAiPolishEnabled,
-  isTaskStartDateTooFarInPast,
   normalizeWritingAiPolicy,
   normalizeWritingAiAccess,
   normalizeCopyPastePolicy,
   normalizeResourceAccessPolicy,
   type Task,
-  type UserAISettings,
   type WritingAiAccess,
   type WritingAiPolicyMode,
   type WritingAiProvider,
@@ -118,22 +109,6 @@ const DEFAULT_AI_BASE_URL = 'https://api.together.xyz/v1';
 const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
 const OPENAI_BASE_URL = 'https://api.openai.com/v1';
 const CLAUDE_BASE_URL = 'https://api.anthropic.com/v1';
-const USE_EXISTING_AI_KEY = '__use_existing__';
-const UNLIMITED_TASK_WINDOW_YEARS = 100;
-
-const toLocalDateInputMinute = (value: string): number => {
-  const valueMs = new Date(localDateTimeInputToISOString(value)).getTime();
-  return Number.isFinite(valueMs) ? Math.floor(valueMs / 60_000) : Number.NaN;
-};
-
-const areLocalDateInputsSameMinute = (left?: string, right?: string | null): boolean => {
-  if (!left || !right) return left === right;
-  return toLocalDateInputMinute(left) === toLocalDateInputMinute(right);
-};
-
-const isLocalStartDateTooFarInPast = (value?: string): boolean => (
-  !!value && isTaskStartDateTooFarInPast(localDateTimeInputToISOString(value))
-);
 
 const fallbackWritingModels = () => (
   WRITING_AI_MODELS.filter((model) => model !== 'Custom models')
@@ -273,11 +248,6 @@ const formatCharacterBounds = (submission: WritingEnvironmentConfig['submission'
   return 'No submission length limit';
 };
 
-type AiConnectionResult = {
-  success: boolean;
-  message: string;
-};
-
 type SegmentedOption = {
   value: string;
   label: string;
@@ -305,6 +275,7 @@ function SegmentedControl({
     >
       {options.map((option) => {
         const selected = value === option.value;
+        const disabledSelected = disabled && selected;
 
         return (
           <button
@@ -314,14 +285,16 @@ function SegmentedControl({
             aria-checked={selected}
             disabled={disabled}
             className={cn(
-              'h-8 min-w-16 rounded-[5px] px-3 text-sm font-medium transition-colors',
-              selected
-                ? 'bg-background text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground',
-              disabled && 'cursor-not-allowed opacity-50'
+              'inline-flex h-8 min-w-16 items-center justify-center gap-1.5 rounded-[5px] px-3 text-sm font-medium transition-colors',
+              selected && !disabledSelected && 'bg-background text-foreground shadow-sm',
+              !selected && 'text-muted-foreground hover:text-foreground',
+              disabledSelected && 'border border-border bg-muted text-foreground shadow-sm',
+              disabled && !selected && 'cursor-not-allowed opacity-45',
+              disabledSelected && 'cursor-not-allowed opacity-100'
             )}
             onClick={() => onValueChange(option.value)}
           >
+            {disabledSelected && <Check className="h-3.5 w-3.5" aria-hidden="true" />}
             {option.label}
           </button>
         );
@@ -387,20 +360,14 @@ const mergeEnvironmentConfig = (config?: WritingEnvironmentConfig | null): Writi
   },
 });
 
-export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
-  const router = useRouter();
+export function SettingsPanel({ taskId }: SettingsPanelProps) {
   const { toast } = useToast();
 
   const [task, setTask] = useState<Task | null>(null);
   const [files, setFiles] = useState<TaskInstructionFile[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
-  const [isUploadingFiles, setIsUploadingFiles] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [environmentDialogOpen, setEnvironmentDialogOpen] = useState(false);
-  const [instructionFiles, setInstructionFiles] = useState<File[]>([]);
 
   const [environmentConfig, setEnvironmentConfig] = useState<WritingEnvironmentConfig>({
     ...DEFAULT_WRITING_ENVIRONMENT_CONFIG,
@@ -415,15 +382,8 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
   });
   const [aiAccess, setAiAccessState] = useState<WritingAiAccess>('off');
   const [aiBaseUrl, setAiBaseUrl] = useState(DEFAULT_AI_BASE_URL);
-  const [aiApiKey, setAiApiKey] = useState('');
   const [aiModel, setAiModel] = useState('');
-  const [hasExistingAiKey, setHasExistingAiKey] = useState(false);
-  const [maskedAiKey, setMaskedAiKey] = useState('');
-  const [isTestingAiConnection, setIsTestingAiConnection] = useState(false);
-  const [aiConnectionResult, setAiConnectionResult] = useState<AiConnectionResult | null>(null);
-  const [testedAiModels, setTestedAiModels] = useState<string[]>([]);
   const [timeLimitEnabled, setTimeLimitEnabled] = useState(false);
-  const [loadedStartDateInput, setLoadedStartDateInput] = useState<string | null>(null);
   const [writingTimeLimitMinutesInput, setWritingTimeLimitMinutesInput] = useState('60');
   const [allowGuestSubmissions, setAllowGuestSubmissions] = useState(true);
 
@@ -446,45 +406,14 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
     ? aiBaseUrl
     : DEFAULT_AI_BASE_URL;
 
-  const validateStartDateWithinEditWindow = (startDate?: string): boolean => {
-    if (!timeLimitEnabled || !startDate) {
-      form.clearErrors('startDate');
-      return true;
-    }
-
-    if (areLocalDateInputsSameMinute(startDate, loadedStartDateInput)) {
-      form.clearErrors('startDate');
-      return true;
-    }
-
-    if (isLocalStartDateTooFarInPast(startDate)) {
-      setEnvironmentDialogOpen(true);
-      form.setError('startDate', {
-        type: 'validate',
-        message: TASK_START_DATE_PAST_ERROR_MESSAGE,
-      });
-      return false;
-    }
-
-    form.clearErrors('startDate');
-    return true;
-  };
-
   const aiModelOptions = useMemo(() => {
     const whitelist = getWhitelist(aiBaseUrl);
-    let options: string[];
-    if (whitelist?.length) {
-      options = whitelist;
-    } else if (testedAiModels.length) {
-      options = testedAiModels;
-    } else {
-      options = fallbackWritingModels();
-    }
+    const options = whitelist?.length ? whitelist : fallbackWritingModels();
 
     return !whitelist?.length && aiModel && !options.includes(aiModel)
       ? [aiModel, ...options]
       : options;
-  }, [aiBaseUrl, aiModel, testedAiModels]);
+  }, [aiBaseUrl, aiModel]);
 
   const fetchInstructionFiles = useCallback(async () => {
     const response = await api.get<{
@@ -493,39 +422,6 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
     }>(`/api/v1/tasks/${taskId}/files`);
     setFiles(response.data);
   }, [taskId]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const loadAiSettings = async () => {
-      try {
-        const response = await api.get<{ success: boolean; data: UserAISettings | null }>('/api/v1/ai/settings');
-        const settings = response.data;
-
-        if (cancelled) return;
-
-        if (!settings?.hasApiKey) {
-          setHasExistingAiKey(false);
-          setMaskedAiKey('');
-          return;
-        }
-
-        setHasExistingAiKey(true);
-        setMaskedAiKey(settings.maskedApiKey || '');
-      } catch {
-        if (!cancelled) {
-          setHasExistingAiKey(false);
-          setMaskedAiKey('');
-        }
-      }
-    };
-
-    loadAiSettings();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -564,7 +460,6 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
           : toLocalDateTimeInputValue(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000));
 
         setTask(taskFromApi);
-        setLoadedStartDateInput(startDateInput);
         setAllowGuestSubmissions(taskFromApi.allowGuestSubmissions !== false);
         if (mergedConfig.aiProvider?.baseUrl) {
           setAiBaseUrl(mergedConfig.aiProvider.baseUrl);
@@ -785,124 +680,6 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
     }));
   };
 
-  const testAiConnection = async (): Promise<boolean> => {
-    if (!aiApiKey.trim() && !hasExistingAiKey) {
-      setAiConnectionResult({
-        success: false,
-        message: 'Enter an AI API key before testing the connection.',
-      });
-      return false;
-    }
-
-    setIsTestingAiConnection(true);
-    setAiConnectionResult(null);
-    setTestedAiModels([]);
-
-    try {
-      const result = await api.post<{ success: boolean; message?: string; models?: string[] }>('/api/v1/ai/settings/test', {
-        apiKey: aiApiKey.trim() || USE_EXISTING_AI_KEY,
-        baseUrl: aiBaseUrl.trim() || DEFAULT_AI_BASE_URL,
-      });
-
-      setAiConnectionResult({
-        success: !!result.success,
-        message: result.message || (result.success ? 'Connection successful.' : 'Connection failed.'),
-      });
-
-      if (result.success) {
-        toast({
-          title: 'AI key verified',
-          description: 'Connection test passed. This task can use AI.',
-        });
-
-        const fallbackModels = getWhitelist(aiBaseUrl.trim() || DEFAULT_AI_BASE_URL) || [];
-        const modelsFromApi = Array.isArray(result.models) ? result.models.filter(Boolean) : [];
-        const nextModels = fallbackModels.length ? fallbackModels : modelsFromApi;
-
-        setTestedAiModels(nextModels);
-
-        if (nextModels.length > 0 && (!aiModel || !nextModels.includes(aiModel))) {
-          setAiModel(nextModels[0]);
-          setEnvironmentAiModel(nextModels[0]);
-        }
-      }
-
-      return !!result.success;
-    } catch (err: any) {
-      setAiConnectionResult({
-        success: false,
-        message: err.message || 'Connection test failed.',
-      });
-      return false;
-    } finally {
-      setIsTestingAiConnection(false);
-    }
-  };
-
-  const handleTestAiConnection = async () => {
-    await testAiConnection();
-  };
-
-  const handleInstructionFilesChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(event.target.files || []);
-    if (!files.length) return;
-
-    const invalidFile = files.find((file) => file.type !== 'application/pdf');
-    if (invalidFile) {
-      event.target.value = '';
-      toast({
-        title: 'Invalid file',
-        description: 'Task files must be uploaded as PDF.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    const oversizedFile = files.find((file) => file.size > 50 * 1024 * 1024);
-    if (oversizedFile) {
-      event.target.value = '';
-      toast({
-        title: 'File too large',
-        description: 'Task PDFs must be smaller than 50MB.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    setInstructionFiles(files);
-  };
-
-  const uploadInstructionFiles = async () => {
-    if (!instructionFiles.length) return false;
-
-    let failed = false;
-    setIsUploadingFiles(true);
-
-    try {
-      for (const file of instructionFiles) {
-        const formData = new FormData();
-        formData.append('pdf', file);
-        formData.append('title', file.name.replace(/\.pdf$/i, ''));
-
-        try {
-          await api.post(`/api/v1/tasks/${taskId}/files`, formData);
-        } catch {
-          failed = true;
-        }
-      }
-
-      if (!failed) {
-        setInstructionFiles([]);
-      }
-
-      await fetchInstructionFiles();
-    } finally {
-      setIsUploadingFiles(false);
-    }
-
-    return failed;
-  };
-
   const buildCurrentEnvironmentConfig = (data: TaskSettingsFormData): WritingEnvironmentConfig => {
     const allowedModels = aiAccess === 'off' ? [] : selectedAiModel ? [selectedAiModel] : [];
     const resolvedAiProvider = aiAccess === 'off'
@@ -920,7 +697,7 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
           Number(getTimeLimitMinutesValue(environmentConfig.time.timeLimitSeconds))
         ) * 60
       : undefined;
-    const hasInstructionPdf = currentInstructionFiles.length > 0 || instructionFiles.length > 0;
+    const hasInstructionPdf = currentInstructionFiles.length > 0;
     const effectiveAiPolicy = isWritingAiChatEnabled(aiAccess)
       ? normalizeWritingAiPolicy(environmentConfig.aiPolicy)
       : { mode: 'off' as const };
@@ -968,142 +745,6 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
     downloadBlob(blob, buildConfigFilename(form.getValues('name') || task?.name));
   };
 
-  const onSubmit = async (data: TaskSettingsFormData) => {
-    try {
-      setIsSaving(true);
-      setError(null);
-
-      if (!validateStartDateWithinEditWindow(data.startDate)) {
-        throw new Error(TASK_START_DATE_PAST_ERROR_MESSAGE);
-      }
-
-      if (aiAccess !== 'off') {
-        if (!aiApiKey.trim() && !hasExistingAiKey) {
-          throw new Error('Enter an AI API key before saving an AI-enabled task.');
-        }
-
-        if (!selectedAiModel) {
-          throw new Error('Select or enter the AI model for this task.');
-        }
-
-        if (aiConnectionResult?.success !== true) {
-          const success = await testAiConnection();
-          if (!success) {
-            throw new Error('Test AI connection before saving an AI-enabled task.');
-          }
-        }
-
-        await api.put('/api/v1/ai/settings', {
-          apiKey: aiApiKey.trim() || USE_EXISTING_AI_KEY,
-          baseUrl: aiBaseUrl.trim() || DEFAULT_AI_BASE_URL,
-          model: selectedAiModel,
-          shortcutMaxTokens: environmentConfig.aiTokenBudget?.shortcutMaxTokens || AI_SHORTCUT_MAX_TOKENS_DEFAULT,
-          chatMaxTokens: environmentConfig.aiTokenBudget?.chatMaxTokens || AI_CHAT_MAX_TOKENS_DEFAULT,
-        });
-      }
-
-      const effectiveAiPolicy = isWritingAiChatEnabled(aiAccess)
-        ? normalizeWritingAiPolicy(environmentConfig.aiPolicy)
-        : { mode: 'off' as const };
-      if (effectiveAiPolicy.mode === 'guard' && !effectiveAiPolicy.rejectionRule?.trim()) {
-        throw new Error('Enter an AI policy rejection rule or turn AI policy enforcement off.');
-      }
-
-      if (timeLimitEnabled && (!data.startDate || !data.endDate)) {
-        throw new Error('Select both start and end time when Time is on.');
-      }
-
-      const fallbackStart = new Date();
-      const fallbackEnd = new Date(fallbackStart);
-      fallbackEnd.setFullYear(fallbackEnd.getFullYear() + UNLIMITED_TASK_WINDOW_YEARS);
-
-      const startTime = timeLimitEnabled && data.startDate
-        ? localDateTimeInputToISOString(data.startDate)
-        : fallbackStart.toISOString();
-      const endTime = timeLimitEnabled && data.endDate
-        ? localDateTimeInputToISOString(data.endDate)
-        : fallbackEnd.toISOString();
-      const configStartTime = timeLimitEnabled ? startTime : undefined;
-      const configEndTime = timeLimitEnabled ? endTime : undefined;
-      const allowedModels = aiAccess === 'off' ? [] : [selectedAiModel];
-      const currentEnvironmentConfig = buildCurrentEnvironmentConfig(data);
-      const nextEnvironmentConfig: WritingEnvironmentConfig = {
-        ...currentEnvironmentConfig,
-        time: {
-          ...currentEnvironmentConfig.time,
-          startTime: configStartTime,
-          endTime: configEndTime,
-          lateSubmission: timeLimitEnabled ? 'not_allowed' : 'allowed',
-        },
-      };
-
-      const response = await api.put<{
-        success: boolean;
-        data: Task;
-        message: string;
-      }>(`/api/v1/tasks/${taskId}`, {
-        name: data.name,
-        description: data.description ?? '',
-        userIdKey: task?.userIdKey || 'userId',
-        externalServiceType: task?.externalServiceType || undefined,
-        allowedLlmModels: allowedModels,
-        aiUsageLimit: data.aiUsageLimit,
-        startDate: startTime,
-        endDate: endTime,
-        allowGuestSubmissions,
-        environmentConfig: nextEnvironmentConfig,
-      });
-
-      const uploadFailed = await uploadInstructionFiles();
-
-      setTask(response.data);
-      setEnvironmentConfig(nextEnvironmentConfig);
-      setLoadedStartDateInput(
-        nextEnvironmentConfig.time.startTime || response.data.startDate
-          ? toLocalDateTimeInputValue(nextEnvironmentConfig.time.startTime || response.data.startDate)
-          : null
-      );
-      onTaskUpdated?.(response.data);
-      toast({
-        title: uploadFailed ? 'Task settings saved' : 'Success',
-        description: uploadFailed
-          ? 'Settings were updated, but one or more PDF uploads failed.'
-          : 'Task settings updated successfully.',
-        variant: uploadFailed ? 'destructive' : 'default',
-      });
-    } catch (err: any) {
-      const message = err.message || 'Failed to update task settings';
-      setError(message);
-      toast({
-        title: 'Error',
-        description: message,
-        variant: 'destructive',
-      });
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleDeleteTask = async () => {
-    try {
-      setIsDeleting(true);
-      await api.delete(`/api/v1/tasks/${taskId}`);
-      toast({
-        title: 'Success',
-        description: 'Task deleted successfully',
-      });
-      router.push('/tasks');
-    } catch (err: any) {
-      toast({
-        title: 'Error',
-        description: err.message || 'Failed to delete task',
-        variant: 'destructive',
-      });
-      setShowDeleteDialog(false);
-      setIsDeleting(false);
-    }
-  };
-
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -1116,7 +757,7 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
     return null;
   }
 
-  const isSubmitting = isSaving || isUploadingFiles;
+  const controlsDisabled = true;
   const localTimeZoneLabel = getLocalTimeZoneLabel();
   const watchedStartDate = form.watch('startDate');
   const watchedEndDate = form.watch('endDate');
@@ -1151,13 +792,13 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
       detail: formatCharacterBounds(environmentConfig.submission),
     },
     {
-      label: 'Resource Access',
+      label: 'Instruction PDF Access',
       value: normalizeResourceAccessPolicy(environmentConfig.resourceAccess) === 'view-only'
-        ? 'View-only'
-        : 'Downloadable',
+        ? 'View only'
+        : 'View and download',
       detail: normalizeResourceAccessPolicy(environmentConfig.resourceAccess) === 'view-only'
-        ? 'Short-lived in-workspace PDF access'
-        : 'Standard file access',
+        ? 'Writers can view instruction PDFs in the workspace.'
+        : 'Writers can view and download instruction PDFs.',
     },
   ];
 
@@ -1174,7 +815,7 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
       </div>
 
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 pb-24">
+        <form className="space-y-6">
           {error && (
             <Alert variant="destructive">
               <AlertDescription>{error}</AlertDescription>
@@ -1185,6 +826,9 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
             <Card>
               <CardHeader>
                 <CardTitle>Task Details</CardTitle>
+                <CardDescription>
+                  Task settings are read-only after creation so submitted documents and certificates stay consistent.
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 <FormField
@@ -1194,7 +838,7 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
                     <FormItem>
                       <FormLabel>Task Name</FormLabel>
                       <FormControl>
-                        <Input placeholder="Research Reflection Assignment" {...field} disabled={isSaving} />
+                        <Input placeholder="Research Reflection Assignment" {...field} disabled />
                       </FormControl>
                       <FormDescription>
                         A user-facing title shown on the admin dashboard and enrolled user documents.
@@ -1215,7 +859,7 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
                           placeholder="Describe the writing task, deadline, evaluation criteria, or class context..."
                           className="resize-none"
                           {...field}
-                          disabled={isSaving}
+                          disabled
                         />
                       </FormControl>
                       <FormDescription>
@@ -1230,26 +874,16 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <div className="flex items-center gap-2 text-sm font-medium">
-                        <Upload className="h-4 w-4 text-muted-foreground" />
+                        <FileText className="h-4 w-4 text-muted-foreground" />
                         Files
                       </div>
                       <p className="mt-1 text-sm text-muted-foreground">
-                        Current and newly uploaded PDF instruction files for this task.
+                        Existing PDF instruction files attached when this task was created.
                       </p>
                     </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={fetchInstructionFiles}
-                      disabled={isSaving || isUploadingFiles}
-                    >
-                      <RefreshCcw className="mr-2 h-4 w-4" />
-                      Refresh
-                    </Button>
                   </div>
 
-                  {currentInstructionFiles.length > 0 && (
+                  {currentInstructionFiles.length > 0 ? (
                     <div className="mt-3 space-y-2">
                       {currentInstructionFiles.map((file) => (
                         <div key={file.id} className="flex items-center gap-3 rounded-md border bg-muted/40 p-3">
@@ -1265,43 +899,10 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
                         </div>
                       ))}
                     </div>
+                  ) : (
+                    <p className="mt-3 text-sm text-muted-foreground">No instruction PDFs attached.</p>
                   )}
 
-                  <Input
-                    type="file"
-                    accept="application/pdf"
-                    multiple
-                    className="mt-3"
-                    onChange={handleInstructionFilesChange}
-                    disabled={isSaving || isUploadingFiles}
-                  />
-
-                  {instructionFiles.length > 0 && (
-                    <div className="mt-3 space-y-2">
-                      {instructionFiles.map((file) => (
-                        <div key={`${file.name}-${file.size}`} className="flex items-center gap-3 rounded-md border bg-muted/40 p-3">
-                          <FileText className="h-5 w-5 shrink-0 text-muted-foreground" />
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-medium" title={file.name}>
-                              {file.name}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              New upload · {(file.size / 1024 / 1024).toFixed(2)} MB
-                            </p>
-                          </div>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setInstructionFiles((current) => current.filter((item) => item !== file))}
-                            disabled={isSaving || isUploadingFiles}
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
                 </div>
 
                 <div className="rounded-md border border-border/80 bg-muted/20 p-4">
@@ -1318,7 +919,7 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
                       id="settings-allow-guest-submissions"
                       checked={allowGuestSubmissions}
                       onCheckedChange={(checked) => setAllowGuestSubmissions(checked === true)}
-                      disabled={isSaving}
+                      disabled
                     />
                   </div>
                 </div>
@@ -1330,16 +931,15 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
                 <div>
                   <CardTitle>Environment</CardTitle>
                   <CardDescription>
-                    Review task controls, then edit detailed rules in one focused dialog.
+                    Review the task controls captured for enrolled writers and certificate evidence.
                   </CardDescription>
                 </div>
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => setEnvironmentDialogOpen(true)}
-                  disabled={isSubmitting}
                 >
-                  Edit Environment
+                  View Environment
                 </Button>
               </CardHeader>
               <CardContent>
@@ -1348,35 +948,14 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
             </Card>
           </div>
 
-          <div
-            data-testid="settings-sticky-actions"
-            className="sticky bottom-0 z-20 border-t bg-background/95 py-4 backdrop-blur supports-[backdrop-filter]:bg-background/80"
-          >
-            <div className="flex justify-between gap-3">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => router.push(`/tasks/${taskId}`)}
-                disabled={isSubmitting}
-              >
-                Cancel
-              </Button>
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting && (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                )}
-                {isSubmitting ? 'Saving...' : 'Save Settings'}
-              </Button>
-            </div>
-          </div>
         </form>
 
         <Dialog open={environmentDialogOpen} onOpenChange={setEnvironmentDialogOpen}>
           <DialogContent className="max-h-[85vh] w-[calc(100vw-2rem)] max-w-5xl overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Edit Environment</DialogTitle>
+              <DialogTitle>View Environment</DialogTitle>
               <DialogDescription>
-                Configure AI access, task availability, writing session timing, and submission rules.
+                Review AI access, task availability, writing session timing, and submission rules.
               </DialogDescription>
             </DialogHeader>
 
@@ -1394,7 +973,7 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
                       aria-label="AI"
                       className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                       value={aiAccess}
-                      disabled={isSubmitting}
+                      disabled={controlsDisabled}
                       onChange={(event) => setAiAccess(event.target.value as WritingAiAccess)}
                     >
                       {WRITING_AI_ACCESS_OPTIONS.map((option) => (
@@ -1413,41 +992,18 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
                     <div className="space-y-5 rounded-md border border-border/70 bg-muted/10 p-4">
                       <div className="grid gap-4 md:grid-cols-2">
                         <div className="space-y-2">
-                          <FormLabel htmlFor="ai-api-key">AI API Key</FormLabel>
-                          <Input
-                            id="ai-api-key"
-                            type="password"
-                            value={aiApiKey}
-                            disabled={isSubmitting}
-                            onChange={(event) => {
-                              setAiApiKey(event.target.value);
-                              setAiConnectionResult(null);
-                              setTestedAiModels([]);
-                            }}
-                            placeholder={hasExistingAiKey ? `Current: ${maskedAiKey || 'saved key'}` : 'Enter API key'}
-                          />
-                          {hasExistingAiKey && !aiApiKey && (
-                            <p className="text-xs text-muted-foreground">
-                              Leave empty to use the saved key.
-                            </p>
-                          )}
-                        </div>
-
-                        <div className="space-y-2">
                           <FormLabel htmlFor="ai-provider">Provider</FormLabel>
                           <select
                             id="ai-provider"
                             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                             value={selectedAiProvider}
-                            disabled={isSubmitting}
+                            disabled={controlsDisabled}
                             onChange={(event) => {
                               const nextBaseUrl = event.target.value;
                               setAiBaseUrl(nextBaseUrl);
                               const nextModel = getWhitelist(nextBaseUrl)?.[0] || '';
                               setAiModel(nextModel);
                               setEnvironmentAiModel(nextModel);
-                              setAiConnectionResult(null);
-                              setTestedAiModels([]);
                             }}
                           >
                             {AI_PROVIDER_OPTIONS.map((option) => (
@@ -1464,7 +1020,7 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
                             id="ai-model"
                             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                             value={aiModel}
-                            disabled={isSubmitting}
+                            disabled={controlsDisabled}
                             onChange={(event) => {
                               const value = event.target.value;
                               setAiModel(value);
@@ -1491,7 +1047,7 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
                                   min={1}
                                   placeholder="100"
                                   {...field}
-                                  disabled={isSubmitting}
+                                  disabled={controlsDisabled}
                                 />
                               </FormControl>
                               <FormMessage />
@@ -1499,36 +1055,6 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
                           )}
                         />
                       </div>
-
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="w-full"
-                        onClick={handleTestAiConnection}
-                        disabled={isSubmitting || isTestingAiConnection || (!aiApiKey.trim() && !hasExistingAiKey)}
-                      >
-                        {isTestingAiConnection ? (
-                          <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Testing...
-                          </>
-                        ) : (
-                          'Test Connection'
-                        )}
-                      </Button>
-
-                      {aiConnectionResult && (
-                        <div className="flex items-start gap-2 text-xs">
-                          {aiConnectionResult.success ? (
-                            <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
-                          ) : (
-                            <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
-                          )}
-                          <p className={aiConnectionResult.success ? 'text-emerald-700' : 'text-destructive'}>
-                            {aiConnectionResult.message}
-                          </p>
-                        </div>
-                      )}
 
                       {chatTokensEnabled && (
                         <div className="grid gap-4 rounded-md border border-border/70 bg-background p-4">
@@ -1539,7 +1065,7 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
                               aria-label="AI policy enforcement"
                               className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                               value={normalizeWritingAiPolicy(environmentConfig.aiPolicy).mode}
-                              disabled={isSubmitting}
+                              disabled={controlsDisabled}
                               onChange={(event) => setAiPolicyMode(event.target.value as WritingAiPolicyMode)}
                             >
                               {WRITING_AI_POLICY_OPTIONS.map((option) => (
@@ -1560,7 +1086,7 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
                                 onChange={(event) => setAiPolicyRejectionRule(event.target.value)}
                                 placeholder="Example: Refuse to produce evaluative claims; only help with grammar, wording, or understanding references."
                                 className="min-h-24"
-                                disabled={isSubmitting}
+                                disabled={controlsDisabled}
                               />
                               <FormDescription>
                                 Applies only to agent chat in Chat or Full mode.
@@ -1584,7 +1110,7 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
                               max={AI_MAX_TOKENS_MAX}
                               value={shortcutTokensEnabled ? environmentConfig.aiTokenBudget?.shortcutMaxTokens || AI_SHORTCUT_MAX_TOKENS_DEFAULT : ''}
                               placeholder={shortcutTokensEnabled ? undefined : 'Not available in this mode'}
-                              disabled={isSubmitting || !shortcutTokensEnabled}
+                              disabled={controlsDisabled || !shortcutTokensEnabled}
                               onChange={(event) => setAiTokenBudget({
                                 shortcutMaxTokens: Number(event.target.value) || AI_SHORTCUT_MAX_TOKENS_DEFAULT,
                               })}
@@ -1605,7 +1131,7 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
                               max={AI_MAX_TOKENS_MAX}
                               value={chatTokensEnabled ? environmentConfig.aiTokenBudget?.chatMaxTokens || AI_CHAT_MAX_TOKENS_DEFAULT : ''}
                               placeholder={chatTokensEnabled ? undefined : 'Not available in this mode'}
-                              disabled={isSubmitting || !chatTokensEnabled}
+                              disabled={controlsDisabled || !chatTokensEnabled}
                               onChange={(event) => setAiTokenBudget({
                                 chatMaxTokens: Number(event.target.value) || AI_CHAT_MAX_TOKENS_DEFAULT,
                               })}
@@ -1625,13 +1151,13 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
 
               <AdminEnvironmentDialogSection
                 title="Task Availability"
-                description={`Set the task availability window shown to enrolled users. Times are shown in your local timezone: ${localTimeZoneLabel}.`}
+                description={`Review the task availability window shown to enrolled users. Times are shown in your local timezone: ${localTimeZoneLabel}.`}
               >
                 <SettingRow label="Time">
                   <SegmentedControl
                     ariaLabel="Time"
                     value={timeLimitEnabled ? 'on' : 'off'}
-                    disabled={isSubmitting}
+                    disabled={controlsDisabled}
                     options={[
                       { value: 'off', label: 'Off' },
                       { value: 'on', label: 'On' },
@@ -1652,11 +1178,7 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
                             <Input
                               type="datetime-local"
                               {...field}
-                              disabled={isSubmitting}
-                              onBlur={(event) => {
-                                field.onBlur();
-                                validateStartDateWithinEditWindow(event.target.value);
-                              }}
+                              disabled={controlsDisabled}
                             />
                           </FormControl>
                           <FormDescription>
@@ -1674,7 +1196,7 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
                         <FormItem>
                           <FormLabel>Task End Date</FormLabel>
                           <FormControl>
-                            <Input type="datetime-local" {...field} disabled={isSubmitting} />
+                            <Input type="datetime-local" {...field} disabled={controlsDisabled} />
                           </FormControl>
                           <FormDescription>
                             Shown in your local timezone: {localTimeZoneLabel}.
@@ -1689,7 +1211,7 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
 
               <AdminEnvironmentDialogSection
                 title="Writing Session"
-                description="Set whether the writing session should have a time limit."
+                description="Review whether the writing session has a time limit."
               >
                 <div className="grid gap-2">
                   <FormLabel htmlFor="writing-session-time-mode">Time</FormLabel>
@@ -1697,7 +1219,7 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
                     id="writing-session-time-mode"
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                     value={environmentConfig.time.timeLimitSeconds ? 'time_limited' : 'unlimited'}
-                    disabled={isSubmitting}
+                    disabled={controlsDisabled}
                     onChange={(event) => setWritingSessionTimerEnabled(event.target.value === 'time_limited')}
                   >
                     <option value="unlimited">No limitations</option>
@@ -1715,7 +1237,7 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
                       value={writingTimeLimitMinutesInput}
                       onChange={(event) => setWritingSessionTimerMinutes(event.target.value)}
                       onBlur={commitWritingSessionTimerMinutes}
-                      disabled={isSubmitting}
+                      disabled={controlsDisabled}
                     />
                   </div>
                 )}
@@ -1724,14 +1246,14 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
               <AdminEnvironmentDialogSection
                 className="lg:col-span-2"
                 title="Writing Rules"
-                description="Set paste behavior and final submission length rules."
+                description="Review paste behavior and final submission length rules."
               >
                 <div className="grid gap-5 lg:grid-cols-[minmax(0,0.7fr)_minmax(0,1.3fr)]">
                   <SettingRow label="Copy-Paste Policy">
                     <SegmentedControl
                       ariaLabel="Copy-Paste Policy"
                       value={normalizeCopyPastePolicy(environmentConfig.copyPastePolicy)}
-                      disabled={isSubmitting}
+                      disabled={controlsDisabled}
                       options={[
                         { value: 'allowed', label: 'Allowed' },
                         { value: 'blocked', label: 'Blocked' },
@@ -1742,14 +1264,14 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
                     />
                   </SettingRow>
 
-                  <SettingRow label="PDF Resource Access">
+                  <SettingRow label="Instruction PDF Access">
                     <SegmentedControl
-                      ariaLabel="PDF Resource Access"
+                      ariaLabel="Instruction PDF Access"
                       value={normalizeResourceAccessPolicy(environmentConfig.resourceAccess)}
-                      disabled={isSubmitting}
+                      disabled={controlsDisabled}
                       options={[
-                        { value: 'downloadable', label: 'Downloadable' },
-                        { value: 'view-only', label: 'View-only' },
+                        { value: 'downloadable', label: 'View and download' },
+                        { value: 'view-only', label: 'View only' },
                       ]}
                       onValueChange={(value) => updateEnvironment({
                         resourceAccess: normalizeResourceAccessPolicy(value),
@@ -1768,7 +1290,7 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
                         value={environmentConfig.submission.minCharacters ?? ''}
                         onChange={(event) => setSubmissionMinimumCharacters(event.target.value)}
                         placeholder="No minimum"
-                        disabled={isSubmitting}
+                        disabled={controlsDisabled}
                       />
                     </div>
 
@@ -1782,7 +1304,7 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
                         value={environmentConfig.submission.maxCharacters ?? ''}
                         onChange={(event) => setSubmissionMaximumCharacters(event.target.value)}
                         placeholder="No maximum"
-                        disabled={isSubmitting}
+                        disabled={controlsDisabled}
                       />
                     </div>
                     <FormDescription className="sm:col-span-2">
@@ -1797,61 +1319,13 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
               <Button
                 type="button"
                 onClick={() => setEnvironmentDialogOpen(false)}
-                disabled={isSubmitting}
               >
-                Apply
+                Close
               </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
       </Form>
-
-      <Card className="border-destructive">
-        <CardHeader>
-          <CardTitle className="text-destructive">Danger Zone</CardTitle>
-          <CardDescription>
-            Irreversible and destructive actions.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <p className="font-medium">Delete Task</p>
-              <p className="text-sm text-muted-foreground">
-                Once you delete a task, there is no going back. All associated task data is removed.
-              </p>
-            </div>
-            <Button variant="destructive" onClick={() => setShowDeleteDialog(true)}>
-              <Trash2 className="mr-2 h-4 w-4" />
-              Delete Task
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete Task?</DialogTitle>
-            <DialogDescription>
-              This action cannot be undone. This will permanently delete &quot;{task.name}&quot; and associated data.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setShowDeleteDialog(false)}
-              disabled={isDeleting}
-            >
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={handleDeleteTask} disabled={isDeleting}>
-              {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Delete Task
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

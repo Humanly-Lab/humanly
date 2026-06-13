@@ -419,7 +419,7 @@ export default function EnvironmentConfigFields({
         </div>
 
         <div className="space-y-2">
-          <Label>PDF Resource Access</Label>
+          <Label>Instruction PDF Access</Label>
           <select
             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
             value={normalizeResourceAccessPolicy(config.resourceAccess)}
@@ -428,11 +428,11 @@ export default function EnvironmentConfigFields({
               resourceAccess: normalizeResourceAccessPolicy(event.target.value),
             }))}
           >
-            <option value="downloadable">Downloadable</option>
-            <option value="view-only">View-only</option>
+            <option value="downloadable">View and download</option>
+            <option value="view-only">View only</option>
           </select>
           <p className="text-xs text-muted-foreground">
-            View-only PDFs load through short-lived in-workspace access.
+            View-only instruction PDFs load through short-lived workspace access.
           </p>
         </div>
       </div>

@@ -866,82 +866,46 @@ describe('TaskService task time window validation', () => {
     });
   });
 
-  it('allows preserving an existing past start date while saving other task settings', async () => {
-    const existingTask = makeTask({
-      startDate: new Date('2026-06-02T10:00:30.000Z'),
-      endDate: new Date('2026-06-03T12:00:00.000Z'),
-    });
-    const updatedTask = makeTask({
-      ...existingTask,
-      name: 'Updated name',
-      startDate: new Date('2026-06-02T10:00:00.000Z'),
-    });
-    const updatePayload = {
-      name: 'Updated name',
-      startDate: new Date('2026-06-02T10:00:00.000Z'),
-      endDate: existingTask.endDate,
-    };
-
-    MockTaskModel.findById.mockResolvedValue(existingTask);
-    MockTaskModel.update.mockResolvedValue(updatedTask);
-
-    const task = await TaskService.updateTask('task-1', 'admin-1', updatePayload);
-
-    expect(task.name).toBe('Updated name');
-    expect(MockTaskModel.update).toHaveBeenCalledWith('task-1', updatePayload);
-  });
-
-  it('rejects changing a task start date into the past', async () => {
-    MockTaskModel.findById.mockResolvedValue(makeTask({
-      startDate: new Date('2026-06-02T10:00:00.000Z'),
-      endDate: new Date('2026-06-03T12:00:00.000Z'),
-    }));
+  it('rejects post-creation task detail and environment changes', async () => {
+    MockTaskModel.findById.mockResolvedValue(makeTask());
 
     await expect(TaskService.updateTask('task-1', 'admin-1', {
-      startDate: new Date('2026-06-02T11:00:00.000Z'),
-      endDate: new Date('2026-06-03T12:00:00.000Z'),
+      name: 'Updated name',
+      startDate: new Date('2026-06-02T13:00:00.000Z'),
+      endDate: new Date('2026-06-02T14:00:00.000Z'),
+      environmentConfig: {
+        taskType: 'admin_assigned',
+        instructions: { editableAfterSubmission: false },
+        aiAccess: 'off',
+        allowedModels: [],
+        aiUsageLimit: { mode: 'unlimited' },
+        time: { lateSubmission: 'allowed' },
+        submission: { mode: 'multiple' },
+        traceability: {
+          trackAiUsage: false,
+          trackTyping: true,
+          trackCopyPaste: false,
+          trackFocusBlur: true,
+        },
+        copyPastePolicy: 'allowed',
+      },
     })).rejects.toMatchObject({
-      statusCode: 400,
-      message: 'Task start date cannot be in the past.',
+      statusCode: 409,
+      message: 'Task settings are read-only after task creation',
     });
 
     expect(MockTaskModel.update).not.toHaveBeenCalled();
   });
 
-  it('allows changing a task start date into the future', async () => {
-    const existingTask = makeTask({
-      startDate: new Date('2026-06-02T10:00:00.000Z'),
-      endDate: new Date('2026-06-03T12:00:00.000Z'),
-    });
-    const updatePayload = {
-      startDate: new Date('2026-06-02T13:00:00.000Z'),
-      endDate: new Date('2026-06-02T14:00:00.000Z'),
-    };
-    const updatedTask = makeTask({
-      ...existingTask,
-      ...updatePayload,
-    });
-
-    MockTaskModel.findById.mockResolvedValue(existingTask);
-    MockTaskModel.update.mockResolvedValue(updatedTask);
-
-    const task = await TaskService.updateTask('task-1', 'admin-1', updatePayload);
-
-    expect(task.startDate).toEqual(updatePayload.startDate);
-    expect(MockTaskModel.update).toHaveBeenCalledWith('task-1', updatePayload);
-  });
-
-  it('rejects task updates whose effective end date is not after the start date', async () => {
-    MockTaskModel.findById.mockResolvedValue(makeTask({
-      startDate: new Date('2026-06-02T13:00:00.000Z'),
-      endDate: new Date('2026-06-03T12:00:00.000Z'),
-    }));
+  it('rejects mixed lifecycle and settings updates', async () => {
+    MockTaskModel.findById.mockResolvedValue(makeTask());
 
     await expect(TaskService.updateTask('task-1', 'admin-1', {
-      endDate: new Date('2026-06-02T13:00:00.000Z'),
+      isActive: false,
+      name: 'Updated name',
     })).rejects.toMatchObject({
-      statusCode: 400,
-      message: 'Task end date must be after start date',
+      statusCode: 409,
+      message: 'Task settings are read-only after task creation',
     });
 
     expect(MockTaskModel.update).not.toHaveBeenCalled();

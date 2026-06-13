@@ -1,6 +1,7 @@
 import { Router } from 'express';
+import multer from 'multer';
 import { authenticate, optionalAuth } from '../middleware/auth.middleware';
-import { asyncHandler } from '../middleware/error-handler';
+import { asyncHandler, AppError } from '../middleware/error-handler';
 import { createRateLimiter } from '../middleware/rate-limit';
 import {
   createTask,
@@ -26,6 +27,20 @@ import {
 } from '../controllers/task.controller';
 
 const router: Router = Router();
+const taskFileUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 50 * 1024 * 1024,
+    files: 20,
+  },
+  fileFilter: (_req, file, cb) => {
+    if (file.mimetype !== 'application/pdf') {
+      cb(new AppError(400, 'Only PDF files are allowed'));
+      return;
+    }
+    cb(null, true);
+  },
+});
 const publicTaskRateLimiter = createRateLimiter({
   windowMs: 15 * 60 * 1000,
   max: 120,
@@ -55,10 +70,9 @@ router.get('/', asyncHandler(listTasks));
 
 /**
  * POST /api/v1/tasks
- * Create a new task
- * Body: { name, description?, userIdKey?, externalServiceType?, externalServiceUrl? }
+ * Create a new task. Supports JSON body or multipart with JSON `payload` plus `pdf` files.
  */
-router.post('/', asyncHandler(createTask));
+router.post('/', taskFileUpload.array('pdf'), asyncHandler(createTask));
 
 /**
  * POST /api/v1/tasks/join

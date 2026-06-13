@@ -10,9 +10,7 @@ export const TASK_DETAIL_TABS: Array<{ value: TaskDetailTab; label: string }> = 
   { value: 'setting', label: 'Setting' },
 ];
 
-export const getTaskDetailTabs = (canEditSettings: boolean) => (
-  canEditSettings ? TASK_DETAIL_TABS : TASK_DETAIL_TABS.filter((tab) => tab.value !== 'setting')
-);
+export const getTaskDetailTabs = () => TASK_DETAIL_TABS;
 
 export const parseTaskDetailTab = (value: string | null): TaskDetailTab => (
   TASK_DETAIL_TABS.some((tab) => tab.value === value) ? (value as TaskDetailTab) : 'overview'

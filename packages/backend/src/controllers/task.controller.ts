@@ -44,11 +44,28 @@ function serializePublicTaskPreview(task: Task) {
  */
 export async function createTask(req: Request, res: Response): Promise<void> {
   const userId = req.user!.userId;
+  const isMultipart = req.is('multipart/form-data');
+  let body = req.body;
+
+  if (isMultipart) {
+    if (typeof req.body?.payload !== 'string') {
+      throw new AppError(400, 'Task payload is required');
+    }
+
+    try {
+      body = JSON.parse(req.body.payload);
+    } catch {
+      throw new AppError(400, 'Task payload must be valid JSON');
+    }
+  }
 
   // Validate request body
-  const data = validate(createTaskSchema, req.body);
+  const data = validate(createTaskSchema, body);
+  const instructionFiles = Array.isArray(req.files)
+    ? (req.files as Express.Multer.File[])
+    : [];
 
-  const task = await TaskService.createTask(userId, data);
+  const task = await TaskService.createTask(userId, data, { instructionFiles });
 
   res.status(201).json({
     success: true,

@@ -134,8 +134,10 @@ describe('admin task list card actions', () => {
     expect(mockPush).toHaveBeenLastCalledWith('/tasks/task-123');
 
     openOptionsMenu();
-    expect(screen.queryByRole('menuitem', { name: /edit setting/i })).not.toBeInTheDocument();
+    fireEvent.click(await screen.findByRole('menuitem', { name: /view setting/i }));
+    expect(mockPush).toHaveBeenLastCalledWith('/tasks/task-123?tab=setting');
 
+    openOptionsMenu();
     fireEvent.click(await screen.findByRole('menuitem', { name: /archive task/i }));
 
     await waitFor(() => {
@@ -148,7 +150,7 @@ describe('admin task list card actions', () => {
     expect(await screen.findByRole('heading', { name: 'Humanly Draft' })).toBeInTheDocument();
 
     openOptionsMenu();
-    fireEvent.click(await screen.findByRole('menuitem', { name: /edit setting/i }));
+    fireEvent.click(await screen.findByRole('menuitem', { name: /view setting/i }));
     expect(mockPush).toHaveBeenLastCalledWith('/tasks/task-123?tab=setting');
 
     openOptionsMenu();
@@ -286,7 +288,7 @@ describe('admin task list card actions', () => {
     expect(await screen.findByRole('heading', { name: 'Humanly Draft' })).toBeInTheDocument();
 
     openOptionsMenu();
-    fireEvent.click(await screen.findByRole('menuitem', { name: /edit setting/i }));
+    fireEvent.click(await screen.findByRole('menuitem', { name: /view setting/i }));
     expect(mockPush).toHaveBeenLastCalledWith('/tasks/task-123?tab=setting');
 
     openOptionsMenu();
