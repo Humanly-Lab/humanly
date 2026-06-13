@@ -57,6 +57,8 @@ Environment / flags:
       never deleted by this harness.
   QA_OUTPUT_DIR / --output-dir
       Report output directory.
+  --self-test-fixtures
+      Run non-mutating fixture checks for the harness event clock.
 
 The harness follows the real share-link path:
   public guest start -> task document -> submission session -> document events
@@ -216,12 +218,12 @@ function makeLexicalContent(text) {
   };
 }
 
-function makeEvents({ participantIndex, sessionId, text }) {
-  const now = Date.now();
+function makeEvents({ participantIndex, sessionId, text, nowMs = Date.now() }) {
   const eventTypes = ["focus", "input", "paste", "blur"];
+  const eventWindowStartMs = nowMs - (eventTypes.length + 2) * 1000;
   return eventTypes.slice(0, eventCount).map((eventType, offset) => ({
     eventType,
-    timestamp: new Date(now + participantIndex * 1000 + offset).toISOString(),
+    timestamp: new Date(eventWindowStartMs + offset * 250).toISOString(),
     keyChar: eventType === "input" ? String(participantIndex % 10) : undefined,
     cursorPosition: text.length,
     textBefore: offset === 0 ? "" : text.slice(0, Math.min(text.length, 24)),
@@ -233,6 +235,45 @@ function makeEvents({ participantIndex, sessionId, text }) {
       phase: eventType,
     },
   }));
+}
+
+function assertFixtureEventClock() {
+  const nowMs = Date.parse("2026-06-13T19:00:00.000Z");
+  const sampleEvents = makeEvents({
+    participantIndex: 20,
+    sessionId: "fixture-session",
+    text: "Humanly concurrency fixture.",
+    nowMs,
+  });
+
+  if (sampleEvents.length !== eventCount) {
+    throw new Error(
+      `Expected ${eventCount} fixture events, got ${sampleEvents.length}.`,
+    );
+  }
+
+  const timestamps = sampleEvents.map((event) => Date.parse(event.timestamp));
+  const futureEvent = timestamps.find((timestamp) => timestamp >= nowMs);
+  if (futureEvent !== undefined) {
+    throw new Error(
+      `Expected fixture events before submit preparation time; got ${new Date(futureEvent).toISOString()} >= ${new Date(nowMs).toISOString()}.`,
+    );
+  }
+
+  const nonMonotonicIndex = timestamps.findIndex(
+    (timestamp, index) => index > 0 && timestamp <= timestamps[index - 1],
+  );
+  if (nonMonotonicIndex !== -1) {
+    throw new Error(
+      `Expected fixture events to be strictly increasing at index ${nonMonotonicIndex}.`,
+    );
+  }
+}
+
+if (process.argv.includes("--self-test-fixtures")) {
+  assertFixtureEventClock();
+  console.log("Submit concurrency fixture self-test passed.");
+  process.exit(0);
 }
 
 function makeNoAiAdminAssignedEnvironment(startDate, endDate) {
@@ -772,6 +813,50 @@ const prepareParticipantsCheck = await runCheck(
   },
 );
 if (prepareParticipantsCheck.status === "fail") {
+  await finishAndExit();
+}
+
+const fixtureEventClockCheck = await runCheck(
+  report,
+  {
+    id: "fixture-event-clock",
+    title: "Synthetic event timestamps are safely before concurrent submit",
+    target: "prepared participant events",
+  },
+  async () => {
+    const nowMs = Date.now();
+    const futureEvents = participants.flatMap((participant) =>
+      participant.expectedEvents
+        .filter((event) => Date.parse(event.timestamp) >= nowMs)
+        .map((event) => ({
+          participantIndex: participant.index,
+          eventType: event.eventType,
+          timestamp: event.timestamp,
+        })),
+    );
+
+    if (futureEvents.length > 0) {
+      throw new Error(
+        `Expected synthetic events to be timestamped before submit; futureEvents=${JSON.stringify(futureEvents.slice(0, 5))}`,
+      );
+    }
+
+    return {
+      details: {
+        participants: participantCount,
+        eventsPerParticipant: eventCount,
+        latestSyntheticEventAt: participants
+          .flatMap((participant) =>
+            participant.expectedEvents.map((event) => event.timestamp),
+          )
+          .sort()
+          .at(-1),
+        checkedAt: new Date(nowMs).toISOString(),
+      },
+    };
+  },
+);
+if (fixtureEventClockCheck.status === "fail") {
   await finishAndExit();
 }
 
