@@ -841,8 +841,44 @@ describe('editor and logs workflows', () => {
     expect(screen.queryByRole('button', { name: /back to documents/i })).not.toBeInTheDocument();
   });
 
+  it('hides the workspace back button while a signed-in browser is using a public guest document token', async () => {
+    mockAuthUserEmail = 'signed-writer@example.com';
+    mockTokenManager.getPublicDocumentAccessToken.mockReturnValue('guest-document-token');
+    mockTaskEnrollments = [{
+      id: 'enroll-1',
+      documentId: 'doc-1',
+      name: 'Public Task',
+      inviteCode: 'ABC123',
+      joinedAt: '2026-05-19T12:00:00.000Z',
+      endDate: '2099-01-01T00:00:00.000Z',
+      environmentConfig: {
+        aiAccess: 'off',
+        copyPastePolicy: 'allowed',
+      },
+    }];
+
+    render(<DocumentEditorPage />);
+
+    expect(await screen.findByText('Workflow Document')).toBeInTheDocument();
+    expect(screen.getByText('Task deadline in')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /back to documents/i })).not.toBeInTheDocument();
+  });
+
   it('hides the documents back action for guest document load errors', async () => {
     mockAuthUserEmail = 'public-task-guest@guest.humanly.local';
+    mockDocumentOverride = null;
+    mockDocumentError = 'Document not found or unauthorized';
+
+    render(<DocumentEditorPage />);
+
+    expect(await screen.findByText('Document not found or unauthorized')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /back to documents/i })).not.toBeInTheDocument();
+    expect(screen.queryByText('Back to Documents')).not.toBeInTheDocument();
+  });
+
+  it('hides the documents back action for public guest token load errors even when signed auth is still present', async () => {
+    mockAuthUserEmail = 'signed-writer@example.com';
+    mockTokenManager.getPublicDocumentAccessToken.mockReturnValue('guest-document-token');
     mockDocumentOverride = null;
     mockDocumentError = 'Document not found or unauthorized';
 

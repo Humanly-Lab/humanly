@@ -322,7 +322,9 @@ export default function DocumentEditorPage() {
   const [timerNowMs, setTimerNowMs] = useState(() => Date.now());
   const isTaskDocument = Boolean(taskEnrollment);
   const isGuestUser = isGuestUserEmail(user?.email);
-  const isPublicTaskGuestDocument = isTaskDocument && isGuestUser;
+  const hasPublicDocumentAccessToken = Boolean(TokenManager.getPublicDocumentAccessToken(documentId));
+  const isGuestDocumentContext = isGuestUser || hasPublicDocumentAccessToken;
+  const isPublicTaskGuestDocument = isTaskDocument && isGuestDocumentContext;
   const taskEnvironmentConfig = taskEnrollment?.environmentConfig || null;
 
   const currentEnvironmentConfig = useMemo(() => {
@@ -1127,7 +1129,7 @@ export default function DocumentEditorPage() {
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-center">
           <p className="text-destructive">{error || 'Document not found'}</p>
-          {!isGuestUser && (
+          {!isGuestDocumentContext && (
             <Button
               onClick={() => router.push('/documents')}
               variant="ghost"
