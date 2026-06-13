@@ -36,6 +36,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ANALYTICS_CHART_COLORS } from '@/lib/analytics-palette';
+import { buildCertificateVerifyUrl } from '@/lib/certificate-url';
 import { formatDateTime } from '@/lib/utils';
 import { getReviewSignals } from '@/lib/review-signals';
 import type {
@@ -1070,7 +1071,7 @@ export default function TaskSubmissionAnalyticsPage() {
         </div>
         {submission?.certificateVerificationToken && (
           <Button asChild variant="outline">
-            <a href={`/verify/${submission.certificateVerificationToken}`}>
+            <a href={buildCertificateVerifyUrl(submission.certificateVerificationToken)}>
               Open Certificate
             </a>
           </Button>
