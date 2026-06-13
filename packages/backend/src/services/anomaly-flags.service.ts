@@ -29,6 +29,15 @@ function round(value: number, digits = 1) {
   return Math.round(value * factor) / factor;
 }
 
+function formatDurationMs(valueMs: number) {
+  const totalSeconds = Math.max(0, Math.round(valueMs / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+
+  if (minutes === 0) return `${seconds}s`;
+  return seconds === 0 ? `${minutes}min` : `${minutes}min${seconds}s`;
+}
+
 export function computeWritingAnomalyFlags(
   features: DocumentAnomalyAnalysisFeatures,
   environmentConfig?: WritingEnvironmentConfig | null,
@@ -106,6 +115,26 @@ export function computeWritingAnomalyFlags(
         windowSeconds: thresholds.focusInfluxWindowSeconds,
         addedCharacters: features.focusInflux.addedCharacters,
         thresholdCharacters: thresholds.textInfluxMinimumCharacters,
+      },
+    });
+  }
+
+  if (features.awayFromWorkspace.leftCount > 0) {
+    const isRepeatedOrLong =
+      features.awayFromWorkspace.leftCount >= 3 ||
+      features.awayFromWorkspace.longestAwayMs >= 5 * 60 * 1000 ||
+      features.awayFromWorkspace.totalAwayMs >= 10 * 60 * 1000;
+
+    flags.push({
+      code: 'away_from_workspace',
+      severity: isRepeatedOrLong ? 'warning' : 'info',
+      label: 'Away from workspace',
+      description: 'The writer left the Humanly writing workspace and later returned during the session.',
+      evidence: {
+        leftCount: features.awayFromWorkspace.leftCount,
+        returnedCount: features.awayFromWorkspace.returnedCount,
+        totalAwayTime: formatDurationMs(features.awayFromWorkspace.totalAwayMs),
+        longestAwayTime: formatDurationMs(features.awayFromWorkspace.longestAwayMs),
       },
     });
   }

@@ -34,6 +34,12 @@ function makeFeatures(
       focusTimestamp: null,
       addedCharacters: 0,
     },
+    awayFromWorkspace: {
+      leftCount: 0,
+      returnedCount: 0,
+      totalAwayMs: 0,
+      longestAwayMs: 0,
+    },
     clockSkew: {
       sessionId: 'session-1',
       eventCount: 80,
@@ -92,6 +98,51 @@ describe('computeWritingAnomalyFlags', () => {
       evidence: {
         pasteEvents: 2,
         policy: 'blocked',
+      },
+    });
+  });
+
+  it('summarizes brief away-from-workspace visibility as an informational review signal', () => {
+    const flags = computeWritingAnomalyFlags(makeFeatures({
+      awayFromWorkspace: {
+        leftCount: 1,
+        returnedCount: 1,
+        totalAwayMs: 42_000,
+        longestAwayMs: 42_000,
+      },
+    }));
+
+    expect(flags).toHaveLength(1);
+    expect(flags[0]).toMatchObject({
+      code: 'away_from_workspace',
+      severity: 'info',
+      label: 'Away from workspace',
+      evidence: {
+        leftCount: 1,
+        returnedCount: 1,
+        totalAwayTime: '42s',
+        longestAwayTime: '42s',
+      },
+    });
+  });
+
+  it('marks repeated or long away-from-workspace visibility as a warning review signal', () => {
+    const flags = computeWritingAnomalyFlags(makeFeatures({
+      awayFromWorkspace: {
+        leftCount: 3,
+        returnedCount: 3,
+        totalAwayMs: 650_000,
+        longestAwayMs: 305_000,
+      },
+    }));
+
+    expect(flags).toHaveLength(1);
+    expect(flags[0]).toMatchObject({
+      code: 'away_from_workspace',
+      severity: 'warning',
+      evidence: {
+        totalAwayTime: '10min50s',
+        longestAwayTime: '5min5s',
       },
     });
   });

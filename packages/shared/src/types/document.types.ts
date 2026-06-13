@@ -218,6 +218,7 @@ export type WritingAnomalyFlagCode =
   | 'text_influx_without_input'
   | 'focus_text_influx'
   | 'paste_policy_violation'
+  | 'away_from_workspace'
   | 'clock_skew_anomaly'
   | 'ai_policy_refusal';
 
@@ -251,6 +252,13 @@ export interface WritingAnomalyThresholds {
   clockSkewMinimumEvents: number;
   clockSkewMinimumClientSpanSeconds: number;
   clockSkewMaximumServerSpanSeconds: number;
+}
+
+export interface AwayFromWorkspaceStats {
+  leftCount: number;
+  returnedCount: number;
+  totalAwayMs: number;
+  longestAwayMs: number;
 }
 
 export interface CertificateSeal {

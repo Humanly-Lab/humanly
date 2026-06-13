@@ -3,6 +3,7 @@ import {
   DocumentEvent,
   DocumentEventInsertData,
   DocumentEventQueryFilters,
+  AwayFromWorkspaceStats,
   WritingAnomalyThresholds,
 } from '@humanly/shared';
 
@@ -58,6 +59,7 @@ export interface DocumentAnomalyAnalysisFeatures {
   cadence: AnomalyCadenceFeature;
   textInflux: AnomalyTextInfluxFeature;
   focusInflux: AnomalyFocusInfluxFeature;
+  awayFromWorkspace: AwayFromWorkspaceStats;
   clockSkew: AnomalyClockSkewFeature;
 }
 
@@ -347,16 +349,51 @@ export class DocumentEventModel {
     };
   }
 
+  static async getAwayFromWorkspaceStats(documentId: string): Promise<AwayFromWorkspaceStats> {
+    const sql = `
+      WITH visibility_events AS (
+        SELECT
+          event_type,
+          CASE
+            WHEN event_type = 'page_visible'
+              AND metadata ? 'hiddenDurationMs'
+              AND (metadata->>'hiddenDurationMs') ~ '^[0-9]+(\\.[0-9]+)?$'
+            THEN GREATEST((metadata->>'hiddenDurationMs')::numeric, 0)
+            ELSE 0
+          END as away_ms
+        FROM document_events
+        WHERE document_id = $1
+          AND event_type IN ('page_hidden', 'page_visible')
+      )
+      SELECT
+        COUNT(*) FILTER (WHERE event_type = 'page_hidden')::int as left_count,
+        COUNT(*) FILTER (WHERE event_type = 'page_visible')::int as returned_count,
+        COALESCE(SUM(away_ms), 0)::float as total_away_ms,
+        COALESCE(MAX(away_ms), 0)::float as longest_away_ms
+      FROM visibility_events
+    `;
+
+    const result = await queryOne<any>(sql, [documentId]);
+
+    return {
+      leftCount: parseInt(result?.left_count || '0', 10),
+      returnedCount: parseInt(result?.returned_count || '0', 10),
+      totalAwayMs: Math.round(parseFloat(result?.total_away_ms || '0')),
+      longestAwayMs: Math.round(parseFloat(result?.longest_away_ms || '0')),
+    };
+  }
+
   static async getAnomalyAnalysisFeatures(
     documentId: string,
     thresholds: WritingAnomalyThresholds
   ): Promise<DocumentAnomalyAnalysisFeatures> {
-    const [metrics, speed, cadence, textInflux, focusInflux, clockSkew] = await Promise.all([
+    const [metrics, speed, cadence, textInflux, focusInflux, awayFromWorkspace, clockSkew] = await Promise.all([
       this.getEventMetrics(documentId),
       this.getTypingSpeedFeature(documentId, thresholds.highSpeedWindowSeconds),
       this.getCadenceFeature(documentId),
       this.getTextInfluxFeature(documentId, thresholds.textInfluxMinimumCharacters),
       this.getFocusInfluxFeature(documentId, thresholds.focusInfluxWindowSeconds),
+      this.getAwayFromWorkspaceStats(documentId),
       this.getClockSkewFeature(documentId, thresholds.clockSkewMinimumEvents),
     ]);
 
@@ -368,6 +405,7 @@ export class DocumentEventModel {
       cadence,
       textInflux,
       focusInflux,
+      awayFromWorkspace,
       clockSkew,
     };
   }

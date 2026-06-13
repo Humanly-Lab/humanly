@@ -396,6 +396,59 @@ describe('CertificateEvidenceView', () => {
     expect(screen.getByText('4.5')).toBeInTheDocument();
   });
 
+  it('renders away-from-workspace anomaly evidence after expansion', async () => {
+    const user = userEvent.setup();
+
+    render(
+      <CertificateEvidenceView
+        certificate={{
+          id: 'certificate-away',
+          documentId: 'document-away',
+          title: 'Away Workspace Draft',
+          certificateType: 'full_authorship',
+          generatedAt: '2026-06-10T12:00:00.000Z',
+          totalCharacters: 1000,
+          typedCharacters: 1000,
+          pastedCharacters: 0,
+          totalEvents: 140,
+          typingEvents: 140,
+          pasteEvents: 0,
+          editingTimeSeconds: 45,
+          includeEditHistory: false,
+          anomalyFlags: [
+            {
+              code: 'away_from_workspace',
+              severity: 'info',
+              label: 'Away from workspace',
+              description: 'The writer left the Humanly writing workspace and later returned during the session.',
+              evidence: {
+                leftCount: 2,
+                returnedCount: 2,
+                totalAwayTime: '3min20s',
+                longestAwayTime: '2min',
+              },
+            },
+          ],
+          environmentConfig,
+        }}
+        aiStats={aiStats}
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Show abnormal behavior review section' }));
+
+    expect(screen.getByText('Away from workspace')).toBeInTheDocument();
+    expect(
+      screen.getByText('The writer left the Humanly writing workspace and later returned during the session.')
+    ).toBeInTheDocument();
+    expect(screen.getByText('Left Count')).toBeInTheDocument();
+    expect(screen.getByText('Returned Count')).toBeInTheDocument();
+    expect(screen.getByText('Total Away Time')).toBeInTheDocument();
+    expect(screen.getByText('3min20s')).toBeInTheDocument();
+    expect(screen.getByText('Longest Away Time')).toBeInTheDocument();
+    expect(screen.getByText('2min')).toBeInTheDocument();
+  });
+
   it('renders AI policy refusals as abnormal behavior review signals', async () => {
     const user = userEvent.setup();
 
