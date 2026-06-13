@@ -6,6 +6,8 @@ const mockPush = jest.fn();
 const mockBack = jest.fn();
 const mockApiGet = jest.fn();
 let mockSearchParams = new URLSearchParams('from=analytics');
+const originalLocation = window.location;
+const originalFrontendUserUrl = process.env.NEXT_PUBLIC_FRONTEND_USER_URL;
 
 jest.mock('next/navigation', () => ({
   useParams: () => ({
@@ -173,6 +175,11 @@ describe('admin submission analytics page', () => {
     mockPush.mockClear();
     mockBack.mockClear();
     mockApiGet.mockReset();
+    delete process.env.NEXT_PUBLIC_FRONTEND_USER_URL;
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: new URL('https://admin.writehumanly.net/tasks/task-123/submissions/submission-latest'),
+    });
     mockSearchParams = new URLSearchParams('from=analytics');
     mockApiGet.mockResolvedValue({
       success: true,
@@ -185,6 +192,14 @@ describe('admin submission analytics page', () => {
         },
         aiLogs: aiLogFixtures,
       },
+    });
+  });
+
+  afterEach(() => {
+    process.env.NEXT_PUBLIC_FRONTEND_USER_URL = originalFrontendUserUrl;
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: originalLocation,
     });
   });
 
@@ -214,7 +229,10 @@ describe('admin submission analytics page', () => {
     expect(screen.queryByText('Event Summary')).not.toBeInTheDocument();
     expect(screen.queryByRole('columnheader', { name: 'Before' })).not.toBeInTheDocument();
     expect(screen.queryByRole('columnheader', { name: 'After' })).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Open Certificate' })).toHaveAttribute('href', '/verify/cert-token-123');
+    expect(screen.getByRole('link', { name: 'Open Certificate' })).toHaveAttribute(
+      'href',
+      'https://app.writehumanly.net/verify/cert-token-123'
+    );
     expect(screen.queryByText(/session/i)).not.toBeInTheDocument();
   });
 
