@@ -1278,6 +1278,55 @@ describe('editor and logs workflows', () => {
     });
   });
 
+  it('recovers from a failed enrolled task submission so the user can retry', async () => {
+    const user = userEvent.setup();
+    mockTaskEnrollments = [{
+      id: 'enroll-1',
+      documentId: 'doc-1',
+      name: 'Submit Task',
+      inviteCode: 'ABC123',
+      joinedAt: '2026-05-19T12:00:00.000Z',
+      environmentConfig: {
+        aiAccess: 'off',
+        copyPastePolicy: 'allowed',
+      },
+    }];
+    mockApiPost.mockImplementation(async (path: string) => {
+      if (path === '/tasks/enrollments/enroll-1/submission-sessions') {
+        return { data: { data: { sessionId: 'session-1' } } };
+      }
+      if (path === '/tasks/enrollments/enroll-1/submissions') {
+        throw new Error('Network unavailable');
+      }
+      throw new Error(`Unexpected POST ${path}`);
+    });
+
+    render(<DocumentEditorPage />);
+
+    expect(await screen.findByText('Workflow Document')).toBeInTheDocument();
+    const submitButton = screen.getByRole('button', { name: /submit/i });
+
+    await user.click(submitButton);
+
+    await waitFor(() => {
+      expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({
+        title: 'Submission failed',
+        description: 'Network unavailable',
+        variant: 'destructive',
+      }));
+    });
+    expect(mockPush).not.toHaveBeenCalledWith('/certificates/certificate-1');
+    expect(submitButton).toBeEnabled();
+
+    await user.click(submitButton);
+
+    await waitFor(() => {
+      expect(mockApiPost.mock.calls.filter(([path]) => (
+        path === '/tasks/enrollments/enroll-1/submissions'
+      ))).toHaveLength(2);
+    });
+  });
+
   it('shows writing events with in-place fold points for less important logs', async () => {
     render(<DocumentLogsPage />);
 
