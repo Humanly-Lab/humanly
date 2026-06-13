@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { ZodError } from 'zod';
+import { TASK_INSTRUCTION_PDF_MAX_FILES } from '@humanly/shared';
 import { logger } from '../utils/logger';
 
 export class AppError extends Error {
@@ -57,6 +58,22 @@ export function errorHandler(
       success: false,
       error: 'Invalid JSON',
       message: 'Request body contains malformed JSON',
+    });
+    return;
+  }
+
+  if (error.name === 'MulterError') {
+    const messageByCode: Record<string, string> = {
+      LIMIT_FILE_SIZE: 'Task PDFs must be smaller than 50MB.',
+      LIMIT_FILE_COUNT: `Tasks can include at most ${TASK_INSTRUCTION_PDF_MAX_FILES} instruction PDFs`,
+      LIMIT_UNEXPECTED_FILE: `Tasks can include at most ${TASK_INSTRUCTION_PDF_MAX_FILES} instruction PDFs`,
+    };
+    const message = messageByCode[errorWithMeta.code || ''] || 'Invalid file upload';
+
+    res.status(400).json({
+      success: false,
+      error: message,
+      message,
     });
     return;
   }

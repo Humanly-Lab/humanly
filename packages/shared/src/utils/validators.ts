@@ -5,6 +5,8 @@ import {
   EXTERNAL_SERVICE_TYPES,
   EVENT_TYPES,
   PAGINATION,
+  TASK_DESCRIPTION_MAX_LENGTH,
+  TASK_NAME_MAX_LENGTH,
   SUBMISSION_MAX_CHARACTERS_MAX,
   SUBMISSION_MIN_CHARACTERS_MAX,
 } from './constants';
@@ -331,8 +333,12 @@ export const passwordResetTokenSchema = z.object({
 
 // Task validators
 export const createTaskSchema = z.object({
-  name: z.string().min(1, 'Task name is required').max(255),
-  description: z.string().max(1000).optional(),
+  name: z.string()
+    .min(1, 'Task name is required')
+    .max(TASK_NAME_MAX_LENGTH, `Task name must be at most ${TASK_NAME_MAX_LENGTH} characters`),
+  description: z.string()
+    .max(TASK_DESCRIPTION_MAX_LENGTH, `Task description must be at most ${TASK_DESCRIPTION_MAX_LENGTH} characters`)
+    .optional(),
   userIdKey: z.string().max(100).optional(),
   externalServiceType: z.enum(EXTERNAL_SERVICE_TYPES).optional(),
   externalServiceUrl: z.string().url().optional().or(z.literal('')),
@@ -351,8 +357,13 @@ export const createTaskSchema = z.object({
 });
 
 export const updateTaskSchema = z.object({
-  name: z.string().min(1).max(255).optional(),
-  description: z.string().max(1000).optional(),
+  name: z.string()
+    .min(1)
+    .max(TASK_NAME_MAX_LENGTH, `Task name must be at most ${TASK_NAME_MAX_LENGTH} characters`)
+    .optional(),
+  description: z.string()
+    .max(TASK_DESCRIPTION_MAX_LENGTH, `Task description must be at most ${TASK_DESCRIPTION_MAX_LENGTH} characters`)
+    .optional(),
   userIdKey: z.string().max(100).optional(),
   externalServiceType: z.enum(EXTERNAL_SERVICE_TYPES).optional(),
   externalServiceUrl: z.string().url().optional().or(z.literal('')),

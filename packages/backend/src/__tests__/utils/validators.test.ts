@@ -1,6 +1,8 @@
 import {
   createTaskSchema,
   DEFAULT_WRITING_ENVIRONMENT_CONFIG,
+  TASK_DESCRIPTION_MAX_LENGTH,
+  TASK_NAME_MAX_LENGTH,
   TASK_START_DATE_PAST_ERROR_MESSAGE,
   SUBMISSION_MAX_CHARACTERS_MAX,
   SUBMISSION_MIN_CHARACTERS_MAX,
@@ -29,6 +31,27 @@ describe('writing environment validators', () => {
 
     expect(result.environmentConfig?.submission.minCharacters).toBe(1000);
     expect(result.environmentConfig?.submission.maxCharacters).toBe(3000);
+  });
+
+  it('enforces task metadata length limits at the shared API boundary', () => {
+    const exactLimitTask = createTaskSchema.parse({
+      ...baseTaskPayload,
+      name: 'N'.repeat(TASK_NAME_MAX_LENGTH),
+      description: 'D'.repeat(TASK_DESCRIPTION_MAX_LENGTH),
+    });
+
+    expect(exactLimitTask.name).toHaveLength(TASK_NAME_MAX_LENGTH);
+    expect(exactLimitTask.description).toHaveLength(TASK_DESCRIPTION_MAX_LENGTH);
+
+    expect(() => createTaskSchema.parse({
+      ...baseTaskPayload,
+      name: 'N'.repeat(TASK_NAME_MAX_LENGTH + 1),
+    })).toThrow(`Task name must be at most ${TASK_NAME_MAX_LENGTH} characters`);
+
+    expect(() => createTaskSchema.parse({
+      ...baseTaskPayload,
+      description: 'D'.repeat(TASK_DESCRIPTION_MAX_LENGTH + 1),
+    })).toThrow(`Task description must be at most ${TASK_DESCRIPTION_MAX_LENGTH} characters`);
   });
 
   it('rejects minimum submission character counts above the supported maximum', () => {

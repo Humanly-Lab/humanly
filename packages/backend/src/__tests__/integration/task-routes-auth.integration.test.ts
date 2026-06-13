@@ -15,6 +15,7 @@ import request from 'supertest';
 import { createApp } from '../../app';
 import { TaskService } from '../../services/task.service';
 import { generateAccessToken } from '../../utils/jwt';
+import { TASK_INSTRUCTION_PDF_MAX_FILES } from '@humanly/shared';
 
 const MockTaskService = TaskService as jest.Mocked<typeof TaskService>;
 const app = createApp();
@@ -133,18 +134,23 @@ describe('task route authenticated owner boundaries', () => {
       updatedAt: new Date(),
     } as any);
 
-    const response = await request(app)
+    const requestBuilder = request(app)
       .post('/api/v1/tasks')
       .set('Authorization', `Bearer ${tokenFor()}`)
       .field('payload', JSON.stringify({
         ...validTaskPayload(),
         name: 'Multipart Task',
         description: 'Created with PDFs',
-      }))
-      .attach('pdf', Buffer.from('%PDF-1.4\ninstruction'), {
-        filename: 'instructions.pdf',
+      }));
+
+    for (let index = 0; index < TASK_INSTRUCTION_PDF_MAX_FILES; index += 1) {
+      requestBuilder.attach('pdf', Buffer.from('%PDF-1.4\ninstruction'), {
+        filename: `instructions-${index + 1}.pdf`,
         contentType: 'application/pdf',
       });
+    }
+
+    const response = await requestBuilder;
 
     expect(response.status).toBe(201);
     expect(MockTaskService.createTask).toHaveBeenCalledWith(
@@ -152,13 +158,38 @@ describe('task route authenticated owner boundaries', () => {
       expect.objectContaining({ name: 'Multipart Task' }),
       {
         instructionFiles: [
-          expect.objectContaining({
-            originalname: 'instructions.pdf',
-            mimetype: 'application/pdf',
-          }),
+          ...Array.from({ length: TASK_INSTRUCTION_PDF_MAX_FILES }, (_, index) => (
+            expect.objectContaining({
+              originalname: `instructions-${index + 1}.pdf`,
+              mimetype: 'application/pdf',
+            })
+          )),
         ],
       }
     );
+  });
+
+  it('rejects multipart task creation with more than three instruction PDFs', async () => {
+    const requestBuilder = request(app)
+      .post('/api/v1/tasks')
+      .set('Authorization', `Bearer ${tokenFor()}`)
+      .field('payload', JSON.stringify({
+        ...validTaskPayload(),
+        name: 'Too Many PDFs',
+      }));
+
+    for (let index = 0; index < TASK_INSTRUCTION_PDF_MAX_FILES + 1; index += 1) {
+      requestBuilder.attach('pdf', Buffer.from('%PDF-1.4\ninstruction'), {
+        filename: `instructions-${index + 1}.pdf`,
+        contentType: 'application/pdf',
+      });
+    }
+
+    const response = await requestBuilder;
+
+    expect(response.status).toBe(400);
+    expect(response.body.message).toBe(`Tasks can include at most ${TASK_INSTRUCTION_PDF_MAX_FILES} instruction PDFs`);
+    expect(MockTaskService.createTask).not.toHaveBeenCalled();
   });
 
   it('keeps user enrollment endpoints available to authenticated accounts', async () => {

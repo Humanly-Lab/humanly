@@ -18,6 +18,7 @@ import { CertificateService } from './certificate.service';
 import type { AppFile, Document, Task, TaskWithSnippets, User } from '@humanly/shared';
 import {
   BRAND,
+  TASK_INSTRUCTION_PDF_MAX_FILES,
   TASK_START_DATE_PAST_ERROR_MESSAGE,
   getIframeComment,
   getTrackerComment,
@@ -35,6 +36,7 @@ import { generateAccessToken, generateRefreshToken, TokenPayload } from '../util
 
 const TASK_END_DATE_ERROR_MESSAGE = 'Task end date must be after start date';
 const TASK_SETTINGS_LOCK_MESSAGE = 'Task settings are read-only after task creation';
+const TASK_INSTRUCTION_PDF_LIMIT_MESSAGE = `Tasks can include at most ${TASK_INSTRUCTION_PDF_MAX_FILES} instruction PDFs`;
 
 const getDateMs = (value: Date | string | number): number => new Date(value).getTime();
 
@@ -278,6 +280,9 @@ export class TaskService {
       logger.info('Creating task', { userId, taskName: data.name });
 
       const instructionFiles = options.instructionFiles || [];
+      if (instructionFiles.length > TASK_INSTRUCTION_PDF_MAX_FILES) {
+        throw new AppError(400, TASK_INSTRUCTION_PDF_LIMIT_MESSAGE);
+      }
       instructionFiles.forEach((file) => FileService.assertValidPdfUploadFile(file));
 
       assertTaskStartDateNotInPast(data.startDate);

@@ -38,6 +38,7 @@ import { CertificateService } from '../../services/certificate.service';
 import { FileStorageService } from '../../services/file-storage.service';
 import { cacheDelPattern } from '../../config/redis';
 import { logger } from '../../utils/logger';
+import { TASK_INSTRUCTION_PDF_MAX_FILES } from '@humanly/shared';
 
 const MockTaskModel = TaskModel as jest.Mocked<typeof TaskModel>;
 const MockDocumentModel = DocumentModel as jest.Mocked<typeof DocumentModel>;
@@ -104,6 +105,22 @@ function makeFile(overrides: Partial<any> = {}): any {
     legacySourceId: null,
     createdAt: new Date(),
     updatedAt: new Date(),
+    ...overrides,
+  };
+}
+
+function makeMulterFile(overrides: Partial<Express.Multer.File> = {}): Express.Multer.File {
+  return {
+    fieldname: 'pdf',
+    originalname: 'instructions.pdf',
+    encoding: '7bit',
+    mimetype: 'application/pdf',
+    size: 100,
+    buffer: Buffer.from('%PDF-1.4\ninstruction'),
+    stream: null as any,
+    destination: '',
+    filename: '',
+    path: '',
     ...overrides,
   };
 }
@@ -864,6 +881,27 @@ describe('TaskService task time window validation', () => {
       startDate,
       endDate,
     });
+  });
+
+  it('rejects task creation with more than three instruction PDFs before creating records', async () => {
+    const startDate = new Date('2026-06-02T11:58:00.000Z');
+    const endDate = new Date('2026-06-03T12:00:00.000Z');
+
+    await expect(TaskService.createTask('admin-1', {
+      name: 'Too many PDFs',
+      startDate,
+      endDate,
+    }, {
+      instructionFiles: Array.from(
+        { length: TASK_INSTRUCTION_PDF_MAX_FILES + 1 },
+        (_, index) => makeMulterFile({ originalname: `instructions-${index + 1}.pdf` })
+      ),
+    })).rejects.toMatchObject({
+      statusCode: 400,
+      message: `Tasks can include at most ${TASK_INSTRUCTION_PDF_MAX_FILES} instruction PDFs`,
+    });
+
+    expect(MockTaskModel.create).not.toHaveBeenCalled();
   });
 
   it('rejects post-creation task detail and environment changes', async () => {

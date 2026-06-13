@@ -7,6 +7,9 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import NewTaskPage from '@/app/tasks/new/page';
 import {
   ENVIRONMENT_CONFIG_ACCEPT,
+  TASK_DESCRIPTION_MAX_LENGTH,
+  TASK_INSTRUCTION_PDF_MAX_FILES,
+  TASK_NAME_MAX_LENGTH,
   serializeEnvironmentConfig,
   type WritingEnvironmentConfig,
 } from '@humanly/shared';
@@ -210,12 +213,14 @@ describe('admin new task page', () => {
     const pdfInput = document.querySelector('input[accept="application/pdf"]') as HTMLInputElement;
     expect(pdfInput).not.toBeNull();
 
-    const instructionFile = new File(['%PDF-1.4\ninstruction'], 'instructions.pdf', {
-      type: 'application/pdf',
-    });
+    const instructionFiles = Array.from({ length: TASK_INSTRUCTION_PDF_MAX_FILES }, (_, index) => (
+      new File(['%PDF-1.4\ninstruction'], `instructions-${index + 1}.pdf`, {
+        type: 'application/pdf',
+      })
+    ));
 
     await act(async () => {
-      fireEvent.change(pdfInput, { target: { files: [instructionFile] } });
+      fireEvent.change(pdfInput, { target: { files: instructionFiles } });
     });
     await act(async () => {
       fireEvent.change(screen.getByLabelText(/Task Name/i), {
@@ -242,8 +247,62 @@ describe('admin new task page', () => {
         }),
       }),
     }));
-    expect(body.getAll('pdf')).toEqual([instructionFile]);
+    expect(body.getAll('pdf')).toEqual(instructionFiles);
     expect(mockApiPost.mock.calls.some(([url]) => String(url).includes('/files'))).toBe(false);
+  });
+
+  it('shows task metadata limits and rejects over-limit fields before submit', async () => {
+    render(<NewTaskPage />);
+
+    expect(await screen.findByRole('heading', { name: 'New Task' })).toBeInTheDocument();
+
+    const nameInput = screen.getByLabelText(/Task Name/i);
+    const descriptionInput = screen.getByLabelText(/Description/i);
+    expect(nameInput).toHaveAttribute('maxLength', String(TASK_NAME_MAX_LENGTH));
+    expect(descriptionInput).toHaveAttribute('maxLength', String(TASK_DESCRIPTION_MAX_LENGTH));
+    expect(screen.getByText(`Up to ${TASK_DESCRIPTION_MAX_LENGTH.toLocaleString()} characters.`)).toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.change(nameInput, {
+        target: { value: 'N'.repeat(TASK_NAME_MAX_LENGTH + 1) },
+      });
+    });
+    await act(async () => {
+      fireEvent.change(descriptionInput, {
+        target: { value: 'D'.repeat(TASK_DESCRIPTION_MAX_LENGTH + 1) },
+      });
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /^Create Task$/i }));
+    });
+
+    expect(await screen.findByText(`Task name must not exceed ${TASK_NAME_MAX_LENGTH} characters`)).toBeInTheDocument();
+    expect(screen.getByText(`Description must not exceed ${TASK_DESCRIPTION_MAX_LENGTH} characters`)).toBeInTheDocument();
+    expect(mockApiPost).not.toHaveBeenCalledWith('/api/v1/tasks', expect.anything());
+  });
+
+  it('rejects more than three instruction PDFs in the admin form', async () => {
+    render(<NewTaskPage />);
+
+    expect(await screen.findByRole('heading', { name: 'New Task' })).toBeInTheDocument();
+
+    const pdfInput = document.querySelector('input[accept="application/pdf"]') as HTMLInputElement;
+    const instructionFiles = Array.from({ length: TASK_INSTRUCTION_PDF_MAX_FILES + 1 }, (_, index) => (
+      new File(['%PDF-1.4\ninstruction'], `instructions-${index + 1}.pdf`, {
+        type: 'application/pdf',
+      })
+    ));
+
+    await act(async () => {
+      fireEvent.change(pdfInput, { target: { files: instructionFiles } });
+    });
+
+    expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({
+      title: 'Too many files',
+      description: `Upload at most ${TASK_INSTRUCTION_PDF_MAX_FILES} instruction PDFs for a task.`,
+      variant: 'destructive',
+    }));
+    expect(screen.queryByText('instructions-1.pdf')).not.toBeInTheDocument();
   });
 
   it('can require sign-in for public share links when creating a task', async () => {
