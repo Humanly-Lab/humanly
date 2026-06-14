@@ -30,10 +30,9 @@ interface TaskRulesDialogProps {
   taskEndDate?: string | null;
 }
 
-interface RuleRow {
-  label: string;
-  value: string;
-  detail?: string;
+interface RuleItem {
+  id: string;
+  text: string;
 }
 
 function formatCharacterRequirement(config: WritingEnvironmentConfig) {
@@ -49,6 +48,33 @@ function formatCharacterRequirement(config: WritingEnvironmentConfig) {
 function formatWritingTime(config: WritingEnvironmentConfig) {
   const seconds = config.time?.timeLimitSeconds;
   return seconds ? formatCompactDuration(seconds) : 'No session time limit';
+}
+
+function formatLengthRule(config: WritingEnvironmentConfig) {
+  const requirement = formatCharacterRequirement(config);
+  return requirement === 'No length requirement'
+    ? 'No length requirement.'
+    : `Final text must be ${requirement}.`;
+}
+
+function formatWritingTimeRule(config: WritingEnvironmentConfig) {
+  const writingTime = formatWritingTime(config);
+  return writingTime === 'No session time limit'
+    ? 'No session time limit.'
+    : `Writing time limit is ${writingTime}.`;
+}
+
+function formatAiAccessRule(config: WritingEnvironmentConfig, guardText: string | null) {
+  const access = formatWritingAiAccess(config.aiAccess);
+  const base = access === 'Off'
+    ? 'AI is off.'
+    : access === 'Only polish'
+      ? 'AI is limited to polish actions.'
+      : access === 'Only agent chat'
+        ? 'AI is limited to agent chat.'
+        : 'Full AI assistance is allowed.';
+
+  return guardText ? `${base} ${guardText}` : base;
 }
 
 function formatTaskWindow(
@@ -77,49 +103,54 @@ function formatTraceability(config: WritingEnvironmentConfig) {
   return enabled.length > 0 ? enabled.join(', ') : 'No activity tracking configured';
 }
 
-function buildRuleRows(
+function buildRuleItems(
   config: WritingEnvironmentConfig,
   taskStartDate?: string | null,
   taskEndDate?: string | null
-): RuleRow[] {
+): RuleItem[] {
   const aiPolicy = formatWritingAiPolicy(config);
+  const isChatEnabled = isWritingAiChatEnabled(config.aiAccess);
+  const aiGuardText = isChatEnabled
+    ? (aiPolicy === 'Guard'
+        ? 'Agent chat follows the owner policy guard.'
+        : 'Agent chat is not policy-guarded.')
+    : null;
+  const copyPaste = normalizeCopyPastePolicy(config.copyPastePolicy) === 'blocked'
+    ? 'Copy-paste is blocked.'
+    : 'Copy-paste is allowed.';
+  const resourceAccess = normalizeResourceAccessPolicy(config.resourceAccess) === 'view-only'
+    ? 'PDF resources are view-only.'
+    : 'PDF resources can be downloaded.';
+  const traceability = formatTraceability(config);
 
   return [
     {
-      label: 'AI access',
-      value: formatWritingAiAccess(config.aiAccess),
-      detail: isWritingAiChatEnabled(config.aiAccess)
-        ? (aiPolicy === 'Guard' ? 'Agent chat follows the owner policy guard.' : 'Agent chat is not policy-guarded.')
-        : undefined,
+      id: 'ai-access',
+      text: formatAiAccessRule(config, aiGuardText),
     },
     {
-      label: 'Copy-paste',
-      value: normalizeCopyPastePolicy(config.copyPastePolicy) === 'blocked'
-        ? 'Blocked'
-        : 'Allowed',
+      id: 'copy-paste',
+      text: copyPaste,
     },
     {
-      label: 'Length requirement',
-      value: formatCharacterRequirement(config),
+      id: 'length',
+      text: formatLengthRule(config),
     },
     {
-      label: 'Writing time',
-      value: formatWritingTime(config),
+      id: 'writing-time',
+      text: formatWritingTimeRule(config),
     },
     {
-      label: 'Task window',
-      value: formatTaskWindow(config, taskStartDate, taskEndDate),
+      id: 'task-window',
+      text: `Task window: ${formatTaskWindow(config, taskStartDate, taskEndDate)}.`,
     },
     {
-      label: 'Resource access',
-      value: normalizeResourceAccessPolicy(config.resourceAccess) === 'view-only'
-        ? 'View-only PDF resources'
-        : 'Downloadable PDF resources',
+      id: 'resource-access',
+      text: resourceAccess,
     },
     {
-      label: 'Recorded activity',
-      value: formatTraceability(config),
-      detail: 'Used for logs, replay, and certificate evidence.',
+      id: 'recorded-activity',
+      text: `Humanly records ${traceability} for logs, replay, and certificate evidence.`,
     },
   ];
 }
@@ -132,7 +163,7 @@ export function TaskRulesDialog({
   taskStartDate,
   taskEndDate,
 }: TaskRulesDialogProps) {
-  const rows = buildRuleRows(config, taskStartDate, taskEndDate);
+  const ruleItems = buildRuleItems(config, taskStartDate, taskEndDate);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -144,28 +175,13 @@ export function TaskRulesDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid gap-3">
-          {rows.map((row) => (
-            <div
-              key={row.label}
-              className="rounded-lg border border-border/70 bg-muted/25 px-4 py-3"
-            >
-              <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  {row.label}
-                </p>
-                <p className="text-sm font-medium text-foreground sm:max-w-[65%] sm:text-right">
-                  {row.value}
-                </p>
-              </div>
-              {row.detail ? (
-                <p className="mt-1 text-sm text-muted-foreground sm:text-right">
-                  {row.detail}
-                </p>
-              ) : null}
-            </div>
+        <ul className="space-y-2 rounded-lg border border-border/70 bg-muted/20 px-5 py-4 text-sm leading-6 text-foreground">
+          {ruleItems.map((item) => (
+            <li key={item.id} className="ml-3 list-disc pl-1">
+              {item.text}
+            </li>
           ))}
-        </div>
+        </ul>
 
         <DialogFooter>
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
