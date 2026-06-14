@@ -1796,7 +1796,10 @@ describe('editor and logs workflows', () => {
     expect(screen.getByText(/3 lines copied/)).toBeInTheDocument();
     expect(screen.queryByText(/hidden copy evidence phrase should only appear/)).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: /view full text/i }));
+    const viewFullTextButton = screen.getByRole('button', { name: 'View full text' });
+    expect(screen.queryByRole('button', { name: 'View Full Text' })).not.toBeInTheDocument();
+
+    fireEvent.click(viewFullTextButton);
 
     expect(await screen.findByText('Copied text')).toBeInTheDocument();
     expect(screen.getByText(/hidden copy evidence phrase should only appear/)).toBeInTheDocument();
@@ -1966,8 +1969,9 @@ describe('editor and logs workflows', () => {
     expect(screen.queryByText('Pasted text')).not.toBeInTheDocument();
     expect(screen.queryByText('Deleted text')).not.toBeInTheDocument();
 
-    const viewButtons = screen.getAllByRole('button', { name: /view full text/i });
+    const viewButtons = screen.getAllByRole('button', { name: 'View full text' });
     expect(viewButtons).toHaveLength(2);
+    expect(screen.queryByRole('button', { name: 'View Full Text' })).not.toBeInTheDocument();
     fireEvent.click(viewButtons[0]);
     fireEvent.click(viewButtons[1]);
 
@@ -1975,7 +1979,7 @@ describe('editor and logs workflows', () => {
     expect(await screen.findByText('Deleted text')).toBeInTheDocument();
     expect(screen.getByText(/The expanded content preserves line breaks/)).toBeInTheDocument();
     expect(screen.getByText(/The reviewer can still open the full deleted text/)).toBeInTheDocument();
-    expect(screen.getAllByRole('button', { name: /hide full text/i })).toHaveLength(2);
+    expect(screen.getAllByRole('button', { name: 'Hide full text' })).toHaveLength(2);
   });
 
   it('summarizes multiline paste previews without line break tokens', async () => {
@@ -2134,10 +2138,10 @@ describe('editor and logs workflows', () => {
     expect(await screen.findByText('Delete')).toBeInTheDocument();
     expect(screen.getByText('Deleted all text')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: /view all text/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'View all text' }));
 
     expect(await screen.findByText(deletedText)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /hide all text/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Hide all text' })).toBeInTheDocument();
   });
 
   it('shows replacement edits as before and after text', async () => {
@@ -2630,12 +2634,14 @@ describe('editor and logs workflows', () => {
     expect(screen.getByText('What does this paragraph mean?')).toBeInTheDocument();
 
     const chatRow = screen.getByRole('row', { name: /chat what does this paragraph mean/i });
-    fireEvent.click(within(chatRow).getByRole('button', { name: /view full text/i }));
+    const chatExpandButton = within(chatRow).getByRole('button', { name: 'View full text' });
+    expect(within(chatRow).queryByRole('button', { name: 'View Full Text' })).not.toBeInTheDocument();
+    fireEvent.click(chatExpandButton);
 
     expect(await screen.findByText('Question')).toBeInTheDocument();
     expect(screen.getByText('AI response')).toBeInTheDocument();
     expect(await screen.findByText('It explains the core argument.')).toBeInTheDocument();
-    expect(within(chatRow).getByRole('button', { name: /hide full text/i })).toBeInTheDocument();
+    expect(within(chatRow).getByRole('button', { name: 'Hide full text' })).toBeInTheDocument();
   });
 
   it('shows question AI logs as Chat and renders AI response Markdown', async () => {

@@ -92,6 +92,19 @@ const WRITING_TIMELINE_KINDS = new Set<DocumentEventTimelineItem['kind']>([
 const LONG_TEXT_PREVIEW_THRESHOLD = 110;
 const LINE_BREAK_COLLAPSE_THRESHOLD = 4;
 const MINOR_ACTIVITY_FOLD_MIN_RAW_EVENT_COUNT = 1;
+const FULL_TEXT_TOGGLE_LABELS = {
+  view: 'View full text',
+  hide: 'Hide full text',
+} as const;
+const ALL_TEXT_TOGGLE_LABELS = {
+  view: 'View all text',
+  hide: 'Hide all text',
+} as const;
+
+function getFullTextToggleLabel(isExpanded: boolean, scope: 'full' | 'all' = 'full') {
+  const labels = scope === 'all' ? ALL_TEXT_TOGGLE_LABELS : FULL_TEXT_TOGGLE_LABELS;
+  return isExpanded ? labels.hide : labels.view;
+}
 
 const TIMELINE_COLORS: Partial<Record<DocumentEventTimelineItem['kind'], CSSProperties>> = {
   typing_burst: { backgroundColor: '#EEF1F4', borderColor: '#C8D1DC', color: '#576777' },
@@ -1340,7 +1353,7 @@ function RawEventTableRow({
                 onClick={onToggleExpanded}
                 aria-expanded={isExpanded}
               >
-                {isExpanded ? 'Hide Full Text' : 'View Full Text'}
+                {getFullTextToggleLabel(isExpanded)}
               </button>
             )}
           </div>
@@ -2026,6 +2039,9 @@ export default function TaskSubmissionAnalyticsPage() {
                       const icon = TIMELINE_ICONS[item.kind] || null;
                       const canExpandText = canExpandTimelineText(item);
                       const isExpanded = expandedIds.has(item.id);
+                      const fullTextScope =
+                        item.kind === 'delete' && item.metadata?.deleteScope === 'all_text' ? 'all' : 'full';
+                      const expandButtonLabel = getFullTextToggleLabel(isExpanded, fullTextScope);
 
                       return (
                         <Fragment key={item.id}>
@@ -2054,7 +2070,7 @@ export default function TaskSubmissionAnalyticsPage() {
                                     onClick={() => toggleExpanded(item.id)}
                                     aria-expanded={isExpanded}
                                   >
-                                    {isExpanded ? 'Hide full text' : 'View full text'}
+                                    {expandButtonLabel}
                                   </button>
                                 </div>
                               ) : (

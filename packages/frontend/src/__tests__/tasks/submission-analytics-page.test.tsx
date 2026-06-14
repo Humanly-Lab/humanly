@@ -328,7 +328,10 @@ describe('admin submission analytics page', () => {
     expect(await screen.findByText(/3 lines copied/)).toBeInTheDocument();
     expect(screen.queryByText(/admin hidden copy evidence phrase/)).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: /view full text/i }));
+    const viewFullTextButton = screen.getByRole('button', { name: 'View full text' });
+    expect(screen.queryByRole('button', { name: 'View Full Text' })).not.toBeInTheDocument();
+
+    fireEvent.click(viewFullTextButton);
 
     expect(await screen.findByText('Copied text')).toBeInTheDocument();
     expect(screen.getByText(/admin hidden copy evidence phrase/)).toBeInTheDocument();
