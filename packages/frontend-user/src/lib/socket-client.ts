@@ -22,6 +22,7 @@ export const initializeSocket = (): Socket => {
     auth: {
       token,
     },
+    withCredentials: true,
     transports: ['websocket', 'polling'],
     reconnection: true,
     reconnectionDelay: 1000,

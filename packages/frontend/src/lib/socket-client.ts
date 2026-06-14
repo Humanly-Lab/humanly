@@ -21,7 +21,7 @@ export const initializeSocket = (): Socket => {
 
   if (!token) {
     console.warn('[Socket] No in-memory authentication token found.');
-    console.warn('[Socket] WebSocket connection will fail without authentication.');
+    console.warn('[Socket] Falling back to auth cookies if they are available.');
   } else {
     console.log('[Socket] Token found, length:', token.length);
     console.log('[Socket] Token preview:', token.substring(0, 20) + '...');
@@ -33,6 +33,7 @@ export const initializeSocket = (): Socket => {
     auth: {
       token,
     },
+    withCredentials: true,
     transports: ['websocket', 'polling'],
     reconnection: true,
     reconnectionDelay: 1000,
