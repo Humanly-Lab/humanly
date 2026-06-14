@@ -1,5 +1,7 @@
 'use client';
 
+import type { ReactNode } from 'react';
+
 import {
   formatCompactDuration,
   formatWritingAiAccess,
@@ -32,17 +34,17 @@ interface TaskRulesDialogProps {
 
 interface RuleItem {
   id: string;
-  text: string;
+  content: ReactNode;
 }
 
-function formatCharacterRequirement(config: WritingEnvironmentConfig) {
+function formatCharacterRequirement(config: WritingEnvironmentConfig): string | null {
   const min = config.submission?.minCharacters;
   const max = config.submission?.maxCharacters;
 
   if (min && max) return `${min.toLocaleString()}-${max.toLocaleString()} characters`;
   if (min) return `At least ${min.toLocaleString()} characters`;
   if (max) return `At most ${max.toLocaleString()} characters`;
-  return 'No length requirement';
+  return null;
 }
 
 function formatWritingTime(config: WritingEnvironmentConfig) {
@@ -50,45 +52,50 @@ function formatWritingTime(config: WritingEnvironmentConfig) {
   return seconds ? formatCompactDuration(seconds) : 'No session time limit';
 }
 
-function formatLengthRule(config: WritingEnvironmentConfig) {
+function formatLengthRule(config: WritingEnvironmentConfig): string | null {
   const requirement = formatCharacterRequirement(config);
-  return requirement === 'No length requirement'
-    ? 'There is no character requirement for submission.'
-    : `Final text must be ${requirement} before submission.`;
+  return requirement ? `Final text must be ${requirement} before submission.` : null;
 }
 
-function formatWritingTimeRule(config: WritingEnvironmentConfig) {
+function formatWritingTimeRule(config: WritingEnvironmentConfig): string | null {
   const writingTime = formatWritingTime(config);
   return writingTime === 'No session time limit'
-    ? 'There is no session time limit once the task is open.'
+    ? null
     : `The writing timer is ${writingTime} once you start this session.`;
 }
 
-function formatAiAccessRule(config: WritingEnvironmentConfig, guardText: string | null) {
+function formatAiAccessRule(config: WritingEnvironmentConfig): ReactNode {
   const access = formatWritingAiAccess(config.aiAccess);
   const base = access === 'Off'
-    ? 'AI is off, so chat and polish actions are unavailable for this task.'
+    ? 'Internal AI is off for this task.'
     : access === 'Only polish'
-      ? 'AI is limited to polish actions. You can revise selected text, but agent chat is unavailable.'
+      ? 'Internal AI is limited to polish actions on selected text.'
       : access === 'Only agent chat'
-        ? 'AI is limited to agent chat. You can ask questions in the assistant, but polish shortcuts are unavailable.'
-        : 'Full AI assistance is allowed, including agent chat and polish actions.';
+        ? 'Internal AI is limited to agent chat.'
+        : 'Internal AI assistance is allowed inside Humanly.';
 
-  return guardText ? `${base} ${guardText}` : base;
+  return (
+    <>
+      {base}{' '}
+      <strong>External AI tool use is strictly prohibited.</strong>
+    </>
+  );
 }
 
-function formatTaskWindow(
+function formatTaskWindowRule(
   config: WritingEnvironmentConfig,
   taskStartDate?: string | null,
   taskEndDate?: string | null
-) {
+): string | null {
   const start = taskStartDate || config.time?.startTime || null;
   const end = taskEndDate || config.time?.endTime || null;
 
-  if (start && end) return `${formatDateTime(start)} - ${formatDateTime(end)}`;
-  if (start) return `Opens ${formatDateTime(start)}`;
-  if (end) return `Due ${formatDateTime(end)}`;
-  return 'No scheduled task window; you can write whenever you have access to the task';
+  if (start && end) {
+    return `Task window: ${formatDateTime(start)} - ${formatDateTime(end)}. Submissions follow this availability window.`;
+  }
+  if (start) return `Task window: Opens ${formatDateTime(start)}. Submissions follow this availability window.`;
+  if (end) return `Task window: Due ${formatDateTime(end)}. Submissions follow this availability window.`;
+  return null;
 }
 
 function formatTraceability(config: WritingEnvironmentConfig) {
@@ -109,12 +116,7 @@ function buildRuleItems(
   taskEndDate?: string | null
 ): RuleItem[] {
   const aiPolicy = formatWritingAiPolicy(config);
-  const isChatEnabled = isWritingAiChatEnabled(config.aiAccess);
-  const aiGuardText = isChatEnabled
-    ? (aiPolicy === 'Guard'
-        ? 'The owner policy guard may refuse requests that conflict with the task rules.'
-        : 'Chat is not restricted by an additional owner policy guard.')
-    : null;
+  const showAiGuard = isWritingAiChatEnabled(config.aiAccess) && aiPolicy === 'Guard';
   const copyPaste = normalizeCopyPastePolicy(config.copyPastePolicy) === 'blocked'
     ? 'Copy-paste is blocked, so pasted content is prevented in the editor.'
     : 'Copy-paste is allowed, and paste events are still recorded in the activity log.';
@@ -123,36 +125,61 @@ function buildRuleItems(
     : 'PDF resources can be downloaded when attached to this task.';
   const traceability = formatTraceability(config);
 
-  return [
+  const items: RuleItem[] = [
     {
       id: 'ai-access',
-      text: formatAiAccessRule(config, aiGuardText),
+      content: formatAiAccessRule(config),
     },
-    {
-      id: 'copy-paste',
-      text: copyPaste,
-    },
-    {
+  ];
+
+  if (showAiGuard) {
+    items.push({
+      id: 'ai-policy-guard',
+      content: 'The owner policy guard may refuse requests that conflict with the task rules.',
+    });
+  }
+
+  items.push({
+    id: 'copy-paste',
+    content: copyPaste,
+  });
+
+  const lengthRule = formatLengthRule(config);
+  if (lengthRule) {
+    items.push({
       id: 'length',
-      text: formatLengthRule(config),
-    },
-    {
+      content: lengthRule,
+    });
+  }
+
+  const writingTimeRule = formatWritingTimeRule(config);
+  if (writingTimeRule) {
+    items.push({
       id: 'writing-time',
-      text: formatWritingTimeRule(config),
-    },
-    {
+      content: writingTimeRule,
+    });
+  }
+
+  const taskWindowRule = formatTaskWindowRule(config, taskStartDate, taskEndDate);
+  if (taskWindowRule) {
+    items.push({
       id: 'task-window',
-      text: `Task window: ${formatTaskWindow(config, taskStartDate, taskEndDate)}. Submissions follow this availability window.`,
-    },
+      content: taskWindowRule,
+    });
+  }
+
+  items.push(
     {
       id: 'resource-access',
-      text: resourceAccess,
+      content: resourceAccess,
     },
     {
       id: 'recorded-activity',
-      text: `Humanly records ${traceability} to build the activity log, replay, and certificate evidence.`,
-    },
-  ];
+      content: `Humanly records ${traceability} to build the activity log, replay, and certificate evidence.`,
+    }
+  );
+
+  return items;
 }
 
 export function TaskRulesDialog({
@@ -178,7 +205,7 @@ export function TaskRulesDialog({
         <ul className="space-y-2 rounded-lg border border-border/70 bg-muted/20 px-5 py-4 text-sm leading-6 text-foreground">
           {ruleItems.map((item) => (
             <li key={item.id} className="ml-3 list-disc pl-1">
-              {item.text}
+              {item.content}
             </li>
           ))}
         </ul>
