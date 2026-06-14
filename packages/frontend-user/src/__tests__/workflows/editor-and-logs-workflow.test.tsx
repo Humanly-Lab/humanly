@@ -598,6 +598,7 @@ describe('editor and logs workflows', () => {
 
     expect(await screen.findByText('Workflow Document')).toBeInTheDocument();
     const dialog = await screen.findByRole('dialog', { name: /writing rules/i });
+    expect(mockStartWritingSession).not.toHaveBeenCalled();
     expect(within(dialog).getByText('Personal writing uses these writing rules.')).toBeInTheDocument();
     expect(within(dialog).getByText('Internal AI is limited to polish actions on selected text.')).toBeInTheDocument();
     expect(within(dialog).getByText('External AI tool use is strictly prohibited.').tagName).toBe('STRONG');
@@ -615,6 +616,7 @@ describe('editor and logs workflows', () => {
     });
 
     expect(window.localStorage.getItem('humanly:writing-rules-dismissed:personal:doc-1')).toBe('dismissed');
+    await waitFor(() => expect(mockStartWritingSession).toHaveBeenCalledTimes(1));
   });
 
   it('shows task rules on first entry to an enrolled task and keeps them available from the header', async () => {
@@ -659,6 +661,7 @@ describe('editor and logs workflows', () => {
 
     expect(await screen.findByText('Workflow Document')).toBeInTheDocument();
     const dialog = await screen.findByRole('dialog', { name: /writing rules/i });
+    expect(mockStartWritingSession).not.toHaveBeenCalled();
     expect(within(dialog).getByText('Policy Task uses these writing rules.')).toBeInTheDocument();
     expect(within(dialog).getByText('Internal AI is limited to agent chat.')).toBeInTheDocument();
     const externalAiPolicy = within(dialog).getByText('External AI tool use is strictly prohibited.');
@@ -678,6 +681,7 @@ describe('editor and logs workflows', () => {
     });
 
     expect(window.localStorage.getItem('humanly:task-rules-dismissed:enroll-1:doc-1')).toBe('dismissed');
+    await waitFor(() => expect(mockStartWritingSession).toHaveBeenCalledTimes(1));
     await user.click(screen.getByRole('button', { name: /rules/i }));
     expect(await screen.findByRole('dialog', { name: /writing rules/i })).toBeInTheDocument();
   });

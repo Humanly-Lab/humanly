@@ -300,6 +300,7 @@ export default function DocumentEditorPage() {
   const [isSyncingActivityLogs, setIsSyncingActivityLogs] = useState(false);
   const [showCertificateDialog, setShowCertificateDialog] = useState(false);
   const [taskRulesDialogOpen, setTaskRulesDialogOpen] = useState(false);
+  const [writingRulesAcknowledged, setWritingRulesAcknowledged] = useState(false);
   const [isUploadingPdf, setIsUploadingPdf] = useState(false);
   const [taskInstructionFile, setTaskInstructionFile] = useState<TaskInstructionFile | null>(null);
   const [taskInstructionFiles, setTaskInstructionFiles] = useState<TaskInstructionFile[]>([]);
@@ -479,7 +480,10 @@ export default function DocumentEditorPage() {
   }, [document]);
 
   useEffect(() => {
-    if (!hasLoadedDocument || isTaskEnrollmentLoading || !writingRulesDismissalKey) return;
+    if (!hasLoadedDocument || isTaskEnrollmentLoading || !writingRulesDismissalKey) {
+      setWritingRulesAcknowledged(false);
+      return;
+    }
     if (checkedWritingRulesDismissalKeyRef.current === writingRulesDismissalKey) return;
 
     checkedWritingRulesDismissalKeyRef.current = writingRulesDismissalKey;
@@ -490,6 +494,8 @@ export default function DocumentEditorPage() {
     } catch {
       dismissed = false;
     }
+
+    setWritingRulesAcknowledged(dismissed);
 
     if (!dismissed) {
       setTaskRulesDialogOpen(true);
@@ -505,6 +511,7 @@ export default function DocumentEditorPage() {
       } catch {
         // Ignore storage failures; the rules remain available from the toolbar.
       }
+      setWritingRulesAcknowledged(true);
     }
   }, [writingRulesDismissalKey]);
 
@@ -520,6 +527,8 @@ export default function DocumentEditorPage() {
       setTimerStartedAtMs(existingStartMs);
       return;
     }
+
+    if (!writingRulesAcknowledged) return;
 
     let cancelled = false;
 
@@ -539,7 +548,7 @@ export default function DocumentEditorPage() {
     return () => {
       cancelled = true;
     };
-  }, [activeTimeLimitSeconds, documentWritingStartedAt, hasLoadedDocument, startWritingSession]);
+  }, [activeTimeLimitSeconds, documentWritingStartedAt, hasLoadedDocument, startWritingSession, writingRulesAcknowledged]);
 
   useEffect(() => {
     if (!activeTimeLimitSeconds && taskDeadlineMs === null) return;
