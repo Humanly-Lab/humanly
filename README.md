@@ -1,5 +1,5 @@
 <p align="center">
-  <img alt="Humanly" src="./docs/assets/humanly-readme-banner.gif" width="680">
+  <img alt="Humanly" src="./assets/humanly-readme-banner.gif" width="680">
 </p>
 
 <h1 align="center">Humanly</h1>
@@ -61,10 +61,9 @@ packages/frontend-user  User portal and writing workspace
 packages/editor         Writing editor
 packages/tracker        External-form tracking library
 packages/shared         Shared types
-docs/                   Maintainer and deployment documentation
+docs/                   Self-deployment guide
 ```
 
-For setup, QA, deployment, and maintainer documentation, see
-[docs/README.md](docs/README.md).
+For self-deployment, see [docs/SELF_DEPLOY.md](docs/SELF_DEPLOY.md).
 
 Release notes are tracked in [CHANGELOG.md](CHANGELOG.md).
