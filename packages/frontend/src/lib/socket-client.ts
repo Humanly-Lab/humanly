@@ -1,7 +1,26 @@
 import { io, Socket } from 'socket.io-client';
 import { TokenManager } from './api-client';
 
-const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 'http://localhost:3001';
+const CONFIGURED_WS_URL = process.env.NEXT_PUBLIC_WS_URL || 'http://localhost:3001';
+
+export function resolveSocketUrl(configuredUrl: string = CONFIGURED_WS_URL): string {
+  try {
+    const url = new URL(configuredUrl);
+    if (
+      url.hostname === 'writehumanly.net'
+      || url.hostname === 'app.writehumanly.net'
+      || url.hostname === 'admin.writehumanly.net'
+    ) {
+      return 'https://api.writehumanly.net';
+    }
+  } catch {
+    return configuredUrl;
+  }
+
+  return configuredUrl;
+}
+
+const WS_URL = resolveSocketUrl();
 
 /**
  * Socket client instance
