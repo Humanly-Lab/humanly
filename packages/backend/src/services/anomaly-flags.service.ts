@@ -1,5 +1,6 @@
 import {
   normalizeCopyPastePolicy,
+  type DocumentEventQueryFilters,
   type WritingAnomalyFlag,
   type WritingAnomalyThresholds,
   type WritingEnvironmentConfig,
@@ -188,12 +189,13 @@ export class AnomalyFlagsService {
   static async analyzeDocument(
     documentId: string,
     environmentConfig?: WritingEnvironmentConfig | null,
-    thresholds: WritingAnomalyThresholds = DEFAULT_ANOMALY_THRESHOLDS
+    thresholds: WritingAnomalyThresholds = DEFAULT_ANOMALY_THRESHOLDS,
+    filters: Pick<DocumentEventQueryFilters, 'startDate' | 'endDate'> = {}
   ): Promise<WritingAnomalyFlag[]> {
     const flags: WritingAnomalyFlag[] = [];
 
     try {
-      const features = await DocumentEventModel.getAnomalyAnalysisFeatures(documentId, thresholds);
+      const features = await DocumentEventModel.getAnomalyAnalysisFeatures(documentId, thresholds, filters);
       flags.push(...computeWritingAnomalyFlags(features, environmentConfig, thresholds));
     } catch (error) {
       logger.warn('Unable to compute writing anomaly feature flags', { error, documentId });
@@ -202,6 +204,7 @@ export class AnomalyFlagsService {
     try {
       const policyRefusalCount = await DocumentEventModel.countByDocumentIdWithFilters(documentId, {
         eventType: 'ai_policy_refusal',
+        ...filters,
       });
       const policyRefusalFlag = buildAiPolicyRefusalFlag(policyRefusalCount);
 

@@ -251,7 +251,7 @@ export function DocumentReplay({ token, accessCode, className = '' }: DocumentRe
       && currentState.textAfter
         ? currentState.textAfter.slice(currentState.selectionStart, currentState.selectionEnd)
         : '');
-  const showQuickActions = currentState.eventType === 'select' && !!selectedText;
+  const showSelectionSnapshot = currentState.eventType === 'select' && !!selectedText;
   const showQuickActionApplication = currentState.eventType === 'ai_selection_action';
   const quickActionLabel = currentState.metadata?.actionType
     ? currentState.metadata.actionType.charAt(0).toUpperCase() + currentState.metadata.actionType.slice(1)
@@ -301,24 +301,14 @@ export function DocumentReplay({ token, accessCode, className = '' }: DocumentRe
           }`}
         />
 
-        {showQuickActions && (
+        {showSelectionSnapshot && (
           <div className="absolute left-1/2 top-4 z-20 w-[320px] max-w-[calc(100%-2rem)] -translate-x-1/2 rounded-xl border bg-background/95 p-3 shadow-lg backdrop-blur-sm">
             <p className="mb-2 humanly-eyebrow text-[10px]">
-              Selected Text
+              Selection recorded
             </p>
-            <p className="mb-3 line-clamp-2 text-xs text-foreground/80">
+            <p className="line-clamp-3 text-xs text-foreground/80">
               {selectedText}
             </p>
-            <div className="grid grid-cols-2 gap-2">
-              {['Fix grammar', 'Improve writing', 'Simplify', 'Make formal'].map((label) => (
-                <div
-                  key={label}
-                  className="rounded-md border bg-muted/40 px-2 py-1.5 text-center text-[11px] font-medium text-muted-foreground"
-                >
-                  {label}
-                </div>
-              ))}
-            </div>
           </div>
         )}
 

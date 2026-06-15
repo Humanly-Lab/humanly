@@ -707,12 +707,23 @@ export class AIModel {
   /**
    * Get AI question statistics for a document (for certificate generation)
    */
-  static async getQuestionStatsByDocument(documentId: string): Promise<{
+  static async getQuestionStatsByDocument(
+    documentId: string,
+    filters: { endDate?: Date | string } = {}
+  ): Promise<{
     totalQuestions: number;
     understandingQuestions: number;
     generationQuestions: number;
     otherQuestions: number;
   }> {
+    const whereClauses = [`document_id = $1`, `status = 'success'`];
+    const params: any[] = [documentId];
+
+    if (filters.endDate) {
+      whereClauses.push(`created_at <= $${params.length + 1}`);
+      params.push(new Date(filters.endDate));
+    }
+
     const sql = `
       SELECT
         COUNT(*) as total_questions,
@@ -720,7 +731,7 @@ export class AIModel {
         COUNT(*) FILTER (WHERE question_category = 'generation') as generation_questions,
         COUNT(*) FILTER (WHERE question_category = 'other' OR question_category IS NULL) as other_questions
       FROM ai_interaction_logs
-      WHERE document_id = $1 AND status = 'success'
+      WHERE ${whereClauses.join(' AND ')}
     `;
 
     const row = await queryOne<{
@@ -728,7 +739,7 @@ export class AIModel {
       understanding_questions: string;
       generation_questions: string;
       other_questions: string;
-    }>(sql, [documentId]);
+    }>(sql, params);
 
     return {
       totalQuestions: parseInt(row?.total_questions || '0'),

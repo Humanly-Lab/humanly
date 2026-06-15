@@ -8,6 +8,10 @@ import { AppError } from '../middleware/error-handler';
 import { logger } from '../utils/logger';
 import type { Certificate, CertificateVerification } from '@humanly/shared';
 
+function certificateGeneratedAt(certificate: Certificate): Date {
+  return new Date(certificate.generatedAt);
+}
+
 async function resolvePublicDocumentSnapshot(certificate: Certificate): Promise<Record<string, any>> {
   let documentSnapshot = certificate.documentSnapshot;
 
@@ -19,6 +23,7 @@ async function resolvePublicDocumentSnapshot(certificate: Certificate): Promise<
     const events = await DocumentEventModel.findByDocumentId(certificate.documentId, {
       limit: 5000,
       offset: 0,
+      endDate: certificateGeneratedAt(certificate),
     });
 
     for (let i = events.length - 1; i >= 0; i--) {
@@ -84,7 +89,9 @@ async function buildPublicCertificateResponse(
   }
 
   const documentSnapshot = await resolvePublicDocumentSnapshot(certificate);
-  const aiAuthorshipStats = await CertificateService.getAIAuthorshipStats(certificate.documentId);
+  const aiAuthorshipStats = await CertificateService.getAIAuthorshipStats(certificate.documentId, {
+    endDate: certificateGeneratedAt(certificate),
+  });
 
   return {
     valid: verification.valid,
@@ -316,7 +323,9 @@ export async function downloadCertificatePDF(req: Request, res: Response): Promi
   }
 
   const certificate = await CertificateService.getCertificate(certificateId, userId);
-  const aiStats = await CertificateService.getAIAuthorshipStats(certificate.documentId);
+  const aiStats = await CertificateService.getAIAuthorshipStats(certificate.documentId, {
+    endDate: certificateGeneratedAt(certificate),
+  });
   const pdfBuffer = await PDFService.generateCertificatePDF({ ...certificate, aiAuthorshipStats: aiStats } as any);
   const requestedFilename = typeof req.query.filename === 'string' ? req.query.filename : '';
   const fallbackFilename = `certificate-${certificate.title.replace(/[^a-z0-9]/gi, '-').toLowerCase()}.pdf`;
@@ -490,6 +499,7 @@ export async function getEditHistory(req: Request, res: Response): Promise<void>
   const events = await DocumentEventModel.findByDocumentId(certificate.documentId, {
     limit: 5000, // Limit to first 5000 events for performance
     offset: 0,
+    endDate: certificateGeneratedAt(certificate),
   });
 
   // Filter and simplify events to only those that changed the editor state.
@@ -537,12 +547,16 @@ export async function getPublicCertificateLogs(req: Request, res: Response): Pro
     DocumentEventModel.findByDocumentId(certificate.documentId, {
       limit: eventLimit,
       offset: 0,
+      endDate: certificateGeneratedAt(certificate),
     }),
-    DocumentEventModel.countByDocumentId(certificate.documentId),
+    DocumentEventModel.countByDocumentIdWithFilters(certificate.documentId, {
+      endDate: certificateGeneratedAt(certificate),
+    }),
     AIModel.getLogs({
       documentId: certificate.documentId,
       limit: aiLogLimit,
       offset: 0,
+      endDate: certificateGeneratedAt(certificate),
     }).catch((error) => {
       logger.warn('Failed to fetch public certificate AI logs', {
         certificateId: certificate.id,
@@ -582,7 +596,9 @@ export async function getAIAuthorshipStats(req: Request, res: Response): Promise
   const certificate = await CertificateService.getCertificate(certificateId, userId);
 
   // Get AI authorship stats for the document
-  const aiStats = await CertificateService.getAIAuthorshipStats(certificate.documentId);
+  const aiStats = await CertificateService.getAIAuthorshipStats(certificate.documentId, {
+    endDate: certificateGeneratedAt(certificate),
+  });
 
   res.json({
     success: true,

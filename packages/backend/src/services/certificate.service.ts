@@ -61,17 +61,26 @@ export class CertificateService {
         throw new AppError(404, 'Document not found or unauthorized');
       }
 
+      // Freeze the certificate boundary before reading derived event data.
+      // All certificate-facing metrics, replay, logs, and AI stats should use
+      // this timestamp as their upper bound so later edits create a new
+      // certificate instead of mutating this one.
+      const generatedAt = new Date();
+
       // Calculate certificate metrics
-      const metrics = await this.calculateCertificateMetrics(documentId, userId);
+      const metrics = await this.calculateCertificateMetrics(documentId, userId, {
+        endDate: generatedAt,
+      });
       const anomalyFlags = await AnomalyFlagsService.analyzeDocument(
         documentId,
-        document.environmentConfig || null
+        document.environmentConfig || null,
+        undefined,
+        { endDate: generatedAt }
       );
 
       // Generate verification token
       const verificationToken = this.generateVerificationToken();
       const certificateId = crypto.randomUUID();
-      const generatedAt = new Date();
       const policyHash = computeAiPolicyTextHash(
         getEffectiveWritingAiPolicy(document.environmentConfig)
       );
@@ -132,6 +141,7 @@ export class CertificateService {
         editingTimeSeconds: Math.round(metrics.editingTimeSeconds),
         anomalyFlags,
         policyHash,
+        environmentConfig: document.environmentConfig || null,
         signature,
         verificationToken,
         signerName,
@@ -182,6 +192,10 @@ export class CertificateService {
   ): Promise<Certificate> {
     if (knownEnvironmentConfig !== undefined) {
       return { ...certificate, environmentConfig: knownEnvironmentConfig };
+    }
+
+    if (certificate.environmentConfig) {
+      return certificate;
     }
 
     try {
@@ -262,7 +276,9 @@ export class CertificateService {
       : 0;
 
     // Get AI authorship statistics
-    const aiStats = await this.getAIAuthorshipStats(certificate.documentId);
+    const aiStats = await this.getAIAuthorshipStats(certificate.documentId, {
+      endDate: certificate.generatedAt,
+    });
     const integrity = this.verifyCertificateIntegrity(certificate);
 
     const jsonCertificate: JSONCertificate = {
@@ -315,7 +331,10 @@ export class CertificateService {
   /**
    * Get AI authorship statistics for a document
    */
-  static async getAIAuthorshipStats(documentId: string): Promise<AIAuthorshipStats> {
+  static async getAIAuthorshipStats(
+    documentId: string,
+    options: { endDate?: Date | string } = {}
+  ): Promise<AIAuthorshipStats> {
     // Default empty stats
     const emptyStats: AIAuthorshipStats = {
       selectionActions: {
@@ -340,12 +359,17 @@ export class CertificateService {
     };
 
     try {
+      const refusalFilters: { eventType: 'ai_policy_refusal'; endDate?: Date } = {
+        eventType: 'ai_policy_refusal',
+      };
+      if (options.endDate) {
+        refusalFilters.endDate = new Date(options.endDate);
+      }
+
       const [selectionStats, questionStats, policyRefusalCount] = await Promise.all([
-        AISelectionActionModel.getStatsByDocumentId(documentId),
-        AIModel.getQuestionStatsByDocument(documentId),
-        DocumentEventModel.countByDocumentIdWithFilters(documentId, {
-          eventType: 'ai_policy_refusal',
-        }),
+        AISelectionActionModel.getStatsByDocumentId(documentId, { endDate: options.endDate }),
+        AIModel.getQuestionStatsByDocument(documentId, { endDate: options.endDate }),
+        DocumentEventModel.countByDocumentIdWithFilters(documentId, refusalFilters),
       ]);
 
       return {
@@ -426,14 +450,19 @@ export class CertificateService {
    */
   private static async calculateCertificateMetrics(
     documentId: string,
-    _userId: string
+    _userId: string,
+    options: { endDate?: Date } = {}
   ): Promise<CertificateMetrics> {
     // Get event metrics
-    const eventMetrics = await DocumentEventModel.getEventMetrics(documentId);
+    const eventMetrics = await DocumentEventModel.getEventMetrics(documentId, {
+      endDate: options.endDate,
+    });
 
     // Calculate typed vs pasted characters
     const { typedCharacters, pastedCharacters } =
-      await DocumentEventModel.calculateTypingMetrics(documentId);
+      await DocumentEventModel.calculateTypingMetrics(documentId, {
+        endDate: options.endDate,
+      });
 
     const totalCharacters = typedCharacters + pastedCharacters;
     const typedPercentage = totalCharacters > 0 ? (typedCharacters / totalCharacters) * 100 : 0;

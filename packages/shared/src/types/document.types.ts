@@ -349,6 +349,7 @@ export interface CertificateInsertData {
   editingTimeSeconds: number;
   anomalyFlags?: WritingAnomalyFlag[];
   policyHash?: string | null;
+  environmentConfig?: WritingEnvironmentConfig | null;
   signature: string;
   verificationToken: string;
   signerName?: string;

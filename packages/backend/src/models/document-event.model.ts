@@ -394,7 +394,23 @@ export class DocumentEventModel {
   /**
    * Get event metrics/statistics for a document
    */
-  static async getEventMetrics(documentId: string): Promise<EventMetrics> {
+  static async getEventMetrics(
+    documentId: string,
+    filters: Pick<DocumentEventQueryFilters, 'startDate' | 'endDate'> = {}
+  ): Promise<EventMetrics> {
+    const whereClauses = ['document_id = $1'];
+    const params: any[] = [documentId];
+
+    if (filters.startDate) {
+      whereClauses.push(`timestamp >= $${params.length + 1}`);
+      params.push(filters.startDate);
+    }
+
+    if (filters.endDate) {
+      whereClauses.push(`timestamp <= $${params.length + 1}`);
+      params.push(filters.endDate);
+    }
+
     const sql = `
       SELECT
         COUNT(*) as total_events,
@@ -407,10 +423,10 @@ export class DocumentEventModel {
         MAX(timestamp) as last_event,
         COALESCE(EXTRACT(EPOCH FROM (MAX(timestamp) - MIN(timestamp))), 0) as editing_duration_seconds
       FROM document_events
-      WHERE document_id = $1
+      WHERE ${whereClauses.join(' AND ')}
     `;
 
-    const result = await queryOne<any>(sql, [documentId]);
+    const result = await queryOne<any>(sql, params);
 
     if (!result) {
       return {
@@ -441,8 +457,20 @@ export class DocumentEventModel {
 
   static async getAwayFromWorkspaceStats(
     documentId: string,
-    rapidSwitchWindowSeconds: number
+    rapidSwitchWindowSeconds: number,
+    filters: Pick<DocumentEventQueryFilters, 'startDate' | 'endDate'> = {}
   ): Promise<AwayFromWorkspaceStats> {
+    const params: any[] = [documentId];
+    const dateClauses: string[] = [];
+    if (filters.startDate) {
+      dateClauses.push(`timestamp >= $${params.length + 1}`);
+      params.push(filters.startDate);
+    }
+    if (filters.endDate) {
+      dateClauses.push(`timestamp <= $${params.length + 1}`);
+      params.push(filters.endDate);
+    }
+
     const sql = `
       SELECT
         event_type as "eventType",
@@ -457,10 +485,11 @@ export class DocumentEventModel {
       FROM document_events
       WHERE document_id = $1
         AND event_type IN ('page_hidden', 'page_visible')
+        ${dateClauses.length ? `AND ${dateClauses.join(' AND ')}` : ''}
       ORDER BY timestamp ASC, created_at ASC, id ASC
     `;
 
-    const events = await query<VisibilityTraceEvent>(sql, [documentId]);
+    const events = await query<VisibilityTraceEvent>(sql, params);
     const totalAwayMs = events.reduce((total, event) => total + Number(event.awayMs || 0), 0);
     const longestAwayMs = events.reduce(
       (longest, event) => Math.max(longest, Number(event.awayMs || 0)),
@@ -479,17 +508,18 @@ export class DocumentEventModel {
 
   static async getAnomalyAnalysisFeatures(
     documentId: string,
-    thresholds: WritingAnomalyThresholds
+    thresholds: WritingAnomalyThresholds,
+    filters: Pick<DocumentEventQueryFilters, 'startDate' | 'endDate'> = {}
   ): Promise<DocumentAnomalyAnalysisFeatures> {
     const [metrics, speed, cadence, textInflux, focusInflux, awayFromWorkspace, clockSkew, typingMetrics] = await Promise.all([
-      this.getEventMetrics(documentId),
-      this.getTypingSpeedFeature(documentId, thresholds.highSpeedWindowSeconds),
-      this.getCadenceFeature(documentId),
-      this.getTextInfluxFeature(documentId, thresholds.textInfluxMinimumCharacters),
-      this.getFocusInfluxFeature(documentId, thresholds.focusInfluxWindowSeconds),
-      this.getAwayFromWorkspaceStats(documentId, thresholds.rapidTabSwitchWindowSeconds),
-      this.getClockSkewFeature(documentId, thresholds.clockSkewMinimumEvents),
-      this.calculateTypingMetrics(documentId),
+      this.getEventMetrics(documentId, filters),
+      this.getTypingSpeedFeature(documentId, thresholds.highSpeedWindowSeconds, filters),
+      this.getCadenceFeature(documentId, filters),
+      this.getTextInfluxFeature(documentId, thresholds.textInfluxMinimumCharacters, filters),
+      this.getFocusInfluxFeature(documentId, thresholds.focusInfluxWindowSeconds, filters),
+      this.getAwayFromWorkspaceStats(documentId, thresholds.rapidTabSwitchWindowSeconds, filters),
+      this.getClockSkewFeature(documentId, thresholds.clockSkewMinimumEvents, filters),
+      this.calculateTypingMetrics(documentId, filters),
     ]);
 
     return {
@@ -515,8 +545,20 @@ export class DocumentEventModel {
 
   private static async getTypingSpeedFeature(
     documentId: string,
-    windowSeconds: number
+    windowSeconds: number,
+    filters: Pick<DocumentEventQueryFilters, 'startDate' | 'endDate'> = {}
   ): Promise<AnomalyTypingSpeedFeature> {
+    const params: any[] = [documentId, windowSeconds];
+    const dateClauses: string[] = [];
+    if (filters.startDate) {
+      dateClauses.push(`timestamp >= $${params.length + 1}`);
+      params.push(filters.startDate);
+    }
+    if (filters.endDate) {
+      dateClauses.push(`timestamp <= $${params.length + 1}`);
+      params.push(filters.endDate);
+    }
+
     const sql = `
       WITH typing_events AS (
         SELECT
@@ -536,6 +578,7 @@ export class DocumentEventModel {
         FROM document_events
         WHERE document_id = $1
           AND event_type IN ('keydown', 'input')
+          ${dateClauses.length ? `AND ${dateClauses.join(' AND ')}` : ''}
       ),
       positive_typing_events AS (
         SELECT timestamp, added_chars
@@ -555,10 +598,7 @@ export class DocumentEventModel {
       FROM windowed
     `;
 
-    const result = await queryOne<{ max_chars_in_window: number | string }>(sql, [
-      documentId,
-      windowSeconds,
-    ]);
+    const result = await queryOne<{ max_chars_in_window: number | string }>(sql, params);
     const maxCharsInWindow = parseInt(String(result?.max_chars_in_window || '0'), 10);
 
     return {
@@ -568,7 +608,21 @@ export class DocumentEventModel {
     };
   }
 
-  private static async getCadenceFeature(documentId: string): Promise<AnomalyCadenceFeature> {
+  private static async getCadenceFeature(
+    documentId: string,
+    filters: Pick<DocumentEventQueryFilters, 'startDate' | 'endDate'> = {}
+  ): Promise<AnomalyCadenceFeature> {
+    const params: any[] = [documentId];
+    const dateClauses: string[] = [];
+    if (filters.startDate) {
+      dateClauses.push(`timestamp >= $${params.length + 1}`);
+      params.push(filters.startDate);
+    }
+    if (filters.endDate) {
+      dateClauses.push(`timestamp <= $${params.length + 1}`);
+      params.push(filters.endDate);
+    }
+
     const sql = `
       WITH key_events AS (
         SELECT timestamp
@@ -576,6 +630,7 @@ export class DocumentEventModel {
         WHERE document_id = $1
           AND event_type = 'keydown'
           AND key_char IS NOT NULL
+          ${dateClauses.length ? `AND ${dateClauses.join(' AND ')}` : ''}
         ORDER BY timestamp ASC, created_at ASC, id ASC
       ),
       deltas AS (
@@ -597,7 +652,7 @@ export class DocumentEventModel {
       FROM usable_deltas
     `;
 
-    const result = await queryOne<any>(sql, [documentId]);
+    const result = await queryOne<any>(sql, params);
 
     return {
       intervalCount: parseInt(result?.interval_count || '0', 10),
@@ -618,8 +673,20 @@ export class DocumentEventModel {
 
   private static async getTextInfluxFeature(
     documentId: string,
-    minimumCharacters: number
+    minimumCharacters: number,
+    filters: Pick<DocumentEventQueryFilters, 'startDate' | 'endDate'> = {}
   ): Promise<AnomalyTextInfluxFeature> {
+    const params: any[] = [documentId, minimumCharacters];
+    const dateClauses: string[] = [];
+    if (filters.startDate) {
+      dateClauses.push(`timestamp >= $${params.length + 1}`);
+      params.push(filters.startDate);
+    }
+    if (filters.endDate) {
+      dateClauses.push(`timestamp <= $${params.length + 1}`);
+      params.push(filters.endDate);
+    }
+
     const sql = `
       WITH deltas AS (
         SELECT
@@ -629,6 +696,7 @@ export class DocumentEventModel {
         FROM document_events
         WHERE document_id = $1
           AND text_after IS NOT NULL
+          ${dateClauses.length ? `AND ${dateClauses.join(' AND ')}` : ''}
       )
       SELECT
         event_type,
@@ -654,7 +722,7 @@ export class DocumentEventModel {
       event_type: string;
       timestamp: Date;
       added_chars: number | string;
-    }>(sql, [documentId, minimumCharacters]);
+    }>(sql, params);
 
     return {
       eventType: result?.event_type || null,
@@ -665,8 +733,20 @@ export class DocumentEventModel {
 
   private static async getFocusInfluxFeature(
     documentId: string,
-    windowSeconds: number
+    windowSeconds: number,
+    filters: Pick<DocumentEventQueryFilters, 'startDate' | 'endDate'> = {}
   ): Promise<AnomalyFocusInfluxFeature> {
+    const params: any[] = [documentId, windowSeconds];
+    const dateClauses: string[] = [];
+    if (filters.startDate) {
+      dateClauses.push(`focus_event.timestamp >= $${params.length + 1}`);
+      params.push(filters.startDate);
+    }
+    if (filters.endDate) {
+      dateClauses.push(`focus_event.timestamp <= $${params.length + 1}`);
+      params.push(filters.endDate);
+    }
+
     const sql = `
       WITH focus_events AS (
         SELECT
@@ -681,6 +761,7 @@ export class DocumentEventModel {
         FROM document_events focus_event
         WHERE focus_event.document_id = $1
           AND focus_event.event_type = 'focus'
+          ${dateClauses.length ? `AND ${dateClauses.join(' AND ')}` : ''}
       ),
       focus_windows AS (
         SELECT *
@@ -713,7 +794,7 @@ export class DocumentEventModel {
       blur_timestamp: Date;
       focus_timestamp: Date;
       added_chars: number | string;
-    }>(sql, [documentId, windowSeconds]);
+    }>(sql, params);
 
     return {
       blurTimestamp: result?.blur_timestamp || null,
@@ -724,8 +805,20 @@ export class DocumentEventModel {
 
   private static async getClockSkewFeature(
     documentId: string,
-    minimumEvents: number
+    minimumEvents: number,
+    filters: Pick<DocumentEventQueryFilters, 'startDate' | 'endDate'> = {}
   ): Promise<AnomalyClockSkewFeature> {
+    const params: any[] = [documentId, minimumEvents];
+    const dateClauses: string[] = [];
+    if (filters.startDate) {
+      dateClauses.push(`timestamp >= $${params.length + 1}`);
+      params.push(filters.startDate);
+    }
+    if (filters.endDate) {
+      dateClauses.push(`timestamp <= $${params.length + 1}`);
+      params.push(filters.endDate);
+    }
+
     const sql = `
       WITH session_spans AS (
         SELECT
@@ -735,6 +828,7 @@ export class DocumentEventModel {
           COALESCE(EXTRACT(EPOCH FROM (MAX(created_at) - MIN(created_at))), 0) as server_span_seconds
         FROM document_events
         WHERE document_id = $1
+          ${dateClauses.length ? `AND ${dateClauses.join(' AND ')}` : ''}
         GROUP BY session_id
       )
       SELECT
@@ -748,7 +842,7 @@ export class DocumentEventModel {
       LIMIT 1
     `;
 
-    const result = await queryOne<any>(sql, [documentId, minimumEvents]);
+    const result = await queryOne<any>(sql, params);
 
     return {
       sessionId: result?.session_id || null,
@@ -761,10 +855,24 @@ export class DocumentEventModel {
   /**
    * Calculate typing metrics for certificate generation
    */
-  static async calculateTypingMetrics(documentId: string): Promise<{
+  static async calculateTypingMetrics(
+    documentId: string,
+    filters: Pick<DocumentEventQueryFilters, 'startDate' | 'endDate'> = {}
+  ): Promise<{
     typedCharacters: number;
     pastedCharacters: number;
   }> {
+    const params: any[] = [documentId];
+    const dateClauses: string[] = [];
+    if (filters.startDate) {
+      dateClauses.push(`timestamp >= $${params.length + 1}`);
+      params.push(filters.startDate);
+    }
+    if (filters.endDate) {
+      dateClauses.push(`timestamp <= $${params.length + 1}`);
+      params.push(filters.endDate);
+    }
+
     // Get all events with text_after field
     const sql = `
       SELECT
@@ -774,6 +882,7 @@ export class DocumentEventModel {
       FROM document_events
       WHERE document_id = $1
         AND text_after IS NOT NULL
+        ${dateClauses.length ? `AND ${dateClauses.join(' AND ')}` : ''}
       ORDER BY timestamp ASC
     `;
 
@@ -781,7 +890,7 @@ export class DocumentEventModel {
       eventType: string;
       textBefore: string | null;
       textAfter: string | null;
-    }>(sql, [documentId]);
+    }>(sql, params);
 
     let typedCharacters = 0;
     let pastedCharacters = 0;
