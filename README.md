@@ -14,6 +14,7 @@ Paper and repository:
 
 - Paper: Humanly is being prepared for the EMNLP 2026 System Demonstrations
   track. The archival PDF link will be added here when it becomes public.
+- Changelog: [CHANGELOG.md](CHANGELOG.md).
 - License: [MIT](LICENSE).
 - Source repository: https://github.com/ShenzheZhu/humanly
 
