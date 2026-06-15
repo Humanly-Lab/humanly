@@ -186,6 +186,8 @@ const eventTypesFixture = [
   { eventType: 'paste', count: 12, percentage: 20 },
   { eventType: 'copy', count: 6, percentage: 10 },
   { eventType: 'focus', count: 12, percentage: 20 },
+  { eventType: 'page_hidden', count: 7, percentage: 10 },
+  { eventType: 'page_visible', count: 5, percentage: 7 },
 ];
 
 const adminLocalTimeFormatter = new Intl.DateTimeFormat('en-US', {
@@ -648,7 +650,12 @@ describe('admin task overview invite code copy button', () => {
     expect(screen.getByRole('heading', { name: 'Activity' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Event Type Distribution' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Event Type Percentage' })).toBeInTheDocument();
-    expect(screen.getByTestId('event-type-total-events')).toHaveTextContent('60events');
+    expect(screen.getByTestId('event-type-total-events')).toHaveTextContent('72events');
+    expect(screen.getByText('Left workspace')).toBeInTheDocument();
+    expect(screen.getByText('Returned')).toBeInTheDocument();
+    expect(screen.getByText('focus')).toBeInTheDocument();
+    expect(screen.queryByText('page_hidden')).not.toBeInTheDocument();
+    expect(screen.queryByText('page_visible')).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Submissions' })).not.toBeInTheDocument();
     expect(screen.queryByText('Latest Essay')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /view analytics/i })).not.toBeInTheDocument();

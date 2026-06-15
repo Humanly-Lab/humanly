@@ -85,6 +85,12 @@ const formatPercent = (value: number) => `${Math.round(value)}%`;
 
 const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
 
+const getEventTypeDisplayLabel = (eventType: string) => {
+  if (eventType === 'page_hidden') return 'Left workspace';
+  if (eventType === 'page_visible') return 'Returned';
+  return eventType;
+};
+
 const getDifficultyLabel = (score: number) => {
   if (score < 30) return 'Easy';
   if (score < 60) return 'Moderate';
@@ -280,6 +286,7 @@ export function AnalyticsPanel({
       .sort((left, right) => right.count - left.count)
       .map((item, index) => ({
         ...item,
+        eventTypeLabel: getEventTypeDisplayLabel(item.eventType),
         percentage: totalEventTypeCount > 0 ? (item.count / totalEventTypeCount) * 100 : 0,
         color: ANALYTICS_CHART_COLORS.eventTypes[index % ANALYTICS_CHART_COLORS.eventTypes.length],
       }))
@@ -659,7 +666,7 @@ export function AnalyticsPanel({
                 <BarChart data={eventTypeChartData} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
                   <CartesianGrid vertical={false} stroke="hsl(var(--border))" strokeDasharray="3 3" />
                   <XAxis
-                    dataKey="eventType"
+                    dataKey="eventTypeLabel"
                     tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
                     tickLine={false}
                     axisLine={false}
@@ -727,7 +734,7 @@ export function AnalyticsPanel({
                       <Pie
                         data={eventTypeChartData}
                         dataKey="count"
-                        nameKey="eventType"
+                        nameKey="eventTypeLabel"
                         cx="50%"
                         cy="50%"
                         innerRadius={58}
@@ -758,7 +765,7 @@ export function AnalyticsPanel({
                           className="h-2.5 w-2.5 shrink-0 rounded-full"
                           style={{ backgroundColor: item.color }}
                         />
-                        <span className="truncate font-medium">{item.eventType}</span>
+                        <span className="truncate font-medium">{item.eventTypeLabel}</span>
                       </div>
                       <div className="flex shrink-0 items-center gap-2 text-muted-foreground">
                         <span>{item.count.toLocaleString()}</span>
