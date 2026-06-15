@@ -407,6 +407,58 @@ function CharacterLimitPlugin({
   return null;
 }
 
+function PreviewReadOnlyPlugin({ enabled }: { enabled: boolean }): null {
+  const [editor] = useLexicalComposerContext();
+
+  React.useEffect(() => {
+    if (!enabled) return;
+
+    const rootElement = editor.getRootElement();
+    if (!rootElement) return;
+
+    const prevent = (event: Event) => {
+      event.preventDefault();
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const key = event.key;
+      const lowerKey = key.toLowerCase();
+
+      if (event.metaKey || event.ctrlKey) {
+        if (lowerKey === 'a' || lowerKey === 'c') return;
+        event.preventDefault();
+        return;
+      }
+
+      if (
+        key.length === 1 ||
+        key === 'Enter' ||
+        key === 'Backspace' ||
+        key === 'Delete' ||
+        key === 'Tab'
+      ) {
+        event.preventDefault();
+      }
+    };
+
+    rootElement.addEventListener('beforeinput', prevent);
+    rootElement.addEventListener('paste', prevent);
+    rootElement.addEventListener('drop', prevent);
+    rootElement.addEventListener('cut', prevent);
+    rootElement.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      rootElement.removeEventListener('beforeinput', prevent);
+      rootElement.removeEventListener('paste', prevent);
+      rootElement.removeEventListener('drop', prevent);
+      rootElement.removeEventListener('cut', prevent);
+      rootElement.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [editor, enabled]);
+
+  return null;
+}
+
 interface MarkdownPastePromptPluginProps {
   enabled: boolean;
   copyPastePolicy?: LexicalEditorProps['copyPastePolicy'];
@@ -668,6 +720,7 @@ export function LexicalEditor(props: LexicalEditorProps): JSX.Element {
     initialContent,
     placeholder = 'Start typing...',
     editable = true,
+    previewReadOnly = false,
     trackingEnabled = true,
     copyPastePolicy = 'allowed',
     maxCharacters,
@@ -680,6 +733,8 @@ export function LexicalEditor(props: LexicalEditorProps): JSX.Element {
     onEventFlushReady,
     onAutoSave,
     className = '',
+    initialSelectionText,
+    clearSelectionOnPopupClose,
     renderSelectionPopup,
     renderAIBridge,
   } = props;
@@ -695,7 +750,7 @@ export function LexicalEditor(props: LexicalEditorProps): JSX.Element {
       console.error('Lexical Editor Error:', error);
     },
     editorState: editorStateJSON,
-    editable,
+    editable: previewReadOnly ? true : editable,
   };
 
   const handleChange = (editorState: EditorState) => {
@@ -893,6 +948,7 @@ export function LexicalEditor(props: LexicalEditorProps): JSX.Element {
           copyPastePolicy={copyPastePolicy}
           onCharacterLimitReached={onCharacterLimitReached}
         />
+        <PreviewReadOnlyPlugin enabled={previewReadOnly} />
         <OnChangePlugin onChange={handleChange} ignoreSelectionChange />
         <TabIndentationPlugin />
         <TablePlugin
@@ -933,6 +989,8 @@ export function LexicalEditor(props: LexicalEditorProps): JSX.Element {
         {renderSelectionPopup && (
           <SelectionPopupPlugin
             renderPopup={renderSelectionPopup}
+            initialSelectionText={initialSelectionText}
+            clearSelectionOnClose={clearSelectionOnPopupClose}
             maxCharacters={maxCharacters}
             onCharacterLimitReached={onCharacterLimitReached}
           />

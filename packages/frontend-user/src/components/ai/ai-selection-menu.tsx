@@ -42,6 +42,7 @@ interface AISelectionMenuProps {
   documentTitle?: string;
   allowPolishActions?: boolean;
   allowAskAI?: boolean;
+  previewOnly?: boolean;
   // Wired by the host so keyboard shortcuts (Cmd+Shift+1/2/3/4) can fire
   // the same action handlers as the dropdown clicks. The menu calls this
   // on mount/unmount with a trigger callback, and the host stores it for
@@ -117,6 +118,7 @@ export function AISelectionMenu({
   documentTitle,
   allowPolishActions = true,
   allowAskAI = true,
+  previewOnly = false,
   registerActionTrigger,
 }: AISelectionMenuProps) {
   const [isLoading, setIsLoading] = useState(false);
@@ -154,6 +156,10 @@ export function AISelectionMenu({
 
   const handleAction = async (action: typeof ACTIONS[number]) => {
     if (isLoading || !allowPolishActions) return;
+    if (previewOnly) {
+      cancelAIAction();
+      return;
+    }
 
     // Check if AI settings are configured
     if (hasAISettings === false) {
@@ -427,6 +433,10 @@ export function AISelectionMenu({
               'hover:bg-muted hover:text-foreground'
             )}
             onClick={() => {
+              if (previewOnly) {
+                cancelAIAction();
+                return;
+              }
               if (hasAISettings === false) {
                 setShowWarning(true);
                 return;

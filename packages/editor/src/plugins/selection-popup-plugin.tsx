@@ -36,6 +36,8 @@ export interface SelectionPopupPluginProps {
   onSelectionChange?: (selection: SelectionInfo | null) => void;
   maxCharacters?: number | null;
   onCharacterLimitReached?: (limit: number) => void;
+  initialSelectionText?: string;
+  clearSelectionOnClose?: boolean;
   renderPopup?: (props: {
     selection: SelectionInfo;
     onClose: () => void;
@@ -56,6 +58,8 @@ export function SelectionPopupPlugin({
   onSelectionChange,
   maxCharacters,
   onCharacterLimitReached,
+  initialSelectionText,
+  clearSelectionOnClose = false,
   renderPopup,
 }: SelectionPopupPluginProps): JSX.Element | null {
   const [editor] = useLexicalComposerContext();
@@ -63,6 +67,7 @@ export function SelectionPopupPlugin({
   const [isVisible, setIsVisible] = useState(false);
   const popupRef = useRef<HTMLDivElement>(null);
   const isProcessingAIAction = useRef(false); // Track if AI action is in progress
+  const hasAppliedInitialSelection = useRef(false);
 
   const updateSelection = useCallback(() => {
     // Don't clear the popup while an AI action is being processed
@@ -130,12 +135,58 @@ export function SelectionPopupPlugin({
     setIsVisible(false);
     setSelectionInfo(null);
     isProcessingAIAction.current = false; // Reset flag when closing
-  }, []);
+    if (clearSelectionOnClose) {
+      editor.update(() => {
+        $setSelection(null);
+      }, { discrete: true });
+      window.getSelection()?.removeAllRanges();
+      onSelectionChange?.(null);
+    }
+  }, [clearSelectionOnClose, editor, onSelectionChange]);
 
   const cancelAIAction = useCallback(() => {
     console.log('[SelectionPopupPlugin] AI action cancelled, unlocking popup');
     isProcessingAIAction.current = false;
   }, []);
+
+  useEffect(() => {
+    const textToSelect = initialSelectionText?.trim();
+    if (!textToSelect || hasAppliedInitialSelection.current) return;
+
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    let frameId: number | undefined;
+
+    const applyInitialSelection = () => {
+      let didSelect = false;
+
+      editor.update(() => {
+        const root = $getRoot();
+        for (const textNode of root.getAllTextNodes()) {
+          const text = textNode.getTextContent();
+          const start = text.indexOf(textToSelect);
+          if (start < 0) continue;
+
+          textNode.select(start, start + textToSelect.length);
+          didSelect = true;
+          break;
+        }
+      }, { discrete: true });
+
+      if (!didSelect) return;
+
+      hasAppliedInitialSelection.current = true;
+      frameId = requestAnimationFrame(() => {
+        updateSelection();
+      });
+    };
+
+    timeoutId = setTimeout(applyInitialSelection, 120);
+
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      if (frameId) cancelAnimationFrame(frameId);
+    };
+  }, [editor, initialSelectionText, updateSelection]);
 
   const normalizedMaxCharacters =
     typeof maxCharacters === 'number' && Number.isFinite(maxCharacters) && maxCharacters > 0

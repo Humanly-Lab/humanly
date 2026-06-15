@@ -41,10 +41,29 @@ import { formatDateTime } from '@/lib/utils';
 const CANVAS = 'mx-auto w-full max-w-[2400px] px-3 sm:px-4';
 const PREVIEW_DOCUMENT_ID = 'workspace-preview';
 const PREVIEW_SELECTED_TEXT = 'This selected sentence shows where AI writing tools appear.';
-const PREVIEW_EDITOR_TEXT = `${PREVIEW_SELECTED_TEXT} The rest of this paragraph remains visible so the preview looks like the real writing workspace after a writer has typed and selected text.`;
+const PREVIEW_EDITOR_INTRO = 'This preview mirrors the real writing workspace with a source panel, toolbar, editor surface, and optional AI assistant.';
+const PREVIEW_EDITOR_TEXT = `After a short draft, ${PREVIEW_SELECTED_TEXT} The rest of this paragraph remains visible after the writer selects text.`;
 const PREVIEW_EDITOR_CONTENT = {
   root: {
     children: [
+      {
+        children: [
+          {
+            detail: 0,
+            format: 0,
+            mode: 'normal',
+            style: '',
+            text: PREVIEW_EDITOR_INTRO,
+            type: 'text',
+            version: 1,
+          },
+        ],
+        direction: 'ltr',
+        format: '',
+        indent: 0,
+        type: 'paragraph',
+        version: 1,
+      },
       {
         children: [
           {
@@ -248,51 +267,6 @@ function PdfPreviewPanel({
   );
 }
 
-function PreviewSelectionActions({
-  allowAskAI,
-  allowPolish,
-}: {
-  allowAskAI: boolean;
-  allowPolish: boolean;
-}) {
-  if (!allowAskAI && !allowPolish) return null;
-
-  return (
-    <div className="pointer-events-none absolute left-8 top-[5.25rem] z-10">
-      <div className="mb-2 inline rounded bg-[#cfe0f5]/80 px-1 py-0.5 text-sm text-transparent">
-        {PREVIEW_SELECTED_TEXT}
-      </div>
-      <AISelectionMenu
-        documentId={PREVIEW_DOCUMENT_ID}
-        selection={{
-          text: PREVIEW_SELECTED_TEXT,
-          start: 0,
-          end: PREVIEW_SELECTED_TEXT.length,
-          rect: {
-            bottom: 0,
-            height: 0,
-            left: 0,
-            right: 0,
-            top: 0,
-            width: 0,
-            x: 0,
-            y: 0,
-            toJSON: () => ({}),
-          } as DOMRect,
-        }}
-        onClose={() => undefined}
-        replaceSelection={() => undefined}
-        cancelAIAction={() => undefined}
-        undoLastAction={() => undefined}
-        onAskAI={() => undefined}
-        taskManaged
-        allowPolishActions={allowPolish}
-        allowAskAI={allowAskAI}
-      />
-    </div>
-  );
-}
-
 export default function WorkspacePreviewPage() {
   const [payload, setPayload] = useState<WorkspaceSetupPreviewPayload | null>(null);
   const [parseFailed, setParseFailed] = useState(false);
@@ -477,20 +451,32 @@ export default function WorkspacePreviewPage() {
                     <LexicalEditor
                       documentId={PREVIEW_DOCUMENT_ID}
                       initialContent={PREVIEW_EDITOR_CONTENT}
+                      initialSelectionText={aiEnabled ? PREVIEW_SELECTED_TEXT : undefined}
+                      clearSelectionOnPopupClose
                       placeholder={hasPdf ? 'Start writing with your PDF open...' : 'Start typing your document...'}
-                      editable={false}
+                      editable
+                      previewReadOnly
                       trackingEnabled={false}
                       copyPastePolicy={config.copyPastePolicy}
                       maxCharacters={config.submission.maxCharacters}
                       autoSaveEnabled={false}
                       className="h-full"
+                      renderSelectionPopup={aiEnabled ? ({ selection, onClose, replaceSelection, cancelAIAction, undoLastAction }) => (
+                        <AISelectionMenu
+                          documentId={PREVIEW_DOCUMENT_ID}
+                          selection={selection}
+                          onClose={onClose}
+                          replaceSelection={replaceSelection}
+                          cancelAIAction={cancelAIAction}
+                          undoLastAction={undoLastAction}
+                          onAskAI={() => undefined}
+                          taskManaged
+                          allowPolishActions={aiPolishEnabled}
+                          allowAskAI={aiChatEnabled}
+                          previewOnly
+                        />
+                      ) : undefined}
                     />
-                    {aiEnabled ? (
-                      <PreviewSelectionActions
-                        allowAskAI={aiChatEnabled}
-                        allowPolish={aiPolishEnabled}
-                      />
-                    ) : null}
                     <div className="pointer-events-none absolute bottom-3 right-3 rounded-md border border-border/70 bg-background/90 px-2 py-1 text-xs text-muted-foreground shadow-sm">
                       Tracking: {getTraceabilityLabel(config)}
                       {timeLimitSeconds ? ` / ${formatCompactDuration(timeLimitSeconds)} limit` : ''}

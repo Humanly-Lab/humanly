@@ -120,6 +120,12 @@ export interface LexicalEditorProps {
   initialContent?: string | Record<string, any>;
   placeholder?: string;
   editable?: boolean;
+  /**
+   * Keep the editor selectable/focusable for UI previews while blocking direct
+   * text-editing inputs. This is distinct from `editable={false}`, which also
+   * suppresses Lexical selection state.
+   */
+  previewReadOnly?: boolean;
   trackingEnabled?: boolean;
   copyPastePolicy?: CopyPastePolicy;
   maxCharacters?: number | null;
@@ -132,6 +138,10 @@ export interface LexicalEditorProps {
   onEventFlushReady?: (flushPendingEvents: (() => Promise<void>) | null) => void;
   onAutoSave?: (content: Record<string, any>, plainText: string) => void;
   className?: string;
+  /** Select this text once after the editor mounts. Used by read-only previews. */
+  initialSelectionText?: string;
+  /** Clear the browser/editor selection when the selection popup closes. */
+  clearSelectionOnPopupClose?: boolean;
   /** Render a custom popup when text is selected */
   renderSelectionPopup?: (props: {
     selection: SelectionPopupInfo;
