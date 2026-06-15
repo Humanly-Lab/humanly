@@ -5,10 +5,6 @@
 <h1 align="center">Humanly</h1>
 
 <p align="center">
-  <strong>Write with AI. Prove your process.</strong>
-</p>
-
-<p align="center">
   <a href="#overview">Overview</a> ·
   <a href="#product">Product</a> ·
   <a href="#certificates">Certificates</a> ·
