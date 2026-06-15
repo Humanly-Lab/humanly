@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   AlertCircle,
+  ChevronRight,
   Clock,
   FileText,
   Gauge,
@@ -14,7 +15,6 @@ import {
   Area,
   AreaChart,
   Bar,
-  BarChart,
   CartesianGrid,
   Cell,
   ComposedChart,
@@ -33,6 +33,13 @@ import type { AnalyticsSummary, EventTypeDistribution, EventsTimelineDataPoint }
 import api, { ApiError } from '@/lib/api-client';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import {
   Select,
   SelectContent,
@@ -70,6 +77,17 @@ interface AnalyticsPanelProps {
 const EXPECTED_EDITING_SPAN_SECONDS = 60 * 60;
 const MAX_DAILY_SUBMISSION_TIMELINE_DAYS = 120;
 const COMPLETION_DIFFICULTY_HELP = 'Calculated from non-submitters, average editing time, and resubmissions; more of any raises difficulty.';
+const EVENT_TYPE_VISIBLE_LIMIT = 6;
+const OTHER_EVENT_TYPE = '__other_event_types__';
+const OTHER_EVENT_TYPE_COLOR = '#6F747B';
+
+interface EventTypeChartItem extends Omit<EventTypeDistribution, 'eventType'> {
+  eventType: string;
+  eventTypeLabel: string;
+  percentage: number;
+  color: string;
+  isOther?: boolean;
+}
 
 const formatDuration = (secondsValue: number) => {
   const seconds = Math.max(0, Math.floor(secondsValue || 0));
@@ -85,10 +103,76 @@ const formatPercent = (value: number) => `${Math.round(value)}%`;
 
 const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
 
-const getEventTypeDisplayLabel = (eventType: string) => {
+const capitalizeFirst = (value: string) => {
+  if (!value) return value;
+  return value.charAt(0).toUpperCase() + value.slice(1);
+};
+
+export const getShareBarWidth = (percentage: number) => {
+  if (percentage <= 0) return '0%';
+  return `${Math.max(4, Math.min(100, percentage))}%`;
+};
+
+export const getEventTypeDisplayLabel = (eventType: string) => {
   if (eventType === 'page_hidden') return 'Left workspace';
   if (eventType === 'page_visible') return 'Returned';
-  return eventType;
+  if (eventType === 'ai_query_sent') return 'AI question';
+  if (eventType === 'ai_response_received') return 'AI response';
+  if (eventType === 'ai_insert_from_chat') return 'AI inserted';
+  if (eventType === 'ai_selection_action') return 'AI quick action';
+  if (eventType === 'ai_panel_open') return 'AI panel opened';
+  if (eventType === 'ai_panel_close') return 'AI panel closed';
+  if (eventType === 'ai_policy_refusal') return 'AI refusal';
+  if (eventType === 'blocked_copy_paste_attempt') return 'Blocked copy-paste';
+  if (!eventType.includes('_') && !eventType.includes('-')) return capitalizeFirst(eventType);
+
+  return eventType
+    .split(/[_-]+/)
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+};
+
+export const buildEventTypeChartData = (
+  eventTypeDistribution: EventTypeDistribution[],
+  visibleLimit = EVENT_TYPE_VISIBLE_LIMIT
+) => {
+  const totalEventTypeCount = eventTypeDistribution.reduce((sum, item) => sum + item.count, 0);
+  const sortedEventTypes: EventTypeChartItem[] = [...eventTypeDistribution]
+    .filter((item) => item.count > 0)
+    .sort((left, right) => right.count - left.count)
+    .map((item, index) => ({
+      ...item,
+      eventTypeLabel: getEventTypeDisplayLabel(item.eventType),
+      percentage: totalEventTypeCount > 0 ? (item.count / totalEventTypeCount) * 100 : 0,
+      color: ANALYTICS_CHART_COLORS.eventTypes[index % ANALYTICS_CHART_COLORS.eventTypes.length],
+    }));
+
+  if (sortedEventTypes.length <= visibleLimit) {
+    return {
+      eventTypeChartData: sortedEventTypes,
+      foldedEventTypeChartData: [],
+      totalEventTypeCount,
+    };
+  }
+
+  const visibleEventTypes = sortedEventTypes.slice(0, visibleLimit);
+  const foldedEventTypes = sortedEventTypes.slice(visibleLimit);
+  const foldedEventCount = foldedEventTypes.reduce((sum, item) => sum + item.count, 0);
+  const otherEventType: EventTypeChartItem = {
+    eventType: OTHER_EVENT_TYPE,
+    eventTypeLabel: 'Other',
+    count: foldedEventCount,
+    percentage: totalEventTypeCount > 0 ? (foldedEventCount / totalEventTypeCount) * 100 : 0,
+    color: OTHER_EVENT_TYPE_COLOR,
+    isOther: true,
+  };
+
+  return {
+    eventTypeChartData: [...visibleEventTypes, otherEventType],
+    foldedEventTypeChartData: foldedEventTypes,
+    totalEventTypeCount,
+  };
 };
 
 const getDifficultyLabel = (score: number) => {
@@ -187,6 +271,7 @@ export function AnalyticsPanel({
   const [summaryError, setSummaryError] = useState<string | null>(null);
   const [timelineError, setTimelineError] = useState<string | null>(null);
   const [distributionError, setDistributionError] = useState<string | null>(null);
+  const [isOtherEventTypesOpen, setIsOtherEventTypesOpen] = useState(false);
 
   const getDateRange = useCallback(() => {
     return getAnalyticsDateRange({
@@ -279,18 +364,15 @@ export function AnalyticsPanel({
     fetchEventTypeDistribution();
   }, [fetchEventTypeDistribution, fetchEventsTimeline, fetchSummary, taskId]);
 
-  const totalEventTypeCount = eventTypeDistribution.reduce((sum, item) => sum + item.count, 0);
-  const eventTypeChartData = useMemo(() => (
-    [...eventTypeDistribution]
-      .filter((item) => item.count > 0)
-      .sort((left, right) => right.count - left.count)
-      .map((item, index) => ({
-        ...item,
-        eventTypeLabel: getEventTypeDisplayLabel(item.eventType),
-        percentage: totalEventTypeCount > 0 ? (item.count / totalEventTypeCount) * 100 : 0,
-        color: ANALYTICS_CHART_COLORS.eventTypes[index % ANALYTICS_CHART_COLORS.eventTypes.length],
-      }))
-  ), [eventTypeDistribution, totalEventTypeCount]);
+  const {
+    eventTypeChartData,
+    foldedEventTypeChartData,
+    totalEventTypeCount,
+  } = useMemo(() => buildEventTypeChartData(eventTypeDistribution), [eventTypeDistribution]);
+  const openOtherEventTypes = useCallback(() => {
+    if (foldedEventTypeChartData.length === 0) return;
+    setIsOtherEventTypesOpen(true);
+  }, [foldedEventTypeChartData.length]);
   const totalSubmissions = submissions.length;
   const submissionsByUser = submissions.reduce<Record<string, number>>((counts, submission) => {
     counts[submission.userId] = (counts[submission.userId] || 0) + 1;
@@ -662,42 +744,70 @@ export function AnalyticsPanel({
                 No event data yet.
               </div>
             ) : (
-              <ResponsiveContainer width="100%" height={280}>
-                <BarChart data={eventTypeChartData} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
-                  <CartesianGrid vertical={false} stroke="hsl(var(--border))" strokeDasharray="3 3" />
-                  <XAxis
-                    dataKey="eventTypeLabel"
-                    tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
-                    tickLine={false}
-                    axisLine={false}
-                    interval={0}
-                    minTickGap={12}
-                  />
-                  <YAxis
-                    width={36}
-                    allowDecimals={false}
-                    tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
-                    tickLine={false}
-                    axisLine={false}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: 'hsl(var(--card))',
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '6px',
-                    }}
-                    formatter={(value: number, name: string) => [
-                      `${Number(value).toLocaleString()} events`,
-                      name,
-                    ]}
-                  />
-                  <Bar dataKey="count" name="Events" radius={[4, 4, 0, 0]}>
-                    {eventTypeChartData.map((item) => (
-                      <Cell key={item.eventType} fill={item.color} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+              <div className="space-y-4">
+                <div className="grid grid-cols-[minmax(130px,1fr)_88px_minmax(180px,1.5fr)] gap-x-4 px-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  <span>Event</span>
+                  <span className="text-right">Count</span>
+                  <span className="text-right">Share</span>
+                </div>
+                <div className="space-y-4">
+                  {eventTypeChartData.map((item) => {
+                    const barWidth = getShareBarWidth(item.percentage);
+                    const row = (
+                      <div className="grid w-full grid-cols-[minmax(130px,1fr)_88px_minmax(180px,1.5fr)] items-center gap-x-4">
+                        <div className="flex min-w-0 items-center gap-2">
+                          <span
+                            className="h-2.5 w-2.5 shrink-0 rounded-full"
+                            style={{ backgroundColor: item.color }}
+                          />
+                          <span
+                            className={
+                              item.isOther
+                                ? 'truncate text-sm font-medium underline decoration-border underline-offset-4'
+                                : 'truncate text-sm font-medium'
+                            }
+                          >
+                            {item.eventTypeLabel}
+                          </span>
+                        </div>
+                        <div className="whitespace-nowrap text-right text-sm tabular-nums text-muted-foreground">
+                          {item.count.toLocaleString()}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="mb-1 text-right text-sm tabular-nums text-muted-foreground">
+                            {formatPercent(item.percentage)}
+                          </div>
+                          <div className="h-2 rounded-full bg-muted">
+                            <div
+                              className="h-2 rounded-full"
+                              style={{ width: barWidth, backgroundColor: item.color }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    );
+
+                    if (item.isOther) {
+                      return (
+                        <button
+                          key={item.eventType}
+                          type="button"
+                          className="block w-full rounded-md px-1 py-1 text-left transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                          onClick={openOtherEventTypes}
+                        >
+                          {row}
+                        </button>
+                      );
+                    }
+
+                    return (
+                      <div key={item.eventType} className="px-1 py-1">
+                        {row}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             )}
           </CardContent>
         </Card>
@@ -742,9 +852,18 @@ export function AnalyticsPanel({
                         paddingAngle={2}
                         stroke="hsl(var(--card))"
                         strokeWidth={3}
+                        isAnimationActive={false}
+                        onClick={(item) => {
+                          const payload = item as EventTypeChartItem | undefined;
+                          if (payload?.isOther) openOtherEventTypes();
+                        }}
                       >
                         {eventTypeChartData.map((item) => (
-                          <Cell key={item.eventType} fill={item.color} />
+                          <Cell
+                            key={item.eventType}
+                            fill={item.color}
+                            cursor={item.isOther ? 'pointer' : undefined}
+                          />
                         ))}
                       </Pie>
                     </PieChart>
@@ -758,27 +877,89 @@ export function AnalyticsPanel({
                   </div>
                 </div>
                 <div className="space-y-3">
-                  {eventTypeChartData.map((item) => (
-                    <div key={item.eventType} className="flex items-center justify-between gap-3 text-sm">
-                      <div className="flex min-w-0 items-center gap-2">
-                        <span
-                          className="h-2.5 w-2.5 shrink-0 rounded-full"
-                          style={{ backgroundColor: item.color }}
-                        />
-                        <span className="truncate font-medium">{item.eventTypeLabel}</span>
+                  <div className="grid grid-cols-[minmax(0,1fr)_72px_56px] gap-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    <span>Event</span>
+                    <span className="text-right">Count</span>
+                    <span className="text-right">Share</span>
+                  </div>
+                  {eventTypeChartData.map((item) => {
+                    const rowContent = (
+                      <>
+                        <div className="flex min-w-0 items-center gap-2">
+                          <span
+                            className="h-2.5 w-2.5 shrink-0 rounded-full"
+                            style={{ backgroundColor: item.color }}
+                          />
+                          <span className={item.isOther ? 'inline-flex min-w-0 items-center font-medium underline decoration-border underline-offset-4' : 'truncate font-medium'}>
+                            <span className="truncate">{item.eventTypeLabel}</span>
+                            {item.isOther ? <ChevronRight className="ml-1 h-3 w-3 shrink-0" /> : null}
+                          </span>
+                        </div>
+                        <span className="text-right tabular-nums text-muted-foreground">{item.count.toLocaleString()}</span>
+                        <span className="text-right tabular-nums text-muted-foreground">{formatPercent(item.percentage)}</span>
+                      </>
+                    );
+
+                    if (item.isOther) {
+                      return (
+                        <button
+                          key={item.eventType}
+                          type="button"
+                          className="grid w-full grid-cols-[minmax(0,1fr)_72px_56px] gap-3 rounded-md text-left text-sm transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                          onClick={openOtherEventTypes}
+                        >
+                          {rowContent}
+                        </button>
+                      );
+                    }
+
+                    return (
+                      <div key={item.eventType} className="grid grid-cols-[minmax(0,1fr)_72px_56px] gap-3 text-sm">
+                        {rowContent}
                       </div>
-                      <div className="flex shrink-0 items-center gap-2 text-muted-foreground">
-                        <span>{item.count.toLocaleString()}</span>
-                        <span>{formatPercent(item.percentage)}</span>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </>
             )}
           </CardContent>
         </Card>
       </div>
+
+      <Dialog open={isOtherEventTypesOpen} onOpenChange={setIsOtherEventTypesOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Other event types</DialogTitle>
+            <DialogDescription>
+              Event types folded out of the Top 6 chart view.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="max-h-[420px] overflow-auto rounded-lg border">
+            <table className="w-full text-sm">
+              <thead className="sticky top-0 bg-background text-xs uppercase tracking-wide text-muted-foreground">
+                <tr className="border-b">
+                  <th className="px-4 py-3 text-left font-medium">Event</th>
+                  <th className="px-4 py-3 text-left font-medium">Raw type</th>
+                  <th className="px-4 py-3 text-right font-medium">Count</th>
+                  <th className="px-4 py-3 text-right font-medium">Share</th>
+                </tr>
+              </thead>
+              <tbody>
+                {foldedEventTypeChartData.map((item) => (
+                  <tr key={item.eventType} className="border-b last:border-b-0">
+                    <td className="px-4 py-3 font-medium">{item.eventTypeLabel}</td>
+                    <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{item.eventType}</td>
+                    <td className="px-4 py-3 text-right">{item.count.toLocaleString()}</td>
+                    <td className="px-4 py-3 text-right text-muted-foreground">
+                      {formatPercent(item.percentage)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </DialogContent>
+      </Dialog>
 
     </div>
   );
