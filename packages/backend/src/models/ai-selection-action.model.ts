@@ -91,7 +91,18 @@ export class AISelectionActionModel {
   /**
    * Get statistics for a document's AI selection actions
    */
-  static async getStatsByDocumentId(documentId: string): Promise<AISelectionActionStats> {
+  static async getStatsByDocumentId(
+    documentId: string,
+    filters: { endDate?: Date | string } = {}
+  ): Promise<AISelectionActionStats> {
+    const whereClauses = ['document_id = $1'];
+    const params: any[] = [documentId];
+
+    if (filters.endDate) {
+      whereClauses.push(`created_at <= $${params.length + 1}`);
+      params.push(new Date(filters.endDate));
+    }
+
     const query = `
       SELECT
         COUNT(*) as total_actions,
@@ -102,10 +113,10 @@ export class AISelectionActionModel {
         COUNT(*) FILTER (WHERE decision = 'accepted') as accepted_count,
         COUNT(*) FILTER (WHERE decision = 'rejected') as rejected_count
       FROM ai_selection_actions
-      WHERE document_id = $1
+      WHERE ${whereClauses.join(' AND ')}
     `;
 
-    const result = await pool.query(query, [documentId]);
+    const result = await pool.query(query, params);
     const row = result.rows[0];
 
     const totalActions = parseInt(row.total_actions) || 0;

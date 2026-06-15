@@ -753,7 +753,7 @@ export function CertificateEvidenceView({
             <CardContent>
               {reviewSignals.length === 0 ? (
                 <div className="rounded-lg border border-border/60 bg-muted/25 p-4 text-sm text-muted-foreground">
-                  No abnormal behavior signals were detected for this certificate.
+                  No recorded write-time review signals were detected before this certificate was generated.
                 </div>
               ) : (
                 <div className="grid gap-3 md:grid-cols-2">
