@@ -8,8 +8,7 @@
   "scripts": {
     "build": "tsc --build",
     "dev": "tsc --watch",
-    "clean": "rm -rf dist",
-    "test": "echo \"No tests in shared package\" && exit 0"
+    "clean": "rm -rf dist"
   },
   "dependencies": {
     "yaml": "^2.9.0",

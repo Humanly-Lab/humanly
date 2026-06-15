@@ -13,8 +13,7 @@
     "build": "rollup -c",
     "build:watch": "rollup -c -w",
     "clean": "rm -rf dist",
-    "prebuild": "pnpm clean",
-    "test": "echo \"No tests in tracker package\" && exit 0"
+    "prebuild": "pnpm clean"
   },
   "keywords": [
     "tracking",

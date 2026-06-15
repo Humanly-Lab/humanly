@@ -75,9 +75,6 @@ temp/
 # ── Local assistant state ─────────────────────────────────────────────────────
 .claude/
 .AGENTS/
-!.agents/
-!.agents/skills/
-!.agents/skills/**
 /CLAUDE.md
 /AGENTS.md
 /DEPLOY.md
@@ -103,3 +100,32 @@ DEV_LOG.md
 uploads/
 tmp/
 Design.md
+
+# ── Local-only development / QA artifacts ────────────────────────────────────
+.agents/
+.codex/
+fixtures/qa/
+scripts/qa/
+scripts/agentic-integration-test.mjs
+scripts/backend-stress-test.mjs
+scripts/create-production-qa-issue.mjs
+scripts/dev-mock-server.mjs
+scripts/jest/
+.github/
+**/__tests__/
+**/__mocks__/
+**/*.test.*
+**/*.spec.*
+**/jest.config.js
+**/jest.setup.ts
+**/examples/
+**/example.html
+**/dev-bypass-login.html
+
+# Keep package-level implementation docs local.
+packages/**/*.md
+
+# Keep public docs focused on self-deployment only.
+docs/*
+!docs/
+!docs/SELF_DEPLOY.md
