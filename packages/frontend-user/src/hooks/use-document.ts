@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
 import { apiClient, type HumanlyAxiosRequestConfig } from '@/lib/api-client';
-import { uploadPdfForDocument } from '@/lib/document-pdf';
 import type { AppFile, Document, DocumentEvent } from '@humanly/shared';
 
 interface TrackEventsOptions {
@@ -97,13 +96,6 @@ export function useDocument(documentId: string) {
     }
   }, [documentId]);
 
-  const uploadPdf = useCallback(async (file: File, titleOverride?: string) => {
-    const uploadTitle = titleOverride?.trim() || document?.title || file.name.replace(/\.pdf$/i, '');
-
-    await uploadPdfForDocument(documentId, uploadTitle, file);
-    await fetchDocument();
-  }, [document?.title, documentId, fetchDocument]);
-
   return {
     document,
     linkedFile,
@@ -113,7 +105,6 @@ export function useDocument(documentId: string) {
     updateDocument,
     startWritingSession,
     trackEvents,
-    uploadPdf,
     refetch: fetchDocument,
   };
 }

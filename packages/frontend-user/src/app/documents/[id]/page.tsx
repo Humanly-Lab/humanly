@@ -15,7 +15,6 @@ import {
   PanelLeft,
   PanelLeftClose,
   RefreshCw,
-  Upload,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,7 +24,6 @@ import { useDocument } from '@/hooks/use-document';
 import { useCertificates } from '@/hooks/use-certificates';
 import { useAuthStore } from '@/stores/auth-store';
 import { useToast } from '@/components/ui/use-toast';
-import { validatePdfFile } from '@/lib/document-pdf';
 import { downloadBlob } from '@/lib/download';
 import {
   CertificateGenerationDialog,
@@ -36,7 +34,7 @@ import { AIAssistantButton, AIAssistantPanel, AISelectionMenu, type ActionType }
 import { useAI } from '@/hooks/use-ai';
 import { useAIStore } from '@/stores/ai-store';
 import type { TrackedEvent } from '@humanly/editor';
-import { useState, useEffect, useCallback, useMemo, useRef, type ChangeEvent } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { apiClient, TokenManager } from '@/lib/api-client';
 import { usePublicDocumentToken } from '@/hooks/use-public-document-token';
@@ -287,7 +285,6 @@ export default function DocumentEditorPage() {
     updateDocument,
     startWritingSession,
     trackEvents,
-    uploadPdf,
   } = useDocument(documentId);
   const [showPdfPanel, setShowPdfPanel] = useState(true);
   const { generateCertificate } = useCertificates();
@@ -301,7 +298,6 @@ export default function DocumentEditorPage() {
   const [showCertificateDialog, setShowCertificateDialog] = useState(false);
   const [taskRulesDialogOpen, setTaskRulesDialogOpen] = useState(false);
   const [writingRulesAcknowledged, setWritingRulesAcknowledged] = useState(false);
-  const [isUploadingPdf, setIsUploadingPdf] = useState(false);
   const [taskInstructionFile, setTaskInstructionFile] = useState<TaskInstructionFile | null>(null);
   const [taskInstructionFiles, setTaskInstructionFiles] = useState<TaskInstructionFile[]>([]);
   const [selectedInstructionFileId, setSelectedInstructionFileId] = useState<string | null>(null);
@@ -309,7 +305,6 @@ export default function DocumentEditorPage() {
   const [taskEnrollment, setTaskEnrollment] = useState<TaskEnrollment | null>(null);
   const [isTaskEnrollmentLoading, setIsTaskEnrollmentLoading] = useState(true);
   const [editorInsertAtCursor, setEditorInsertAtCursor] = useState<EditorAIBridgeAPI['insertAtCursor'] | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const submissionSessionRef = useRef<{ taskId: string; sessionId: string } | null>(null);
   const lastSubmissionSessionRef = useRef<{ taskId: string; sessionId: string } | null>(null);
   const autoSubmittedTimeLimitRef = useRef<string | null>(null);
@@ -1147,30 +1142,6 @@ export default function DocumentEditorPage() {
     void handleSubmitTask({ automatic: true });
   }, [documentId, handleSubmitTask, isSubmittingTask, isTimeLimitExpired, taskEnrollment, timerStartedAtMs]);
 
-  const handlePdfSelect = async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    try {
-      validatePdfFile(file);
-      setIsUploadingPdf(true);
-      await uploadPdf(file, title);
-      toast({
-        title: 'Success',
-        description: 'PDF uploaded and linked to this document.',
-      });
-    } catch (err: any) {
-      toast({
-        title: 'Error',
-        description: err.message || 'Failed to upload PDF',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsUploadingPdf(false);
-      event.target.value = '';
-    }
-  };
-
   if (isLoading || isTaskEnrollmentLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -1298,32 +1269,6 @@ export default function DocumentEditorPage() {
             </div>
 
             <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
-              {!displayFile && !taskEnrollment && (
-                <>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="application/pdf"
-                    onChange={handlePdfSelect}
-                    className="hidden"
-                  />
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={isUploadingPdf}
-                    className="sm:size-default"
-                  >
-                    {isUploadingPdf ? (
-                      <Loader2 className="h-4 w-4 sm:mr-2 animate-spin" />
-                    ) : (
-                      <Upload className="h-4 w-4 sm:mr-2" />
-                    )}
-                    <span className="hidden sm:inline">{isUploadingPdf ? 'Uploading...' : 'Upload PDF'}</span>
-                  </Button>
-                </>
-              )}
-
               {displayFile && (
                 <Button
                   variant="outline"
@@ -1518,7 +1463,7 @@ export default function DocumentEditorPage() {
                         <div>
                           <h2 className="text-sm font-semibold">No PDF linked</h2>
                           <p className="text-sm text-muted-foreground">
-                            You can keep writing here and upload the source PDF later for side-by-side reference.
+                            This personal document does not have a source PDF.
                           </p>
                         </div>
                       </div>

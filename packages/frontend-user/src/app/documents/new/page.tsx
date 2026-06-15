@@ -1171,7 +1171,7 @@ export default function NewDocumentPage() {
                 PDF
               </div>
               <p className="mt-1 text-sm text-muted-foreground">
-                Optional PDF source file for side-by-side writing.
+                Optional PDF source file for side-by-side writing. This can only be added during document creation.
               </p>
               <Input
                 ref={fileInputRef}
