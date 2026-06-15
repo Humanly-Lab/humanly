@@ -190,7 +190,7 @@ export function TaskCard({
                 {renderStatusBadge()}
               </div>
             </div>
-            <p className="mt-1 line-clamp-2 text-sm text-muted-foreground" title={task.description || undefined}>
+            <p className="mt-1 line-clamp-2 break-words [overflow-wrap:anywhere] text-sm text-muted-foreground" title={task.description || undefined}>
               {task.description || 'No description provided.'}
             </p>
             <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground md:hidden">
@@ -221,13 +221,13 @@ export function TaskCard({
       <CardHeader>
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <CardTitle className="line-clamp-2 break-words text-xl leading-tight" title={task.name}>
+            <CardTitle className="line-clamp-2 break-words [overflow-wrap:anywhere] text-xl leading-tight" title={task.name}>
               {task.name}
             </CardTitle>
           </div>
           {renderStatusBadge()}
         </div>
-        <CardDescription className="line-clamp-3 min-h-[3.75rem]" title={task.description || undefined}>
+        <CardDescription className="line-clamp-3 min-h-[3.75rem] break-words [overflow-wrap:anywhere]" title={task.description || undefined}>
           {task.description || 'No description provided.'}
         </CardDescription>
       </CardHeader>

@@ -292,6 +292,10 @@ describe('admin task overview invite code copy button', () => {
     expect(taskHeading).toHaveAttribute('title', 'Clipboard Task');
     expect(taskHeading).toHaveClass('line-clamp-2');
     expect(taskHeading).toHaveClass('break-words');
+    expect(taskHeading.className).toContain('[overflow-wrap:anywhere]');
+    const taskDescription = screen.getByText('Task details');
+    expect(taskDescription).toHaveClass('break-words');
+    expect(taskDescription.className).toContain('[overflow-wrap:anywhere]');
     const overviewRegion = screen.getByText('Task Overview').closest('.rounded-lg');
     expect(overviewRegion).not.toBeNull();
     expect(within(overviewRegion as HTMLElement).getByText(

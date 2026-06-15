@@ -111,7 +111,11 @@ describe('admin task list card actions', () => {
     expect(taskHeading).toHaveAttribute('title', 'Humanly Draft');
     expect(taskHeading).toHaveClass('line-clamp-2');
     expect(taskHeading).toHaveClass('break-words');
-    expect(screen.getByText('A concise writing assignment.')).toBeInTheDocument();
+    expect(taskHeading.className).toContain('[overflow-wrap:anywhere]');
+    const cardDescription = screen.getByText('A concise writing assignment.');
+    expect(cardDescription).toBeInTheDocument();
+    expect(cardDescription).toHaveClass('break-words');
+    expect(cardDescription.className).toContain('[overflow-wrap:anywhere]');
     expect(screen.getByText('2 completions')).toBeInTheDocument();
     expect(screen.getByText('Open now')).toBeInTheDocument();
     const createdText = `Created ${adminLocalDateTimeFormatter.format(new Date(taskFixture.createdAt))}`;
