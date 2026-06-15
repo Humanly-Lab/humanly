@@ -24,9 +24,7 @@
 Humanly is a writing platform that records how a document is produced inside a
 controlled workspace. It focuses on provenance: the writing environment, the
 writer's activity, in-platform AI use, and the evidence attached to the final
-document.
-
-Instead of only judging final text, Humanly turns the writing process into a
+document. Instead of only judging final text, Humanly turns the writing process into a
 shareable certificate.
 
 <h2 id="product">Product</h2>
