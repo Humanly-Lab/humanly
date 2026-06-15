@@ -217,22 +217,30 @@ export function TaskCard({
   }
 
   return (
-    <Card className="humanly-surface flex min-h-[270px] flex-col bg-card/95 transition-colors hover:border-foreground/15">
-      <CardHeader>
+    <Card className="humanly-surface flex h-full min-h-[390px] flex-col bg-card/95 transition-colors hover:border-foreground/15">
+      <CardHeader className="h-[230px] shrink-0 overflow-hidden">
         <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <CardTitle className="line-clamp-2 break-words [overflow-wrap:anywhere] text-xl leading-tight" title={task.name}>
+          <div className="min-w-0 flex-1">
+            <CardTitle
+              className="line-clamp-2 break-words [overflow-wrap:anywhere] text-xl leading-tight"
+              title={task.name}
+            >
               {task.name}
             </CardTitle>
           </div>
+
           {renderStatusBadge()}
         </div>
-        <CardDescription className="line-clamp-3 min-h-[3.75rem] break-words [overflow-wrap:anywhere]" title={task.description || undefined}>
+
+        <CardDescription
+          className="mt-4 line-clamp-4 break-words [overflow-wrap:anywhere]"
+          title={task.description || undefined}
+        >
           {task.description || 'No description provided.'}
         </CardDescription>
       </CardHeader>
 
-      <CardContent className="flex-1">
+      <CardContent className="shrink-0 pb-8">
         <div className="space-y-2 text-sm text-muted-foreground">
           <div className="flex items-center gap-3">
             <Users className="h-4 w-4 text-muted-foreground" />
@@ -245,7 +253,7 @@ export function TaskCard({
         </div>
       </CardContent>
 
-      <CardFooter className="flex space-x-2 border-t border-border/70 bg-muted/20 pt-4">
+      <CardFooter className="mt-auto flex gap-2 border-t border-border/70 bg-muted/20 pt-4">
         {renderActionControls()}
       </CardFooter>
     </Card>
