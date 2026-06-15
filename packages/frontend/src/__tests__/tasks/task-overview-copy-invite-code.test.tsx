@@ -6,7 +6,12 @@ import userEvent from '@testing-library/user-event';
 import { parseEnvironmentConfigContent } from '@humanly/shared';
 
 import TaskDetailPage from '@/app/tasks/[id]/page';
-import { getAnalyticsDateRange } from '@/app/tasks/[id]/_components/AnalyticsPanel';
+import {
+  buildEventTypeChartData,
+  getAnalyticsDateRange,
+  getEventTypeDisplayLabel,
+  getShareBarWidth,
+} from '@/app/tasks/[id]/_components/AnalyticsPanel';
 
 const mockPush = jest.fn();
 const mockReplace = jest.fn();
@@ -182,12 +187,16 @@ const eventsTimelineFixture = [
 ];
 
 const eventTypesFixture = [
-  { eventType: 'input', count: 30, percentage: 50 },
-  { eventType: 'paste', count: 12, percentage: 20 },
-  { eventType: 'copy', count: 6, percentage: 10 },
-  { eventType: 'focus', count: 12, percentage: 20 },
-  { eventType: 'page_hidden', count: 7, percentage: 10 },
-  { eventType: 'page_visible', count: 5, percentage: 7 },
+  { eventType: 'input', count: 30, percentage: 37 },
+  { eventType: 'paste', count: 12, percentage: 15 },
+  { eventType: 'focus', count: 12, percentage: 15 },
+  { eventType: 'page_hidden', count: 7, percentage: 9 },
+  { eventType: 'copy', count: 6, percentage: 7 },
+  { eventType: 'page_visible', count: 5, percentage: 6 },
+  { eventType: 'ai_query_sent', count: 4, percentage: 5 },
+  { eventType: 'ai_insert_from_chat', count: 3, percentage: 4 },
+  { eventType: 'blocked_copy_paste_attempt', count: 2, percentage: 2 },
+  { eventType: 'ai_policy_refusal', count: 1, percentage: 1 },
 ];
 
 const adminLocalTimeFormatter = new Intl.DateTimeFormat('en-US', {
@@ -654,12 +663,33 @@ describe('admin task overview invite code copy button', () => {
     expect(screen.getByRole('heading', { name: 'Activity' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Event Type Distribution' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Event Type Percentage' })).toBeInTheDocument();
-    expect(screen.getByTestId('event-type-total-events')).toHaveTextContent('72events');
-    expect(screen.getByText('Left workspace')).toBeInTheDocument();
-    expect(screen.getByText('Returned')).toBeInTheDocument();
-    expect(screen.getByText('focus')).toBeInTheDocument();
+    expect(screen.getByTestId('event-type-total-events')).toHaveTextContent('82events');
+    expect(screen.getAllByText('Event').length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByText('Count').length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByText('Share').length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByText('Input').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Paste').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Left workspace').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Returned').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Focus').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Other').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('10').length).toBeGreaterThan(0);
     expect(screen.queryByText('page_hidden')).not.toBeInTheDocument();
     expect(screen.queryByText('page_visible')).not.toBeInTheDocument();
+    expect(screen.queryByText('AI question')).not.toBeInTheDocument();
+    expect(screen.queryByText('ai_query_sent')).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getAllByRole('button', { name: /other/i })[0]);
+    const otherDialog = await screen.findByRole('dialog', { name: 'Other event types' });
+    expect(within(otherDialog).getByText('AI question')).toBeInTheDocument();
+    expect(within(otherDialog).getByText('ai_query_sent')).toBeInTheDocument();
+    expect(within(otherDialog).getByText('AI inserted')).toBeInTheDocument();
+    expect(within(otherDialog).getByText('ai_insert_from_chat')).toBeInTheDocument();
+    expect(within(otherDialog).getByText('Blocked copy-paste')).toBeInTheDocument();
+    expect(within(otherDialog).getByText('blocked_copy_paste_attempt')).toBeInTheDocument();
+    expect(within(otherDialog).getByText('AI refusal')).toBeInTheDocument();
+    expect(within(otherDialog).getByText('ai_policy_refusal')).toBeInTheDocument();
+
     expect(screen.queryByRole('heading', { name: 'Submissions' })).not.toBeInTheDocument();
     expect(screen.queryByText('Latest Essay')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /view analytics/i })).not.toBeInTheDocument();
@@ -833,5 +863,110 @@ describe('admin analytics date ranges', () => {
       startDate: '2026-05-01T12:00:00.000Z',
       endDate: '2026-05-10T12:00:00.000Z',
     });
+  });
+});
+
+describe('admin analytics event type chart data', () => {
+  it('keeps a simple event mix ungrouped and calculates exact shares', () => {
+    const result = buildEventTypeChartData([
+      { eventType: 'input', count: 80, percentage: 0 },
+      { eventType: 'paste', count: 15, percentage: 0 },
+      { eventType: 'page_hidden', count: 5, percentage: 0 },
+    ]);
+
+    expect(result.totalEventTypeCount).toBe(100);
+    expect(result.foldedEventTypeChartData).toEqual([]);
+    expect(result.eventTypeChartData.map((item) => ({
+      label: item.eventTypeLabel,
+      count: item.count,
+      percentage: Math.round(item.percentage),
+    }))).toEqual([
+      { label: 'Input', count: 80, percentage: 80 },
+      { label: 'Paste', count: 15, percentage: 15 },
+      { label: 'Left workspace', count: 5, percentage: 5 },
+    ]);
+  });
+
+  it('shows exactly six event types without creating Other', () => {
+    const result = buildEventTypeChartData([
+      { eventType: 'input', count: 30, percentage: 0 },
+      { eventType: 'keydown', count: 20, percentage: 0 },
+      { eventType: 'paste', count: 15, percentage: 0 },
+      { eventType: 'page_visible', count: 14, percentage: 0 },
+      { eventType: 'blur', count: 11, percentage: 0 },
+      { eventType: 'focus', count: 10, percentage: 0 },
+    ]);
+
+    expect(result.totalEventTypeCount).toBe(100);
+    expect(result.eventTypeChartData).toHaveLength(6);
+    expect(result.foldedEventTypeChartData).toHaveLength(0);
+    expect(result.eventTypeChartData.map((item) => item.eventTypeLabel)).toEqual([
+      'Input',
+      'Keydown',
+      'Paste',
+      'Returned',
+      'Blur',
+      'Focus',
+    ]);
+    expect(result.eventTypeChartData.some((item) => item.isOther)).toBe(false);
+  });
+
+  it('folds a complex long-tail event mix into accurate Top 6 plus Other values', () => {
+    const result = buildEventTypeChartData([
+      { eventType: 'input', count: 312, percentage: 0 },
+      { eventType: 'paste', count: 86, percentage: 0 },
+      { eventType: 'focus', count: 74, percentage: 0 },
+      { eventType: 'page_hidden', count: 52, percentage: 0 },
+      { eventType: 'copy', count: 41, percentage: 0 },
+      { eventType: 'page_visible', count: 38, percentage: 0 },
+      { eventType: 'ai_query_sent', count: 25, percentage: 0 },
+      { eventType: 'ai_response_received', count: 25, percentage: 0 },
+      { eventType: 'ai_insert_from_chat', count: 18, percentage: 0 },
+      { eventType: 'blocked_copy_paste_attempt', count: 11, percentage: 0 },
+      { eventType: 'ai_policy_refusal', count: 7, percentage: 0 },
+      { eventType: 'select', count: 5, percentage: 0 },
+    ]);
+
+    expect(result.totalEventTypeCount).toBe(694);
+    expect(result.eventTypeChartData.map((item) => item.eventTypeLabel)).toEqual([
+      'Input',
+      'Paste',
+      'Focus',
+      'Left workspace',
+      'Copy',
+      'Returned',
+      'Other',
+    ]);
+    expect(result.eventTypeChartData.at(-1)).toEqual(expect.objectContaining({
+      eventTypeLabel: 'Other',
+      count: 91,
+      isOther: true,
+    }));
+    expect(Math.round(result.eventTypeChartData[0].percentage)).toBe(45);
+    expect(Math.round(result.eventTypeChartData.at(-1)?.percentage || 0)).toBe(13);
+    expect(result.foldedEventTypeChartData.map((item) => item.eventTypeLabel)).toEqual([
+      'AI question',
+      'AI response',
+      'AI inserted',
+      'Blocked copy-paste',
+      'AI refusal',
+      'Select',
+    ]);
+  });
+
+  it('uses percentage, not max count, for distribution bar width', () => {
+    expect(getShareBarWidth(45)).toBe('45%');
+    expect(getShareBarWidth(100)).toBe('100%');
+    expect(getShareBarWidth(1)).toBe('4%');
+    expect(getShareBarWidth(0)).toBe('0%');
+  });
+
+  it('uses readable event labels while keeping focus and blur recognizable', () => {
+    expect(getEventTypeDisplayLabel('page_hidden')).toBe('Left workspace');
+    expect(getEventTypeDisplayLabel('page_visible')).toBe('Returned');
+    expect(getEventTypeDisplayLabel('ai_query_sent')).toBe('AI question');
+    expect(getEventTypeDisplayLabel('blocked_copy_paste_attempt')).toBe('Blocked copy-paste');
+    expect(getEventTypeDisplayLabel('focus')).toBe('Focus');
+    expect(getEventTypeDisplayLabel('blur')).toBe('Blur');
   });
 });
