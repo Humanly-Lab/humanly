@@ -111,7 +111,6 @@ scripts/backend-stress-test.mjs
 scripts/create-production-qa-issue.mjs
 scripts/dev-mock-server.mjs
 scripts/jest/
-.github/
 **/__tests__/
 **/__mocks__/
 **/*.test.*
