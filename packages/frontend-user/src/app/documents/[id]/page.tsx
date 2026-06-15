@@ -118,6 +118,13 @@ interface PendingActivityEventBatch {
   sessionId?: string | null;
 }
 
+const containsWorkspaceLifecycleEvent = (events: PendingActivityEvent[]) => (
+  events.some((event) => (
+    event.eventType === 'page_hidden' ||
+    event.eventType === 'page_visible'
+  ))
+);
+
 function formatTimerDuration(totalSeconds: number): string {
   const safeSeconds = Math.max(0, Math.floor(totalSeconds));
   const hours = Math.floor(safeSeconds / 3600);
@@ -836,9 +843,35 @@ export default function DocumentEditorPage() {
 
   const postEventBatch = useCallback(
     async (batch: PendingActivityEventBatch) => {
+      const shouldUseKeepalive =
+        containsWorkspaceLifecycleEvent(batch.events) ||
+        (typeof window !== 'undefined' && window.document.visibilityState === 'hidden');
+
+      if (shouldUseKeepalive && typeof fetch === 'function') {
+        const token = TokenManager.getAccessToken();
+        const response = await fetch(`${API_URL}/documents/${documentId}/events`, {
+          method: 'POST',
+          keepalive: true,
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({
+            events: batch.events,
+            ...(batch.sessionId ? { sessionId: batch.sessionId } : {}),
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to track workspace lifecycle events: ${response.status}`);
+        }
+        return;
+      }
+
       await trackEvents(batch.events as any, batch.sessionId, { throwOnError: true });
     },
-    [trackEvents]
+    [documentId, trackEvents]
   );
 
   const retryFailedEventBatches = useCallback(async () => {

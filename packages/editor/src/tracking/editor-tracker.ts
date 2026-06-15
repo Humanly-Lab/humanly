@@ -36,6 +36,8 @@ export class EditorTracker {
   private suppressNextTextChange: boolean = false;
   private lastPageHiddenAt: number | null = null;
   private lastVisibilityState: string | null = null;
+  private workspaceVisibilityState: 'visible' | 'hidden' = 'visible';
+  private pendingWindowBlurTimer: ReturnType<typeof setTimeout> | null = null;
 
   private get copyPastePolicy() {
     return this.config.copyPastePolicy === 'blocked' ? 'blocked' : 'allowed';
@@ -400,6 +402,11 @@ export class EditorTracker {
       this.flushTimer = null;
     }
 
+    if (this.pendingWindowBlurTimer) {
+      clearTimeout(this.pendingWindowBlurTimer);
+      this.pendingWindowBlurTimer = null;
+    }
+
     // Flush remaining events. React cleanup cannot await this, so failures are
     // retained in the buffer for any explicit retry path that still has access.
     void this.flush().catch(() => undefined);
@@ -582,11 +589,33 @@ export class EditorTracker {
     }
 
     this.lastVisibilityState = document.visibilityState || null;
+    this.workspaceVisibilityState = this.lastVisibilityState === 'hidden' ? 'hidden' : 'visible';
     const handleVisibilityChange = () => this.handlePageVisibilityChange();
+    const handlePageHide = () => this.markWorkspaceHidden('pagehide');
+    const handlePageShow = () => this.markWorkspaceVisible('pageshow');
+    const handleWindowBlur = () => this.handleWindowBlur();
+    const handleWindowFocus = () => this.handleWindowFocus();
+
     document.addEventListener('visibilitychange', handleVisibilityChange);
+    if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+      window.addEventListener('pagehide', handlePageHide);
+      window.addEventListener('pageshow', handlePageShow);
+      window.addEventListener('blur', handleWindowBlur);
+      window.addEventListener('focus', handleWindowFocus);
+    }
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (typeof window !== 'undefined' && typeof window.removeEventListener === 'function') {
+        window.removeEventListener('pagehide', handlePageHide);
+        window.removeEventListener('pageshow', handlePageShow);
+        window.removeEventListener('blur', handleWindowBlur);
+        window.removeEventListener('focus', handleWindowFocus);
+      }
+      if (this.pendingWindowBlurTimer) {
+        clearTimeout(this.pendingWindowBlurTimer);
+        this.pendingWindowBlurTimer = null;
+      }
     };
   }
 
@@ -603,19 +632,84 @@ export class EditorTracker {
     this.lastVisibilityState = visibilityState;
 
     if (visibilityState === 'hidden') {
-      this.trackPageVisibility('page_hidden', visibilityState);
-      void this.flush().catch(() => undefined);
+      this.markWorkspaceHidden('visibilitychange');
       return;
     }
 
-    this.trackPageVisibility('page_visible', visibilityState);
+    this.markWorkspaceVisible('visibilitychange');
   }
 
-  private trackPageVisibility(eventType: 'page_hidden' | 'page_visible', visibilityState: string): void {
+  private handleWindowBlur(): void {
+    if (!this.isTracking || typeof window === 'undefined') {
+      return;
+    }
+
+    if (this.pendingWindowBlurTimer) {
+      clearTimeout(this.pendingWindowBlurTimer);
+    }
+
+    this.pendingWindowBlurTimer = setTimeout(() => {
+      this.pendingWindowBlurTimer = null;
+
+      if (!this.isTracking) {
+        return;
+      }
+
+      const hasFocus = typeof document !== 'undefined' && typeof document.hasFocus === 'function'
+        ? document.hasFocus()
+        : true;
+
+      if (!hasFocus || (typeof document !== 'undefined' && document.visibilityState === 'hidden')) {
+        this.markWorkspaceHidden('window_blur');
+      }
+    }, 100);
+  }
+
+  private handleWindowFocus(): void {
+    if (this.pendingWindowBlurTimer) {
+      clearTimeout(this.pendingWindowBlurTimer);
+      this.pendingWindowBlurTimer = null;
+    }
+
+    this.markWorkspaceVisible('window_focus');
+  }
+
+  private markWorkspaceHidden(source: string): void {
+    if (!this.isTracking || this.workspaceVisibilityState === 'hidden') {
+      return;
+    }
+
+    this.workspaceVisibilityState = 'hidden';
+    this.trackPageVisibility('page_hidden', this.getCurrentVisibilityState(), source);
+    void this.flush().catch(() => undefined);
+  }
+
+  private markWorkspaceVisible(source: string): void {
+    if (!this.isTracking || this.workspaceVisibilityState === 'visible') {
+      return;
+    }
+
+    this.workspaceVisibilityState = 'visible';
+    this.trackPageVisibility('page_visible', this.getCurrentVisibilityState(), source);
+    void this.flush().catch(() => undefined);
+  }
+
+  private getCurrentVisibilityState(): string {
+    return typeof document !== 'undefined' ? document.visibilityState || 'visible' : 'visible';
+  }
+
+  private trackPageVisibility(eventType: 'page_hidden' | 'page_visible', visibilityState: string, source: string): void {
     const now = Date.now();
     const currentText = this.extractPlainText(this.editor.getEditorState());
     const { cursorPosition, selectionStart, selectionEnd } = this.getSelectionInfo(this.editor.getEditorState());
-    const metadata: EventMetadata = { visibilityState };
+    const metadata: EventMetadata = {
+      visibilityState,
+      source,
+      documentHidden: typeof document !== 'undefined' ? document.hidden : undefined,
+      windowFocused: typeof document !== 'undefined' && typeof document.hasFocus === 'function'
+        ? document.hasFocus()
+        : undefined,
+    };
 
     if (eventType === 'page_hidden') {
       this.lastPageHiddenAt = now;
