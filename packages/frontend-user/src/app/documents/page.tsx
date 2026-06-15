@@ -667,15 +667,19 @@ export default function DocumentsPage() {
                   <Card
                     key={`${task.id}-${task.documentId}`}
                     data-testid="task-submission-card"
-                    className="flex min-h-[270px] flex-col transition-[border-color,transform] hover:-translate-y-1 hover:border-foreground/20"
+                    className="flex h-full min-h-[390px] flex-col transition-[border-color,transform] hover:-translate-y-1 hover:border-foreground/20"
                   >
-                    <CardHeader>
+                    <CardHeader className="h-[230px] shrink-0 overflow-hidden">
                       <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <CardTitle className="line-clamp-2 break-words text-xl leading-tight" title={taskName}>
+                        <div className="min-w-0 flex-1">
+                          <CardTitle
+                            className="line-clamp-2 break-words [overflow-wrap:anywhere] text-xl leading-tight"
+                            title={taskName}
+                          >
                             {taskName}
                           </CardTitle>
                         </div>
+
                         <Badge
                           variant="outline"
                           className={`${statusBadge.className} shrink-0 whitespace-nowrap rounded-full px-3`}
@@ -683,44 +687,55 @@ export default function DocumentsPage() {
                           {statusBadge.label}
                         </Badge>
                       </div>
-                      <CardDescription className="line-clamp-3 min-h-[3.75rem]" title={taskDescription}>
+
+                      <CardDescription
+                        className="mt-4 line-clamp-4 break-words [overflow-wrap:anywhere]"
+                        title={taskDescription}
+                      >
                         {taskDescription}
                       </CardDescription>
                     </CardHeader>
 
-                    <CardContent className="pb-2 sm:pb-2">
+                    <CardContent className="shrink-0 pb-8">
                       <div className="space-y-2 text-sm text-muted-foreground">
                         <div className="flex items-center gap-3">
-                          <Calendar className="h-4 w-4 text-muted-foreground" />
-                          <span>Start Date: {formatTaskDateLabel(task.startDate, 'Not scheduled')}</span>
+                          <Calendar className="h-4 w-4 shrink-0 text-muted-foreground" />
+                          <span className="min-w-0 truncate">
+                            Start Date: {formatTaskDateLabel(task.startDate, 'Not scheduled')}
+                          </span>
                         </div>
                         <div className="flex items-center gap-3">
-                          <Calendar className="h-4 w-4 text-muted-foreground" />
-                          <span>Deadline: {formatTaskDateLabel(task.endDate, 'No deadline')}</span>
+                          <Calendar className="h-4 w-4 shrink-0 text-muted-foreground" />
+                          <span className="min-w-0 truncate">
+                            Deadline: {formatTaskDateLabel(task.endDate, 'No deadline')}
+                          </span>
                         </div>
                       </div>
                     </CardContent>
 
-                    <CardFooter className="flex space-x-2 border-t border-border/70 pt-4 sm:pt-4">
-                      <Button
-                        variant="default"
-                        size="sm"
-                        className="w-full"
-                        onClick={() => router.push(`/documents/${task.documentId}`)}
-                      >
-                        <Eye className="mr-2 h-4 w-4" />
-                        Open Submission
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="min-w-[120px]"
-                        title="Delete task submission"
-                        onClick={() => setTaskToDelete(task)}
-                      >
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        Delete
-                      </Button>
+                    <CardFooter className="mt-auto border-t border-border/70 bg-muted/20 !p-0">
+                      <div className="flex w-full gap-2 px-6 pb-6 pt-6">
+                        <Button
+                          variant="default"
+                          size="sm"
+                          className="h-10 flex-1"
+                          onClick={() => router.push(`/documents/${task.documentId}`)}
+                        >
+                          <Eye className="mr-2 h-4 w-4" />
+                          Open Submission
+                        </Button>
+
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-10 min-w-[120px]"
+                          title="Delete task submission"
+                          onClick={() => setTaskToDelete(task)}
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Delete
+                        </Button>
+                      </div>
                     </CardFooter>
                   </Card>
                 );
