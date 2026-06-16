@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Play, Pause, RotateCcw, Loader2, Clock } from 'lucide-react';
+import { Play, Pause, RotateCcw, Loader2, Clock, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -48,6 +48,33 @@ const AI_ACTION_FLASH_STYLES: Record<string, { overlay: string; border: string }
     border: 'ring-[#d6bba8]',
   },
 };
+
+const AI_ACTION_LABELS: Record<string, string> = {
+  grammar: 'Fix grammar',
+  improve: 'Improve writing',
+  simplify: 'Simplify',
+  formal: 'Make formal',
+};
+
+function getAIActionLabel(actionType?: string) {
+  if (!actionType) return 'AI quick action';
+  return AI_ACTION_LABELS[actionType] ?? actionType.replace(/_/g, ' ');
+}
+
+function getActionResultText(event: EditEvent) {
+  if (event.metadata?.newText) return event.metadata.newText;
+
+  if (
+    typeof event.selectionStart === 'number'
+    && typeof event.selectionEnd === 'number'
+    && event.textAfter
+  ) {
+    const replacement = event.textAfter.slice(event.selectionStart, event.selectionEnd);
+    if (replacement) return replacement;
+  }
+
+  return event.textAfter || '';
+}
 
 export function DocumentReplay({ token, accessCode, className = '' }: DocumentReplayProps) {
   const [editHistory, setEditHistory] = useState<EditEvent[]>([]);
@@ -242,7 +269,7 @@ export function DocumentReplay({ token, accessCode, className = '' }: DocumentRe
   const progress = ((currentIndex / (editHistory.length - 1)) * 100).toFixed(0);
   const aiActionLabel = currentState.eventType === 'ai_selection_action'
     ? currentState.metadata?.actionType
-      ? `AI: ${currentState.metadata.actionType}`
+      ? `AI: ${getAIActionLabel(currentState.metadata.actionType)}`
       : 'AI action'
     : null;
   const selectedText = currentState.metadata?.selectedText
@@ -253,9 +280,9 @@ export function DocumentReplay({ token, accessCode, className = '' }: DocumentRe
         : '');
   const showSelectionSnapshot = currentState.eventType === 'select' && !!selectedText;
   const showQuickActionApplication = currentState.eventType === 'ai_selection_action';
-  const quickActionLabel = currentState.metadata?.actionType
-    ? currentState.metadata.actionType.charAt(0).toUpperCase() + currentState.metadata.actionType.slice(1)
-    : null;
+  const quickActionLabel = getAIActionLabel(currentState.metadata?.actionType);
+  const quickActionOriginalText = currentState.metadata?.originalText || selectedText || '';
+  const quickActionResultText = getActionResultText(currentState);
   const flashStyle = flashingActionType
     ? AI_ACTION_FLASH_STYLES[flashingActionType]
     : undefined;
@@ -313,52 +340,39 @@ export function DocumentReplay({ token, accessCode, className = '' }: DocumentRe
         )}
 
         {showQuickActionApplication && (
-          <div className="absolute left-1/2 top-4 z-20 w-[360px] max-w-[calc(100%-2rem)] -translate-x-1/2 rounded-xl border bg-background/95 p-3 shadow-lg backdrop-blur-sm">
-            <div className="mb-3 flex flex-wrap gap-2">
-              {[
-                { key: 'grammar', label: 'Fix grammar' },
-                { key: 'improve', label: 'Improve writing' },
-                { key: 'simplify', label: 'Simplify' },
-                { key: 'formal', label: 'Make formal' },
-              ].map((action) => {
-                const isActive = currentState.metadata?.actionType === action.key;
-                return (
-                  <div
-                    key={action.key}
-                    className={`rounded-md border px-2 py-1.5 text-[11px] font-medium ${
-                      isActive
-                        ? 'border-[#d6bba8] bg-[#f1e8df] text-[#8a5f43]'
-                        : 'bg-muted/40 text-muted-foreground'
-                    }`}
-                  >
-                    {action.label}
-                  </div>
-                );
-              })}
+          <div className="absolute left-1/2 top-4 z-20 w-[420px] max-w-[calc(100%-2rem)] -translate-x-1/2 rounded-xl border bg-background/95 p-3 shadow-lg backdrop-blur-sm">
+            <div className="mb-3 flex items-start gap-2">
+              <div className="mt-0.5 rounded-full bg-[#f1e8df] p-1.5 text-[#8a5f43]">
+                <Sparkles className="h-3.5 w-3.5" />
+              </div>
+              <div>
+                <p className="humanly-eyebrow text-[10px]">Replay evidence</p>
+                <p className="text-sm font-semibold text-foreground">
+                  AI quick action recorded: {quickActionLabel}
+                </p>
+                <p className="text-[11px] text-muted-foreground">
+                  This is a historical event from the certificate replay, not a live editor control.
+                </p>
+              </div>
             </div>
             <div className="grid gap-2 md:grid-cols-2">
               <div>
                 <p className="mb-1 humanly-eyebrow text-[10px]">
-                  Before
+                  Selected text
                 </p>
                 <div className="rounded-md border bg-background px-3 py-2 text-xs text-foreground/80">
-                  {currentState.metadata?.originalText || currentState.textBefore || '—'}
+                  {quickActionOriginalText || 'No selected text recorded'}
                 </div>
               </div>
               <div>
                 <p className="mb-1 humanly-eyebrow text-[10px]">
-                  After
+                  Result
                 </p>
                 <div className="rounded-md border bg-background px-3 py-2 text-xs text-foreground/80">
-                  {currentState.metadata?.newText || currentState.textAfter || '—'}
+                  {quickActionResultText || 'No result text recorded'}
                 </div>
               </div>
             </div>
-            {quickActionLabel && (
-              <p className="mt-2 text-[11px] font-medium text-[#8a5f43]">
-                {quickActionLabel} applied
-              </p>
-            )}
           </div>
         )}
 
