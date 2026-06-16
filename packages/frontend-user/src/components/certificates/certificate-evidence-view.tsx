@@ -366,6 +366,14 @@ function formatEvidenceKey(key: string) {
     .replace(/^./, (char) => char.toUpperCase());
 }
 
+const HIDDEN_EVIDENCE_KEYS = new Set(['eventType', 'legacyCode']);
+
+function getVisibleEvidenceEntries(flag: WritingAnomalyFlag) {
+  return Object.entries(flag.evidence || {})
+    .filter(([key]) => !HIDDEN_EVIDENCE_KEYS.has(key))
+    .slice(0, 6);
+}
+
 function downloadEnvironmentConfig(
   certificateId: string,
   config: WritingEnvironmentConfig | null | undefined,
@@ -769,16 +777,18 @@ export function CertificateEvidenceView({
                         <p className="font-medium">{flag.label}</p>
                       </div>
                       <p className="mt-2 text-sm text-muted-foreground">{flag.description}</p>
-                      <div className="mt-3 grid gap-2 text-xs sm:grid-cols-2">
-                        {Object.entries(flag.evidence || {}).slice(0, 6).map(([key, value]) => (
-                          <div key={key} className="rounded-md bg-background/70 px-2 py-1.5">
-                            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                              {formatEvidenceKey(key)}
-                            </p>
-                            <p className="mt-0.5 break-words font-medium">{formatEvidenceValue(value)}</p>
-                          </div>
-                        ))}
-                      </div>
+                      {getVisibleEvidenceEntries(flag).length > 0 && (
+                        <div className="mt-3 grid gap-2 text-xs sm:grid-cols-2">
+                          {getVisibleEvidenceEntries(flag).map(([key, value]) => (
+                            <div key={key} className="rounded-md bg-background/70 px-2 py-1.5">
+                              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                                {formatEvidenceKey(key)}
+                              </p>
+                              <p className="mt-0.5 break-words font-medium">{formatEvidenceValue(value)}</p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

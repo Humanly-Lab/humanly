@@ -86,6 +86,7 @@ export function DocumentReplay({ token, accessCode, className = '' }: DocumentRe
   const [uniformSpeed, setUniformSpeed] = useState(2); // Default 2x for uniform timing
   const [flashingActionType, setFlashingActionType] = useState<string | null>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const scrubActiveRef = useRef(false);
   const playbackSpeed = useRealIntervals ? 1 : uniformSpeed;
 
   // Fetch edit history
@@ -196,10 +197,74 @@ export function DocumentReplay({ token, accessCode, className = '' }: DocumentRe
     setIsPlaying(false);
   }, []);
 
-  const handleSliderChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setCurrentIndex(parseInt(e.target.value));
+  const seekToIndex = useCallback((index: number) => {
+    if (editHistory.length === 0) return;
+    if (!Number.isFinite(index)) return;
+
+    const maxIndex = editHistory.length - 1;
+    const nextIndex = Math.min(Math.max(index, 0), maxIndex);
+    setCurrentIndex(nextIndex);
     setIsPlaying(false);
-  }, []);
+  }, [editHistory.length]);
+
+  const handleSliderChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const nextIndex = Number.parseInt(e.target.value, 10);
+    if (!Number.isFinite(nextIndex)) return;
+    seekToIndex(nextIndex);
+  }, [seekToIndex]);
+
+  const handleSliderPointerSeek = useCallback((e: React.PointerEvent<HTMLInputElement>) => {
+    if (editHistory.length <= 1) {
+      seekToIndex(0);
+      return;
+    }
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    if (rect.width <= 0) return;
+    if (!Number.isFinite(e.clientX)) return;
+
+    const position = Math.min(Math.max(e.clientX - rect.left, 0), rect.width);
+    const nextIndex = Math.round((position / rect.width) * (editHistory.length - 1));
+    seekToIndex(nextIndex);
+  }, [editHistory.length, seekToIndex]);
+
+  const handleSliderMouseSeek = useCallback((e: React.MouseEvent<HTMLInputElement>) => {
+    if (scrubActiveRef.current) return;
+    if (editHistory.length <= 1) {
+      seekToIndex(0);
+      return;
+    }
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    if (rect.width <= 0) return;
+    if (!Number.isFinite(e.clientX)) return;
+
+    const position = Math.min(Math.max(e.clientX - rect.left, 0), rect.width);
+    const nextIndex = Math.round((position / rect.width) * (editHistory.length - 1));
+    seekToIndex(nextIndex);
+  }, [editHistory.length, seekToIndex]);
+
+  const handleSliderClick = useCallback((e: React.MouseEvent<HTMLInputElement>) => {
+    handleSliderMouseSeek(e);
+  }, [handleSliderMouseSeek]);
+
+  const handleSliderKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (editHistory.length <= 1) return;
+
+    if (e.key === 'ArrowRight' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      seekToIndex(currentIndex + 1);
+    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') {
+      e.preventDefault();
+      seekToIndex(currentIndex - 1);
+    } else if (e.key === 'Home') {
+      e.preventDefault();
+      seekToIndex(0);
+    } else if (e.key === 'End') {
+      e.preventDefault();
+      seekToIndex(editHistory.length - 1);
+    }
+  }, [currentIndex, editHistory.length, seekToIndex]);
 
   const handleSpeedChange = useCallback(() => {
     if (useRealIntervals) {
@@ -418,6 +483,8 @@ export function DocumentReplay({ token, accessCode, className = '' }: DocumentRe
               e.preventDefault();
               handlePlayPause();
             }}
+            aria-label={isPlaying ? 'Pause replay' : currentIndex >= editHistory.length - 1 ? 'Replay from start' : 'Play replay'}
+            title={isPlaying ? 'Pause replay' : currentIndex >= editHistory.length - 1 ? 'Replay from start' : 'Play replay'}
             className="h-10 w-10 flex-shrink-0"
             style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
           >
@@ -436,6 +503,8 @@ export function DocumentReplay({ token, accessCode, className = '' }: DocumentRe
               e.preventDefault();
               handleRestart();
             }}
+            aria-label="Restart replay"
+            title="Restart replay"
             className="h-10 w-10 flex-shrink-0"
             style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
           >
@@ -467,6 +536,29 @@ export function DocumentReplay({ token, accessCode, className = '' }: DocumentRe
               max={editHistory.length - 1}
               min={0}
               step={1}
+              aria-label="Replay frame"
+              aria-valuetext={`Frame ${currentIndex + 1} of ${editHistory.length}`}
+              onInput={handleSliderChange}
+              onPointerDown={(e) => {
+                scrubActiveRef.current = true;
+                e.currentTarget.setPointerCapture?.(e.pointerId);
+                handleSliderPointerSeek(e);
+              }}
+              onPointerMove={(e) => {
+                if (scrubActiveRef.current) {
+                  handleSliderPointerSeek(e);
+                }
+              }}
+              onPointerUp={(e) => {
+                scrubActiveRef.current = false;
+                handleSliderPointerSeek(e);
+              }}
+              onPointerCancel={() => {
+                scrubActiveRef.current = false;
+              }}
+              onMouseDown={handleSliderMouseSeek}
+              onClick={handleSliderClick}
+              onKeyDown={handleSliderKeyDown}
               className="flex-1 h-2 bg-secondary rounded-lg appearance-none cursor-pointer accent-primary min-w-0"
               style={{ touchAction: 'none' }}
             />
