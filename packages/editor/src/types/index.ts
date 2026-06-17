@@ -9,6 +9,7 @@ export interface EditorTrackerConfig {
   onEvent?: (event: TrackedEvent) => void;
   onEventsBuffer?: (events: TrackedEvent[]) => void | Promise<void>;
   onEventFlushReady?: (flushPendingEvents: (() => Promise<void>) | null) => void;
+  onWorkspaceExitReady?: (markWorkspaceExit: WorkspaceExitMarker | null) => void;
   batchSize?: number;
   flushInterval?: number;
   enabled?: boolean;
@@ -69,6 +70,8 @@ export interface TrackedEvent {
   editorStateAfter?: Record<string, any>;
   metadata?: EventMetadata;
 }
+
+export type WorkspaceExitMarker = (source: string, metadata?: EventMetadata) => Promise<void>;
 
 /**
  * Selection info for popup positioning
@@ -132,6 +135,7 @@ export interface LexicalEditorProps {
   onEventTracked?: (event: TrackedEvent) => void;
   onEventsBuffer?: (events: TrackedEvent[]) => void | Promise<void>;
   onEventFlushReady?: (flushPendingEvents: (() => Promise<void>) | null) => void;
+  onWorkspaceExitReady?: (markWorkspaceExit: WorkspaceExitMarker | null) => void;
   onAutoSave?: (content: Record<string, any>, plainText: string) => void;
   className?: string;
   /** Select this text once after the editor mounts. Used by read-only previews. */

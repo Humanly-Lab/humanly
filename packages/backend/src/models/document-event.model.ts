@@ -7,6 +7,8 @@ import {
   WritingAnomalyThresholds,
 } from '@humanly/shared';
 
+const VIEW_LOGS_NAVIGATION_SOURCE = 'view_logs_navigation';
+
 export interface EventMetrics {
   totalEvents: number;
   typingEvents: number;
@@ -460,7 +462,7 @@ export class DocumentEventModel {
     rapidSwitchWindowSeconds: number,
     filters: Pick<DocumentEventQueryFilters, 'startDate' | 'endDate'> = {}
   ): Promise<AwayFromWorkspaceStats> {
-    const params: any[] = [documentId];
+    const params: any[] = [documentId, VIEW_LOGS_NAVIGATION_SOURCE];
     const dateClauses: string[] = [];
     if (filters.startDate) {
       dateClauses.push(`timestamp >= $${params.length + 1}`);
@@ -485,6 +487,10 @@ export class DocumentEventModel {
       FROM document_events
       WHERE document_id = $1
         AND event_type IN ('page_hidden', 'page_visible')
+        AND NOT (
+          (event_type = 'page_hidden' AND metadata->>'source' = $2)
+          OR (event_type = 'page_visible' AND metadata->>'hiddenSource' = $2)
+        )
         ${dateClauses.length ? `AND ${dateClauses.join(' AND ')}` : ''}
       ORDER BY timestamp ASC, created_at ASC, id ASC
     `;

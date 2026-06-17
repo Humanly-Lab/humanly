@@ -12,6 +12,7 @@ export function TrackingPlugin(props: EditorTrackerConfig): null {
     onEvent: props.onEvent,
     onEventsBuffer: props.onEventsBuffer,
     onEventFlushReady: props.onEventFlushReady,
+    onWorkspaceExitReady: props.onWorkspaceExitReady,
   });
 
   useEffect(() => {
@@ -19,8 +20,9 @@ export function TrackingPlugin(props: EditorTrackerConfig): null {
       onEvent: props.onEvent,
       onEventsBuffer: props.onEventsBuffer,
       onEventFlushReady: props.onEventFlushReady,
+      onWorkspaceExitReady: props.onWorkspaceExitReady,
     };
-  }, [props.onEvent, props.onEventsBuffer, props.onEventFlushReady]);
+  }, [props.onEvent, props.onEventsBuffer, props.onEventFlushReady, props.onWorkspaceExitReady]);
 
   useEffect(() => {
     if (!props.enabled) {
@@ -34,9 +36,11 @@ export function TrackingPlugin(props: EditorTrackerConfig): null {
     });
     tracker.start();
     callbacksRef.current.onEventFlushReady?.(() => tracker.flushPendingEvents());
+    callbacksRef.current.onWorkspaceExitReady?.((source, metadata) => tracker.markWorkspaceExit(source, metadata));
 
     return () => {
       callbacksRef.current.onEventFlushReady?.(null);
+      callbacksRef.current.onWorkspaceExitReady?.(null);
       tracker.stop();
     };
   }, [

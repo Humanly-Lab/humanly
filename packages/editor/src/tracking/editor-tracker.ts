@@ -427,6 +427,27 @@ export class EditorTracker {
     }
   }
 
+  async markWorkspaceExit(source: string, metadata?: EventMetadata): Promise<void> {
+    const previousBuffer = [...this.eventBuffer];
+    const previousWorkspaceVisibilityState = this.workspaceVisibilityState;
+    const previousLastPageHiddenAt = this.lastPageHiddenAt;
+    const didMarkHidden = this.markWorkspaceHidden(source, metadata);
+
+    try {
+      await this.flushPendingEvents();
+    } catch (error) {
+      if (didMarkHidden) {
+        this.eventBuffer = previousBuffer;
+        this.workspaceVisibilityState = previousWorkspaceVisibilityState;
+        this.lastPageHiddenAt = previousLastPageHiddenAt;
+        if (previousWorkspaceVisibilityState === 'visible') {
+          this.clearPersistedWorkspaceHidden();
+        }
+      }
+      throw error;
+    }
+  }
+
   /**
    * Handle keydown events
    */
@@ -674,23 +695,24 @@ export class EditorTracker {
     this.markWorkspaceVisible('window_focus');
   }
 
-  private markWorkspaceHidden(source: string): void {
+  private markWorkspaceHidden(source: string, metadata?: EventMetadata): boolean {
     if (!this.isTracking || this.workspaceVisibilityState === 'hidden') {
-      return;
+      return false;
     }
 
     this.workspaceVisibilityState = 'hidden';
-    this.trackPageVisibility('page_hidden', this.getCurrentVisibilityState(), source);
+    this.trackPageVisibility('page_hidden', this.getCurrentVisibilityState(), source, metadata);
     void this.flush().catch(() => undefined);
+    return true;
   }
 
-  private markWorkspaceVisible(source: string): void {
+  private markWorkspaceVisible(source: string, metadata?: EventMetadata): void {
     if (!this.isTracking || this.workspaceVisibilityState === 'visible') {
       return;
     }
 
     this.workspaceVisibilityState = 'visible';
-    this.trackPageVisibility('page_visible', this.getCurrentVisibilityState(), source);
+    this.trackPageVisibility('page_visible', this.getCurrentVisibilityState(), source, metadata);
     void this.flush().catch(() => undefined);
   }
 
@@ -698,11 +720,17 @@ export class EditorTracker {
     return typeof document !== 'undefined' ? document.visibilityState || 'visible' : 'visible';
   }
 
-  private trackPageVisibility(eventType: 'page_hidden' | 'page_visible', visibilityState: string, source: string): void {
+  private trackPageVisibility(
+    eventType: 'page_hidden' | 'page_visible',
+    visibilityState: string,
+    source: string,
+    additionalMetadata?: EventMetadata
+  ): void {
     const now = Date.now();
     const currentText = this.extractPlainText(this.editor.getEditorState());
     const { cursorPosition, selectionStart, selectionEnd } = this.getSelectionInfo(this.editor.getEditorState());
     const metadata: EventMetadata = {
+      ...(additionalMetadata || {}),
       visibilityState,
       source,
       documentHidden: typeof document !== 'undefined' ? document.hidden : undefined,
@@ -755,14 +783,14 @@ export class EditorTracker {
       return;
     }
 
-    const hiddenAt = this.readPersistedWorkspaceHiddenAt();
-    if (hiddenAt === null) {
+    const hidden = this.readPersistedWorkspaceHidden();
+    if (hidden === null) {
       return;
     }
 
-    this.lastPageHiddenAt = hiddenAt;
+    this.lastPageHiddenAt = hidden.hiddenAt;
     this.workspaceVisibilityState = 'hidden';
-    this.markWorkspaceVisible('tracker_start');
+    this.markWorkspaceVisible('tracker_start', hidden.source ? { hiddenSource: hidden.source } : undefined);
   }
 
   private getWorkspaceLifecycleStorageKey(): string {
@@ -781,7 +809,7 @@ export class EditorTracker {
     }
   }
 
-  private readPersistedWorkspaceHiddenAt(): number | null {
+  private readPersistedWorkspaceHidden(): { hiddenAt: number; source?: string } | null {
     const storage = this.getWorkspaceLifecycleStorage();
     if (!storage) {
       return null;
@@ -794,9 +822,16 @@ export class EditorTracker {
       }
 
       const parsed = JSON.parse(stored) as { hiddenAt?: unknown };
-      return typeof parsed.hiddenAt === 'number' && Number.isFinite(parsed.hiddenAt)
-        ? parsed.hiddenAt
-        : null;
+      if (typeof parsed.hiddenAt !== 'number' || !Number.isFinite(parsed.hiddenAt)) {
+        return null;
+      }
+
+      return {
+        hiddenAt: parsed.hiddenAt,
+        source: typeof (parsed as { source?: unknown }).source === 'string'
+          ? (parsed as { source: string }).source
+          : undefined,
+      };
     } catch {
       return null;
     }

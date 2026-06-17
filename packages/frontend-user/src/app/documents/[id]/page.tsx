@@ -19,7 +19,13 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { LexicalEditor, type EditorAIBridgeAPI, type SelectionReplacementResult } from '@humanly/editor';
+import {
+  LexicalEditor,
+  type EditorAIBridgeAPI,
+  type SelectionReplacementResult,
+  type TrackedEvent,
+  type WorkspaceExitMarker,
+} from '@humanly/editor';
 import { useDocument } from '@/hooks/use-document';
 import { useCertificates } from '@/hooks/use-certificates';
 import { useAuthStore } from '@/stores/auth-store';
@@ -33,7 +39,6 @@ import { TaskRulesDialog } from '@/components/documents/task-rules-dialog';
 import { AIAssistantButton, AIAssistantPanel, AISelectionMenu, type ActionType } from '@/components/ai';
 import { useAI } from '@/hooks/use-ai';
 import { useAIStore } from '@/stores/ai-store';
-import type { TrackedEvent } from '@humanly/editor';
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { apiClient, TokenManager } from '@/lib/api-client';
@@ -321,6 +326,7 @@ export default function DocumentEditorPage() {
   const loadedDocumentIdRef = useRef<string | null>(null);
   const lastCharacterLimitToastRef = useRef(0);
   const flushEditorEventsRef = useRef<(() => Promise<void>) | null>(null);
+  const markWorkspaceExitRef = useRef<WorkspaceExitMarker | null>(null);
   const pendingEventWriteRef = useRef<Promise<void>>(Promise.resolve());
   const failedEventBatchesRef = useRef<PendingActivityEventBatch[]>([]);
   const checkedWritingRulesDismissalKeyRef = useRef<string | null>(null);
@@ -943,31 +949,53 @@ export default function DocumentEditorPage() {
     flushEditorEventsRef.current = flushPendingEvents;
   }, []);
 
+  const flushActivityLogWrites = useCallback(async () => {
+    await flushEditorEventsRef.current?.();
+    await pendingEventWriteRef.current;
+    await retryFailedEventBatches();
+  }, [retryFailedEventBatches]);
+
+  const showActivityLogSaveError = useCallback(() => {
+    toast({
+      title: 'Activity logs failed to save',
+      description: 'Check your connection and try again.',
+      variant: 'destructive',
+    });
+  }, [toast]);
+
   const syncActivityLogsForAuditAction = useCallback(async (): Promise<boolean> => {
     setIsSyncingActivityLogs(true);
     try {
-      await flushEditorEventsRef.current?.();
-      await pendingEventWriteRef.current;
-      await retryFailedEventBatches();
+      await flushActivityLogWrites();
       return true;
     } catch (error) {
-      toast({
-        title: 'Activity logs failed to save',
-        description: 'Check your connection and try again.',
-        variant: 'destructive',
-      });
+      showActivityLogSaveError();
       return false;
     } finally {
       setIsSyncingActivityLogs(false);
     }
-  }, [retryFailedEventBatches, toast]);
+  }, [flushActivityLogWrites, showActivityLogSaveError]);
 
   const handleViewLogs = useCallback(async () => {
-    const activityLogsSynced = await syncActivityLogsForAuditAction();
-    if (!activityLogsSynced) return;
+    const destination = `/logs/${documentId}`;
+    setIsSyncingActivityLogs(true);
 
-    router.push(`/logs/${documentId}`);
-  }, [documentId, router, syncActivityLogsForAuditAction]);
+    try {
+      await flushActivityLogWrites();
+      await markWorkspaceExitRef.current?.('view_logs_navigation', { destination });
+      await pendingEventWriteRef.current;
+      await retryFailedEventBatches();
+      router.push(destination);
+    } catch (error) {
+      showActivityLogSaveError();
+    } finally {
+      setIsSyncingActivityLogs(false);
+    }
+  }, [documentId, flushActivityLogWrites, retryFailedEventBatches, router, showActivityLogSaveError]);
+
+  const handleWorkspaceExitReady = useCallback((markWorkspaceExit: WorkspaceExitMarker | null) => {
+    markWorkspaceExitRef.current = markWorkspaceExit;
+  }, []);
 
   const openPanelWithQuote = useAIStore((state) => state.openPanelWithQuote);
   const handleAskAI = useCallback((selectedText: string) => {
@@ -1524,6 +1552,7 @@ export default function DocumentEditorPage() {
                     onContentChange={handleContentChange}
                     onEventsBuffer={handleEventsBuffer}
                     onEventFlushReady={handleEventFlushReady}
+                    onWorkspaceExitReady={handleWorkspaceExitReady}
                     onAutoSave={handleAutoSave}
                     className="h-full"
                     renderSelectionPopup={aiEnabled && !isEditorReadOnly ? ({ selection, onClose, replaceSelection, cancelAIAction, undoLastAction }) => (
