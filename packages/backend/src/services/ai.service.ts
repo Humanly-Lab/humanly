@@ -723,14 +723,14 @@ class OpenAIProvider implements AIProvider {
   private providerTimeoutMs: number;
   private client: OpenAI;
 
-  constructor(config?: { apiKey: string; model: string; baseUrl: string; maxToolCalls?: number }) {
-    this.apiKey = config?.apiKey || env.aiApiKey || '';
-    this.model = config?.model || env.aiModel || 'moonshotai/Kimi-K2.6';
-    this.baseUrl = config?.baseUrl || env.aiBaseUrl || 'https://api.together.xyz/v1';
+  constructor(config: { apiKey: string; model: string; baseUrl: string; maxToolCalls?: number }) {
+    this.apiKey = config.apiKey;
+    this.model = config.model;
+    this.baseUrl = config.baseUrl;
     this.maxToolCalls = normalizeAgentMaxToolCalls(config?.maxToolCalls ?? env.aiAgentMaxToolCalls);
     this.providerTimeoutMs = normalizeProviderTimeoutMs(env.aiProviderTimeoutMs);
     this.client = new OpenAI({
-      apiKey: this.apiKey || 'missing-api-key',
+      apiKey: this.apiKey,
       baseURL: this.baseUrl,
       timeout: this.providerTimeoutMs,
       maxRetries: 0,
@@ -1762,98 +1762,6 @@ class OpenAIProvider implements AIProvider {
     }
 
     throw new AppError(sdkError?.status || 502, detail ? `${prefix}${detail}` : 'AI service error');
-  }
-}
-
-/**
- * Mock provider for development/testing
- */
-class MockAIProvider implements AIProvider {
-  async agentChat(
-    messages: { role: string; content: string }[],
-    options: AgentChatOptions
-  ): Promise<{
-    content: string;
-    tokensUsed?: { input: number; output: number };
-  }> {
-    const lastMessage = messages[messages.length - 1];
-    const mockResponse = this.generateMockResponse(lastMessage?.content || '');
-
-    emitAgentEvent(options.onAgentEvent, { type: 'turn-start', turnIndex: 0 });
-    // Simulate delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-    emitAgentEvent(options.onAgentEvent, { type: 'turn-end', turnIndex: 0 });
-
-    return {
-      content: mockResponse,
-      tokensUsed: { input: 100, output: 50 },
-    };
-  }
-
-  async agentStreamChat(
-    messages: { role: string; content: string }[],
-    onChunk: (chunk: string) => void,
-    options: AgentChatOptions
-  ): Promise<{ content: string; tokensUsed?: { input: number; output: number } }> {
-    const lastMessage = messages[messages.length - 1];
-    const mockResponse = this.generateMockResponse(lastMessage?.content || '');
-    const words = mockResponse.split(' ');
-    let fullContent = '';
-
-    emitAgentEvent(options.onAgentEvent, { type: 'turn-start', turnIndex: 0 });
-    for (const word of words) {
-      await new Promise(resolve => setTimeout(resolve, 50));
-      const chunk = (fullContent ? ' ' : '') + word;
-      fullContent += chunk;
-      onChunk(chunk);
-    }
-    emitAgentEvent(options.onAgentEvent, { type: 'turn-end', turnIndex: 0 });
-
-    return {
-      content: fullContent,
-      tokensUsed: { input: 100, output: words.length },
-    };
-  }
-
-  async directStreamChat(
-    messages: { role: string; content: string }[],
-    onChunk: (chunk: string) => void,
-    options: AgentChatOptions
-  ): Promise<{ content: string; tokensUsed?: { input: number; output: number } }> {
-    return this.agentStreamChat(messages, onChunk, options);
-  }
-
-  private generateMockResponse(query: string): string {
-    const lowerQuery = query.toLowerCase();
-
-    if (lowerQuery.includes('grammar') || lowerQuery.includes('check')) {
-      return 'I checked your text and found a few suggestions:\n\n1. Consider using active voice in paragraph 2\n2. The comma after "However" should be added\n3. "Their" should be "there" in line 5\n\nWould you like me to apply these corrections?';
-    }
-
-    if (lowerQuery.includes('summarize') || lowerQuery.includes('summary')) {
-      return 'Here\'s a summary of your document:\n\nThis document discusses the main points of your topic, covering key aspects and providing detailed analysis. The main themes include the introduction, methodology, and conclusions drawn from the research.';
-    }
-
-    if (lowerQuery.includes('rewrite') || lowerQuery.includes('improve')) {
-      return 'I can help improve this text. Here\'s a suggested revision that maintains your meaning while enhancing clarity and flow:\n\n[The revised text would appear here based on your selection]\n\nShall I apply this change?';
-    }
-
-    return 'I\'m your AI writing assistant. I can help you with:\n\n- Grammar and spelling checks\n- Content summarization\n- Text rewriting and improvement\n- Answering questions about your document\n\nWhat would you like me to help you with?';
-  }
-}
-
-/**
- * Get the appropriate AI provider based on configuration
- */
-function getAIProvider(): AIProvider {
-  const provider = env.aiProvider || 'mock';
-
-  switch (provider) {
-    case 'openai':
-      return new OpenAIProvider();
-    case 'mock':
-    default:
-      return new MockAIProvider();
   }
 }
 

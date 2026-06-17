@@ -17,31 +17,12 @@ import {
 } from '../utils/jwt';
 import { AppError } from '../middleware/error-handler';
 import { logger } from '../utils/logger';
-import { UserAISettingsModel } from '../models/user-ai-settings.model';
 import { FileModel } from '../models/file.model';
 import { OAuthProfile } from './oauth.service';
 import { PASSWORD_RESET_TOKEN_TTL_MS } from '../constants/auth';
 import { FileStorageService } from './file-storage.service';
 
 export class AuthService {
-  private static async initializeDefaultAISettings(userId: string): Promise<void> {
-    const apiKey = process.env.DEFAULT_AI_API_KEY || process.env.AI_API_KEY;
-    const model = process.env.DEFAULT_AI_MODEL || process.env.AI_MODEL || 'moonshotai/Kimi-K2.6';
-    const baseUrl = process.env.DEFAULT_AI_BASE_URL || process.env.AI_BASE_URL || 'https://api.together.xyz/v1';
-
-    if (!apiKey) {
-      logger.info('Skipping default AI settings initialization: no default API key configured', { userId });
-      return;
-    }
-
-    try {
-      await UserAISettingsModel.upsert(userId, apiKey, baseUrl, model);
-      logger.info('Default AI settings initialized for new user', { userId, baseUrl, model });
-    } catch (error) {
-      logger.warn('Failed to initialize default AI settings for new user', { userId, error });
-    }
-  }
-
   /**
    * Register a new user
    */
@@ -68,8 +49,6 @@ export class AuthService {
       emailVerificationToken: verificationToken,
       emailVerificationExpires: verificationExpires,
     });
-
-    await this.initializeDefaultAISettings(user.id);
 
     // Log verification code to console (since email service not configured)
     logger.info('🔐 VERIFICATION CODE GENERATED', {
@@ -241,7 +220,6 @@ export class AuthService {
           email: profile.email,
           passwordHash,
         });
-        await this.initializeDefaultAISettings(user.id);
         userWithPassword = {
           ...user,
           passwordHash,

@@ -44,6 +44,13 @@ function maskApiKey(key: string): string {
   return key.substring(0, 5) + '...' + key.substring(key.length - 4);
 }
 
+function isLegacyPlatformManagedApiKey(key: string): boolean {
+  return [
+    process.env.AI_API_KEY,
+    process.env.DEFAULT_AI_API_KEY,
+  ].some((platformKey) => Boolean(platformKey) && platformKey === key);
+}
+
 export interface UserAISettingsRow {
   id: string;
   user_id: string;
@@ -84,6 +91,7 @@ export class UserAISettingsModel {
     if (result.rows.length === 0) return null;
     const row = result.rows[0] as UserAISettingsRow;
     const apiKey = decrypt(row.encrypted_api_key);
+    if (isLegacyPlatformManagedApiKey(apiKey)) return null;
     return {
       apiKey,
       baseUrl: row.base_url,
@@ -111,6 +119,7 @@ export class UserAISettingsModel {
     if (result.rows.length === 0) return null;
     const row = result.rows[0];
     const apiKey = decrypt(row.encrypted_api_key);
+    if (isLegacyPlatformManagedApiKey(apiKey)) return null;
     return {
       baseUrl: row.base_url,
       model: row.model,

@@ -61,17 +61,10 @@ interface EnvConfig {
   awsAccessKeyId?: string;
   awsSecretAccessKey?: string;
 
-  // AI Configuration
-  aiProvider: 'openai' | 'anthropic' | 'mock';
-  aiApiKey?: string;
-  aiModel?: string;
-  aiBaseUrl?: string;
-  aiMaxTokens: number;
-  aiTemperature: number;
+  // AI runtime guardrails. Provider credentials are user-owned and stored in
+  // user_ai_settings, not backend environment variables.
   aiAgentMaxToolCalls: number;
   aiProviderTimeoutMs: number;
-  aiRateLimitRequests: number;
-  aiRateLimitWindowMs: number;
 
   // Encryption
   aiEncryptionKey: string;
@@ -264,17 +257,10 @@ export const env: EnvConfig = {
   awsAccessKeyId: process.env.AWS_ACCESS_KEY_ID,
   awsSecretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
 
-  // AI Configuration
-  aiProvider: (getEnv('AI_PROVIDER', 'mock') as 'openai' | 'anthropic' | 'mock'),
-  aiApiKey: process.env.AI_API_KEY,
-  aiModel: process.env.AI_MODEL,
-  aiBaseUrl: process.env.AI_BASE_URL,
-  aiMaxTokens: getEnvNumber('AI_MAX_TOKENS', 2048),
-  aiTemperature: parseFloat(getEnv('AI_TEMPERATURE', '0.7')),
+  // AI runtime guardrails. Provider credentials are user-owned and stored in
+  // user_ai_settings, not backend environment variables.
   aiAgentMaxToolCalls: getEnvNumber('AI_AGENT_MAX_TOOL_CALLS', 60),
   aiProviderTimeoutMs: getEnvNumber('AI_PROVIDER_TIMEOUT_MS', 180000),
-  aiRateLimitRequests: getEnvNumber('AI_RATE_LIMIT_REQUESTS', 20),
-  aiRateLimitWindowMs: getEnvNumber('AI_RATE_LIMIT_WINDOW_MS', 60000),
 
   // Encryption
   aiEncryptionKey: getEnv('AI_ENCRYPTION_KEY', '0000000000000000000000000000000000000000000000000000000000000000'),

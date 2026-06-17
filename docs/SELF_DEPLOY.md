@@ -19,14 +19,15 @@ REDIS_URL=redis://localhost:6379
 JWT_SECRET=<random-hex-secret>
 CORS_ORIGIN=http://localhost:3000,http://localhost:3002
 FRONTEND_USER_URL=http://localhost:3002
-AI_PROVIDER=mock
-AI_API_KEY=
 AI_ENCRYPTION_KEY=<32-byte-hex-key>
+AI_AGENT_MAX_TOOL_CALLS=60
+AI_PROVIDER_TIMEOUT_MS=180000
 ```
 
 For production, replace the local URLs with your deployed admin and user portal
-domains, set a real AI provider key if AI assistance is enabled, and store all
-secrets outside the repository.
+domains. Humanly does not use a backend-owned AI provider key; users configure
+their own provider credentials in the product, and those credentials are stored
+encrypted.
 
 ## Install
 
