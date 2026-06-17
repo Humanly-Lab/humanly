@@ -47,9 +47,15 @@ storage.
 
 ```bash
 pnpm install
+bash scripts/setup-env.sh
 pnpm docker:up
 pnpm build:shared
 pnpm build:editor
+```
+
+Then start the three services in separate terminals:
+
+```bash
 pnpm dev:backend
 pnpm dev:frontend
 pnpm dev:frontend-user
@@ -61,7 +67,7 @@ Default local URLs:
 - User portal: `http://localhost:3002`
 - Backend API: `http://localhost:3001`
 
-For self-deployment, see [docs/SELF_DEPLOY.md](https://github.com/ShenzheZhu/humanly/blob/main/docs/SELF_DEPLOY.md).
+For more details, see [docs/SELF_DEPLOY.md](https://github.com/ShenzheZhu/humanly/blob/main/docs/SELF_DEPLOY.md).
 
 <h2 id="certificates">Certificates</h2>
 
