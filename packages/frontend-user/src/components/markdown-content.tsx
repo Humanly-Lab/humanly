@@ -22,7 +22,18 @@ export function MarkdownContent({
   return (
     <div className={cn(MARKDOWN_CONTENT_CLASS_NAME, className)}>
       {children && (
-        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+        <ReactMarkdown
+          remarkPlugins={[remarkGfm]}
+          components={{
+            a: (props) => (
+              <a
+                {...props}
+                target="_blank"
+                rel="noopener noreferrer"
+              />
+            ),
+          }}
+        >
           {children}
         </ReactMarkdown>
       )}

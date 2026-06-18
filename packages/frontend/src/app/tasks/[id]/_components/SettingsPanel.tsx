@@ -860,7 +860,7 @@ export function SettingsPanel({ taskId }: SettingsPanelProps) {
                     readOnly
                   />
                   <FormDescription>
-                    This text appears above the writing rules in the writer Instructions dialog.
+                    This text appears above the writing rules in the writer Instructions dialog. Markdown formatting is supported.
                   </FormDescription>
                 </div>
 

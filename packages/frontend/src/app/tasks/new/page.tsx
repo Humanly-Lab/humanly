@@ -1850,7 +1850,7 @@ export default function NewTaskPage() {
                         />
                       </FormControl>
                       <FormDescription>
-                        Shown above the writing rules in the writer Instructions dialog.
+                        Shown above the writing rules in the writer Instructions dialog. Markdown formatting is supported.
                       </FormDescription>
                       <FormMessage />
                     </FormItem>

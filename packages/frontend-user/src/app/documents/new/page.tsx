@@ -1252,7 +1252,7 @@ export default function NewDocumentPage() {
                 disabled={isCreating}
               />
               <p className="text-xs text-muted-foreground">
-                Shown above the writing rules in the Instructions dialog.
+                Shown above the writing rules in the Instructions dialog. Markdown formatting is supported.
               </p>
             </div>
 
