@@ -1696,47 +1696,47 @@ export default function NewTaskPage() {
             </Dialog>
           </div>
         )}
-      </div>
 
-      <div className="space-y-4 rounded-md border p-4">
-        <SectionHeading
-          title="Writing Session Timer"
-          description="Set an optional countdown shown while enrolled users write."
-        />
+        <div className="space-y-4 border-t border-border/70 pt-4">
+          <SectionHeading
+            title="Writing Session Timer"
+            description="Set an optional countdown shown while enrolled users write."
+          />
 
-        <div className="grid gap-2">
-          <FormLabel>Timer</FormLabel>
-          <Select
-            value={environmentConfig.time.timeLimitSeconds ? 'time_limited' : 'unlimited'}
-            onValueChange={(value) => setWritingSessionTimerEnabled(value === 'time_limited')}
-          >
-            <SelectTrigger aria-label="Writing session timer">
-              <SelectValue placeholder="Writing session timer" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="unlimited">No time limit</SelectItem>
-              <SelectItem value="time_limited">Time limited</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        {environmentConfig.time.timeLimitSeconds && (
           <div className="grid gap-2">
-            <FormLabel htmlFor="writing-time-limit-minutes">Time Limit (minutes)</FormLabel>
-            <Input
-              id="writing-time-limit-minutes"
-              type="number"
-              min={1}
-              value={writingTimeLimitMinutesInput}
-              disabled={isSubmitting}
-              onChange={(event) => setWritingSessionTimerMinutes(event.target.value)}
-              onBlur={commitWritingSessionTimerMinutes}
-            />
-            <FormDescription>
-              The editor shows a countdown and blocks submission when the timer reaches zero.
-            </FormDescription>
+            <FormLabel>Timer</FormLabel>
+            <Select
+              value={environmentConfig.time.timeLimitSeconds ? 'time_limited' : 'unlimited'}
+              onValueChange={(value) => setWritingSessionTimerEnabled(value === 'time_limited')}
+            >
+              <SelectTrigger aria-label="Writing session timer">
+                <SelectValue placeholder="Writing session timer" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="unlimited">No time limit</SelectItem>
+                <SelectItem value="time_limited">Time limited</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-        )}
+
+          {environmentConfig.time.timeLimitSeconds && (
+            <div className="grid gap-2">
+              <FormLabel htmlFor="writing-time-limit-minutes">Time Limit (minutes)</FormLabel>
+              <Input
+                id="writing-time-limit-minutes"
+                type="number"
+                min={1}
+                value={writingTimeLimitMinutesInput}
+                disabled={isSubmitting}
+                onChange={(event) => setWritingSessionTimerMinutes(event.target.value)}
+                onBlur={commitWritingSessionTimerMinutes}
+              />
+              <FormDescription>
+                The editor shows a countdown and blocks submission when the timer reaches zero.
+              </FormDescription>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
