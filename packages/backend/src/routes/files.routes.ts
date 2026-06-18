@@ -10,7 +10,6 @@ import {
   issueFileViewToken,
   streamFileContent,
   uploadDocumentFile,
-  uploadTaskInstructionFile,
 } from '../controllers/file.controller';
 
 const router: Router = Router();
@@ -31,7 +30,6 @@ router.use(authenticate);
 
 router.post('/documents/:documentId/files', upload.single('pdf'), asyncHandler(uploadDocumentFile));
 router.get('/documents/:documentId/files', asyncHandler(listDocumentFiles));
-router.post('/tasks/:taskId/files', upload.single('pdf'), asyncHandler(uploadTaskInstructionFile));
 router.get('/tasks/:taskId/files', asyncHandler(listTaskInstructionFiles));
 router.get('/tasks/enrollments/:taskId/instruction-files', asyncHandler(listAccessibleTaskInstructionFiles));
 router.get('/files/:fileId/view-token', asyncHandler(issueFileViewToken));

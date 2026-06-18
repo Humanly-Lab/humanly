@@ -15,7 +15,6 @@ import { AIRetrievalService } from './ai-retrieval.service';
 const VIEW_ONLY_FILE_TOKEN_AUDIENCE = 'humanly:file-view';
 const VIEW_ONLY_FILE_TOKEN_PURPOSE = 'view_only_file';
 const VIEW_ONLY_FILE_TOKEN_EXPIRES_IN_SECONDS = 60;
-const TASK_INSTRUCTION_FILE_LOCK_MESSAGE = 'Task instruction files are read-only after task creation';
 
 interface FileViewTokenPayload extends JwtPayload {
   purpose: typeof VIEW_ONLY_FILE_TOKEN_PURPOSE;
@@ -45,24 +44,6 @@ export class FileService {
 
     await this.indexFileBestEffort(appFile);
     return appFile;
-  }
-
-  static async uploadTaskInstructionFile(
-    taskId: string,
-    userId: string,
-    file: Express.Multer.File,
-    title?: string
-  ): Promise<AppFile> {
-    const task = await TaskModel.findById(taskId);
-    if (!task) {
-      throw new AppError(404, 'Task not found');
-    }
-
-    if (task.userId !== userId) {
-      throw new AppError(403, 'Access denied to this task');
-    }
-
-    throw new AppError(409, TASK_INSTRUCTION_FILE_LOCK_MESSAGE);
   }
 
   static async attachTaskInstructionFileAtCreation(
@@ -194,7 +175,7 @@ export class FileService {
 
     await this.assertCanManage(appFile, userId);
     if (appFile.taskId) {
-      throw new AppError(409, TASK_INSTRUCTION_FILE_LOCK_MESSAGE);
+      throw new AppError(409, 'Task instruction files are read-only after task creation');
     }
 
     if (!appFile.legacySourceId) {

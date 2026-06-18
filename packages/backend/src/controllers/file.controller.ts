@@ -31,24 +31,6 @@ export async function listDocumentFiles(req: Request, res: Response): Promise<vo
   });
 }
 
-export async function uploadTaskInstructionFile(req: Request, res: Response): Promise<void> {
-  if (!req.file) {
-    throw new AppError(400, 'PDF file is required');
-  }
-
-  const file = await FileService.uploadTaskInstructionFile(
-    req.params.taskId,
-    req.user!.userId,
-    req.file,
-    typeof req.body.title === 'string' ? req.body.title : undefined
-  );
-
-  res.status(201).json({
-    success: true,
-    data: file,
-  });
-}
-
 export async function listTaskInstructionFiles(req: Request, res: Response): Promise<void> {
   const files = await FileService.listTaskInstructionFiles(req.params.taskId, req.user!.userId);
 
