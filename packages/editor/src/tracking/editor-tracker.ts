@@ -15,6 +15,8 @@ import {
   TRACKING_SUPPRESS_NEXT_TEXT_CHANGE_COMMAND,
 } from '../commands/formatting-commands';
 
+type EditorFocusState = 'unknown' | 'focused' | 'blurred';
+
 /**
  * EditorTracker handles keystroke tracking and event batching for Lexical editor
  */
@@ -37,6 +39,7 @@ export class EditorTracker {
   private lastPageHiddenAt: number | null = null;
   private lastVisibilityState: string | null = null;
   private workspaceVisibilityState: 'visible' | 'hidden' = 'visible';
+  private editorFocusState: EditorFocusState = 'unknown';
   private pendingWindowBlurTimer: ReturnType<typeof setTimeout> | null = null;
   private trackingStartedAt: number | null = null;
 
@@ -176,7 +179,7 @@ export class EditorTracker {
     const removeFocusListener = this.editor.registerCommand(
       FOCUS_COMMAND,
       () => {
-        this.trackFocusBlur('focus');
+        this.recordEditorFocusChange('focus');
         return false;
       },
       COMMAND_PRIORITY_LOW
@@ -186,7 +189,7 @@ export class EditorTracker {
     const removeBlurListener = this.editor.registerCommand(
       BLUR_COMMAND,
       () => {
-        this.trackFocusBlur('blur');
+        this.recordEditorFocusChange('blur');
         return false;
       },
       COMMAND_PRIORITY_LOW
@@ -342,6 +345,7 @@ export class EditorTracker {
       }
     );
     const removePageVisibilityListener = this.registerPageVisibilityListener();
+    const removeEditorFocusListener = this.registerEditorFocusListener();
 
     this.listeners.push(
       removeKeyDownListener,
@@ -370,6 +374,9 @@ export class EditorTracker {
     if (removePageVisibilityListener) {
       this.listeners.push(removePageVisibilityListener);
     }
+    if (removeEditorFocusListener) {
+      this.listeners.push(removeEditorFocusListener);
+    }
 
     this.restorePendingWorkspaceReturn();
 
@@ -391,6 +398,7 @@ export class EditorTracker {
 
     this.isTracking = false;
     this.trackingStartedAt = null;
+    this.editorFocusState = 'unknown';
 
     // Remove all listeners
     this.listeners.forEach((remove) => remove());
@@ -586,6 +594,20 @@ export class EditorTracker {
   /**
    * Track focus or blur events
    */
+  private recordEditorFocusChange(eventType: 'focus' | 'blur'): void {
+    if (!this.isTracking) {
+      return;
+    }
+
+    const nextFocusState: EditorFocusState = eventType === 'focus' ? 'focused' : 'blurred';
+    if (this.editorFocusState === nextFocusState) {
+      return;
+    }
+
+    this.editorFocusState = nextFocusState;
+    this.trackFocusBlur(eventType);
+  }
+
   private trackFocusBlur(eventType: 'focus' | 'blur'): void {
     const currentText = this.extractPlainText(this.editor.getEditorState());
     const { cursorPosition, selectionStart, selectionEnd } = this.getSelectionInfo(this.editor.getEditorState());
@@ -602,6 +624,57 @@ export class EditorTracker {
     };
 
     this.addEvent(event);
+  }
+
+  private registerEditorFocusListener(): (() => void) | null {
+    if (typeof document === 'undefined' || typeof document.addEventListener !== 'function') {
+      return null;
+    }
+
+    const handleRootFocus = () => this.recordEditorFocusChange('focus');
+    const handleRootBlur = () => this.recordEditorFocusChange('blur');
+    const handleDocumentPointerDown = (event: PointerEvent) => {
+      if (!this.isTracking || this.editorFocusState !== 'focused') {
+        return;
+      }
+
+      const rootElement = this.editor.getRootElement();
+      const target = event.target;
+      if (!rootElement || !target || rootElement.contains(target as Node)) {
+        return;
+      }
+
+      if (typeof rootElement.blur === 'function') {
+        rootElement.blur();
+      }
+
+      // Some non-focusable document surfaces do not naturally blur the
+      // contenteditable root, so make the activity log state explicit.
+      this.recordEditorFocusChange('blur');
+    };
+
+    const removeRootListener = this.editor.registerRootListener((rootElement, prevRootElement) => {
+      if (prevRootElement) {
+        prevRootElement.removeEventListener('focus', handleRootFocus);
+        prevRootElement.removeEventListener('blur', handleRootBlur);
+      }
+
+      if (rootElement) {
+        rootElement.addEventListener('focus', handleRootFocus);
+        rootElement.addEventListener('blur', handleRootBlur);
+
+        if (document.activeElement === rootElement) {
+          this.recordEditorFocusChange('focus');
+        }
+      }
+    });
+
+    document.addEventListener('pointerdown', handleDocumentPointerDown, true);
+
+    return () => {
+      removeRootListener();
+      document.removeEventListener('pointerdown', handleDocumentPointerDown, true);
+    };
   }
 
   private registerPageVisibilityListener(): (() => void) | null {
