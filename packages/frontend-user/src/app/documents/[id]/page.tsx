@@ -66,6 +66,7 @@ import {
   normalizeCopyPastePolicy,
   normalizeResourceAccessPolicy,
   serializeEnvironmentConfig,
+  type AppFile,
   type EnvironmentConfigFileFormat,
   type WritingAiProviderConfig,
   type WritingEnvironmentConfig,
@@ -102,10 +103,7 @@ interface TaskEnrollment {
   environmentConfig?: WritingEnvironmentConfig | null;
 }
 
-interface TaskInstructionFile {
-  id: string;
-  title: string;
-}
+type TaskInstructionFile = AppFile;
 
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL ||
@@ -1601,6 +1599,7 @@ export default function DocumentEditorPage() {
                       taskManaged={!!taskEnrollment}
                       lockedModel={lockedAiModel}
                       lockedBaseUrl={lockedAiBaseUrl}
+                      pdfContextFile={displayFile}
                       insertAtCursor={!isEditorReadOnly && editorInsertAtCursor ? handleInsertAssistantMessage : null}
                     />
                   </div>

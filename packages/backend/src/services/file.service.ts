@@ -1,8 +1,8 @@
-import type { AppFile, ResourceAccessPolicy } from '@humanly/shared';
+import type { AppFile, FileTextIndexStatus, ResourceAccessPolicy } from '@humanly/shared';
 import { normalizeResourceAccessPolicy } from '@humanly/shared';
 import crypto from 'crypto';
 import jwt, { JwtPayload } from 'jsonwebtoken';
-import { queryOne } from '../config/database';
+import { query, queryOne } from '../config/database';
 import { env } from '../config/env';
 import { DocumentModel } from '../models/document.model';
 import { FileModel } from '../models/file.model';
@@ -64,7 +64,7 @@ export class FileService {
     }
 
     await this.indexFileBestEffort(appFile);
-    return appFile;
+    return this.withTextIndexStatus(appFile);
   }
 
   static async attachTaskInstructionFileAtCreation(
@@ -82,7 +82,7 @@ export class FileService {
     });
 
     await this.indexFileBestEffort(appFile);
-    return appFile;
+    return this.withTextIndexStatus(appFile);
   }
 
   static assertValidPdfUploadFile(file: Express.Multer.File): void {
@@ -98,7 +98,7 @@ export class FileService {
       throw new AppError(404, 'Document not found');
     }
 
-    return FileModel.findByDocument(documentId);
+    return this.withTextIndexStatuses(await FileModel.findByDocument(documentId));
   }
 
   static async listTaskInstructionFiles(taskId: string, userId: string): Promise<AppFile[]> {
@@ -111,7 +111,7 @@ export class FileService {
       throw new AppError(403, 'Access denied to this task');
     }
 
-    return FileModel.findByTask(taskId);
+    return this.withTextIndexStatuses(await FileModel.findByTask(taskId));
   }
 
   static async listAccessibleTaskInstructionFiles(taskIdOrInviteCode: string, userId: string): Promise<AppFile[]> {
@@ -129,7 +129,7 @@ export class FileService {
       throw new AppError(403, 'Access denied to this task');
     }
 
-    return FileModel.findByTask(task.id);
+    return this.withTextIndexStatuses(await FileModel.findByTask(task.id));
   }
 
   static async issueViewOnlyFileToken(fileId: string, userId: string): Promise<{
@@ -366,5 +366,71 @@ export class FileService {
     } catch (error) {
       logger.warn('File uploaded but text indexing failed', { fileId: appFile.id, error });
     }
+  }
+
+  private static async withTextIndexStatus(appFile: AppFile): Promise<AppFile> {
+    const [file] = await this.withTextIndexStatuses([appFile]);
+    return file;
+  }
+
+  private static async withTextIndexStatuses(files: AppFile[]): Promise<AppFile[]> {
+    if (files.length === 0) {
+      return files;
+    }
+
+    const rows = await query<{
+      file_id: string;
+      page_count: string;
+      text_page_count: string;
+    }>(
+      `
+        SELECT
+          files.id AS file_id,
+          COUNT(file_pages.id)::text AS page_count,
+          (COUNT(file_pages.id) FILTER (WHERE length(btrim(file_pages.text)) > 0))::text AS text_page_count
+        FROM files
+        LEFT JOIN file_pages
+          ON file_pages.file_id = files.id
+        WHERE files.id = ANY($1::uuid[])
+        GROUP BY files.id
+      `,
+      [files.map((file) => file.id)]
+    );
+
+    const indexStats = new Map(rows.map((row) => [
+      row.file_id,
+      {
+        pageCount: parseInt(row.page_count, 10) || 0,
+        textPageCount: parseInt(row.text_page_count, 10) || 0,
+      },
+    ]));
+
+    return files.map((file) => {
+      const stats = indexStats.get(file.id) || { pageCount: 0, textPageCount: 0 };
+      return {
+        ...file,
+        pageCount: stats.pageCount || file.pageCount || null,
+        textIndexStatus: this.deriveTextIndexStatus(file, stats),
+      };
+    });
+  }
+
+  private static deriveTextIndexStatus(
+    file: AppFile,
+    stats: { pageCount: number; textPageCount: number }
+  ): FileTextIndexStatus {
+    if (file.uploadStatus === 'pending') {
+      return 'processing';
+    }
+
+    if (file.uploadStatus === 'failed') {
+      return 'failed';
+    }
+
+    if (stats.textPageCount > 0) {
+      return 'ready';
+    }
+
+    return 'unavailable';
   }
 }

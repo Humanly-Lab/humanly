@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
-import { X, Send, Sparkles, Loader2, StopCircle, Trash2, History, ChevronDown, ChevronRight, Plus, CheckCircle, ImageIcon } from 'lucide-react';
+import { X, Send, Sparkles, Loader2, StopCircle, Trash2, History, ChevronDown, ChevronRight, Plus, CheckCircle, ImageIcon, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -28,8 +28,7 @@ import { uploadChatImage, validateChatImage } from '@/lib/ai-chat-attachments';
 import type { ChatImageAttachment } from '@humanly/shared';
 import { useAI, useAILogs } from '@/hooks/use-ai';
 import { useAIStore } from '@/stores/ai-store';
-import { usePDFTextStore } from '@/stores/pdf-text-store';
-import { AIChatMessage, AISuggestion, AIInteractionLog } from '@humanly/shared';
+import { AIChatMessage, AISuggestion, AIInteractionLog, type AppFile, type FileTextIndexStatus } from '@humanly/shared';
 import {
   Dialog,
   DialogContent,
@@ -49,6 +48,7 @@ interface AIAssistantPanelProps {
   taskManaged?: boolean;
   lockedModel?: string;
   lockedBaseUrl?: string;
+  pdfContextFile?: Pick<AppFile, 'pageCount' | 'textIndexStatus'> | null;
   insertAtCursor?: ((text: string, source: { messageId: string; logId?: string }) => void | Promise<void>) | null;
 }
 
@@ -137,6 +137,32 @@ function getChatImagePreviewUrl(attachment: ChatImageAttachment): string | undef
   return typeof previewUrl === 'string' && previewUrl.length > 0 ? previewUrl : undefined;
 }
 
+function getPdfContextIndicator(status: FileTextIndexStatus | undefined, pageCount?: number | null) {
+  switch (status) {
+    case 'ready':
+      return {
+        icon: <CheckCircle className="h-3 w-3 shrink-0 text-[#58715f]" />,
+        label: `PDF context available${pageCount ? ` (${pageCount} pages)` : ''}`,
+        className: 'border-[#c8d4c8] bg-[#eef3ed] text-[#58715f]',
+      };
+    case 'processing':
+      return {
+        icon: <Loader2 className="h-3 w-3 shrink-0 animate-spin text-muted-foreground" />,
+        label: 'PDF context processing',
+        className: 'border-border bg-muted/35 text-muted-foreground',
+      };
+    case 'failed':
+    case 'unavailable':
+      return {
+        icon: <AlertCircle className="h-3 w-3 shrink-0 text-amber-700" />,
+        label: 'PDF context unavailable',
+        className: 'border-amber-200 bg-amber-50 text-amber-800',
+      };
+    default:
+      return null;
+  }
+}
+
 export function AIAssistantPanel({
   documentId,
   onClose,
@@ -145,6 +171,7 @@ export function AIAssistantPanel({
   taskManaged = false,
   lockedModel,
   lockedBaseUrl,
+  pdfContextFile,
   insertAtCursor,
 }: AIAssistantPanelProps) {
   const [input, setInput] = useState('');
@@ -223,9 +250,10 @@ export function AIAssistantPanel({
   const quotedText = useAIStore((state) => state.quotedText);
   const clearQuotedText = useAIStore((state) => state.clearQuotedText);
 
-  // Get PDF text data for context
-  const getPDFText = usePDFTextStore((state) => state.getPDFText);
-  const pdfTextData = getPDFText(documentId);
+  const pdfContextIndicator = getPdfContextIndicator(
+    pdfContextFile?.textIndexStatus,
+    pdfContextFile?.pageCount
+  );
 
   // Calculate unique session count from logs
   const sessionCount = useMemo(() => {
@@ -351,10 +379,12 @@ export function AIAssistantPanel({
       }
     }
 
-    if (pdfTextData && !pdfTextData.error && !pdfTextData.isExtracting) {
-      console.log(`[AI Assistant] PDF available (${pdfTextData.numPages} pages); using server-side retrieval tools instead of preloaded PDF context`);
+    if (pdfContextFile?.textIndexStatus === 'ready') {
+      console.log(`[AI Assistant] Backend PDF context ready${pdfContextFile.pageCount ? ` (${pdfContextFile.pageCount} pages)` : ''}; using server-side retrieval tools`);
+    } else if (pdfContextFile?.textIndexStatus) {
+      console.log(`[AI Assistant] Backend PDF context status: ${pdfContextFile.textIndexStatus}`);
     } else {
-      console.log('[AI Assistant] Using server-side document retrieval tools instead of preloaded full document context');
+      console.log('[AI Assistant] No backend PDF context status available; using server-side document retrieval tools');
     }
 
     // Include quoted text as context
@@ -716,11 +746,11 @@ export function AIAssistantPanel({
         onDrop={handleAttachmentDrop}
       >
         {/* PDF context indicator */}
-        {pdfTextData && !pdfTextData.error && !pdfTextData.isExtracting && (
-          <div className="flex min-w-0 items-center gap-2 rounded-lg border border-[#c8d4c8] bg-[#eef3ed] p-2">
-            <CheckCircle className="h-3 w-3 shrink-0 text-[#58715f]" />
-            <p className="text-[10px] text-[#58715f]">
-              PDF context available ({pdfTextData.numPages} pages)
+        {pdfContextIndicator && (
+          <div className={cn('flex min-w-0 items-center gap-2 rounded-lg border p-2', pdfContextIndicator.className)}>
+            {pdfContextIndicator.icon}
+            <p className="text-[10px]">
+              {pdfContextIndicator.label}
             </p>
           </div>
         )}
