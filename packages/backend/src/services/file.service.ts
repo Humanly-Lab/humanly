@@ -15,6 +15,14 @@ import { AIRetrievalService } from './ai-retrieval.service';
 const VIEW_ONLY_FILE_TOKEN_AUDIENCE = 'humanly:file-view';
 const VIEW_ONLY_FILE_TOKEN_PURPOSE = 'view_only_file';
 const VIEW_ONLY_FILE_TOKEN_EXPIRES_IN_SECONDS = 60;
+const DOCUMENT_SOURCE_FILE_LOCK_MESSAGE = 'Document source PDF is read-only after document creation';
+
+const isUniqueViolation = (error: unknown): boolean => (
+  typeof error === 'object' &&
+  error !== null &&
+  'code' in error &&
+  (error as { code?: unknown }).code === '23505'
+);
 
 interface FileViewTokenPayload extends JwtPayload {
   purpose: typeof VIEW_ONLY_FILE_TOKEN_PURPOSE;
@@ -34,13 +42,26 @@ export class FileService {
       throw new AppError(404, 'Document not found');
     }
 
-    const appFile = await this.createFileRecord({
-      file,
-      userId,
-      title: title || document.title,
-      documentId,
-      purpose: 'document_source_pdf',
-    });
+    const existingFiles = await FileModel.findByDocument(documentId);
+    if (existingFiles.length > 0) {
+      throw new AppError(409, DOCUMENT_SOURCE_FILE_LOCK_MESSAGE);
+    }
+
+    let appFile: AppFile;
+    try {
+      appFile = await this.createFileRecord({
+        file,
+        userId,
+        title: title || document.title,
+        documentId,
+        purpose: 'document_source_pdf',
+      });
+    } catch (error) {
+      if (isUniqueViolation(error)) {
+        throw new AppError(409, DOCUMENT_SOURCE_FILE_LOCK_MESSAGE);
+      }
+      throw error;
+    }
 
     await this.indexFileBestEffort(appFile);
     return appFile;
