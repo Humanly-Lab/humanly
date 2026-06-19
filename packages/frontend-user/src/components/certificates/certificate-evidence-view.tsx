@@ -55,7 +55,6 @@ const SECTION_TITLE_CLASS = 'text-lg font-semibold tracking-normal';
 const COMPOSITION_COLORS = {
   typed: '#7B8C9E',
   pasted: '#B2A189',
-  aiImprovement: '#9B8FA6',
 } as const;
 
 export interface CertificateEvidenceRecord {
@@ -418,15 +417,12 @@ export function CertificateEvidenceView({
   const [environmentOpen, setEnvironmentOpen] = useState(false);
   const textImprovementTotal = aiStats?.selectionActions.total || 0;
   const aiChatTotal = aiStats?.aiQuestions.total || 0;
-  const compositionEventTotal = certificate.typingEvents + certificate.pasteEvents + textImprovementTotal;
-  const typedEventPercentage = compositionEventTotal > 0
-    ? (certificate.typingEvents / compositionEventTotal) * 100
+  const compositionCharacterTotal = certificate.typedCharacters + certificate.pastedCharacters;
+  const typedCharacterPercentage = compositionCharacterTotal > 0
+    ? (certificate.typedCharacters / compositionCharacterTotal) * 100
     : 0;
-  const pastedEventPercentage = compositionEventTotal > 0
-    ? (certificate.pasteEvents / compositionEventTotal) * 100
-    : 0;
-  const aiImprovementEventPercentage = compositionEventTotal > 0
-    ? (textImprovementTotal / compositionEventTotal) * 100
+  const pastedCharacterPercentage = compositionCharacterTotal > 0
+    ? (certificate.pastedCharacters / compositionCharacterTotal) * 100
     : 0;
   const sealHashPreview = seal?.payloadHash
     ? `${seal.payloadHash.slice(0, 12)}...${seal.payloadHash.slice(-12)}`
@@ -541,37 +537,29 @@ export function CertificateEvidenceView({
 
             <div className="rounded-lg border border-border/70 bg-muted/20 p-3">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <p className="text-sm font-medium">Typed / pasted / AI improvement composition</p>
+                <p className="text-sm font-medium">Typed / pasted character composition</p>
                 <p className="text-xs text-muted-foreground">
-                  {compositionEventTotal.toLocaleString()} composition events
+                  {compositionCharacterTotal.toLocaleString()} tracked characters
                 </p>
               </div>
               <div className="mt-3 flex h-3 overflow-hidden rounded-full bg-secondary">
-                {typedEventPercentage > 0 && (
-                  <div style={{ width: `${typedEventPercentage}%`, backgroundColor: COMPOSITION_COLORS.typed }} />
+                {typedCharacterPercentage > 0 && (
+                  <div style={{ width: `${typedCharacterPercentage}%`, backgroundColor: COMPOSITION_COLORS.typed }} />
                 )}
-                {pastedEventPercentage > 0 && (
-                  <div style={{ width: `${pastedEventPercentage}%`, backgroundColor: COMPOSITION_COLORS.pasted }} />
-                )}
-                {aiImprovementEventPercentage > 0 && (
-                  <div style={{ width: `${aiImprovementEventPercentage}%`, backgroundColor: COMPOSITION_COLORS.aiImprovement }} />
+                {pastedCharacterPercentage > 0 && (
+                  <div style={{ width: `${pastedCharacterPercentage}%`, backgroundColor: COMPOSITION_COLORS.pasted }} />
                 )}
               </div>
-              <div className="mt-3 grid gap-2 text-sm sm:grid-cols-3">
+              <div className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
                 <div className="flex items-center gap-2">
                   <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: COMPOSITION_COLORS.typed }} />
                   <span className="text-muted-foreground">Typed</span>
-                  <span className="font-medium">{formatPercentage(typedEventPercentage)}</span>
+                  <span className="font-medium">{formatPercentage(typedCharacterPercentage)}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: COMPOSITION_COLORS.pasted }} />
                   <span className="text-muted-foreground">Pasted</span>
-                  <span className="font-medium">{formatPercentage(pastedEventPercentage)}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: COMPOSITION_COLORS.aiImprovement }} />
-                  <span className="text-muted-foreground">AI improvements</span>
-                  <span className="font-medium">{formatPercentage(aiImprovementEventPercentage)}</span>
+                  <span className="font-medium">{formatPercentage(pastedCharacterPercentage)}</span>
                 </div>
               </div>
             </div>
