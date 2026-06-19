@@ -94,6 +94,27 @@ export class FileModel {
     await query('DELETE FROM files WHERE id = $1', [fileId]);
   }
 
+  static async countStorageReferences(file: AppFile): Promise<number> {
+    const row = await queryOne<{ count: string }>(
+      `
+        SELECT COUNT(*)::text AS count
+        FROM files
+        WHERE storage_provider = $1
+          AND storage_key = $2
+          AND COALESCE(storage_bucket, '') = COALESCE($3, '')
+          AND COALESCE(storage_region, '') = COALESCE($4, '')
+      `,
+      [
+        file.storageProvider,
+        file.storageKey,
+        file.storageBucket || null,
+        file.storageRegion || null,
+      ]
+    );
+
+    return Number(row?.count || 0);
+  }
+
   static readonly columns = `
     id,
     owner_user_id as "ownerUserId",

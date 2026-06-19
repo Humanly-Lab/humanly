@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -9,6 +9,8 @@ import {
   Download,
   FileText,
   Loader2,
+  Upload,
+  X,
 } from 'lucide-react';
 import {
   AI_CHAT_MAX_TOKENS_DEFAULT,
@@ -16,6 +18,7 @@ import {
   AI_MAX_TOKENS_MIN,
   AI_SHORTCUT_MAX_TOKENS_DEFAULT,
   DEFAULT_WRITING_ENVIRONMENT_CONFIG,
+  TASK_INSTRUCTION_PDF_MAX_FILES,
   buildEnvironmentConfigFilename,
   SUBMISSION_MAX_CHARACTERS_MAX,
   SUBMISSION_MIN_CHARACTERS_MAX,
@@ -258,6 +261,8 @@ type TaskInstructionFile = {
   id: string;
   purpose: string;
   title: string;
+  originalFilename?: string;
+  fileSize?: number;
 };
 
 interface SettingsPanelProps {
@@ -327,6 +332,9 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
   const [timeLimitEnabled, setTimeLimitEnabled] = useState(false);
   const [writingTimeLimitMinutesInput, setWritingTimeLimitMinutesInput] = useState('60');
   const [allowGuestSubmissions, setAllowGuestSubmissions] = useState(true);
+  const [pendingInstructionFiles, setPendingInstructionFiles] = useState<File[]>([]);
+  const [removedInstructionFileIds, setRemovedInstructionFileIds] = useState<Set<string>>(() => new Set());
+  const instructionFileInputRef = useRef<HTMLInputElement | null>(null);
 
   const form = useForm<TaskSettingsFormData>({
     resolver: zodResolver(taskSettingsSchema),
@@ -340,6 +348,11 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
   });
 
   const currentInstructionFiles = files.filter((file) => file.purpose === 'task_instruction_pdf');
+  const visibleInstructionFiles = useMemo(
+    () => currentInstructionFiles.filter((file) => !removedInstructionFileIds.has(file.id)),
+    [currentInstructionFiles, removedInstructionFileIds]
+  );
+  const totalInstructionFileCount = visibleInstructionFiles.length + pendingInstructionFiles.length;
   const selectedAiModel = aiModel.trim();
   const shortcutTokensEnabled = isWritingAiPolishEnabled(aiAccess);
   const chatTokensEnabled = isWritingAiChatEnabled(aiAccess);
@@ -426,6 +439,8 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
           startDate: startDateInput,
           endDate: endDateInput,
         });
+        setPendingInstructionFiles([]);
+        setRemovedInstructionFileIds(new Set());
 
         await fetchInstructionFiles();
       } catch (err: any) {
@@ -650,6 +665,51 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
     }));
   };
 
+  const handleInstructionFilesChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFiles = Array.from(event.target.files || []);
+    event.target.value = '';
+    if (!selectedFiles.length) return;
+
+    const invalidFile = selectedFiles.find((file) => file.type !== 'application/pdf');
+    if (invalidFile) {
+      toast({
+        title: 'Invalid file',
+        description: 'Task files must be uploaded as PDF.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const oversizedFile = selectedFiles.find((file) => file.size > 50 * 1024 * 1024);
+    if (oversizedFile) {
+      toast({
+        title: 'File too large',
+        description: 'Task PDFs must be smaller than 50MB.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (totalInstructionFileCount + selectedFiles.length > TASK_INSTRUCTION_PDF_MAX_FILES) {
+      toast({
+        title: 'Too many files',
+        description: `Upload at most ${TASK_INSTRUCTION_PDF_MAX_FILES} instruction PDFs for a task.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setPendingInstructionFiles((current) => [...current, ...selectedFiles]);
+  };
+
+  const handleRemoveExistingInstructionFile = (fileId: string) => {
+    setRemovedInstructionFileIds((current) => {
+      const next = new Set(current);
+      next.add(fileId);
+      return next;
+    });
+  };
+
   const buildCurrentEnvironmentConfig = (data: TaskSettingsFormData): WritingEnvironmentConfig => {
     const allowedModels = aiAccess === 'off' ? [] : selectedAiModel ? [selectedAiModel] : [];
     const resolvedAiProvider = aiAccess === 'off'
@@ -667,7 +727,7 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
           Number(getTimeLimitMinutesValue(environmentConfig.time.timeLimitSeconds))
         ) * 60
       : undefined;
-    const hasInstructionPdf = currentInstructionFiles.length > 0;
+    const hasInstructionPdf = totalInstructionFileCount > 0;
     const effectiveAiPolicy = isWritingAiChatEnabled(aiAccess)
       ? normalizeWritingAiPolicy(environmentConfig.aiPolicy)
       : { mode: 'off' as const };
@@ -721,6 +781,17 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
       setError(null);
 
       const config = buildCurrentEnvironmentConfig(data);
+      for (const fileId of removedInstructionFileIds) {
+        await api.delete(`/api/v1/files/${fileId}`);
+      }
+      if (pendingInstructionFiles.length > 0) {
+        const filePayload = new FormData();
+        for (const file of pendingInstructionFiles) {
+          filePayload.append('pdf', file);
+        }
+        await api.post(`/api/v1/tasks/${taskId}/files`, filePayload);
+      }
+
       const response = await api.put<{
         success: boolean;
         data: Task;
@@ -738,6 +809,9 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
 
       setTask(response.data);
       onTaskUpdated?.(response.data);
+      setPendingInstructionFiles([]);
+      setRemovedInstructionFileIds(new Set());
+      await fetchInstructionFiles();
       toast({
         title: 'Task settings saved',
         description: 'Draft settings were updated.',
@@ -925,14 +999,28 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
                             Files
                           </div>
                           <p className="mt-1 text-sm text-muted-foreground">
-                            Existing PDF instruction files attached when this task was created.
+                            {controlsDisabled
+                              ? 'PDF instruction files attached to this task.'
+                              : `Upload, replace, or remove up to ${TASK_INSTRUCTION_PDF_MAX_FILES} PDF instruction files before launch.`}
                           </p>
                         </div>
                       </div>
 
-                      {currentInstructionFiles.length > 0 ? (
+                      {!controlsDisabled && (
+                        <Input
+                          ref={instructionFileInputRef}
+                          type="file"
+                          accept="application/pdf"
+                          multiple
+                          className="mt-3"
+                          onChange={handleInstructionFilesChange}
+                          disabled={isSaving}
+                        />
+                      )}
+
+                      {totalInstructionFileCount > 0 ? (
                         <div className="mt-3 space-y-2">
-                          {currentInstructionFiles.map((file) => (
+                          {visibleInstructionFiles.map((file) => (
                             <div key={file.id} className="flex items-center gap-3 rounded-md border bg-muted/40 p-3">
                               <FileText className="h-5 w-5 shrink-0 text-muted-foreground" />
                               <div className="min-w-0 flex-1">
@@ -943,6 +1031,41 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
                                   Existing PDF
                                 </p>
                               </div>
+                              {!controlsDisabled && (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleRemoveExistingInstructionFile(file.id)}
+                                  disabled={isSaving}
+                                  aria-label={`Remove ${file.title}`}
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </div>
+                          ))}
+                          {pendingInstructionFiles.map((file) => (
+                            <div key={`${file.name}-${file.size}-${file.lastModified}`} className="flex items-center gap-3 rounded-md border bg-muted/40 p-3">
+                              <Upload className="h-5 w-5 shrink-0 text-muted-foreground" />
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate text-sm font-medium" title={file.name}>
+                                  {file.name}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  Pending upload · {(file.size / 1024 / 1024).toFixed(2)} MB
+                                </p>
+                              </div>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => setPendingInstructionFiles((current) => current.filter((item) => item !== file))}
+                                disabled={isSaving}
+                                aria-label={`Remove ${file.name}`}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
                             </div>
                           ))}
                         </div>

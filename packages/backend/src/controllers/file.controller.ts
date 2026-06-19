@@ -19,6 +19,25 @@ export async function uploadDocumentFile(req: Request, res: Response): Promise<v
     data: file,
   });
 }
+
+export async function uploadTaskInstructionFiles(req: Request, res: Response): Promise<void> {
+  const files = Array.isArray(req.files) ? req.files : [];
+  if (files.length === 0) {
+    throw new AppError(400, 'At least one PDF file is required');
+  }
+
+  const uploadedFiles = await FileService.uploadDraftTaskInstructionFiles(
+    req.params.taskId,
+    req.user!.userId,
+    files
+  );
+
+  res.status(201).json({
+    success: true,
+    data: uploadedFiles,
+  });
+}
+
 export async function listDocumentFiles(req: Request, res: Response): Promise<void> {
   const files = await FileService.listDocumentFiles(req.params.documentId, req.user!.userId);
 

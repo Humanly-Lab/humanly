@@ -797,6 +797,11 @@ export default function DocumentEditorPage() {
 
   const handleTitleSave = async () => {
     if (!document) return;
+    if (isTaskDocument) {
+      setTitle(document.title || '');
+      setIsTitleEditing(false);
+      return;
+    }
     try {
       setSaveStatus('saving');
       await updateDocument(document.content, document.plainText || '', title);
@@ -1285,7 +1290,7 @@ export default function DocumentEditorPage() {
               )}
 
               <div className="min-w-0 flex-1">
-                {isTitleEditing ? (
+                {isTitleEditing && !isTaskDocument ? (
                   <div className="flex min-w-0 items-center gap-2">
                     <Input
                       value={title}
@@ -1308,8 +1313,12 @@ export default function DocumentEditorPage() {
                 ) : (
                   <div className="flex min-w-0 items-center gap-2">
                     <h1
-                      className="min-w-0 cursor-pointer truncate text-lg font-semibold tracking-normal hover:text-muted-foreground"
-                      onClick={() => setIsTitleEditing(true)}
+                      className={`min-w-0 truncate text-lg font-semibold tracking-normal ${
+                        isTaskDocument
+                          ? 'cursor-default'
+                          : 'cursor-pointer hover:text-muted-foreground'
+                      }`}
+                      onClick={isTaskDocument ? undefined : () => setIsTitleEditing(true)}
                       title={title || 'Untitled Document'}
                     >
                       {title || 'Untitled Document'}

@@ -1,4 +1,5 @@
 import type { AppFile, FileTextIndexStatus, ResourceAccessPolicy } from '@humanly/shared';
+import { TASK_INSTRUCTION_PDF_MAX_FILES } from '@humanly/shared';
 import { normalizeResourceAccessPolicy } from '@humanly/shared';
 import crypto from 'crypto';
 import jwt, { JwtPayload } from 'jsonwebtoken';
@@ -83,6 +84,52 @@ export class FileService {
 
     await this.indexFileBestEffort(appFile);
     return this.withTextIndexStatus(appFile);
+  }
+
+  static async uploadDraftTaskInstructionFiles(
+    taskId: string,
+    userId: string,
+    files: Express.Multer.File[]
+  ): Promise<AppFile[]> {
+    const task = await TaskModel.findById(taskId);
+    if (!task) {
+      throw new AppError(404, 'Task not found');
+    }
+
+    if (task.userId !== userId) {
+      throw new AppError(403, 'Access denied to this task');
+    }
+
+    if (task.lifecycleStatus !== 'draft') {
+      throw new AppError(409, 'Task instruction files are read-only after task launch');
+    }
+
+    if (files.length === 0) {
+      throw new AppError(400, 'At least one PDF file is required');
+    }
+
+    const existingFiles = await FileModel.findByTask(taskId);
+    if (existingFiles.length + files.length > TASK_INSTRUCTION_PDF_MAX_FILES) {
+      throw new AppError(
+        400,
+        `Upload at most ${TASK_INSTRUCTION_PDF_MAX_FILES} instruction PDFs for a task`
+      );
+    }
+
+    const uploaded: AppFile[] = [];
+    for (const file of files) {
+      const appFile = await this.createFileRecord({
+        file,
+        userId,
+        title: file.originalname.replace(/\.pdf$/i, ''),
+        taskId,
+        purpose: 'task_instruction_pdf',
+      });
+      await this.indexFileBestEffort(appFile);
+      uploaded.push(await this.withTextIndexStatus(appFile));
+    }
+
+    return uploaded;
   }
 
   static assertValidPdfUploadFile(file: Express.Multer.File): void {
@@ -196,10 +243,19 @@ export class FileService {
 
     await this.assertCanManage(appFile, userId);
     if (appFile.taskId) {
-      throw new AppError(409, 'Task instruction files are read-only after task creation');
+      const task = await TaskModel.findById(appFile.taskId);
+      if (!task) {
+        throw new AppError(404, 'Task not found');
+      }
+      if (task.lifecycleStatus !== 'draft') {
+        throw new AppError(409, 'Task instruction files are read-only after task launch');
+      }
     }
 
-    if (!appFile.legacySourceId) {
+    const storageReferenceCount = appFile.legacySourceId
+      ? 0
+      : await FileModel.countStorageReferences(appFile);
+    if (!appFile.legacySourceId && storageReferenceCount <= 1) {
       await FileStorageService.delete(appFile);
     }
     await FileModel.delete(fileId);
