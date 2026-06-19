@@ -647,21 +647,6 @@ export function CertificateEvidenceView({
                 </CollapsibleTrigger>
               )}
               <CollapsibleContent className="space-y-4 pt-3">
-                <div className="grid gap-2 sm:grid-cols-3">
-                  <div className="rounded-lg border border-border/60 bg-muted/25 p-3">
-                    <p className="text-xs text-muted-foreground">Typed in final text</p>
-                    <p className="mt-1 text-xl font-semibold">{finalTextComposition.typedCharacters.toLocaleString()}</p>
-                  </div>
-                  <div className="rounded-lg border border-border/60 bg-muted/25 p-3">
-                    <p className="text-xs text-muted-foreground">Pasted in final text</p>
-                    <p className="mt-1 text-xl font-semibold">{finalTextComposition.pastedCharacters.toLocaleString()}</p>
-                  </div>
-                  <div className="rounded-lg border border-border/60 bg-muted/25 p-3">
-                    <p className="text-xs text-muted-foreground">AI-assisted in final text</p>
-                    <p className="mt-1 text-xl font-semibold">{finalTextComposition.aiAssistedCharacters.toLocaleString()}</p>
-                  </div>
-                </div>
-
                 {processInputVolume && (
                   <div className="rounded-lg border border-border/60 bg-muted/20 p-3">
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
