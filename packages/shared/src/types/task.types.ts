@@ -21,6 +21,7 @@ export interface Task {
   isActive: boolean;
   lifecycleStatus: TaskLifecycleStatus;
   launchedAt?: Date | null;
+  pausedAt?: Date | null;
   endedAt?: Date | null;
   deletedAt?: Date | null;
   enrolledUserCount?: number;

@@ -22,7 +22,11 @@ export class DocumentModel {
          AND ta.document_id = ${documentAlias}.id
         WHERE te.user_id = ${userParam}
           AND (te.submission_document_id = ${documentAlias}.id OR ta.id IS NOT NULL)
-          AND t.deleted_at IS NOT NULL
+          AND (
+            t.deleted_at IS NOT NULL
+            OR t.is_active IS NOT TRUE
+            OR COALESCE(t.lifecycle_status, 'active') <> 'active'
+          )
       )
     `;
   }
@@ -505,7 +509,11 @@ export class DocumentModel {
       WHERE d.id = $1
         AND (te.submission_document_id = d.id OR ta.id IS NOT NULL)
         AND (d.user_id = $2 OR te.user_id = $2)
-        AND t.deleted_at IS NOT NULL
+        AND (
+          t.deleted_at IS NOT NULL
+          OR t.is_active IS NOT TRUE
+          OR COALESCE(t.lifecycle_status, 'active') <> 'active'
+        )
       LIMIT 1
     `;
 

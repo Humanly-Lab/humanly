@@ -280,7 +280,9 @@ export class FileService {
            AND te.user_id = $2
            AND d.id = $3
            AND d.user_id = $2
-           AND t.deleted_at IS NULL`,
+           AND t.deleted_at IS NULL
+           AND t.is_active = TRUE
+           AND COALESCE(t.lifecycle_status, 'active') = 'active'`,
         [appFile.taskId, userId, documentId]
       );
       return !!access;

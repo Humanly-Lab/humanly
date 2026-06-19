@@ -207,6 +207,10 @@ export class TaskService {
   }
 
   private static assertTaskAcceptsWriters(task: Task): void {
+    if (!task.isActive) {
+      throw new AppError(404, 'Task link not found or inactive');
+    }
+
     if ((task.lifecycleStatus || 'active') === 'active') return;
 
     if (task.lifecycleStatus === 'draft') {

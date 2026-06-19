@@ -116,6 +116,7 @@ const API_URL =
   (process.env.NODE_ENV === 'production' ? '/api/v1' : 'http://localhost:3001/api/v1');
 const SUBMISSION_SESSION_START_DELAY_MS = 250;
 const EDITOR_AUTO_SAVE_INTERVAL_MS = 750;
+const TASK_ENROLLMENT_REFRESH_INTERVAL_MS = 15000;
 const TASK_RULES_DISMISSED_VALUE = 'dismissed';
 type SaveStatus = 'saved' | 'saving' | 'error';
 type PendingActivityEvent = Record<string, unknown>;
@@ -319,6 +320,7 @@ export default function DocumentEditorPage() {
   const [submissionSessionId, setSubmissionSessionId] = useState<string | null>(null);
   const [taskEnrollment, setTaskEnrollment] = useState<TaskEnrollment | null>(null);
   const [isTaskEnrollmentLoading, setIsTaskEnrollmentLoading] = useState(true);
+  const [taskAccessError, setTaskAccessError] = useState<string | null>(null);
   const [editorInsertAtCursor, setEditorInsertAtCursor] = useState<EditorAIBridgeAPI['insertAtCursor'] | null>(null);
   const submissionSessionRef = useRef<{ taskId: string; sessionId: string } | null>(null);
   const lastSubmissionSessionRef = useRef<{ taskId: string; sessionId: string } | null>(null);
@@ -327,6 +329,7 @@ export default function DocumentEditorPage() {
   const latestEditorSnapshotRef = useRef<{ content: Record<string, any>; plainText: string } | null>(null);
   const lastSavedEditorSnapshotRef = useRef<{ contentKey: string; plainText: string } | null>(null);
   const loadedDocumentIdRef = useRef<string | null>(null);
+  const taskDocumentKnownRef = useRef(false);
   const lastCharacterLimitToastRef = useRef(0);
   const flushEditorEventsRef = useRef<(() => Promise<void>) | null>(null);
   const markWorkspaceExitRef = useRef<WorkspaceExitMarker | null>(null);
@@ -572,10 +575,10 @@ export default function DocumentEditorPage() {
   }, [activeTimeLimitSeconds, documentWritingStartedAt, hasLoadedDocument, startWritingSession, writingRulesAcknowledged]);
 
   useEffect(() => {
-    if (!activeTimeLimitSeconds && taskDeadlineMs === null) return;
+    if (taskAccessError || (!activeTimeLimitSeconds && taskDeadlineMs === null)) return;
     const interval = window.setInterval(() => setTimerNowMs(Date.now()), 1000);
     return () => window.clearInterval(interval);
-  }, [activeTimeLimitSeconds, taskDeadlineMs]);
+  }, [activeTimeLimitSeconds, taskAccessError, taskDeadlineMs]);
 
   useEffect(() => {
     const quickActionByKey: Record<string, ActionType> = {
@@ -637,10 +640,13 @@ export default function DocumentEditorPage() {
 
   useEffect(() => {
     let cancelled = false;
+    let refreshInterval: number | null = null;
 
-    const fetchTaskEnrollment = async () => {
+    const fetchTaskEnrollment = async (showLoading = false) => {
       try {
-        setIsTaskEnrollmentLoading(true);
+        if (showLoading) {
+          setIsTaskEnrollmentLoading(true);
+        }
         await waitForDocumentScopedAccessTokenReady(documentId);
 
         const response = await apiClient.get(
@@ -651,22 +657,40 @@ export default function DocumentEditorPage() {
 
         const enrollments = response.data.data?.enrollments || [];
         const enrollment = enrollments.find((task: TaskEnrollment) => task.documentId === documentId) || null;
+        if (enrollment) {
+          taskDocumentKnownRef.current = true;
+          setTaskAccessError(null);
+          if (refreshInterval === null) {
+            refreshInterval = window.setInterval(
+              () => fetchTaskEnrollment(false),
+              TASK_ENROLLMENT_REFRESH_INTERVAL_MS
+            );
+          }
+        } else if (taskDocumentKnownRef.current) {
+          setTaskAccessError('Task link not found or inactive');
+        }
         setTaskEnrollment(enrollment);
       } catch {
         if (!cancelled) {
+          if (taskDocumentKnownRef.current) {
+            setTaskAccessError('Task link not found or inactive');
+          }
           setTaskEnrollment(null);
         }
       } finally {
-        if (!cancelled) {
+        if (!cancelled && showLoading) {
           setIsTaskEnrollmentLoading(false);
         }
       }
     };
 
-    fetchTaskEnrollment();
+    fetchTaskEnrollment(true);
 
     return () => {
       cancelled = true;
+      if (refreshInterval !== null) {
+        window.clearInterval(refreshInterval);
+      }
     };
   }, [documentId]);
 
@@ -1255,11 +1279,11 @@ export default function DocumentEditorPage() {
     );
   }
 
-  if (error || !document) {
+  if (error || taskAccessError || !document) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-center">
-          <p className="text-destructive">{error || 'Document not found'}</p>
+          <p className="text-destructive">{error || taskAccessError || 'Document not found'}</p>
           {!isGuestDocumentContext && (
             <Button
               onClick={() => router.push('/documents')}

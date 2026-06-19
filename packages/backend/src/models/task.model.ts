@@ -92,6 +92,7 @@ export interface CurrentUserTaskEnrollment {
   isActive: boolean;
   lifecycleStatus: TaskLifecycleStatus;
   launchedAt?: Date | null;
+  pausedAt?: Date | null;
   endedAt?: Date | null;
   latestSubmissionId?: string | null;
   latestCertificateId?: string | null;
@@ -123,6 +124,14 @@ export interface ExpiredTimedTaskEnrollment {
 }
 
 export class TaskModel {
+  private static activeWriterPredicate(alias: string): string {
+    return `
+      ${alias}.is_active = TRUE
+      AND ${alias}.deleted_at IS NULL
+      AND COALESCE(${alias}.lifecycle_status, 'active') = 'active'
+    `;
+  }
+
   private static readonly taskSelect = `
     p.id, p.user_id as "userId", p.name, p.description, p.task_token as "taskToken",
     p.user_id_key as "userIdKey", p.external_service_type as "externalServiceType",
@@ -134,6 +143,7 @@ export class TaskModel {
     p.is_active as "isActive",
     p.lifecycle_status as "lifecycleStatus",
     p.launched_at as "launchedAt",
+    p.paused_at as "pausedAt",
     p.ended_at as "endedAt",
     p.deleted_at as "deletedAt",
     COALESCE(pe.enrolled_user_count, 0)::int as "enrolledUserCount",
@@ -312,8 +322,7 @@ export class TaskModel {
       ${this.enrollmentCountJoin}
       ${this.taskStatsJoin}
       WHERE p.task_token = $1
-        AND p.is_active = TRUE
-        AND p.deleted_at IS NULL
+        AND ${this.activeWriterPredicate('p')}
     `;
     return queryOne<Task>(sql, [taskToken]);
   }
@@ -329,8 +338,7 @@ export class TaskModel {
       ${this.enrollmentCountJoin}
       ${this.taskStatsJoin}
       WHERE UPPER(SUBSTRING(p.task_token FROM 1 FOR 6)) = $1
-        AND p.is_active = TRUE
-        AND p.deleted_at IS NULL
+        AND ${this.activeWriterPredicate('p')}
       ORDER BY p.created_at DESC
       LIMIT 1
     `;
@@ -353,8 +361,7 @@ export class TaskModel {
         ON ta.task_id = te.task_id
        AND ta.user_id = te.user_id
        AND ta.document_id = $1
-      WHERE p.is_active = TRUE
-        AND p.deleted_at IS NULL
+      WHERE ${this.activeWriterPredicate('p')}
         AND (te.submission_document_id = $1 OR ta.document_id = $1)
       LIMIT 1
     `;
@@ -684,6 +691,7 @@ export class TaskModel {
         t.is_active as "isActive",
         t.lifecycle_status as "lifecycleStatus",
         t.launched_at as "launchedAt",
+        t.paused_at as "pausedAt",
         t.ended_at as "endedAt",
         latest_submission.id as "latestSubmissionId",
         latest_certificate.id as "latestCertificateId",
@@ -745,6 +753,8 @@ export class TaskModel {
       WHERE te.user_id = $1
         AND te.dashboard_hidden_at IS NULL
         AND t.deleted_at IS NULL
+        AND t.is_active = TRUE
+        AND COALESCE(t.lifecycle_status, 'active') = 'active'
       ORDER BY te.joined_at DESC
     `;
 
@@ -778,6 +788,8 @@ export class TaskModel {
             OR te.auto_submit_claimed_at < NOW() - INTERVAL '5 minutes'
           )
           AND t.is_active = true
+          AND t.deleted_at IS NULL
+          AND COALESCE(t.lifecycle_status, 'active') = 'active'
           AND t.environment_config #>> '{time,timeLimitSeconds}' ~ '^[0-9]+$'
           AND (
             d.writing_started_at
@@ -993,25 +1005,83 @@ export class TaskModel {
     id: string,
     lifecycleStatus: TaskLifecycleStatus
   ): Promise<Task | null> {
-    const sql = `
-      UPDATE tasks
-      SET
-        lifecycle_status = $2,
-        launched_at = CASE
-          WHEN $2 = 'active' AND launched_at IS NULL THEN NOW()
-          ELSE launched_at
-        END,
-        ended_at = CASE
-          WHEN $2 = 'ended' THEN COALESCE(ended_at, NOW())
-          ELSE ended_at
-        END,
-        updated_at = NOW()
-      WHERE id = $1
-      RETURNING id
-    `;
+    const updatedTaskId = await transaction<string | null>(async (client) => {
+      const existingResult = await client.query(
+        `
+          SELECT lifecycle_status, paused_at
+          FROM tasks
+          WHERE id = $1
+          FOR UPDATE
+        `,
+        [id]
+      ) as {
+        rows: Array<{
+          lifecycle_status: TaskLifecycleStatus;
+          paused_at: Date | null;
+        }>;
+      };
 
-    const updatedTask = await queryOne<{ id: string }>(sql, [id, lifecycleStatus]);
-    return updatedTask ? this.findById(updatedTask.id) : null;
+      const existing = existingResult.rows[0];
+      if (!existing) return null;
+
+      if (
+        existing.lifecycle_status === 'paused' &&
+        lifecycleStatus === 'active' &&
+        existing.paused_at
+      ) {
+        await client.query(
+          `
+            UPDATE documents d
+            SET writing_started_at = d.writing_started_at + (NOW() - $2::timestamptz)
+            WHERE d.writing_started_at IS NOT NULL
+              AND EXISTS (
+                SELECT 1
+                FROM task_enrollments te
+                WHERE te.task_id = $1
+                  AND te.user_id = d.user_id
+                  AND te.submission_document_id = d.id
+              )
+              AND NOT EXISTS (
+                SELECT 1
+                FROM submissions s
+                WHERE s.task_id = $1
+                  AND s.document_id = d.id
+                  AND s.status = 'active'
+              )
+          `,
+          [id, existing.paused_at]
+        );
+      }
+
+      const updatedResult = await client.query(
+        `
+          UPDATE tasks
+          SET
+            lifecycle_status = $2,
+            paused_at = CASE
+              WHEN $2 = 'paused' THEN COALESCE(paused_at, NOW())
+              WHEN $2 IN ('active', 'ended') THEN NULL
+              ELSE paused_at
+            END,
+            launched_at = CASE
+              WHEN $2 = 'active' AND launched_at IS NULL THEN NOW()
+              ELSE launched_at
+            END,
+            ended_at = CASE
+              WHEN $2 = 'ended' THEN COALESCE(ended_at, NOW())
+              ELSE ended_at
+            END,
+            updated_at = NOW()
+          WHERE id = $1
+          RETURNING id
+        `,
+        [id, lifecycleStatus]
+      ) as { rows: Array<{ id: string }> };
+
+      return updatedResult.rows[0]?.id || null;
+    });
+
+    return updatedTaskId ? this.findById(updatedTaskId) : null;
   }
 
   static async duplicate(id: string, userId: string): Promise<Task | null> {
