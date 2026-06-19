@@ -294,6 +294,10 @@ export function SelectionPopupPlugin({
       editor.dispatchCommand(TRACKING_SUPPRESS_NEXT_TEXT_CHANGE_COMMAND, false);
     }
 
+    if (!didReplace) {
+      return undefined;
+    }
+
     if (keepOpen) {
       // Keep popup open for inline review (Undo/Keep)
       isProcessingAIAction.current = true;

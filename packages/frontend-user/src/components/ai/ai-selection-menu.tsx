@@ -79,6 +79,7 @@ interface ReviewState {
   suggestedText: string;
   logId?: string;
   isStreaming?: boolean;
+  discardRecorded?: boolean;
 }
 
 // Define the available AI actions with their prompts and icons
@@ -157,6 +158,20 @@ export function AISelectionMenu({
     });
     return () => { cancelled = true; };
   }, [taskManaged]);
+
+  const recordSelectionDecision = async (
+    state: ReviewState,
+    decision: 'accepted' | 'rejected'
+  ) => {
+    await api.post('/ai/selection-action', {
+      documentId,
+      logId: state.logId,
+      actionType: state.actionType,
+      originalText: state.originalText,
+      suggestedText: state.suggestedText,
+      decision,
+    }, getDocumentBackgroundRequestConfig(documentId));
+  };
 
   const handleAction = async (action: typeof ACTIONS[number]) => {
     if (isLoading || !allowPolishActions) return;
@@ -278,6 +293,26 @@ export function AISelectionMenu({
       suppressTextChangeTracking: true,
     });
 
+    if (!replacementResult) {
+      if (!reviewState.discardRecorded) {
+        try {
+          await recordSelectionDecision(reviewState, 'rejected');
+          setReviewState((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  discardRecorded: true,
+                }
+              : prev
+          );
+        } catch (error) {
+          // Don't block the user flow if tracking fails
+        }
+      }
+
+      return;
+    }
+
     // Track the action in event history (local tracking)
     if (onActionApplied) {
       onActionApplied(
@@ -290,14 +325,7 @@ export function AISelectionMenu({
 
     // Track acceptance in the backend
     try {
-      await api.post('/ai/selection-action', {
-        documentId,
-        logId: reviewState.logId,
-        actionType: reviewState.actionType,
-        originalText: reviewState.originalText,
-        suggestedText: reviewState.suggestedText,
-        decision: 'accepted',
-      }, getDocumentBackgroundRequestConfig(documentId));
+      await recordSelectionDecision(reviewState, 'accepted');
     } catch (error) {
       // Don't block the user flow if tracking fails
     }
@@ -319,17 +347,12 @@ export function AISelectionMenu({
       useAIStore.getState().cancelSilentStream();
     } else {
       // Track rejection of a completed suggestion in the backend
-      try {
-        await api.post('/ai/selection-action', {
-          documentId,
-          logId: reviewState.logId,
-          actionType: reviewState.actionType,
-          originalText: reviewState.originalText,
-          suggestedText: reviewState.suggestedText,
-          decision: 'rejected',
-        }, getDocumentBackgroundRequestConfig(documentId));
-      } catch (error) {
-        // Don't block the user flow if tracking fails
+      if (!reviewState.discardRecorded) {
+        try {
+          await recordSelectionDecision(reviewState, 'rejected');
+        } catch (error) {
+          // Don't block the user flow if tracking fails
+        }
       }
     }
 
