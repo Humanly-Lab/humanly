@@ -43,10 +43,16 @@ export default function DocumentsLayout({
       return;
     }
 
+    if (isPublicGuestDocumentRoute) {
+      setIsCheckingAuth(false);
+      return;
+    }
+
     if (!hasChecked) {
+      setIsCheckingAuth(true);
       const hasSwitchSessionMarker = typeof window !== 'undefined'
         && new URLSearchParams(window.location.search).get('switchSession') === '1';
-      const shouldRefreshCookieSession = hasSwitchSessionMarker && !isPublicGuestDocumentRoute;
+      const shouldRefreshCookieSession = hasSwitchSessionMarker;
 
       checkAuth({ forceRefresh: shouldRefreshCookieSession }).finally(() => {
         if (hasSwitchSessionMarker) {
@@ -60,10 +66,25 @@ export default function DocumentsLayout({
 
   useEffect(() => {
     // Only redirect after we've checked auth and user is not authenticated
-    if (!isWorkspacePreviewRoute && hasChecked && !isCheckingAuth && !isLoading && !isAuthenticated) {
+    if (
+      !isWorkspacePreviewRoute
+      && !isPublicGuestDocumentRoute
+      && hasChecked
+      && !isCheckingAuth
+      && !isLoading
+      && !isAuthenticated
+    ) {
       router.push('/login');
     }
-  }, [isAuthenticated, isLoading, router, hasChecked, isCheckingAuth, isWorkspacePreviewRoute]);
+  }, [
+    isAuthenticated,
+    isLoading,
+    router,
+    hasChecked,
+    isCheckingAuth,
+    isWorkspacePreviewRoute,
+    isPublicGuestDocumentRoute,
+  ]);
 
   useEffect(() => {
     if (!isWorkspacePreviewRoute && hasChecked && !isCheckingAuth && !isLoading && isGuestWorkspaceRoute) {
@@ -93,7 +114,7 @@ export default function DocumentsLayout({
     );
   }
 
-  if (!isAuthenticated || isGuestWorkspaceRoute) {
+  if ((!isAuthenticated && !isPublicGuestDocumentRoute) || isGuestWorkspaceRoute) {
     return null;
   }
 

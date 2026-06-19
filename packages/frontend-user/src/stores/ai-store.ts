@@ -157,6 +157,7 @@ interface AIState {
   // request cannot bleed into the next conversation.
   activeStreamSessionId: string | null;
   activeStreamClientRequestId: string | null;
+  activeStreamDocumentId: string | null;
 
   // Set by New Chat. The next user turn must create a fresh backend session
   // instead of letting the backend reuse the latest active session for the
@@ -249,6 +250,7 @@ const initialState = {
   streamingMessageId: null,
   activeStreamSessionId: null,
   activeStreamClientRequestId: null,
+  activeStreamDocumentId: null,
   pendingNewSession: false,
   logs: [],
   logsTotal: 0,
@@ -271,6 +273,37 @@ function createClientRequestId(prefix: string): string {
 
 function initializeDocumentSocket(documentId: string) {
   return initializeSocket(getDocumentScopedAccessToken(documentId));
+}
+
+function clearConversationState(): Pick<
+  AIState,
+  | 'currentSession'
+  | 'messages'
+  | 'isStreaming'
+  | 'streamingContent'
+  | 'activeSuggestions'
+  | 'quotedText'
+  | 'toolCallTimelines'
+  | 'thinkingByMessageId'
+  | 'streamingMessageId'
+  | 'activeStreamSessionId'
+  | 'activeStreamClientRequestId'
+  | 'activeStreamDocumentId'
+> {
+  return {
+    currentSession: null,
+    messages: [],
+    isStreaming: false,
+    streamingContent: '',
+    activeSuggestions: [],
+    quotedText: null,
+    toolCallTimelines: {},
+    thinkingByMessageId: {},
+    streamingMessageId: null,
+    activeStreamSessionId: null,
+    activeStreamClientRequestId: null,
+    activeStreamDocumentId: null,
+  };
 }
 
 function shouldIgnoreStreamEvent(
@@ -316,7 +349,8 @@ export const useAIStore = create<AIState>()(
       // Send message via REST API (non-streaming)
       sendMessage: async (documentId, message, context, attachments) => {
         const { currentSession, pendingNewSession } = get();
-        const forceNewSession = !currentSession?.id && pendingNewSession;
+        const sessionForDocument = currentSession?.documentId === documentId ? currentSession : null;
+        const forceNewSession = !sessionForDocument?.id && pendingNewSession;
         const requestAttachments = stripClientOnlyAttachmentPreview(attachments);
 
         set({ isLoading: true, error: null });
@@ -327,7 +361,7 @@ export const useAIStore = create<AIState>()(
             data: AIChatResponse;
           }>('/ai/chat', {
             documentId,
-            sessionId: currentSession?.id,
+            sessionId: sessionForDocument?.id,
             forceNewSession,
             message,
             context,
@@ -348,8 +382,8 @@ export const useAIStore = create<AIState>()(
 
           set((state) => ({
             messages: [...state.messages, userMessage, responseMessage],
-            currentSession: state.currentSession
-              ? { ...state.currentSession, id: sessionId }
+            currentSession: state.currentSession?.documentId === documentId
+              ? { ...state.currentSession, id: sessionId, documentId }
               : {
                   id: sessionId,
                   documentId,
@@ -374,7 +408,8 @@ export const useAIStore = create<AIState>()(
       // Send message via WebSocket (streaming)
       sendMessageViaSocket: (documentId, message, context, attachments) => {
         const { currentSession, pendingNewSession } = get();
-        const forceNewSession = !currentSession?.id && pendingNewSession;
+        const sessionForDocument = currentSession?.documentId === documentId ? currentSession : null;
+        const forceNewSession = !sessionForDocument?.id && pendingNewSession;
         const clientRequestId = createClientRequestId('chat');
         const requestAttachments = stripClientOnlyAttachmentPreview(attachments);
 
@@ -398,14 +433,15 @@ export const useAIStore = create<AIState>()(
             isStreaming: true,
             streamingContent: '',
             streamingMessageId: null,
-            activeStreamSessionId: currentSession?.id ?? null,
+            activeStreamSessionId: sessionForDocument?.id ?? null,
             activeStreamClientRequestId: clientRequestId,
+            activeStreamDocumentId: documentId,
             error: null,
           }));
 
           emitEvent('ai:message', {
             documentId,
-            sessionId: currentSession?.id,
+            sessionId: sessionForDocument?.id,
             forceNewSession,
             message,
             context,
@@ -445,6 +481,7 @@ export const useAIStore = create<AIState>()(
           streamingMessageId: null,
           activeStreamSessionId: null,
           activeStreamClientRequestId: null,
+          activeStreamDocumentId: null,
         });
       },
 
@@ -569,6 +606,7 @@ export const useAIStore = create<AIState>()(
           streamingMessageId: null,
           activeStreamSessionId: null,
           activeStreamClientRequestId: null,
+          activeStreamDocumentId: null,
           pendingNewSession: true,
           logs: deletedSessionId
             ? get().logs.filter((log) => log.sessionId !== deletedSessionId)
@@ -606,13 +644,20 @@ export const useAIStore = create<AIState>()(
           streamingMessageId: null,
           activeStreamSessionId: null,
           activeStreamClientRequestId: null,
+          activeStreamDocumentId: null,
           pendingNewSession: true,
         });
       },
 
       // Session actions
       initSession: async (documentId) => {
-        set({ isLoading: true, error: null });
+        set((state) => ({
+          ...(state.currentSession?.documentId && state.currentSession.documentId !== documentId
+            ? clearConversationState()
+            : {}),
+          isLoading: true,
+          error: null,
+        }));
 
         try {
           // Guest shared-link documents must join the AI room with the
@@ -655,11 +700,20 @@ export const useAIStore = create<AIState>()(
               // message's persisted metadata so reopening the panel shows
               // the agent trail, not just the final answer (#94).
               toolCallTimelines: rehydrateToolCallTimelines(loadedMessages),
+              thinkingByMessageId: {},
+              streamingMessageId: null,
+              activeStreamSessionId: null,
+              activeStreamClientRequestId: null,
+              activeStreamDocumentId: null,
+              isStreaming: false,
+              streamingContent: '',
+              activeSuggestions: [],
               pendingNewSession: false,
               isLoading: false,
             });
           } else {
             set({
+              ...clearConversationState(),
               sessions,
               pendingNewSession: false,
               isLoading: false,
@@ -794,17 +848,7 @@ export const useAIStore = create<AIState>()(
 
             if (deletingCurrentSession || deletingActiveStream) {
               Object.assign(nextState, {
-                currentSession: null,
-                messages: [],
-                streamingContent: '',
-                isStreaming: false,
-                activeSuggestions: [],
-                quotedText: null,
-                toolCallTimelines: {},
-                thinkingByMessageId: {},
-                streamingMessageId: null,
-                activeStreamSessionId: null,
-                activeStreamClientRequestId: null,
+                ...clearConversationState(),
                 pendingNewSession: true,
               });
             }
@@ -950,32 +994,23 @@ export const useAIStore = create<AIState>()(
             // Don't add if it's the system connection message
             if (response.message.role === 'system' && response.logId === '') {
               return {
-                currentSession: state.currentSession
-                  ? { ...state.currentSession, id: response.sessionId }
-                  : {
-                      id: response.sessionId,
-                      documentId: '',
-                      userId: '',
-                      messages: [],
-                      createdAt: new Date(),
-                      updatedAt: new Date(),
-                      status: 'active',
-                    },
                 isStreaming: false,
                 streamingContent: '',
                 streamingMessageId: null,
                 activeStreamSessionId: null,
                 activeStreamClientRequestId: null,
+                activeStreamDocumentId: null,
                 pendingNewSession: false,
               };
             }
 
             // Create or update session with the response session ID
-            const updatedSession = state.currentSession
-              ? { ...state.currentSession, id: response.sessionId }
+            const responseDocumentId = state.activeStreamDocumentId || state.currentSession?.documentId || '';
+            const updatedSession = state.currentSession?.documentId === responseDocumentId
+              ? { ...state.currentSession, id: response.sessionId, documentId: responseDocumentId }
               : {
                   id: response.sessionId,
-                  documentId: '',
+                  documentId: responseDocumentId,
                   userId: '',
                   messages: [],
                   createdAt: new Date(),
@@ -1010,6 +1045,7 @@ export const useAIStore = create<AIState>()(
                 streamingMessageId: null,
                 activeStreamSessionId: null,
                 activeStreamClientRequestId: null,
+                activeStreamDocumentId: null,
                 pendingNewSession: false,
                 toolCallTimelines,
                 thinkingByMessageId,
@@ -1026,6 +1062,7 @@ export const useAIStore = create<AIState>()(
               streamingMessageId: null,
               activeStreamSessionId: null,
               activeStreamClientRequestId: null,
+              activeStreamDocumentId: null,
               pendingNewSession: false,
               toolCallTimelines,
               thinkingByMessageId,
@@ -1050,6 +1087,7 @@ export const useAIStore = create<AIState>()(
             streamingMessageId: null,
             activeStreamSessionId: null,
             activeStreamClientRequestId: null,
+            activeStreamDocumentId: null,
             error: message,
           });
         });
