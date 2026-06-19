@@ -340,6 +340,7 @@ export default function DocumentEditorPage() {
   // AI Assistant
   const {
     isPanelOpen: isAIPanelOpen,
+    openPanel: openAIPanel,
     togglePanel: toggleAIPanel,
     closePanel: closeAIPanel,
   } = useAI(documentId);
@@ -625,6 +626,12 @@ export default function DocumentEditorPage() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [aiChatEnabled, toggleAIPanel]);
+
+  useEffect(() => {
+    if (aiChatEnabled) {
+      openAIPanel();
+    }
+  }, [aiChatEnabled, documentId, openAIPanel]);
 
   useEffect(() => {
     if (!aiChatEnabled && isAIPanelOpen) {
