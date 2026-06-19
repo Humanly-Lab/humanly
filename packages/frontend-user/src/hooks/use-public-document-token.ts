@@ -12,23 +12,32 @@ export function usePublicDocumentToken(documentId: string) {
     if (!publicDocumentAccessToken) return undefined;
 
     const currentAccessToken = TokenManager.getAccessToken();
-    if (currentAccessToken === publicDocumentAccessToken) return undefined;
+    const storedPreviousAccessToken = TokenManager.getPublicDocumentPreviousAccessToken(documentId);
+    const previousAccessToken =
+      storedPreviousAccessToken
+      || (currentAccessToken && currentAccessToken !== publicDocumentAccessToken
+        ? currentAccessToken
+        : null);
 
-    previousAccessTokenRef.current = currentAccessToken;
-    TokenManager.setAccessToken(publicDocumentAccessToken);
+    previousAccessTokenRef.current = previousAccessToken;
+
+    if (currentAccessToken !== publicDocumentAccessToken) {
+      TokenManager.setAccessToken(publicDocumentAccessToken);
+    }
 
     return () => {
       if (TokenManager.getAccessToken() !== publicDocumentAccessToken) {
+        TokenManager.clearPublicDocumentPreviousAccessToken(documentId);
         previousAccessTokenRef.current = undefined;
         return;
       }
 
-      const previousAccessToken = previousAccessTokenRef.current;
-      if (previousAccessToken) {
-        TokenManager.setAccessToken(previousAccessToken);
-      } else {
-        TokenManager.clearAccessToken();
+      const tokenToRestore = previousAccessTokenRef.current;
+      if (tokenToRestore) {
+        TokenManager.setAccessToken(tokenToRestore);
       }
+
+      TokenManager.clearPublicDocumentPreviousAccessToken(documentId);
       previousAccessTokenRef.current = undefined;
     };
   }, [documentId]);

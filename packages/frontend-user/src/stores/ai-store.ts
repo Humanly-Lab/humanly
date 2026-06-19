@@ -13,7 +13,10 @@ import {
   AgentTurnStartPayload,
   AgentTurnEndPayload,
 } from '@humanly/shared';
-import api, { HumanlyAxiosRequestConfig, TokenManager } from '@/lib/api-client';
+import api, {
+  getDocumentScopedAccessToken,
+  getPublicDocumentAuthConfig,
+} from '@/lib/api-client';
 import { getSocket, initializeSocket, emitEvent, onEvent, offEvent } from '@/lib/socket-client';
 
 /**
@@ -259,25 +262,8 @@ function createClientRequestId(prefix: string): string {
     : `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
-function getDocumentAccessToken(documentId: string): string | null {
-  return TokenManager.getPublicDocumentAccessToken(documentId) || TokenManager.getAccessToken();
-}
-
-function getDocumentAuthConfig(documentId: string): HumanlyAxiosRequestConfig | undefined {
-  const publicDocumentAccessToken = TokenManager.getPublicDocumentAccessToken(documentId);
-  if (!publicDocumentAccessToken) return undefined;
-
-  return {
-    headers: {
-      Authorization: `Bearer ${publicDocumentAccessToken}`,
-    },
-    skipAuthRedirect: true,
-    skipAuthRefresh: true,
-  };
-}
-
 function initializeDocumentSocket(documentId: string) {
-  return initializeSocket(getDocumentAccessToken(documentId));
+  return initializeSocket(getDocumentScopedAccessToken(documentId));
 }
 
 function shouldIgnoreStreamEvent(
@@ -339,7 +325,7 @@ export const useAIStore = create<AIState>()(
             message,
             context,
             attachments: requestAttachments,
-          }, getDocumentAuthConfig(documentId));
+          }, getPublicDocumentAuthConfig(documentId));
 
           const { sessionId, message: responseMessage, suggestions } = response.data;
 
@@ -522,6 +508,7 @@ export const useAIStore = create<AIState>()(
       clearMessages: async () => {
         const { currentSession, activeStreamSessionId, activeStreamClientRequestId } = get();
         const deletedSessionId = currentSession?.id;
+        const deletedSessionDocumentId = currentSession?.documentId || '';
         const streamSessionId = activeStreamSessionId || deletedSessionId;
 
         if (activeStreamClientRequestId) {
@@ -534,7 +521,12 @@ export const useAIStore = create<AIState>()(
         // If there's an active session, delete it from the backend
         if (deletedSessionId) {
           try {
-            await api.delete(`/ai/sessions/${deletedSessionId}`);
+            await api.delete(
+              `/ai/sessions/${deletedSessionId}`,
+              deletedSessionDocumentId
+                ? getPublicDocumentAuthConfig(deletedSessionDocumentId)
+                : undefined
+            );
             emitEvent('ai:leave-session', { sessionId: deletedSessionId });
           } catch (error) {
             // Log but continue - we still want to clear the local state
@@ -615,7 +607,7 @@ export const useAIStore = create<AIState>()(
           const response = await api.get<{
             success: boolean;
             data: AIChatSession[];
-          }>(`/ai/sessions/${documentId}`, getDocumentAuthConfig(documentId));
+          }>(`/ai/sessions/${documentId}`, getPublicDocumentAuthConfig(documentId));
 
           const sessions = response.data;
           const activeSession = sessions.find((s) => s.status === 'active');
@@ -625,7 +617,7 @@ export const useAIStore = create<AIState>()(
             const sessionResponse = await api.get<{
               success: boolean;
               data: AIChatSession;
-            }>(`/ai/sessions/detail/${activeSession.id}`, getDocumentAuthConfig(documentId));
+            }>(`/ai/sessions/detail/${activeSession.id}`, getPublicDocumentAuthConfig(documentId));
 
             const loadedMessages = sessionResponse.data.messages || [];
             set({
@@ -658,10 +650,17 @@ export const useAIStore = create<AIState>()(
         set({ isLoading: true, error: null });
 
         try {
+          const sessionDocumentId =
+            get().sessions.find((session) => session.id === sessionId)?.documentId
+            || get().currentSession?.documentId
+            || '';
           const response = await api.get<{
             success: boolean;
             data: AIChatSession;
-          }>(`/ai/sessions/detail/${sessionId}`);
+          }>(
+            `/ai/sessions/detail/${sessionId}`,
+            sessionDocumentId ? getPublicDocumentAuthConfig(sessionDocumentId) : undefined
+          );
 
           const loadedMessages = response.data.messages || [];
           set({
@@ -707,9 +706,15 @@ export const useAIStore = create<AIState>()(
         const { currentSession } = get();
         if (!currentSession) return;
         const deletedSessionId = currentSession.id;
+        const deletedSessionDocumentId = currentSession.documentId || '';
 
         try {
-          await api.delete(`/ai/sessions/${deletedSessionId}`);
+          await api.delete(
+            `/ai/sessions/${deletedSessionId}`,
+            deletedSessionDocumentId
+              ? getPublicDocumentAuthConfig(deletedSessionDocumentId)
+              : undefined
+          );
           emitEvent('ai:leave-session', { sessionId: deletedSessionId });
 
           set({
@@ -729,9 +734,14 @@ export const useAIStore = create<AIState>()(
           currentSession,
           activeStreamSessionId,
           activeStreamClientRequestId,
+          sessions,
         } = get();
         const deletingCurrentSession = currentSession?.id === sessionId;
         const deletingActiveStream = activeStreamSessionId === sessionId;
+        const deletedSessionDocumentId =
+          sessions.find((session) => session.id === sessionId)?.documentId
+          || (deletingCurrentSession ? currentSession?.documentId : '')
+          || '';
 
         if (deletingCurrentSession || deletingActiveStream) {
           if (activeStreamClientRequestId) {
@@ -741,7 +751,12 @@ export const useAIStore = create<AIState>()(
         }
 
         try {
-          await api.delete(`/ai/sessions/${sessionId}`);
+          await api.delete(
+            `/ai/sessions/${sessionId}`,
+            deletedSessionDocumentId
+              ? getPublicDocumentAuthConfig(deletedSessionDocumentId)
+              : undefined
+          );
           emitEvent('ai:leave-session', { sessionId });
 
           set((state) => {
@@ -780,15 +795,20 @@ export const useAIStore = create<AIState>()(
         set({ isLoading: true, error: null });
 
         try {
-          await api.post('/ai/apply-suggestion', {
-            logId,
-            suggestionId: suggestion.id,
-            modification: {
-              type: suggestion.type,
-              ...modification,
-              location: suggestion.location,
+          const sessionDocumentId = get().currentSession?.documentId || '';
+          await api.post(
+            '/ai/apply-suggestion',
+            {
+              logId,
+              suggestionId: suggestion.id,
+              modification: {
+                type: suggestion.type,
+                ...modification,
+                location: suggestion.location,
+              },
             },
-          });
+            sessionDocumentId ? getPublicDocumentAuthConfig(sessionDocumentId) : undefined
+          );
 
           // Mark suggestion as applied
           set((state) => ({
@@ -826,7 +846,7 @@ export const useAIStore = create<AIState>()(
             pagination: { total: number };
           }>(
             `/ai/logs?documentId=${documentId}&offset=${offset}&limit=${limit}`,
-            getDocumentAuthConfig(documentId)
+            getPublicDocumentAuthConfig(documentId)
           );
 
           set({
@@ -852,7 +872,7 @@ export const useAIStore = create<AIState>()(
             pagination: { total: number };
           }>(
             `/ai/logs?documentId=${documentId}&offset=${logs.length}&limit=20`,
-            getDocumentAuthConfig(documentId)
+            getPublicDocumentAuthConfig(documentId)
           );
 
           set((state) => ({

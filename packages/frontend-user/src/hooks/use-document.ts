@@ -1,5 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
-import { apiClient, type HumanlyAxiosRequestConfig } from '@/lib/api-client';
+import {
+  apiClient,
+  getPublicDocumentAuthConfig,
+  type HumanlyAxiosRequestConfig,
+} from '@/lib/api-client';
 import type { AppFile, Document, DocumentEvent } from '@humanly/shared';
 
 interface TrackEventsOptions {
@@ -17,13 +21,19 @@ export function useDocument(documentId: string) {
     try {
       setIsLoading(true);
       setError(null);
-      const response = await apiClient.get(`/documents/${documentId}`);
+      const response = await apiClient.get(
+        `/documents/${documentId}`,
+        getPublicDocumentAuthConfig(documentId)
+      );
       const doc = response.data.data?.document || null;
       setDocument(doc);
 
       // Check if there's a linked PDF for this document.
       try {
-        const fileResponse = await apiClient.get(`/documents/${documentId}/files`);
+        const fileResponse = await apiClient.get(
+          `/documents/${documentId}/files`,
+          getPublicDocumentAuthConfig(documentId)
+        );
         setLinkedFile(fileResponse.data.data?.file || null);
       } catch {
         setLinkedFile(null);
@@ -49,11 +59,15 @@ export function useDocument(documentId: string) {
   ) => {
     try {
       setIsSaving(true);
-      const response = await apiClient.put(`/documents/${documentId}`, {
-        content,
-        plainText,
-        ...(title !== undefined && { title }),
-      });
+      const response = await apiClient.put(
+        `/documents/${documentId}`,
+        {
+          content,
+          plainText,
+          ...(title !== undefined && { title }),
+        },
+        getPublicDocumentAuthConfig(documentId)
+      );
       setDocument(response.data.data?.document || null);
       return response.data.data?.document;
     } catch (err: any) {
@@ -66,7 +80,11 @@ export function useDocument(documentId: string) {
 
   const startWritingSession = useCallback(async () => {
     try {
-      const response = await apiClient.post(`/documents/${documentId}/writing-session/start`);
+      const response = await apiClient.post(
+        `/documents/${documentId}/writing-session/start`,
+        undefined,
+        getPublicDocumentAuthConfig(documentId)
+      );
       const doc = response.data.data?.document || null;
       setDocument(doc);
       return doc;
@@ -82,7 +100,10 @@ export function useDocument(documentId: string) {
     options: TrackEventsOptions = {}
   ) => {
     try {
-      const backgroundRequestConfig: HumanlyAxiosRequestConfig = { skipAuthRedirect: true };
+      const backgroundRequestConfig: HumanlyAxiosRequestConfig = (
+        getPublicDocumentAuthConfig(documentId, { skipAuthRedirect: true })
+        || { skipAuthRedirect: true }
+      );
 
       await apiClient.post(`/documents/${documentId}/events`, {
         events,

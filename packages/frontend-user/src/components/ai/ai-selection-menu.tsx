@@ -5,7 +5,7 @@ import type { SelectionReplacementOptions, SelectionReplacementResult } from '@h
 import { Sparkles, Check, Wand2, BookOpen, Loader2, MessageSquare, AlertCircle, Undo2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import api, { TokenManager, type HumanlyAxiosRequestConfig } from '@/lib/api-client';
+import api, { getPublicDocumentAuthConfig, type HumanlyAxiosRequestConfig } from '@/lib/api-client';
 import { useAIStore } from '@/stores/ai-store';
 import { QuickActionDiff } from './quick-action-diff';
 
@@ -55,16 +55,7 @@ const SURROUNDING_POST_MAX = 200;
 const BACKGROUND_REQUEST_CONFIG: HumanlyAxiosRequestConfig = { skipAuthRedirect: true };
 
 function getDocumentBackgroundRequestConfig(documentId: string): HumanlyAxiosRequestConfig {
-  const publicDocumentAccessToken = TokenManager.getPublicDocumentAccessToken(documentId);
-  if (!publicDocumentAccessToken) return BACKGROUND_REQUEST_CONFIG;
-
-  return {
-    ...BACKGROUND_REQUEST_CONFIG,
-    headers: {
-      Authorization: `Bearer ${publicDocumentAccessToken}`,
-    },
-    skipAuthRefresh: true,
-  };
+  return getPublicDocumentAuthConfig(documentId, BACKGROUND_REQUEST_CONFIG) || BACKGROUND_REQUEST_CONFIG;
 }
 
 /**

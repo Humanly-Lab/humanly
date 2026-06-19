@@ -41,8 +41,12 @@ import { useAI } from '@/hooks/use-ai';
 import { useAIStore } from '@/stores/ai-store';
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import dynamic from 'next/dynamic';
-import { apiClient, TokenManager } from '@/lib/api-client';
-import { usePublicDocumentToken } from '@/hooks/use-public-document-token';
+import {
+  apiClient,
+  getDocumentScopedAccessToken,
+  getPublicDocumentAuthConfig,
+  TokenManager,
+} from '@/lib/api-client';
 import {
   AI_PROVIDER_OPTIONS,
   getProviderValueForBaseUrl,
@@ -286,7 +290,6 @@ export default function DocumentEditorPage() {
   const { toast } = useToast();
   const documentId = params.id as string;
   const { user } = useAuthStore();
-  usePublicDocumentToken(documentId);
   const {
     document,
     linkedFile,
@@ -723,7 +726,7 @@ export default function DocumentEditorPage() {
       submissionSessionRef.current = null;
       setSubmissionSessionId(null);
 
-      const token = TokenManager.getAccessToken();
+      const token = getDocumentScopedAccessToken(documentId);
       void fetch(
         `${API_URL}/tasks/enrollments/${activeSession.taskId}/submission-sessions/${activeSession.sessionId}/end`,
         {
@@ -739,14 +742,16 @@ export default function DocumentEditorPage() {
 
     const startSubmissionSession = async () => {
       try {
-        const response = await apiClient.post(`/tasks/enrollments/${enrollment.id}/submission-sessions`, {
-          documentId,
-        });
+        const response = await apiClient.post(
+          `/tasks/enrollments/${enrollment.id}/submission-sessions`,
+          { documentId },
+          getPublicDocumentAuthConfig(documentId)
+        );
 
         if (cancelled) {
           const sessionId = response.data.data?.sessionId;
           if (sessionId) {
-            const token = TokenManager.getAccessToken();
+            const token = getDocumentScopedAccessToken(documentId);
             await fetch(`${API_URL}/tasks/enrollments/${enrollment.id}/submission-sessions/${sessionId}/end`, {
               method: 'PUT',
               keepalive: true,
@@ -862,7 +867,7 @@ export default function DocumentEditorPage() {
         (typeof window !== 'undefined' && window.document.visibilityState === 'hidden');
 
       if (shouldUseKeepalive && typeof fetch === 'function') {
-        const token = TokenManager.getAccessToken();
+        const token = getDocumentScopedAccessToken(documentId);
         const response = await fetch(`${API_URL}/documents/${documentId}/events`, {
           method: 'POST',
           keepalive: true,

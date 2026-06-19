@@ -21,7 +21,7 @@ import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { MarkdownContent } from '@/components/markdown-content';
-import { API_URL, TokenManager, apiClient } from '@/lib/api-client';
+import { API_URL, TokenManager, apiClient, getPublicDocumentAuthConfig } from '@/lib/api-client';
 import { usePublicDocumentToken } from '@/hooks/use-public-document-token';
 import { useAuthStore } from '@/stores/auth-store';
 import {
@@ -1507,10 +1507,13 @@ export default function DocumentLogsPage() {
       }
 
       const [docRes, timelineRes, aiLogsRes] = await Promise.all([
-        apiClient.get(`/documents/${documentId}`),
-        apiClient.get(`/documents/${documentId}/events/timeline?limit=10000`),
+        apiClient.get(`/documents/${documentId}`, getPublicDocumentAuthConfig(documentId)),
+        apiClient.get(
+          `/documents/${documentId}/events/timeline?limit=10000`,
+          getPublicDocumentAuthConfig(documentId)
+        ),
         apiClient
-          .get(`/ai/logs?documentId=${documentId}&limit=50&offset=0`)
+          .get(`/ai/logs?documentId=${documentId}&limit=50&offset=0`, getPublicDocumentAuthConfig(documentId))
           .catch(() => ({ data: { data: [] } })),
       ]);
 

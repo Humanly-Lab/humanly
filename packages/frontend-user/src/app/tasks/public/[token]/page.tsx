@@ -153,9 +153,10 @@ export default function PublicTaskDocumentStartPage() {
       const documentId = response.data.document.id;
       const existingAccessToken = TokenManager.getAccessToken();
       if (mode === 'guest' && response.data.accessToken) {
+        if (existingAccessToken && existingAccessToken !== response.data.accessToken) {
+          TokenManager.setPublicDocumentPreviousAccessToken(documentId, existingAccessToken);
+        }
         TokenManager.setPublicDocumentAccessToken(documentId, response.data.accessToken);
-      }
-      if (mode === 'guest' && !existingAccessToken && response.data.accessToken) {
         TokenManager.setAccessToken(response.data.accessToken);
       }
       router.replace(`/documents/${documentId}`);

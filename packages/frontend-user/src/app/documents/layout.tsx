@@ -44,18 +44,19 @@ export default function DocumentsLayout({
     }
 
     if (!hasChecked) {
-      const shouldSwitchSession = typeof window !== 'undefined'
+      const hasSwitchSessionMarker = typeof window !== 'undefined'
         && new URLSearchParams(window.location.search).get('switchSession') === '1';
+      const shouldRefreshCookieSession = hasSwitchSessionMarker && !isPublicGuestDocumentRoute;
 
-      checkAuth({ forceRefresh: shouldSwitchSession }).finally(() => {
-        if (shouldSwitchSession) {
+      checkAuth({ forceRefresh: shouldRefreshCookieSession }).finally(() => {
+        if (hasSwitchSessionMarker) {
           router.replace(pathname);
         }
         setHasChecked(true);
         setIsCheckingAuth(false);
       });
     }
-  }, [hasChecked, checkAuth, isWorkspacePreviewRoute, pathname, router]);
+  }, [hasChecked, checkAuth, isPublicGuestDocumentRoute, isWorkspacePreviewRoute, pathname, router]);
 
   useEffect(() => {
     // Only redirect after we've checked auth and user is not authenticated

@@ -29,6 +29,7 @@ export class ApiError extends Error {
 }
 
 const PUBLIC_DOCUMENT_ACCESS_TOKENS_KEY = 'humanlyPublicDocumentAccessTokens';
+const PUBLIC_DOCUMENT_PREVIOUS_ACCESS_TOKENS_KEY = 'humanlyPublicDocumentPreviousAccessTokens';
 const PUBLIC_CERTIFICATE_ACCESS_TOKENS_KEY = 'humanlyPublicCertificateAccessTokens';
 
 const readScopedAccessTokens = (storageKey: string): Record<string, string> => {
@@ -65,6 +66,12 @@ const writeScopedAccessTokens = (storageKey: string, tokens: Record<string, stri
 const readPublicDocumentAccessTokens = () => readScopedAccessTokens(PUBLIC_DOCUMENT_ACCESS_TOKENS_KEY);
 const writePublicDocumentAccessTokens = (tokens: Record<string, string>) => (
   writeScopedAccessTokens(PUBLIC_DOCUMENT_ACCESS_TOKENS_KEY, tokens)
+);
+const readPublicDocumentPreviousAccessTokens = () => (
+  readScopedAccessTokens(PUBLIC_DOCUMENT_PREVIOUS_ACCESS_TOKENS_KEY)
+);
+const writePublicDocumentPreviousAccessTokens = (tokens: Record<string, string>) => (
+  writeScopedAccessTokens(PUBLIC_DOCUMENT_PREVIOUS_ACCESS_TOKENS_KEY, tokens)
 );
 const readPublicCertificateAccessTokens = () => readScopedAccessTokens(PUBLIC_CERTIFICATE_ACCESS_TOKENS_KEY);
 const writePublicCertificateAccessTokens = (tokens: Record<string, string>) => (
@@ -106,6 +113,7 @@ export const TokenManager = {
     localStorage.removeItem('refreshToken');
     try {
       sessionStorage.removeItem(PUBLIC_DOCUMENT_ACCESS_TOKENS_KEY);
+      sessionStorage.removeItem(PUBLIC_DOCUMENT_PREVIOUS_ACCESS_TOKENS_KEY);
       sessionStorage.removeItem(PUBLIC_CERTIFICATE_ACCESS_TOKENS_KEY);
     } catch {
       // Ignore storage failures during logout/session cleanup.
@@ -132,6 +140,26 @@ export const TokenManager = {
     writePublicDocumentAccessTokens(tokens);
   },
 
+  getPublicDocumentPreviousAccessToken: (documentId: string): string | null => {
+    if (!documentId) return null;
+    return readPublicDocumentPreviousAccessTokens()[documentId] || null;
+  },
+
+  setPublicDocumentPreviousAccessToken: (documentId: string, token: string): void => {
+    if (!documentId || !token) return;
+    writePublicDocumentPreviousAccessTokens({
+      ...readPublicDocumentPreviousAccessTokens(),
+      [documentId]: token,
+    });
+  },
+
+  clearPublicDocumentPreviousAccessToken: (documentId: string): void => {
+    if (!documentId) return;
+    const tokens = readPublicDocumentPreviousAccessTokens();
+    delete tokens[documentId];
+    writePublicDocumentPreviousAccessTokens(tokens);
+  },
+
   getPublicCertificateAccessToken: (certificateId: string): string | null => {
     if (!certificateId) return null;
     return readPublicCertificateAccessTokens()[certificateId] || null;
@@ -152,6 +180,35 @@ export const TokenManager = {
     writePublicCertificateAccessTokens(tokens);
   },
 };
+
+export function getDocumentScopedAccessToken(documentId: string): string | null {
+  return TokenManager.getPublicDocumentAccessToken(documentId) || TokenManager.getAccessToken();
+}
+
+export function getPublicDocumentAuthConfig(
+  documentId: string,
+  baseConfig: HumanlyAxiosRequestConfig = {}
+): HumanlyAxiosRequestConfig | undefined {
+  const publicDocumentAccessToken = TokenManager.getPublicDocumentAccessToken(documentId);
+  if (!publicDocumentAccessToken) {
+    return Object.keys(baseConfig).length > 0 ? baseConfig : undefined;
+  }
+
+  const headers =
+    baseConfig.headers && typeof baseConfig.headers === 'object'
+      ? (baseConfig.headers as Record<string, unknown>)
+      : {};
+
+  return {
+    ...baseConfig,
+    headers: {
+      ...headers,
+      Authorization: `Bearer ${publicDocumentAccessToken}`,
+    },
+    skipAuthRedirect: baseConfig.skipAuthRedirect ?? true,
+    skipAuthRefresh: baseConfig.skipAuthRefresh ?? true,
+  };
+}
 
 /**
  * Create axios instance with base configuration
