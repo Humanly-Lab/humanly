@@ -143,8 +143,7 @@ const createLexicalContentFromPlainText = (plainText: string) => {
   };
 };
 
-const createTaskAttemptDocumentTitle = (taskName: string, attemptNumber: number): string =>
-  attemptNumber <= 1 ? `${taskName} Submission` : `${taskName} Submission Attempt ${attemptNumber}`;
+const createTaskAttemptDocumentTitle = (taskName: string): string => taskName;
 
 export interface PublicTaskStartData {
   sessionId?: string;
@@ -571,7 +570,7 @@ export class TaskService {
     const blankContent = createLexicalContentFromPlainText('');
     const document = await DocumentModel.create({
       userId,
-      title: createTaskAttemptDocumentTitle(task.name, nextAttemptNumber),
+      title: createTaskAttemptDocumentTitle(task.name),
       description: 'Assigned task restart attempt.',
       content: blankContent,
       plainText: '',

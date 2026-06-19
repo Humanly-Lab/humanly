@@ -437,7 +437,7 @@ export default function DocumentsPage() {
       const document = existingDocumentId
         ? null
         : await createDocument(
-            `${enrollmentFromApi.name} Submission`,
+            enrollmentFromApi.name,
             undefined,
             enrollmentFromApi.environmentConfig || null
           );
