@@ -1910,24 +1910,6 @@ export default function NewTaskPage() {
                   )}
                 </div>
 
-                <div className="rounded-lg border border-border/80 bg-muted/20 p-4">
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="min-w-0">
-                      <FormLabel htmlFor="allow-guest-submissions" className="text-sm font-medium">
-                        Allow guest submissions from public link
-                      </FormLabel>
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        When off, visitors must sign in or create an account before writing from the share link.
-                      </p>
-                    </div>
-                    <Checkbox
-                      id="allow-guest-submissions"
-                      checked={allowGuestSubmissions}
-                      onCheckedChange={(checked) => setAllowGuestSubmissions(checked === true)}
-                      disabled={isSubmitting}
-                    />
-                  </div>
-                </div>
               </section>
 
               <div className="space-y-5 rounded-md border p-4">
@@ -1948,6 +1930,25 @@ export default function NewTaskPage() {
                       <SelectItem value={IMPORT_ENVIRONMENT_VALUE}>Import Environment</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+
+                <div className="rounded-lg border border-border/80 bg-muted/20 p-4">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="min-w-0">
+                      <FormLabel htmlFor="allow-guest-submissions" className="text-sm font-medium">
+                        Allow guest submissions from public link
+                      </FormLabel>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        When off, visitors must sign in or create an account before writing from the share link.
+                      </p>
+                    </div>
+                    <Checkbox
+                      id="allow-guest-submissions"
+                      checked={allowGuestSubmissions}
+                      onCheckedChange={(checked) => setAllowGuestSubmissions(checked === true)}
+                      disabled={isSubmitting}
+                    />
+                  </div>
                 </div>
 
                 {environmentSelection === IMPORT_ENVIRONMENT_VALUE && (
