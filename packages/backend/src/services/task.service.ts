@@ -1105,8 +1105,87 @@ export class TaskService {
       throw new AppError(500, 'Failed to duplicate task');
     }
 
+    try {
+      await this.materializeDuplicatedTaskInstructionFiles(duplicatedTask.id, userId);
+    } catch (error) {
+      const copiedFiles = await FileModel.findByTask(duplicatedTask.id).catch(() => []);
+      await TaskModel.delete(duplicatedTask.id).catch((deleteError) => {
+        logger.error('Failed to delete task after duplicate file materialization failure', {
+          error: deleteError,
+          taskId,
+          duplicatedTaskId: duplicatedTask.id,
+          userId,
+        });
+      });
+      await this.deleteTaskFileStorage(duplicatedTask.id, userId, copiedFiles).catch((deleteError) => {
+        logger.error('Failed to clean up copied task file storage after duplicate failure', {
+          error: deleteError,
+          taskId,
+          duplicatedTaskId: duplicatedTask.id,
+          userId,
+        });
+      });
+      throw error;
+    }
+
     logger.info('Task duplicated', { taskId, duplicatedTaskId: duplicatedTask.id, userId });
     return duplicatedTask;
+  }
+
+  private static async materializeDuplicatedTaskInstructionFiles(
+    duplicatedTaskId: string,
+    userId: string
+  ): Promise<void> {
+    const duplicatedFiles = await FileModel.findByTask(duplicatedTaskId);
+
+    await Promise.all(
+      duplicatedFiles
+        .filter((file) => file.legacySourceId)
+        .map(async (file) => {
+          const sourceFile = await FileModel.findById(file.legacySourceId!);
+          if (!sourceFile) {
+            throw new AppError(500, 'Failed to duplicate task file');
+          }
+
+          const sourceBuffer = await FileStorageService.getBuffer(sourceFile);
+          const copiedStorage = await FileStorageService.store(sourceBuffer, file.id);
+
+          try {
+            const updatedFile = await FileModel.updateStorageMetadata(file.id, {
+              ...copiedStorage,
+              legacySourceId: null,
+            });
+
+            if (!updatedFile) {
+              throw new AppError(500, 'Failed to update duplicated task file storage');
+            }
+
+            logger.info('Duplicated task file storage object', {
+              duplicatedTaskId,
+              userId,
+              fileId: file.id,
+              sourceFileId: sourceFile.id,
+              storageProvider: copiedStorage.storageProvider,
+              storageBucket: copiedStorage.storageBucket,
+              storageKey: copiedStorage.storageKey,
+            });
+          } catch (error) {
+            await FileStorageService.delete(copiedStorage).catch((deleteError) => {
+              logger.error('Failed to clean up copied task file storage object', {
+                error: deleteError,
+                duplicatedTaskId,
+                userId,
+                fileId: file.id,
+                sourceFileId: sourceFile.id,
+                storageProvider: copiedStorage.storageProvider,
+                storageBucket: copiedStorage.storageBucket,
+                storageKey: copiedStorage.storageKey,
+              });
+            });
+            throw error;
+          }
+        })
+    );
   }
 
   /**

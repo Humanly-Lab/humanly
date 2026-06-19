@@ -1,5 +1,5 @@
 import { query, queryOne } from '../config/database';
-import type { AppFile, CreateFileData, FilePurpose } from '@humanly/shared';
+import type { AppFile, CreateFileData, FilePurpose, FileUploadStatus } from '@humanly/shared';
 
 export class FileModel {
   static async create(data: CreateFileData): Promise<AppFile> {
@@ -87,6 +87,52 @@ export class FileModel {
        WHERE owner_user_id = $1
        ORDER BY created_at DESC`,
       [userId]
+    );
+  }
+
+  static async updateStorageMetadata(
+    fileId: string,
+    data: {
+      storageProvider: string;
+      storageKey: string;
+      storageBucket?: string | null;
+      storageRegion?: string | null;
+      storageEtag?: string | null;
+      fileSize: number;
+      checksum: string;
+      uploadStatus: FileUploadStatus;
+      legacySourceId?: string | null;
+    }
+  ): Promise<AppFile | null> {
+    return queryOne<AppFile>(
+      `
+        UPDATE files
+        SET
+          storage_provider = $2,
+          storage_key = $3,
+          storage_bucket = $4,
+          storage_region = $5,
+          storage_etag = $6,
+          file_size = $7,
+          checksum = $8,
+          upload_status = $9,
+          legacy_source_id = $10,
+          updated_at = NOW()
+        WHERE id = $1
+        RETURNING ${this.columns}
+      `,
+      [
+        fileId,
+        data.storageProvider,
+        data.storageKey,
+        data.storageBucket || null,
+        data.storageRegion || null,
+        data.storageEtag || null,
+        data.fileSize,
+        data.checksum,
+        data.uploadStatus,
+        data.legacySourceId || null,
+      ]
     );
   }
 
