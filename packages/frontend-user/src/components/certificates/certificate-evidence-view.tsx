@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import {
-  Activity,
   Award,
   Calendar,
   ChevronDown,
@@ -142,6 +141,10 @@ function formatPercentage(value: number) {
   if (!Number.isFinite(value) || value <= 0) return '0%';
   if (value < 1) return '<1%';
   return `${Math.round(value)}%`;
+}
+
+function formatCompositionLabel(percentage: number, characters: number) {
+  return `${formatPercentage(percentage)} · ${characters.toLocaleString()} chars`;
 }
 
 function createLegacyComposition(certificate: Pick<CertificateEvidenceRecord, 'typedCharacters' | 'pastedCharacters'>): AuthorshipComposition {
@@ -563,7 +566,7 @@ export function CertificateEvidenceView({
         <CardHeader className="pb-3">
           <CardTitle className={SECTION_TITLE_CLASS}>Authorship Statistics</CardTitle>
           <CardDescription>
-            Write-time composition, event counts, and in-platform AI activity.
+            Final text composition, writing length, and active writing time.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -590,32 +593,28 @@ export function CertificateEvidenceView({
                 <div className="flex items-center gap-2">
                   <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: COMPOSITION_COLORS.typed }} />
                   <span className="text-muted-foreground">Typed</span>
-                  <span className="font-medium">{formatPercentage(finalTextPercentages.typed)}</span>
+                  <span className="font-medium">
+                    {formatCompositionLabel(finalTextPercentages.typed, finalTextComposition.typedCharacters)}
+                  </span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: COMPOSITION_COLORS.pasted }} />
                   <span className="text-muted-foreground">Pasted</span>
-                  <span className="font-medium">{formatPercentage(finalTextPercentages.pasted)}</span>
+                  <span className="font-medium">
+                    {formatCompositionLabel(finalTextPercentages.pasted, finalTextComposition.pastedCharacters)}
+                  </span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: COMPOSITION_COLORS.aiAssisted }} />
                   <span className="text-muted-foreground">AI-assisted</span>
-                  <span className="font-medium">{formatPercentage(finalTextPercentages.aiAssisted)}</span>
+                  <span className="font-medium">
+                    {formatCompositionLabel(finalTextPercentages.aiAssisted, finalTextComposition.aiAssistedCharacters)}
+                  </span>
                 </div>
               </div>
             </div>
 
-            <div className="grid gap-2 sm:grid-cols-3">
-              <div className="rounded-lg border border-border/60 bg-muted/35 p-3">
-                <div className="flex items-center gap-1">
-                  <Activity className="h-3.5 w-3.5 text-muted-foreground" />
-                  <p className="text-xs text-muted-foreground">Events</p>
-                </div>
-                <p className="mt-1 text-2xl font-semibold">{certificate.totalEvents.toLocaleString()}</p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {certificate.typingEvents.toLocaleString()} typing events · {certificate.pasteEvents.toLocaleString()} paste events · {textImprovementTotal.toLocaleString()} AI improvements
-                </p>
-              </div>
+            <div className="grid gap-2 sm:grid-cols-2">
               <div className="rounded-lg border border-border/60 bg-muted/35 p-3">
                 <div className="flex items-center gap-1">
                   <FileText className="h-3.5 w-3.5 text-muted-foreground" />
