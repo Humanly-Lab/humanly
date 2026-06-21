@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Award,
   Calendar,
@@ -59,11 +59,11 @@ const COMPOSITION_COLORS = {
   aiAssisted: '#9E93B5',
 } as const;
 const COMPOSITION_HIGHLIGHT_COLORS = {
-  typed: 'rgba(123, 140, 158, 0.24)',
-  pasted: 'rgba(178, 161, 137, 0.28)',
-  aiAssisted: 'rgba(158, 147, 181, 0.30)',
+  typed: 'rgba(88, 128, 166, 0.40)',
+  pasted: 'rgba(190, 164, 112, 0.42)',
+  aiAssisted: 'rgba(150, 132, 176, 0.42)',
 } as const;
-const FINAL_TEXT_PREVIEW_CHAR_LIMIT = 500;
+const FINAL_TEXT_PREVIEW_ROWS = 6;
 
 export interface CertificateEvidenceRecord {
   id: string;
@@ -193,32 +193,6 @@ function getSourceSpanColor(source: AuthorshipTextSourceSpan['source']) {
 
 function getTextSourceSpanCharacterCount(spans: AuthorshipTextSourceSpan[]) {
   return spans.reduce((total, span) => total + span.text.length, 0);
-}
-
-function sliceTextSourceSpans(
-  spans: AuthorshipTextSourceSpan[],
-  limit: number
-): AuthorshipTextSourceSpan[] {
-  if (limit <= 0) return [];
-  const visible: AuthorshipTextSourceSpan[] = [];
-  let remaining = limit;
-
-  for (const span of spans) {
-    if (remaining <= 0) break;
-    if (!span.text) continue;
-    if (span.text.length <= remaining) {
-      visible.push(span);
-      remaining -= span.text.length;
-      continue;
-    }
-    visible.push({
-      ...span,
-      text: span.text.slice(0, remaining),
-    });
-    remaining = 0;
-  }
-
-  return visible;
 }
 
 function formatPreset(value?: string | null) {
@@ -497,6 +471,8 @@ export function CertificateEvidenceView({
   const [behaviorReviewOpen, setBehaviorReviewOpen] = useState(false);
   const [environmentOpen, setEnvironmentOpen] = useState(false);
   const [finalTextExpanded, setFinalTextExpanded] = useState(false);
+  const [finalTextCanExpand, setFinalTextCanExpand] = useState(false);
+  const finalTextVisualizationRef = useRef<HTMLDivElement | null>(null);
   const textImprovementTotal = aiStats?.selectionActions.total || 0;
   const aiChatTotal = aiStats?.aiQuestions.total || 0;
   const finalTextComposition = certificate.finalTextComposition || createLegacyComposition(certificate);
@@ -505,10 +481,6 @@ export function CertificateEvidenceView({
   const finalTextSourceSpans = (certificate.finalTextSourceSpans || []).filter((span) => Boolean(span.text));
   const finalTextSourceCharacterCount = getTextSourceSpanCharacterCount(finalTextSourceSpans);
   const hasFinalTextVisualization = finalTextSourceCharacterCount > 0;
-  const finalTextIsTruncated = finalTextSourceCharacterCount > FINAL_TEXT_PREVIEW_CHAR_LIMIT;
-  const visibleFinalTextSourceSpans = finalTextExpanded || !finalTextIsTruncated
-    ? finalTextSourceSpans
-    : sliceTextSourceSpans(finalTextSourceSpans, FINAL_TEXT_PREVIEW_CHAR_LIMIT);
   const processInputPercentages = processInputVolume
     ? getCompositionPercentages(processInputVolume)
     : null;
@@ -526,6 +498,31 @@ export function CertificateEvidenceView({
   const showReplay = Boolean(certificate.includeEditHistory && replayToken);
   const environmentRows = getEnvironmentRows(certificate.environmentConfig);
   const reviewSignals: WritingAnomalyFlag[] = getReviewSignals(certificate.anomalyFlags);
+
+  useEffect(() => {
+    if (!hasFinalTextVisualization || !finalTextVisualizationRef.current) {
+      setFinalTextCanExpand(false);
+      return;
+    }
+
+    const element = finalTextVisualizationRef.current;
+    const measure = () => {
+      const styles = window.getComputedStyle(element);
+      const lineHeight = Number.parseFloat(styles.lineHeight) || 28;
+      const verticalPadding =
+        (Number.parseFloat(styles.paddingTop) || 0) + (Number.parseFloat(styles.paddingBottom) || 0);
+      const collapsedHeight = lineHeight * FINAL_TEXT_PREVIEW_ROWS + verticalPadding;
+      setFinalTextCanExpand(element.scrollHeight > collapsedHeight + 1);
+    };
+
+    measure();
+
+    if (typeof ResizeObserver === 'undefined') return;
+
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [hasFinalTextVisualization, finalTextSourceCharacterCount]);
 
   return (
     <div className="space-y-4">
@@ -672,19 +669,32 @@ export function CertificateEvidenceView({
 
             {hasFinalTextVisualization && (
               <div className="rounded-lg border border-border/70 bg-background p-3">
-                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p className="text-sm font-medium">Final text visualization</p>
-                    <p className="text-xs text-muted-foreground">
-                      Highlighted text uses the same source colors as the composition bar above.
-                    </p>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-sm font-medium">Final text visualization</p>
+                  <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                    <span className="inline-flex items-center gap-1.5">
+                      <span className="h-3 w-3 rounded-sm border border-border/50" style={{ backgroundColor: COMPOSITION_HIGHLIGHT_COLORS.typed }} />
+                      Typed
+                    </span>
+                    <span className="inline-flex items-center gap-1.5">
+                      <span className="h-3 w-3 rounded-sm border border-border/50" style={{ backgroundColor: COMPOSITION_HIGHLIGHT_COLORS.pasted }} />
+                      Pasted
+                    </span>
+                    <span className="inline-flex items-center gap-1.5">
+                      <span className="h-3 w-3 rounded-sm border border-border/50" style={{ backgroundColor: COMPOSITION_HIGHLIGHT_COLORS.aiAssisted }} />
+                      AI-assisted
+                    </span>
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    {finalTextSourceCharacterCount.toLocaleString()} source-tracked chars
-                  </p>
                 </div>
-                <div className="mt-3 max-h-72 overflow-auto whitespace-pre-wrap rounded-md border border-border/60 bg-muted/15 p-3 text-sm leading-7 text-foreground">
-                  {visibleFinalTextSourceSpans.map((span, index) => (
+                <div
+                  ref={finalTextVisualizationRef}
+                  className="mt-3 whitespace-pre-wrap rounded-md border border-border/60 bg-muted/15 p-3 text-sm leading-7 text-foreground"
+                  style={{
+                    maxHeight: finalTextExpanded ? '18rem' : `${FINAL_TEXT_PREVIEW_ROWS * 1.75 + 1.5}rem`,
+                    overflow: finalTextExpanded ? 'auto' : 'hidden',
+                  }}
+                >
+                  {finalTextSourceSpans.map((span, index) => (
                     <span
                       key={`${span.source}-${index}`}
                       className="rounded px-0.5"
@@ -697,17 +707,14 @@ export function CertificateEvidenceView({
                       {span.text}
                     </span>
                   ))}
-                  {!finalTextExpanded && finalTextIsTruncated ? (
-                    <span className="text-muted-foreground">...</span>
-                  ) : null}
                 </div>
-                {finalTextIsTruncated && (
+                {finalTextCanExpand && (
                   <button
                     type="button"
                     className="mt-2 inline-flex items-center rounded-full px-1 text-xs font-medium text-muted-foreground transition hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     onClick={() => setFinalTextExpanded((value) => !value)}
                   >
-                    {finalTextExpanded ? 'Show less text' : 'See full text'}
+                    {finalTextExpanded ? 'See less' : 'See details'}
                   </button>
                 )}
               </div>
