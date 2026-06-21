@@ -2,7 +2,45 @@
 
 This guide covers the minimum setup for running Humanly on your own server.
 
-## Requirements
+## One-Command Local Quickstart
+
+For a local self-hosted demo, use the installer instead of cloning the
+repository manually:
+
+```bash
+npx create-humanly@latest
+```
+
+This creates a `humanly/` directory, downloads the source code, generates local
+secrets, writes `docker-compose.yml`, seeds a default Publisher Portal admin,
+and starts the stack.
+
+Local quickstart does not require a third-party email provider. It uses
+`EMAIL_SERVICE=console`, so signup and notification messages are written to
+backend logs. Uploads use local Docker storage by default.
+
+Default local URLs:
+
+- Publisher Portal: `http://localhost:3000`
+- Writer Portal: `http://localhost:3002`
+- Backend API: `http://localhost:3001`
+
+Default local admin account:
+
+```text
+Email:    admin@mail.com
+Password: admin123456
+```
+
+To stop or reset:
+
+```bash
+cd humanly
+docker compose -f docker-compose.yml down
+docker compose -f docker-compose.yml down -v
+```
+
+## Manual Requirements
 
 - Node.js 20
 - pnpm 9

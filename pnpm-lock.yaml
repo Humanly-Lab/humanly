@@ -164,6 +164,8 @@ importers:
         specifier: ^5.3.3
         version: 5.9.3
 
+  packages/create-humanly: {}
+
   packages/editor:
     dependencies:
       '@humanly/shared':

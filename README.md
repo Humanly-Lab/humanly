@@ -62,14 +62,18 @@ Humanly has two first-party web apps:
 Requirements:
 
 - Node.js `>=20.19.0 <21`
-- pnpm `>=9.0.0 <10`
 - Docker and Docker Compose
 
-Start the full local stack with Docker Compose:
+Create and start a full local Humanly stack:
 
 ```bash
-docker compose -f docker-compose.quickstart.yml up --build
+npx create-humanly@latest
 ```
+
+The installer downloads the Humanly source code, generates local secrets, writes
+a Docker Compose quickstart, seeds a local Publisher Portal admin account, and
+starts the services. Email is local-only with `EMAIL_SERVICE=console`; no SMTP,
+SendGrid, Resend, S3, or other third-party service is required for local use.
 
 Then open:
 
@@ -87,13 +91,22 @@ Password: admin123456
 Stop the quickstart stack:
 
 ```bash
-docker compose -f docker-compose.quickstart.yml down
+cd humanly
+docker compose -f docker-compose.yml down
 ```
 
 Reset local quickstart data:
 
 ```bash
-docker compose -f docker-compose.quickstart.yml down -v
+cd humanly
+docker compose -f docker-compose.yml down -v
+```
+
+If you already cloned this repository and want to run the checked-out code
+directly:
+
+```bash
+docker compose -f docker-compose.quickstart.yml up --build
 ```
 
 For manual setup, environment variables, and persistent self-deployment notes,

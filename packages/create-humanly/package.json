@@ -1,0 +1,22 @@
+{
+  "name": "create-humanly",
+  "version": "0.4.0",
+  "description": "One-command local self-host installer for Humanly",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "create-humanly": "bin/create-humanly.mjs"
+  },
+  "files": [
+    "bin",
+    "lib",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "node scripts/check-package.mjs",
+    "test": "node --test test/*.test.mjs"
+  },
+  "engines": {
+    "node": ">=20.19.0 <21"
+  }
+}
