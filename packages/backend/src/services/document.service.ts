@@ -255,7 +255,7 @@ export class DocumentService {
       if (deleteResult.blockedTaskSubmission) {
         throw new AppError(
           409,
-          'Task submission documents cannot be deleted. Remove the task from your dashboard instead.'
+          'Assigned task documents cannot be deleted. Remove the task from your dashboard instead.'
         );
       }
 
@@ -341,7 +341,7 @@ export class DocumentService {
     events: DocumentEventInsertData[]
   ): Promise<void> {
     try {
-      // Task submissions and guest shared-link documents are accessible through
+      // Assigned task and guest shared-link documents are accessible through
       // enrollment/attempt records, not always direct document ownership.
       const canAccess = await DocumentModel.canAccess(documentId, userId);
       if (!canAccess) {

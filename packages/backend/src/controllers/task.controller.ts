@@ -322,7 +322,7 @@ export async function linkSubmissionDocument(req: Request, res: Response): Promi
 
   res.json({
     success: true,
-    message: 'Task submission document linked successfully',
+    message: 'Assigned task document linked successfully',
   });
 }
 
@@ -360,7 +360,7 @@ export async function startNewTaskAttempt(req: Request, res: Response): Promise<
 }
 
 /**
- * Start a real analytics session for the current user's task submission document
+ * Start a real analytics session for the current user's assigned task document
  */
 export async function startSubmissionSession(req: Request, res: Response): Promise<void> {
   const userId = req.user!.userId;
@@ -399,7 +399,7 @@ export async function startSubmissionSession(req: Request, res: Response): Promi
 }
 
 /**
- * End a real analytics session for the current user's task submission document
+ * End a real analytics session for the current user's assigned task document
  */
 export async function endSubmissionSession(req: Request, res: Response): Promise<void> {
   const userId = req.user!.userId;

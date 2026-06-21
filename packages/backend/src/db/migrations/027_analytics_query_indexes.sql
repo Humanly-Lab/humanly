@@ -1,5 +1,5 @@
 -- Additional indexes for the production admin dashboard, submission replay, and
--- task-submission session completion paths.
+-- assigned-task session completion paths.
 --
 -- These are intentionally additive and idempotent. They do not change behavior;
 -- they give PostgreSQL better options for the hot joins exercised by the
@@ -24,4 +24,3 @@ CREATE INDEX IF NOT EXISTS idx_task_enrollments_task_user
 
 CREATE INDEX IF NOT EXISTS idx_submissions_task_submitted_at
   ON submissions(task_id, submitted_at DESC, created_at DESC);
-

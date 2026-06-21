@@ -223,7 +223,7 @@ export class SessionModel {
   /**
    * Mark the latest session for a task user as submitted.
    *
-   * User-portal task submissions do not carry a session id at submit time, so
+   * User-portal assigned tasks do not carry a session id at submit time, so
    * the best server-side source of truth is the latest session opened for the
    * task and authenticated user's email.
    */

@@ -109,7 +109,7 @@ export default function TaskDetailPage() {
       }>(`/api/v1/tasks/${taskId}/submissions`);
       setSubmissions(response.data.submissions);
     } catch (err) {
-      console.error('Failed to load task submissions:', err);
+      console.error('Failed to load assigned tasks:', err);
       setSubmissions([]);
     } finally {
       if (showLoading) setIsLoadingSubmissions(false);

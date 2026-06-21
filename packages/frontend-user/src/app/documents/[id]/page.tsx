@@ -1243,8 +1243,8 @@ export default function DocumentEditorPage() {
       toast({
         title: options.automatic ? 'Auto-submitted' : 'Submitted',
         description: options.automatic
-          ? 'Time expired, so your task submission and certificate were created automatically.'
-          : 'Your task submission and certificate were created.',
+          ? 'Time expired, so your assigned task and certificate were created automatically.'
+          : 'Your assigned task and certificate were created.',
       });
       if (certificate?.id && !options.automatic) {
         router.push(`/certificates/${certificate.id}`);

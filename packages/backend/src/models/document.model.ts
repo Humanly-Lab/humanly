@@ -157,7 +157,7 @@ export class DocumentModel {
 
   /**
    * Find a document a user can access either directly as owner or through a
-   * task submission relationship. Guest shared-link submissions can be linked
+   * assigned task relationship. Guest shared-link submissions can be linked
    * through task enrollment/attempt records before every downstream service has
    * the same direct-owner assumptions.
    */
@@ -486,7 +486,7 @@ export class DocumentModel {
   }
 
   /**
-   * Check direct owner or task-submission access.
+   * Check direct owner or assigned-task access.
    */
   static async canAccess(documentId: string, userId: string): Promise<boolean> {
     const sql = `

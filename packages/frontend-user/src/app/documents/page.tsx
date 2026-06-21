@@ -130,7 +130,7 @@ const taskStatusToneClass: Record<TaskWindowStatus['tone'] | 'timer', string> = 
 
 const getDisplayTaskName = (task: TaskEnrollment) => {
   const name = task.name?.trim();
-  if (!name || name === 'Task Name') return 'Task Submission';
+  if (!name || name === 'Task Name') return 'Assigned Task';
   return name;
 };
 
@@ -475,8 +475,8 @@ export default function DocumentsPage() {
       toast({
         title: existingDocumentId ? 'Task restored' : 'Task joined',
         description: existingDocumentId
-          ? 'Your existing task submission is back on this dashboard'
-          : 'A task submission document was added to your dashboard',
+          ? 'Your existing assigned task is back on this dashboard'
+          : 'An assigned task document was added to your dashboard',
       });
     } catch (err: any) {
       toast({
@@ -578,7 +578,7 @@ export default function DocumentsPage() {
       <Tabs value={activeWorkspaceTab} onValueChange={(value) => setActiveWorkspaceTab(value as WorkspaceTab)}>
         <TabsList className="mb-6 grid w-full grid-cols-2 border border-border/70 bg-muted/60 sm:w-[470px]">
           <TabsTrigger value="documents">Personal Writing</TabsTrigger>
-          <TabsTrigger value="tasks">Task Submissions</TabsTrigger>
+          <TabsTrigger value="tasks">Assigned Task</TabsTrigger>
         </TabsList>
 
         <TabsContent value="documents" className="mt-0 space-y-6">
@@ -693,9 +693,9 @@ export default function DocumentsPage() {
         <TabsContent value="tasks" className="mt-0 space-y-6">
           <section className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <h2 className="text-xl font-semibold tracking-normal">Task Submissions</h2>
+              <h2 className="text-xl font-semibold tracking-normal">Assigned Task</h2>
               <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-                Join tasks from an instructor or organization and complete the assigned submission workflow.
+                Join tasks from an instructor or organization and complete the assigned task workflow.
               </p>
             </div>
             <Dialog open={showJoinDialog} onOpenChange={setShowJoinDialog}>
@@ -834,11 +834,11 @@ export default function DocumentsPage() {
                                 variant="outline"
                                 size="sm"
                                 className="h-10 min-w-[52px] px-3"
-                                title="Open task submission"
+                                title="Open assigned task"
                                 onClick={() => router.push(`/documents/${task.documentId}`)}
                               >
                                 <Eye className="h-4 w-4" />
-                                <span className="sr-only">Open Submission</span>
+                                <span className="sr-only">Open Assigned Task</span>
                               </Button>
                             </>
                           ) : (

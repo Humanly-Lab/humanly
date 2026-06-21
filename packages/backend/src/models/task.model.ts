@@ -462,7 +462,7 @@ export class TaskModel {
   }
 
   /**
-   * Link an enrollment to the user's task submission document.
+   * Link an enrollment to the user's assigned task document.
    */
   static async linkSubmissionDocument(taskId: string, userId: string, documentId: string): Promise<TaskAttemptRecord | null> {
     return transaction<TaskAttemptRecord | null>(async (client) => {
