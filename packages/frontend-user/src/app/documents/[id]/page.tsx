@@ -31,10 +31,6 @@ import { useCertificates } from '@/hooks/use-certificates';
 import { useAuthStore } from '@/stores/auth-store';
 import { useToast } from '@/components/ui/use-toast';
 import { downloadBlob } from '@/lib/download';
-import {
-  CertificateGenerationDialog,
-  type CertificateGenerationOptions,
-} from '@/components/certificates/certificate-generation-dialog';
 import { TaskRulesDialog } from '@/components/documents/task-rules-dialog';
 import { AIAssistantButton, AIAssistantPanel, AISelectionMenu, type ActionType } from '@/components/ai';
 import { useAI } from '@/hooks/use-ai';
@@ -311,7 +307,6 @@ export default function DocumentEditorPage() {
   const [isGeneratingCertificate, setIsGeneratingCertificate] = useState(false);
   const [isSubmittingTask, setIsSubmittingTask] = useState(false);
   const [isSyncingActivityLogs, setIsSyncingActivityLogs] = useState(false);
-  const [showCertificateDialog, setShowCertificateDialog] = useState(false);
   const [taskRulesDialogOpen, setTaskRulesDialogOpen] = useState(false);
   const [writingRulesAcknowledged, setWritingRulesAcknowledged] = useState(false);
   const [taskInstructionFile, setTaskInstructionFile] = useState<TaskInstructionFile | null>(null);
@@ -1183,7 +1178,7 @@ export default function DocumentEditorPage() {
     return true;
   }, [characterCount, maximumSubmissionCharacters, minimumSubmissionCharacters, toast]);
 
-  const handleGenerateCertificate = async (options: CertificateGenerationOptions) => {
+  const handleGenerateCertificate = async () => {
     if (!validateCharacterBounds('generating a certificate')) return;
 
     try {
@@ -1193,7 +1188,8 @@ export default function DocumentEditorPage() {
 
       const certificate = await generateCertificate(documentId, {
         certificateType: 'full_authorship',
-        ...options,
+        includeFullText: true,
+        includeEditHistory: true,
       });
       const publicDocumentAccessToken = TokenManager.getPublicDocumentAccessToken(documentId);
       if (certificate?.id && publicDocumentAccessToken) {
@@ -1201,7 +1197,6 @@ export default function DocumentEditorPage() {
       }
 
       toast({ title: 'Success', description: 'Certificate generated successfully' });
-      setShowCertificateDialog(false);
       router.push(`/certificates/${certificate.id}`);
     } catch (err: any) {
       toast({
@@ -1528,7 +1523,7 @@ export default function DocumentEditorPage() {
               ) : (
                 <Button
                   size="sm"
-                  onClick={() => setShowCertificateDialog(true)}
+                  onClick={handleGenerateCertificate}
                   disabled={isGeneratingCertificate || isSyncingActivityLogs}
                   className="sm:size-default"
                 >
@@ -1699,12 +1694,6 @@ export default function DocumentEditorPage() {
         </div>
       </div>
 
-      <CertificateGenerationDialog
-        open={showCertificateDialog}
-        onOpenChange={setShowCertificateDialog}
-        onGenerate={handleGenerateCertificate}
-        isGenerating={isGeneratingCertificate}
-      />
       {writingRulesAvailable ? (
         <TaskRulesDialog
           open={taskRulesDialogOpen}
