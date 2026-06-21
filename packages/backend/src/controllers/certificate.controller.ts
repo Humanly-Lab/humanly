@@ -6,7 +6,11 @@ import { AIModel } from '../models/ai.model';
 import { buildDocumentEventTimeline } from '../services/document-event-timeline.service';
 import { AppError } from '../middleware/error-handler';
 import { logger } from '../utils/logger';
-import type { Certificate, CertificateVerification } from '@humanly/shared';
+import {
+  getCertificateFinalTextCharacterCount,
+  type Certificate,
+  type CertificateVerification,
+} from '@humanly/shared';
 
 function certificateGeneratedAt(certificate: Certificate): Date {
   return new Date(certificate.generatedAt);
@@ -92,6 +96,7 @@ async function buildPublicCertificateResponse(
   const aiAuthorshipStats = await CertificateService.getAIAuthorshipStats(certificate.documentId, {
     endDate: certificateGeneratedAt(certificate),
   });
+  const finalTextCharacterCount = getCertificateFinalTextCharacterCount(certificate);
 
   return {
     valid: verification.valid,
@@ -101,10 +106,11 @@ async function buildPublicCertificateResponse(
       title: certificate.title,
       certificateType: certificate.certificateType,
       generatedAt: certificate.generatedAt,
-      totalCharacters: certificate.totalCharacters,
+      totalCharacters: finalTextCharacterCount,
       typedCharacters: certificate.typedCharacters,
       pastedCharacters: certificate.pastedCharacters,
       finalTextComposition: certificate.finalTextComposition || null,
+      finalTextSourceSpans: certificate.finalTextSourceSpans || null,
       processInputVolume: certificate.processInputVolume || null,
       totalEvents: certificate.totalEvents,
       typingEvents: certificate.typingEvents,

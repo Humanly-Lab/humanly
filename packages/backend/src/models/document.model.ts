@@ -9,6 +9,26 @@ import {
 } from '@humanly/shared';
 
 export class DocumentModel {
+  private static finalTextCharacterCountSelect(documentAlias: string): string {
+    return `
+      (
+        SELECT CASE
+          WHEN c.final_text_composition IS NOT NULL THEN
+            COALESCE((c.final_text_composition->>'typedCharacters')::integer, 0)
+            + COALESCE((c.final_text_composition->>'pastedCharacters')::integer, 0)
+            + COALESCE((c.final_text_composition->>'aiAssistedCharacters')::integer, 0)
+          ELSE c.total_characters
+        END
+        FROM certificates c
+        WHERE c.document_id = ${documentAlias}.id
+          AND c.user_id = ${documentAlias}.user_id
+          AND COALESCE(c.status, 'active') = 'active'
+        ORDER BY c.generated_at DESC, c.created_at DESC
+        LIMIT 1
+      ) as "finalTextCharacterCount"
+    `;
+  }
+
   private static activeTaskSubmissionGuard(documentAlias: string, userParam: string): string {
     return `
       NOT EXISTS (
@@ -267,6 +287,7 @@ export class DocumentModel {
         version,
         word_count as "wordCount",
         character_count as "characterCount",
+        ${this.finalTextCharacterCountSelect('documents')},
         environment_config as "environmentConfig",
         writing_started_at as "writingStartedAt",
         created_at as "createdAt",

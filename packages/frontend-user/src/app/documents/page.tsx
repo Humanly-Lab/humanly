@@ -61,6 +61,7 @@ import { apiClient } from '@/lib/api-client';
 import { formatDateTime } from '@/lib/utils';
 import {
   getMaxWritingAttempts,
+  getDocumentDisplayCharacterCount,
   isWritingRestartAllowed,
   type Document,
   type WritingEnvironmentConfig,
@@ -499,7 +500,7 @@ export default function DocumentsPage() {
         return (a.title || '').localeCompare(b.title || '');
       }
       if (sortBy === 'characterCount') {
-        return (b.characterCount ?? (b.plainText || '').length) - (a.characterCount ?? (a.plainText || '').length);
+        return getDocumentDisplayCharacterCount(b) - getDocumentDisplayCharacterCount(a);
       }
       return new Date(b.updatedAt || b.createdAt).getTime() - new Date(a.updatedAt || a.createdAt).getTime();
     });

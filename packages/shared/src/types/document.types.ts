@@ -18,6 +18,7 @@ export interface Document {
   version: number;
   wordCount: number;
   characterCount: number;
+  finalTextCharacterCount?: number | null;
   environmentConfig?: WritingEnvironmentConfig | null;
   writingStartedAt?: Date | null;
   createdAt: Date;
@@ -312,6 +313,12 @@ export interface AuthorshipComposition {
   aiAssistedByType: AuthorshipCompositionAiBreakdown;
 }
 
+export interface AuthorshipTextSourceSpan {
+  text: string;
+  source: 'typed' | 'pasted' | 'ai_assisted';
+  aiType?: AuthorshipCompositionAiType;
+}
+
 export interface Certificate {
   id: string;
   submissionId?: string | null;
@@ -333,6 +340,7 @@ export interface Certificate {
   typedCharacters: number;
   pastedCharacters: number;
   finalTextComposition?: AuthorshipComposition | null;
+  finalTextSourceSpans?: AuthorshipTextSourceSpan[] | null;
   processInputVolume?: AuthorshipComposition | null;
   editingTimeSeconds: number;
   anomalyFlags?: WritingAnomalyFlag[];
@@ -376,6 +384,7 @@ export interface CertificateInsertData {
   typedCharacters: number;
   pastedCharacters: number;
   finalTextComposition?: AuthorshipComposition | null;
+  finalTextSourceSpans?: AuthorshipTextSourceSpan[] | null;
   processInputVolume?: AuthorshipComposition | null;
   editingTimeSeconds: number;
   anomalyFlags?: WritingAnomalyFlag[];
@@ -428,6 +437,7 @@ export interface CertificateMetrics {
   typedCharacters: number;
   pastedCharacters: number;
   finalTextComposition?: AuthorshipComposition | null;
+  finalTextSourceSpans?: AuthorshipTextSourceSpan[] | null;
   processInputVolume?: AuthorshipComposition | null;
   editingTimeSeconds: number;
   typedPercentage: number;
@@ -479,6 +489,7 @@ export interface JSONCertificate {
     typedCharacters: number;
     pastedCharacters: number;
     finalTextComposition?: AuthorshipComposition | null;
+    finalTextSourceSpans?: AuthorshipTextSourceSpan[] | null;
     processInputVolume?: AuthorshipComposition | null;
     typedPercentage: number;
     pastedPercentage: number;

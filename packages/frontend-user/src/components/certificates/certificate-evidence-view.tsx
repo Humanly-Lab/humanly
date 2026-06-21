@@ -27,6 +27,7 @@ import {
   getEnvironmentConfigExtension,
   serializeEnvironmentConfig,
   type AuthorshipComposition,
+  type AuthorshipTextSourceSpan,
   type AIAuthorshipStats,
   type CertificateSeal,
   type CertificateSealStatus,
@@ -57,6 +58,12 @@ const COMPOSITION_COLORS = {
   pasted: '#B2A189',
   aiAssisted: '#9E93B5',
 } as const;
+const COMPOSITION_HIGHLIGHT_COLORS = {
+  typed: 'rgba(123, 140, 158, 0.24)',
+  pasted: 'rgba(178, 161, 137, 0.28)',
+  aiAssisted: 'rgba(158, 147, 181, 0.30)',
+} as const;
+const FINAL_TEXT_PREVIEW_CHAR_LIMIT = 500;
 
 export interface CertificateEvidenceRecord {
   id: string;
@@ -68,6 +75,7 @@ export interface CertificateEvidenceRecord {
   typedCharacters: number;
   pastedCharacters: number;
   finalTextComposition?: AuthorshipComposition | null;
+  finalTextSourceSpans?: AuthorshipTextSourceSpan[] | null;
   processInputVolume?: AuthorshipComposition | null;
   totalEvents: number;
   typingEvents: number;
@@ -175,6 +183,42 @@ function getCompositionPercentages(composition: AuthorshipComposition) {
     pasted: total > 0 ? (composition.pastedCharacters / total) * 100 : 0,
     aiAssisted: total > 0 ? (composition.aiAssistedCharacters / total) * 100 : 0,
   };
+}
+
+function getSourceSpanColor(source: AuthorshipTextSourceSpan['source']) {
+  if (source === 'pasted') return COMPOSITION_HIGHLIGHT_COLORS.pasted;
+  if (source === 'ai_assisted') return COMPOSITION_HIGHLIGHT_COLORS.aiAssisted;
+  return COMPOSITION_HIGHLIGHT_COLORS.typed;
+}
+
+function getTextSourceSpanCharacterCount(spans: AuthorshipTextSourceSpan[]) {
+  return spans.reduce((total, span) => total + span.text.length, 0);
+}
+
+function sliceTextSourceSpans(
+  spans: AuthorshipTextSourceSpan[],
+  limit: number
+): AuthorshipTextSourceSpan[] {
+  if (limit <= 0) return [];
+  const visible: AuthorshipTextSourceSpan[] = [];
+  let remaining = limit;
+
+  for (const span of spans) {
+    if (remaining <= 0) break;
+    if (!span.text) continue;
+    if (span.text.length <= remaining) {
+      visible.push(span);
+      remaining -= span.text.length;
+      continue;
+    }
+    visible.push({
+      ...span,
+      text: span.text.slice(0, remaining),
+    });
+    remaining = 0;
+  }
+
+  return visible;
 }
 
 function formatPreset(value?: string | null) {
@@ -452,11 +496,19 @@ export function CertificateEvidenceView({
   const [replayOpen, setReplayOpen] = useState(false);
   const [behaviorReviewOpen, setBehaviorReviewOpen] = useState(false);
   const [environmentOpen, setEnvironmentOpen] = useState(false);
+  const [finalTextExpanded, setFinalTextExpanded] = useState(false);
   const textImprovementTotal = aiStats?.selectionActions.total || 0;
   const aiChatTotal = aiStats?.aiQuestions.total || 0;
   const finalTextComposition = certificate.finalTextComposition || createLegacyComposition(certificate);
   const processInputVolume = certificate.processInputVolume || null;
   const finalTextPercentages = getCompositionPercentages(finalTextComposition);
+  const finalTextSourceSpans = (certificate.finalTextSourceSpans || []).filter((span) => Boolean(span.text));
+  const finalTextSourceCharacterCount = getTextSourceSpanCharacterCount(finalTextSourceSpans);
+  const hasFinalTextVisualization = finalTextSourceCharacterCount > 0;
+  const finalTextIsTruncated = finalTextSourceCharacterCount > FINAL_TEXT_PREVIEW_CHAR_LIMIT;
+  const visibleFinalTextSourceSpans = finalTextExpanded || !finalTextIsTruncated
+    ? finalTextSourceSpans
+    : sliceTextSourceSpans(finalTextSourceSpans, FINAL_TEXT_PREVIEW_CHAR_LIMIT);
   const processInputPercentages = processInputVolume
     ? getCompositionPercentages(processInputVolume)
     : null;
@@ -618,24 +670,48 @@ export function CertificateEvidenceView({
               </div>
             </div>
 
-            <div className="grid gap-2 sm:grid-cols-2">
-              <div className="rounded-lg border border-border/60 bg-muted/35 p-3">
-                <div className="flex items-center gap-1">
-                  <FileText className="h-3.5 w-3.5 text-muted-foreground" />
-                  <p className="text-xs text-muted-foreground">Final Text</p>
+            {hasFinalTextVisualization && (
+              <div className="rounded-lg border border-border/70 bg-background p-3">
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm font-medium">Final text visualization</p>
+                    <p className="text-xs text-muted-foreground">
+                      Highlighted text uses the same source colors as the composition bar above.
+                    </p>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {finalTextSourceCharacterCount.toLocaleString()} source-tracked chars
+                  </p>
                 </div>
-                <p className="mt-1 text-2xl font-semibold">{certificate.totalCharacters.toLocaleString()}</p>
-                <p className="mt-1 text-xs text-muted-foreground">characters</p>
-              </div>
-              <div className="rounded-lg border border-border/60 bg-muted/35 p-3">
-                <div className="flex items-center gap-1">
-                  <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-                  <p className="text-xs text-muted-foreground">Writing Time</p>
+                <div className="mt-3 max-h-72 overflow-auto whitespace-pre-wrap rounded-md border border-border/60 bg-muted/15 p-3 text-sm leading-7 text-foreground">
+                  {visibleFinalTextSourceSpans.map((span, index) => (
+                    <span
+                      key={`${span.source}-${index}`}
+                      className="rounded px-0.5"
+                      style={{
+                        backgroundColor: getSourceSpanColor(span.source),
+                        WebkitBoxDecorationBreak: 'clone',
+                        boxDecorationBreak: 'clone',
+                      }}
+                    >
+                      {span.text}
+                    </span>
+                  ))}
+                  {!finalTextExpanded && finalTextIsTruncated ? (
+                    <span className="text-muted-foreground">...</span>
+                  ) : null}
                 </div>
-                <p className="mt-1 text-2xl font-semibold">{formatCompactDuration(certificate.editingTimeSeconds)}</p>
-                <p className="mt-1 text-xs text-muted-foreground">active writing window</p>
+                {finalTextIsTruncated && (
+                  <button
+                    type="button"
+                    className="mt-2 inline-flex items-center rounded-full px-1 text-xs font-medium text-muted-foreground transition hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    onClick={() => setFinalTextExpanded((value) => !value)}
+                  >
+                    {finalTextExpanded ? 'Show less text' : 'See full text'}
+                  </button>
+                )}
               </div>
-            </div>
+            )}
 
             <Collapsible open={detailsOpen} onOpenChange={setDetailsOpen}>
               {!detailsOpen && (
@@ -651,6 +727,25 @@ export function CertificateEvidenceView({
                 </CollapsibleTrigger>
               )}
               <CollapsibleContent className="space-y-4 pt-3">
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <div className="rounded-lg border border-border/60 bg-muted/35 p-3">
+                    <div className="flex items-center gap-1">
+                      <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+                      <p className="text-xs text-muted-foreground">Final Text</p>
+                    </div>
+                    <p className="mt-1 text-2xl font-semibold">{finalTextPercentages.total.toLocaleString()}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">characters</p>
+                  </div>
+                  <div className="rounded-lg border border-border/60 bg-muted/35 p-3">
+                    <div className="flex items-center gap-1">
+                      <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                      <p className="text-xs text-muted-foreground">Writing Time</p>
+                    </div>
+                    <p className="mt-1 text-2xl font-semibold">{formatCompactDuration(certificate.editingTimeSeconds)}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">active writing window</p>
+                  </div>
+                </div>
+
                 {processInputVolume && (
                   <div className="rounded-lg border border-border/60 bg-muted/20 p-3">
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">

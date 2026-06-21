@@ -1,6 +1,10 @@
 import PDFDocument from 'pdfkit';
 import QRCode from 'qrcode';
-import { Certificate, formatCompactDuration } from '@humanly/shared';
+import {
+  Certificate,
+  formatCompactDuration,
+  getCertificateFinalTextCharacterCount,
+} from '@humanly/shared';
 import { logger } from '../utils/logger';
 import { env } from '../config/env';
 import { CertificateSealService } from './certificate-seal.service';
@@ -64,6 +68,7 @@ export class PDFService {
     const soft = '#f7f7f7';
     const accent = '#111111';
     const pasteAccent = '#f97316';
+    const aiAccent = '#9d8fb8';
     const verifyUrl = `${env.frontendUserUrl}/verify/${certificate.verificationToken}`;
     const verificationHost = new URL(env.frontendUserUrl).hostname;
     const tokenPreview = certificate.verificationToken.length > 24
@@ -71,12 +76,31 @@ export class PDFService {
       : certificate.verificationToken;
     const sealFingerprint = CertificateSealService.fingerprint(certificate.signature);
 
-    const totalAuthored = certificate.typedCharacters + certificate.pastedCharacters;
-    const typedPercentage = totalAuthored > 0
-      ? (certificate.typedCharacters / totalAuthored) * 100
+    const finalTextComposition = certificate.finalTextComposition || {
+      typedCharacters: certificate.typedCharacters,
+      pastedCharacters: certificate.pastedCharacters,
+      aiAssistedCharacters: 0,
+      aiAssistedByType: {
+        chatInsert: 0,
+        grammar: 0,
+        improve: 0,
+        simplify: 0,
+        formal: 0,
+        other: 0,
+      },
+    };
+    const finalTextCharacterCount = getCertificateFinalTextCharacterCount({
+      finalTextComposition,
+      totalCharacters: certificate.totalCharacters,
+    });
+    const typedPercentage = finalTextCharacterCount > 0
+      ? (finalTextComposition.typedCharacters / finalTextCharacterCount) * 100
       : 0;
-    const pastedPercentage = totalAuthored > 0
-      ? (certificate.pastedCharacters / totalAuthored) * 100
+    const pastedPercentage = finalTextCharacterCount > 0
+      ? (finalTextComposition.pastedCharacters / finalTextCharacterCount) * 100
+      : 0;
+    const aiAssistedPercentage = finalTextCharacterCount > 0
+      ? (finalTextComposition.aiAssistedCharacters / finalTextCharacterCount) * 100
       : 0;
     const editingDuration = formatCompactDuration(certificate.editingTimeSeconds);
     const displayName = certificate.signerName || 'Author';
@@ -256,9 +280,9 @@ export class PDFService {
     const metricGap = 10;
     const metricWidth = (contentWidth - metricGap * 3) / 4;
     const metricY = 270;
-    drawMetric(margin, metricY, metricWidth, 'Typed', `${typedPercentage.toFixed(0)}%`, `${formatNumber(certificate.typedCharacters)} chars`);
-    drawMetric(margin + (metricWidth + metricGap), metricY, metricWidth, 'Pasted', `${pastedPercentage.toFixed(0)}%`, `${formatNumber(certificate.pastedCharacters)} chars`);
-    drawMetric(margin + (metricWidth + metricGap) * 2, metricY, metricWidth, 'Final Text', formatNumber(certificate.totalCharacters), 'characters');
+    drawMetric(margin, metricY, metricWidth, 'Typed', `${typedPercentage.toFixed(0)}%`, `${formatNumber(finalTextComposition.typedCharacters)} chars`);
+    drawMetric(margin + (metricWidth + metricGap), metricY, metricWidth, 'Pasted', `${pastedPercentage.toFixed(0)}%`, `${formatNumber(finalTextComposition.pastedCharacters)} chars`);
+    drawMetric(margin + (metricWidth + metricGap) * 2, metricY, metricWidth, 'Final Text', formatNumber(finalTextCharacterCount), 'characters');
     drawMetric(margin + (metricWidth + metricGap) * 3, metricY, metricWidth, 'Writing Time', editingDuration, 'recorded');
 
     const barY = 382;
@@ -271,9 +295,11 @@ export class PDFService {
       .font('Helvetica')
       .fontSize(9)
       .fillColor(muted)
-      .text(`${formatNumber(certificate.typedCharacters)} typed characters · ${formatNumber(certificate.pastedCharacters)} pasted characters`, margin, barY + 17);
+      .text(`${formatNumber(finalTextComposition.typedCharacters)} typed · ${formatNumber(finalTextComposition.pastedCharacters)} pasted · ${formatNumber(finalTextComposition.aiAssistedCharacters)} AI-assisted characters`, margin, barY + 17);
     const barWidth = contentWidth;
     const typedBarWidth = Math.max(0, Math.min(barWidth, (typedPercentage / 100) * barWidth));
+    const pastedBarWidth = Math.max(0, Math.min(barWidth - typedBarWidth, (pastedPercentage / 100) * barWidth));
+    const aiAssistedBarWidth = Math.max(0, Math.min(barWidth - typedBarWidth - pastedBarWidth, (aiAssistedPercentage / 100) * barWidth));
     doc
       .roundedRect(margin, barY + 42, barWidth, 10, 5)
       .fill('#e5e7eb');
@@ -282,8 +308,13 @@ export class PDFService {
       .fill(accent);
     if (pastedPercentage > 0) {
       doc
-        .roundedRect(margin + typedBarWidth, barY + 42, Math.max(2, barWidth - typedBarWidth), 10, 5)
+        .roundedRect(margin + typedBarWidth, barY + 42, Math.max(2, pastedBarWidth), 10, 5)
         .fill(pasteAccent);
+    }
+    if (aiAssistedPercentage > 0) {
+      doc
+        .roundedRect(margin + typedBarWidth + pastedBarWidth, barY + 42, Math.max(2, aiAssistedBarWidth), 10, 5)
+        .fill(aiAccent);
     }
     doc
       .font('Helvetica-Bold')

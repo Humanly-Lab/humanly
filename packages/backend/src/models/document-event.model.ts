@@ -2,6 +2,7 @@ import { query, queryOne } from '../config/database';
 import {
   AuthorshipComposition,
   AuthorshipCompositionAiType,
+  AuthorshipTextSourceSpan,
   DocumentEvent,
   DocumentEventInsertData,
   DocumentEventQueryFilters,
@@ -82,11 +83,9 @@ type VisibilityTraceEvent = {
   awayMs: number;
 };
 
-type TextSource = 'typed' | 'pasted' | 'ai_assisted';
-
 type SourceSpan = {
   text: string;
-  source: TextSource;
+  source: AuthorshipTextSourceSpan['source'];
   aiType?: AuthorshipCompositionAiType;
 };
 
@@ -100,12 +99,13 @@ type TextCompositionEvent = {
 };
 
 type SourceInfo = {
-  source: TextSource;
+  source: AuthorshipTextSourceSpan['source'];
   aiType?: AuthorshipCompositionAiType;
 };
 
 export interface AuthorshipCompositionMetrics {
   finalTextComposition: AuthorshipComposition;
+  finalTextSourceSpans: AuthorshipTextSourceSpan[];
   processInputVolume: AuthorshipComposition;
 }
 
@@ -129,7 +129,7 @@ function emptyComposition(): AuthorshipComposition {
 
 function addCompositionCharacters(
   composition: AuthorshipComposition,
-  source: TextSource,
+  source: AuthorshipTextSourceSpan['source'],
   count: number,
   aiType: AuthorshipCompositionAiType = 'other'
 ): void {
@@ -152,6 +152,24 @@ function compositionFromSpans(spans: SourceSpan[]): AuthorshipComposition {
     addCompositionCharacters(composition, span.source, span.text.length, span.aiType);
   }
   return composition;
+}
+
+function compactSourceSpans(spans: SourceSpan[]): AuthorshipTextSourceSpan[] {
+  const compacted: AuthorshipTextSourceSpan[] = [];
+  for (const span of spans) {
+    if (!span.text) continue;
+    const previous = compacted[compacted.length - 1];
+    if (previous && previous.source === span.source && previous.aiType === span.aiType) {
+      previous.text += span.text;
+      continue;
+    }
+    compacted.push({
+      text: span.text,
+      source: span.source,
+      ...(span.aiType ? { aiType: span.aiType } : {}),
+    });
+  }
+  return compacted;
 }
 
 function normalizeAiType(value: unknown): AuthorshipCompositionAiType {
@@ -1239,6 +1257,7 @@ export class DocumentEventModel {
 
     return {
       finalTextComposition: compositionFromSpans(spans),
+      finalTextSourceSpans: compactSourceSpans(spans),
       processInputVolume,
     };
   }

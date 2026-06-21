@@ -4,6 +4,7 @@ import {
   CertificateSealStatus,
   CertificateType,
   AuthorshipComposition,
+  AuthorshipTextSourceSpan,
   WritingAnomalyFlag,
 } from '@humanly/shared';
 
@@ -15,6 +16,7 @@ export const CERTIFICATE_SEAL_SIGNATURE_PREFIX = `${CERTIFICATE_SEAL_VERSION}.`;
 export const LEGACY_CERTIFICATE_SEAL_SIGNATURE_PREFIX = `${LEGACY_CERTIFICATE_SEAL_VERSION}.`;
 const CERTIFICATE_SEAL_POLICY_HASH_FIELD = 'policyHash';
 const CERTIFICATE_SEAL_FINAL_COMPOSITION_FIELD = 'metrics.finalTextComposition';
+const CERTIFICATE_SEAL_FINAL_SOURCE_SPANS_FIELD = 'metrics.finalTextSourceSpans';
 const CERTIFICATE_SEAL_PROCESS_COMPOSITION_FIELD = 'metrics.processInputVolume';
 
 // The seal protects the server-issued certificate record and current display
@@ -65,6 +67,7 @@ export interface CertificateSealInput {
   typedCharacters: number;
   pastedCharacters: number;
   finalTextComposition?: AuthorshipComposition | null;
+  finalTextSourceSpans?: AuthorshipTextSourceSpan[] | null;
   processInputVolume?: AuthorshipComposition | null;
   editingTimeSeconds: number;
   anomalyFlags?: WritingAnomalyFlag[];
@@ -164,6 +167,10 @@ export class CertificateSealService {
       metrics.finalTextComposition = input.finalTextComposition;
     }
 
+    if (input.finalTextSourceSpans) {
+      metrics.finalTextSourceSpans = input.finalTextSourceSpans;
+    }
+
     if (input.processInputVolume) {
       metrics.processInputVolume = input.processInputVolume;
     }
@@ -216,6 +223,9 @@ export class CertificateSealService {
     const signedFields: string[] = [...CERTIFICATE_SEAL_SIGNED_FIELDS];
     if (input.finalTextComposition) {
       signedFields.push(CERTIFICATE_SEAL_FINAL_COMPOSITION_FIELD);
+    }
+    if (input.finalTextSourceSpans) {
+      signedFields.push(CERTIFICATE_SEAL_FINAL_SOURCE_SPANS_FIELD);
     }
     if (input.processInputVolume) {
       signedFields.push(CERTIFICATE_SEAL_PROCESS_COMPOSITION_FIELD);

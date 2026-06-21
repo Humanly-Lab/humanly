@@ -16,7 +16,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import type { Document } from '@humanly/shared';
+import {
+  getDocumentDisplayCharacterCount,
+  type Document,
+} from '@humanly/shared';
 
 interface WritingTimerCardState {
   expired: boolean;
@@ -58,7 +61,7 @@ export function DocumentCard({ document, timerState, onDelete, variant = 'card' 
     });
   };
 
-  const characterCount = document.characterCount ?? (document.plainText || '').length;
+  const characterCount = getDocumentDisplayCharacterCount(document);
   const previewText = document.plainText?.trim();
   const displayTitle = document.displayTitle || document.title || 'Untitled Document';
   const documentHref = `/documents/${document.id}`;

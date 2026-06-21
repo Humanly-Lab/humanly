@@ -23,7 +23,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import type { Certificate } from '@humanly/shared';
+import {
+  getCertificateFinalTextCharacterCount,
+  type Certificate,
+} from '@humanly/shared';
 
 function formatDate(date: Date | string) {
   return new Date(date).toLocaleDateString('en-US', {
@@ -34,14 +37,15 @@ function formatDate(date: Date | string) {
 }
 
 function getActivityLabel(certificate: Certificate) {
-  const showMetrics = certificate.totalCharacters > 0;
+  const finalTextCharacterCount = getCertificateFinalTextCharacterCount(certificate);
+  const showMetrics = finalTextCharacterCount > 0;
   const lowActivity = certificate.totalEvents < 5;
-  const pendingActivity = !certificate.totalEvents && !certificate.totalCharacters;
+  const pendingActivity = !certificate.totalEvents && !finalTextCharacterCount;
 
   if (pendingActivity) return 'Certificate pending activity';
   if (lowActivity) return 'Low activity';
   if (showMetrics) {
-    return `Input events: ${certificate.totalEvents} · Final characters: ${certificate.totalCharacters}`;
+    return `Input events: ${certificate.totalEvents} · Final characters: ${finalTextCharacterCount}`;
   }
 
   return null;

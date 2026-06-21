@@ -15,6 +15,7 @@ import {
   AIAuthorshipStats,
   PaginatedResult,
   getEffectiveWritingAiPolicy,
+  getCertificateFinalTextCharacterCount,
 } from '@humanly/shared';
 import { AppError } from '../middleware/error-handler';
 import { logger } from '../utils/logger';
@@ -108,10 +109,11 @@ export class CertificateService {
         totalEvents: metrics.totalEvents,
         typingEvents: metrics.typingEvents,
         pasteEvents: metrics.pasteEvents,
-        totalCharacters: document.characterCount,
+        totalCharacters: metrics.totalCharacters,
         typedCharacters: metrics.typedCharacters,
         pastedCharacters: metrics.pastedCharacters,
         finalTextComposition: metrics.finalTextComposition,
+        finalTextSourceSpans: metrics.finalTextSourceSpans,
         processInputVolume: metrics.processInputVolume,
         editingTimeSeconds: Math.round(metrics.editingTimeSeconds),
         anomalyFlags,
@@ -137,10 +139,11 @@ export class CertificateService {
         totalEvents: metrics.totalEvents,
         typingEvents: metrics.typingEvents,
         pasteEvents: metrics.pasteEvents,
-        totalCharacters: document.characterCount,
+        totalCharacters: metrics.totalCharacters,
         typedCharacters: metrics.typedCharacters,
         pastedCharacters: metrics.pastedCharacters,
         finalTextComposition: metrics.finalTextComposition,
+        finalTextSourceSpans: metrics.finalTextSourceSpans,
         processInputVolume: metrics.processInputVolume,
         editingTimeSeconds: Math.round(metrics.editingTimeSeconds),
         anomalyFlags,
@@ -285,6 +288,10 @@ export class CertificateService {
     const totalAuthored = finalTextComposition.typedCharacters
       + finalTextComposition.pastedCharacters
       + finalTextComposition.aiAssistedCharacters;
+    const finalTextCharacterCount = getCertificateFinalTextCharacterCount({
+      finalTextComposition,
+      totalCharacters: certificate.totalCharacters,
+    });
     const typedPercentage = totalAuthored > 0
       ? (finalTextComposition.typedCharacters / totalAuthored) * 100
       : 0;
@@ -310,13 +317,14 @@ export class CertificateService {
       document: {
         title: certificate.title,
         wordCount: 0, // Would need to calculate from plain_text_snapshot
-        characterCount: certificate.totalCharacters,
+        characterCount: finalTextCharacterCount,
       },
       authorship: {
-        totalCharacters: certificate.totalCharacters,
-        typedCharacters: certificate.typedCharacters,
-        pastedCharacters: certificate.pastedCharacters,
+        totalCharacters: finalTextCharacterCount,
+        typedCharacters: finalTextComposition.typedCharacters,
+        pastedCharacters: finalTextComposition.pastedCharacters,
         finalTextComposition: certificate.finalTextComposition || null,
+        finalTextSourceSpans: certificate.finalTextSourceSpans || null,
         processInputVolume: certificate.processInputVolume || null,
         typedPercentage: Math.round(typedPercentage * 10) / 10,
         pastedPercentage: Math.round(pastedPercentage * 10) / 10,
@@ -478,7 +486,7 @@ export class CertificateService {
       endDate: options.endDate,
     });
 
-    const { finalTextComposition, processInputVolume } =
+    const { finalTextComposition, finalTextSourceSpans, processInputVolume } =
       await DocumentEventModel.calculateCompositionMetrics(documentId, {
         endDate: options.endDate,
       });
@@ -501,6 +509,7 @@ export class CertificateService {
       typedCharacters: finalTextComposition.typedCharacters,
       pastedCharacters: finalTextComposition.pastedCharacters,
       finalTextComposition,
+      finalTextSourceSpans,
       processInputVolume,
       editingTimeSeconds: eventMetrics.editingDurationSeconds,
       typedPercentage,
@@ -532,6 +541,7 @@ export class CertificateService {
       typedCharacters: certificate.typedCharacters,
       pastedCharacters: certificate.pastedCharacters,
       finalTextComposition: certificate.finalTextComposition || null,
+      finalTextSourceSpans: certificate.finalTextSourceSpans || null,
       processInputVolume: certificate.processInputVolume || null,
       editingTimeSeconds: certificate.editingTimeSeconds,
       anomalyFlags: certificate.anomalyFlags || [],
