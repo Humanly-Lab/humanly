@@ -59,26 +59,19 @@ Humanly has two first-party web apps:
 
 ## One Command Deployment
 
-First check and install local runtime prerequisites:
+Create and start a full local Humanly stack without cloning the repository or
+installing Node.js first:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ShenzheZhu/humanly/main/packages/create-humanly/scripts/install-prereqs.sh | bash
+curl -fsSL https://raw.githubusercontent.com/ShenzheZhu/humanly/main/scripts/install.sh | sh
 ```
 
-Then create and start a full local Humanly stack:
-
-```bash
-npx create-humanly@latest
-```
-
-`npx` requires Node.js and npm, so Node cannot be installed from inside
-`create-humanly` itself. The prerequisite script checks Node/npm, Docker, Docker
-Compose, and the Docker daemon before the installer runs.
-
-The installer downloads the Humanly source code, generates local secrets, writes
-a Docker Compose quickstart, seeds a local Publisher Portal admin account, and
-starts the services. Email is local-only with `EMAIL_SERVICE=console`; no SMTP,
-SendGrid, Resend, S3, or other third-party service is required for local use.
+The installer checks Docker and Docker Compose, installs them on supported
+hosts when possible, downloads the Humanly source code, generates local secrets,
+writes a Docker Compose quickstart, seeds a local Publisher Portal admin
+account, and starts the services. Email is local-only with
+`EMAIL_SERVICE=console`; no SMTP, SendGrid, Resend, S3, or other third-party
+service is required for local use.
 
 Then open:
 
@@ -93,18 +86,27 @@ Email:    admin@mail.com
 Password: admin123456
 ```
 
-Stop the quickstart stack:
+Manage the local stack from the generated directory:
 
 ```bash
 cd humanly
-docker compose -f docker-compose.yml down
+./humanly status
+./humanly stop
+./humanly start
+./humanly upgrade
+./humanly uninstall
 ```
 
-Reset local quickstart data:
+To install without starting Docker immediately:
 
 ```bash
-cd humanly
-docker compose -f docker-compose.yml down -v
+curl -fsSL https://raw.githubusercontent.com/ShenzheZhu/humanly/main/scripts/install.sh | sh -s -- --no-start
+```
+
+The npm installer remains available for Node-based workflows:
+
+```bash
+npx create-humanly@latest
 ```
 
 If you already cloned this repository and want to run the checked-out code

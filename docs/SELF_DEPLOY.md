@@ -4,28 +4,27 @@ This guide covers the minimum setup for running Humanly on your own server.
 
 ## One-Command Local Quickstart
 
-For a local self-hosted demo, check and install runtime prerequisites before
-running the installer:
+For a local self-hosted demo, use the shell installer instead of cloning the
+repository manually:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ShenzheZhu/humanly/main/packages/create-humanly/scripts/install-prereqs.sh | bash
+curl -fsSL https://raw.githubusercontent.com/ShenzheZhu/humanly/main/scripts/install.sh | sh
 ```
 
-Then use the installer instead of cloning the repository manually:
-
-```bash
-npx create-humanly@latest
-```
-
-This creates a `humanly/` directory, downloads the source code, generates local
-secrets, writes `docker-compose.yml`, seeds a default Publisher Portal admin,
-and starts the stack. Node.js and npm are required before running the installer
-because `npx` runs on Node. The prerequisite script checks Node/npm, Docker,
-Docker Compose, and the Docker daemon before `npx create-humanly@latest` runs.
+This creates a `humanly/` directory, checks or installs Docker and Docker
+Compose on supported hosts, downloads the source code, generates local secrets,
+writes `docker-compose.yml`, seeds a default Publisher Portal admin, and starts
+the stack. Node.js and npm are not required for this path.
 
 Local quickstart does not require a third-party email provider. It uses
 `EMAIL_SERVICE=console`, so signup and notification messages are written to
 backend logs. Uploads use local Docker storage by default.
+
+To install files without starting services:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/ShenzheZhu/humanly/main/scripts/install.sh | sh -s -- --no-start
+```
 
 Default local URLs:
 
@@ -40,12 +39,22 @@ Email:    admin@mail.com
 Password: admin123456
 ```
 
-To stop or reset:
+Manage the local install:
 
 ```bash
 cd humanly
-docker compose -f docker-compose.yml down
-docker compose -f docker-compose.yml down -v
+./humanly status
+./humanly stop
+./humanly start
+./humanly restart
+./humanly upgrade
+./humanly uninstall
+```
+
+The npm installer remains available for Node-based workflows:
+
+```bash
+npx create-humanly@latest
 ```
 
 ## Manual Requirements
