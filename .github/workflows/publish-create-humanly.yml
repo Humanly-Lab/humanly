@@ -1,0 +1,82 @@
+name: Publish create-humanly
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to publish, for example 0.5.0 or v0.5.0"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    name: Publish create-humanly to npm
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: "https://registry.npmjs.org"
+          package-manager-cache: false
+
+      - name: Resolve release version
+        id: release-version
+        env:
+          RAW_VERSION: ${{ github.event.release.tag_name || inputs.version }}
+        run: |
+          set -euo pipefail
+          VERSION="${RAW_VERSION#v}"
+          if ! [[ "${VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "Invalid semver: ${VERSION}" >&2
+            exit 1
+          fi
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Resolved npm version: ${VERSION}"
+
+      - name: Check package status
+        id: package-status
+        working-directory: packages/create-humanly
+        env:
+          VERSION: ${{ steps.release-version.outputs.version }}
+        run: |
+          set -euo pipefail
+          if npm view "create-humanly@${VERSION}" version --registry https://registry.npmjs.org >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "create-humanly@${VERSION} already exists on npm."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set package version
+        if: steps.package-status.outputs.exists == 'false'
+        working-directory: packages/create-humanly
+        env:
+          VERSION: ${{ steps.release-version.outputs.version }}
+        run: npm version "$VERSION" --no-git-tag-version --allow-same-version
+
+      - name: Test package
+        if: steps.package-status.outputs.exists == 'false'
+        working-directory: packages/create-humanly
+        run: npm test
+
+      - name: Check package files
+        if: steps.package-status.outputs.exists == 'false'
+        working-directory: packages/create-humanly
+        run: npm run build
+
+      - name: Publish package
+        if: steps.package-status.outputs.exists == 'false'
+        working-directory: packages/create-humanly
+        run: npm publish --provenance --registry https://registry.npmjs.org/

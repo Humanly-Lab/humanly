@@ -1,9 +1,14 @@
 {
   "name": "create-humanly",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "One-command local self-host installer for Humanly",
   "license": "MIT",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ShenzheZhu/humanly.git",
+    "directory": "packages/create-humanly"
+  },
   "bin": {
     "create-humanly": "bin/create-humanly.mjs"
   },

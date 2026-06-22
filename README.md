@@ -14,7 +14,7 @@
 
 <p align="center">
   <a href="https://app.writehumanly.net/"><img alt="Writer Portal" src="https://img.shields.io/badge/writehumanly.net-app-7fa184?style=for-the-badge"></a>
-  <a href="https://github.com/ShenzheZhu/humanly/releases/tag/v0.4.0"><img alt="Release" src="https://img.shields.io/badge/release-v0.4.0-c49a6c?style=for-the-badge"></a>
+  <a href="https://github.com/ShenzheZhu/humanly/releases/latest"><img alt="Release" src="https://img.shields.io/github/v/release/ShenzheZhu/humanly?label=release&color=c49a6c&style=for-the-badge"></a>
   <img alt="Frontend stack" src="https://img.shields.io/badge/TypeScript%20%2F%20Next.js-frontend-7b9fb8?style=for-the-badge">
   <img alt="Backend stack" src="https://img.shields.io/badge/Express%20%2F%20PostgreSQL-backend-b79a8b?style=for-the-badge">
   <a href="./LICENSE"><img alt="License" src="https://img.shields.io/badge/license-MIT-9aa77d?style=for-the-badge"></a>
