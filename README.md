@@ -57,7 +57,7 @@ Humanly has two first-party web apps:
 - **Shareable certificates** with authorship statistics, replay, environment
   settings, abnormal-behavior review signals, and integrity details.
 
-## Self-Host Quick Start (TL;DR)
+## One Line Command Deployment
 
 Requirements:
 
