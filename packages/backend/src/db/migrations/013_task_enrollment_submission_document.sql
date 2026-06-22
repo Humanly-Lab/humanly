@@ -1,4 +1,4 @@
--- Link a Writer Portal task enrollment to the submission document created for it.
+-- Link a user portal task enrollment to the submission document created for it.
 
 ALTER TABLE task_enrollments
     ADD COLUMN IF NOT EXISTS submission_document_id UUID REFERENCES documents(id) ON DELETE SET NULL;

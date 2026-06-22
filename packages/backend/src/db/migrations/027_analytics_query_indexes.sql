@@ -1,4 +1,4 @@
--- Additional indexes for the production Publisher Portal, submission replay, and
+-- Additional indexes for the production admin dashboard, submission replay, and
 -- assigned-task session completion paths.
 --
 -- These are intentionally additive and idempotent. They do not change behavior;
