@@ -67,7 +67,7 @@ WHERE s.task_attempt_id IS NULL
   AND ta.document_id = s.document_id;
 
 COMMENT ON TABLE task_attempts IS
-  'Durable attempt records for assigned tasks; new attempts never overwrite older evidence.';
+  'Durable attempt records for assigned task submissions; new attempts never overwrite older evidence.';
 
 COMMENT ON COLUMN task_attempts.status IS
   'The current attempt for a task/user is active; prior restart attempts remain historical.';
