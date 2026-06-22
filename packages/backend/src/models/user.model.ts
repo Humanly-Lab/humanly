@@ -1,5 +1,5 @@
 import { query, queryOne, transaction } from '../config/database';
-import { User, UserWithPassword } from '@humanly/shared';
+import { normalizeEmail, User, UserWithPassword } from '@humanly/shared';
 import { PASSWORD_RESET_TOKEN_TTL_MS } from '../constants/auth';
 
 const USER_SELECT = `
@@ -53,6 +53,7 @@ export class UserModel {
    * Create a new user
    */
   static async create(data: CreateUserData): Promise<User> {
+    const email = normalizeEmail(data.email);
     const firstName = data.firstName?.trim() || null;
     const lastName = data.lastName?.trim() || null;
     const profileCompleted = firstName !== null && lastName !== null;
@@ -72,7 +73,7 @@ export class UserModel {
       RETURNING ${USER_SELECT}
     `;
     const user = await queryOne<User>(sql, [
-      data.email,
+      email,
       data.passwordHash,
       name,
       firstName,
@@ -92,13 +93,14 @@ export class UserModel {
     email: string;
     passwordHash: string;
   }): Promise<User> {
+    const email = normalizeEmail(data.email);
     const sql = `
       INSERT INTO users (email, password_hash, email_verified, profile_completed)
       VALUES ($1, $2, TRUE, FALSE)
       RETURNING ${USER_SELECT}
     `;
     const user = await queryOne<User>(sql, [
-      data.email,
+      email,
       data.passwordHash,
     ]);
     if (!user) throw new Error('Failed to create OAuth user');
@@ -109,12 +111,15 @@ export class UserModel {
    * Find user by email
    */
   static async findByEmail(email: string): Promise<UserWithPassword | null> {
+    const canonicalEmail = normalizeEmail(email);
     const sql = `
       SELECT ${USER_WITH_PASSWORD_SELECT}
       FROM users
-      WHERE email = $1
+      WHERE lower(trim(email)) = $1
+      ORDER BY created_at ASC
+      LIMIT 1
     `;
-    return queryOne<UserWithPassword>(sql, [email]);
+    return queryOne<UserWithPassword>(sql, [canonicalEmail]);
   }
 
   /**
@@ -168,12 +173,13 @@ export class UserModel {
     userId: string,
     data: OAuthAccountData
   ): Promise<void> {
+    const email = normalizeEmail(data.email);
     const sql = `
       INSERT INTO user_oauth_accounts (user_id, provider, provider_user_id, email)
       VALUES ($1, $2, $3, $4)
       ON CONFLICT (provider, provider_user_id) DO NOTHING
     `;
-    await query(sql, [userId, data.provider, data.providerUserId, data.email]);
+    await query(sql, [userId, data.provider, data.providerUserId, email]);
   }
 
   /**

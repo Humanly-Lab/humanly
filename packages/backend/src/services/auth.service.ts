@@ -1,4 +1,4 @@
-import { User } from '@humanly/shared';
+import { normalizeEmail, User } from '@humanly/shared';
 import { UserModel } from '../models/user.model';
 import { RefreshTokenModel } from '../models/refresh-token.model';
 import { emailService } from './email.service';
@@ -27,10 +27,11 @@ export class AuthService {
    * Register a new user
    */
   static async register(email: string, password: string): Promise<User> {
-    logger.info('Attempting to register user', { email });
+    const canonicalEmail = normalizeEmail(email);
+    logger.info('Attempting to register user', { email: canonicalEmail });
 
     // Check if user already exists
-    const existingUser = await UserModel.findByEmail(email);
+    const existingUser = await UserModel.findByEmail(canonicalEmail);
     if (existingUser) {
       throw new AppError(409, 'Email already registered');
     }
@@ -44,7 +45,7 @@ export class AuthService {
 
     // Create user
     const user = await UserModel.create({
-      email,
+      email: canonicalEmail,
       passwordHash,
       emailVerificationToken: verificationToken,
       emailVerificationExpires: verificationExpires,
@@ -53,26 +54,26 @@ export class AuthService {
     // Log verification code to console (since email service not configured)
     logger.info('🔐 VERIFICATION CODE GENERATED', {
       userId: user.id,
-      email,
+      email: canonicalEmail,
       code: verificationToken,
       expiresAt: verificationExpires,
     });
     console.log('\n' + '='.repeat(60));
     console.log('📧 EMAIL VERIFICATION CODE');
     console.log('='.repeat(60));
-    console.log(`Email: ${email}`);
+    console.log(`Email: ${canonicalEmail}`);
     console.log(`Code: ${verificationToken}`);
     console.log(`Expires: ${verificationExpires.toLocaleString()}`);
     console.log('='.repeat(60) + '\n');
 
     // Send verification email (don't await to avoid blocking)
     emailService
-      .sendVerificationEmail(email, verificationToken)
+      .sendVerificationEmail(canonicalEmail, verificationToken)
       .catch((error) => {
-        logger.error('Failed to send verification email', { email, error });
+        logger.error('Failed to send verification email', { email: canonicalEmail, error });
       });
 
-    logger.info('User registered successfully', { userId: user.id, email });
+    logger.info('User registered successfully', { userId: user.id, email: canonicalEmail });
     return user;
   }
 
@@ -161,10 +162,11 @@ export class AuthService {
     email: string,
     password: string
   ): Promise<{ user: User; accessToken: string; refreshToken: string }> {
-    logger.info('Attempting login', { email });
+    const canonicalEmail = normalizeEmail(email);
+    logger.info('Attempting login', { email: canonicalEmail });
 
     // Find user by email
-    const userWithPassword = await UserModel.findByEmail(email);
+    const userWithPassword = await UserModel.findByEmail(canonicalEmail);
     if (!userWithPassword) {
       throw new AppError(401, 'Invalid email or password');
     }
@@ -191,9 +193,10 @@ export class AuthService {
   static async loginWithOAuth(
     profile: OAuthProfile
   ): Promise<{ user: User; accessToken: string; refreshToken: string }> {
+    const canonicalEmail = normalizeEmail(profile.email);
     logger.info('Attempting OAuth login', {
       provider: profile.provider,
-      email: profile.email,
+      email: canonicalEmail,
     });
 
     let userWithPassword = await UserModel.findByOAuthAccount(
@@ -202,7 +205,7 @@ export class AuthService {
     );
 
     if (!userWithPassword) {
-      userWithPassword = await UserModel.findByEmail(profile.email);
+      userWithPassword = await UserModel.findByEmail(canonicalEmail);
 
       if (userWithPassword) {
         if (!userWithPassword.emailVerified) {
@@ -217,7 +220,7 @@ export class AuthService {
       } else {
         const passwordHash = await hashPassword(generatePasswordResetToken());
         const user = await UserModel.createOAuthUser({
-          email: profile.email,
+          email: canonicalEmail,
           passwordHash,
         });
         userWithPassword = {
@@ -233,7 +236,7 @@ export class AuthService {
       await UserModel.createOAuthAccount(userWithPassword.id, {
         provider: profile.provider,
         providerUserId: profile.providerUserId,
-        email: profile.email,
+        email: canonicalEmail,
       });
     }
 
@@ -332,13 +335,14 @@ export class AuthService {
    * Request password reset
    */
   static async forgotPassword(email: string): Promise<void> {
-    logger.info('Password reset requested', { email });
+    const canonicalEmail = normalizeEmail(email);
+    logger.info('Password reset requested', { email: canonicalEmail });
 
     // Find user by email
-    const user = await UserModel.findByEmail(email);
+    const user = await UserModel.findByEmail(canonicalEmail);
     if (!user) {
       // Don't reveal if user exists
-      logger.info('Password reset requested for non-existent email', { email });
+      logger.info('Password reset requested for non-existent email', { email: canonicalEmail });
       return;
     }
 
@@ -349,9 +353,9 @@ export class AuthService {
     // Store reset token
     await UserModel.setPasswordResetToken(user.id, resetToken, resetExpires);
 
-    await emailService.sendPasswordResetEmail(email, resetToken);
+    await emailService.sendPasswordResetEmail(canonicalEmail, resetToken);
 
-    logger.info('Password reset email sent', { userId: user.id, email });
+    logger.info('Password reset email sent', { userId: user.id, email: canonicalEmail });
   }
 
   /**
@@ -394,13 +398,14 @@ export class AuthService {
    * Resend verification email
    */
   static async resendVerificationEmail(email: string): Promise<void> {
-    logger.info('Resending verification email', { email });
+    const canonicalEmail = normalizeEmail(email);
+    logger.info('Resending verification email', { email: canonicalEmail });
 
     // Find user by email
-    const user = await UserModel.findByEmail(email);
+    const user = await UserModel.findByEmail(canonicalEmail);
     if (!user) {
       // Don't reveal if user exists
-      logger.info('Resend verification requested for non-existent email', { email });
+      logger.info('Resend verification requested for non-existent email', { email: canonicalEmail });
       return;
     }
 
@@ -419,26 +424,26 @@ export class AuthService {
     // Log verification code to console (since email service not configured)
     logger.info('🔐 VERIFICATION CODE RESENT', {
       userId: user.id,
-      email,
+      email: canonicalEmail,
       code: verificationToken,
       expiresAt: verificationExpires,
     });
     console.log('\n' + '='.repeat(60));
     console.log('📧 EMAIL VERIFICATION CODE (RESENT)');
     console.log('='.repeat(60));
-    console.log(`Email: ${email}`);
+    console.log(`Email: ${canonicalEmail}`);
     console.log(`Code: ${verificationToken}`);
     console.log(`Expires: ${verificationExpires.toLocaleString()}`);
     console.log('='.repeat(60) + '\n');
 
     // Send verification email (don't await to avoid blocking)
     emailService
-      .sendVerificationEmail(email, verificationToken)
+      .sendVerificationEmail(canonicalEmail, verificationToken)
       .catch((error) => {
-        logger.error('Failed to send verification email', { email, error });
+        logger.error('Failed to send verification email', { email: canonicalEmail, error });
       });
 
-    logger.info('Verification email resent', { userId: user.id, email });
+    logger.info('Verification email resent', { userId: user.id, email: canonicalEmail });
   }
 
   /**

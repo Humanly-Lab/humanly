@@ -302,7 +302,12 @@ export const validateWritingEnvironmentImportTemplate = (
 };
 
 // User validators
-export const emailSchema = z.string().email('Invalid email address');
+export const normalizeEmail = (email: string): string => email.trim().toLowerCase();
+
+export const emailSchema = z.string()
+  .trim()
+  .email('Invalid email address')
+  .transform((email) => normalizeEmail(email));
 
 export const passwordSchema = z
   .string()
