@@ -7,7 +7,7 @@
 <p align="center">
   <a href="#product">Product</a> ·
   <a href="#features">Features</a> ·
-  <a href="#self-host-quick-start-tldr">Self-Host</a> ·
+  <a href="#one-command-deployment">Self-Host</a> ·
   <a href="#certificates">Certificates</a> ·
   <a href="#architecture">Architecture</a>
 </p>
@@ -57,18 +57,23 @@ Humanly has two first-party web apps:
 - **Shareable certificates** with authorship statistics, replay, environment
   settings, abnormal-behavior review signals, and integrity details.
 
-## One Line Command Deployment
+## One Command Deployment
 
-Requirements:
+First check and install local runtime prerequisites:
 
-- Node.js `>=20.19.0 <21`
-- Docker and Docker Compose
+```bash
+curl -fsSL https://raw.githubusercontent.com/ShenzheZhu/humanly/main/packages/create-humanly/scripts/install-prereqs.sh | bash
+```
 
-Create and start a full local Humanly stack:
+Then create and start a full local Humanly stack:
 
 ```bash
 npx create-humanly@latest
 ```
+
+`npx` requires Node.js and npm, so Node cannot be installed from inside
+`create-humanly` itself. The prerequisite script checks Node/npm, Docker, Docker
+Compose, and the Docker daemon before the installer runs.
 
 The installer downloads the Humanly source code, generates local secrets, writes
 a Docker Compose quickstart, seeds a local Publisher Portal admin account, and

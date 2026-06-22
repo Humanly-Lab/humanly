@@ -6,7 +6,11 @@ import { test } from 'node:test';
 
 import {
   buildSourceUrl,
+  dockerDaemonMessage,
+  dockerMissingMessage,
+  ensureStartPrerequisites,
   generateSecrets,
+  helpText,
   installHumanly,
   parseArgs,
   renderQuickstartCompose,
@@ -36,11 +40,50 @@ test('parseArgs applies local-only defaults', () => {
 
   assert.equal(path.basename(options.dir), 'demo');
   assert.equal(options.noStart, true);
+  assert.equal(options.installDocker, false);
+  assert.equal(options.skipPreflight, false);
   assert.equal(options.adminEmail, 'admin@mail.com');
   assert.equal(options.adminPassword, 'admin123456');
   assert.equal(options.publisherUrl, 'http://localhost:3000');
   assert.equal(options.writerUrl, 'http://localhost:3002');
   assert.equal(options.apiUrl, 'http://localhost:3001');
+});
+
+test('parseArgs supports prerequisite bootstrap flags', () => {
+  const options = parseArgs(['demo', '--install-docker', '--skip-preflight']);
+
+  assert.equal(options.installDocker, true);
+  assert.equal(options.skipPreflight, true);
+});
+
+test('helpText explains prerequisites before startup', () => {
+  const output = helpText();
+
+  assert.match(output, /--install-docker/);
+  assert.match(output, /--skip-preflight/);
+  assert.match(output, /npx itself runs on Node/);
+});
+
+test('preflight skips checks for scaffold-only installs', async () => {
+  let called = false;
+  await ensureStartPrerequisites({ noStart: true, skipPreflight: false }, async () => {
+    called = true;
+  });
+
+  assert.equal(called, false);
+});
+
+test('preflight reports missing Docker with actionable commands', async () => {
+  await assert.rejects(
+    () => ensureStartPrerequisites({ noStart: false, skipPreflight: false, installDocker: false }, async () => {
+      throw new Error('missing');
+    }),
+    /Docker is required/,
+  );
+
+  assert.match(dockerMissingMessage(), /--install-docker/);
+  assert.match(dockerMissingMessage(), /--no-start/);
+  assert.match(dockerDaemonMessage(), /sudo systemctl start docker/);
 });
 
 test('buildSourceUrl defaults to the selected branch ref', () => {

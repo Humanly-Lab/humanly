@@ -4,8 +4,14 @@ This guide covers the minimum setup for running Humanly on your own server.
 
 ## One-Command Local Quickstart
 
-For a local self-hosted demo, use the installer instead of cloning the
-repository manually:
+For a local self-hosted demo, check and install runtime prerequisites before
+running the installer:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/ShenzheZhu/humanly/main/packages/create-humanly/scripts/install-prereqs.sh | bash
+```
+
+Then use the installer instead of cloning the repository manually:
 
 ```bash
 npx create-humanly@latest
@@ -13,7 +19,9 @@ npx create-humanly@latest
 
 This creates a `humanly/` directory, downloads the source code, generates local
 secrets, writes `docker-compose.yml`, seeds a default Publisher Portal admin,
-and starts the stack.
+and starts the stack. Node.js and npm are required before running the installer
+because `npx` runs on Node. The prerequisite script checks Node/npm, Docker,
+Docker Compose, and the Docker daemon before `npx create-humanly@latest` runs.
 
 Local quickstart does not require a third-party email provider. It uses
 `EMAIL_SERVICE=console`, so signup and notification messages are written to
@@ -42,7 +50,7 @@ docker compose -f docker-compose.yml down -v
 
 ## Manual Requirements
 
-- Node.js 20
+- Node.js 20.19 or newer
 - pnpm 9
 - Docker and Docker Compose
 - PostgreSQL, Redis, and persistent file storage

@@ -15,6 +15,7 @@
   "files": [
     "bin",
     "lib",
+    "scripts/install-prereqs.sh",
     "README.md"
   ],
   "scripts": {
@@ -22,6 +23,6 @@
     "test": "node --test test/*.test.mjs"
   },
   "engines": {
-    "node": ">=20.19.0 <21"
+    "node": ">=20.19.0"
   }
 }

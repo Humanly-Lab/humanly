@@ -34,6 +34,8 @@ export function parseArgs(argv) {
     sourceUrl: process.env.HUMANLY_SOURCE_URL || '',
     sourceDir: '',
     noStart: false,
+    installDocker: false,
+    skipPreflight: false,
     force: false,
     adminEmail: DEFAULT_ADMIN_EMAIL,
     adminPassword: DEFAULT_ADMIN_PASSWORD,
@@ -52,6 +54,10 @@ export function parseArgs(argv) {
       options.version = true;
     } else if (arg === '--no-start') {
       options.noStart = true;
+    } else if (arg === '--install-docker') {
+      options.installDocker = true;
+    } else if (arg === '--skip-preflight') {
+      options.skipPreflight = true;
     } else if (arg === '--force') {
       options.force = true;
     } else if (arg === '--source-ref') {
@@ -110,6 +116,7 @@ export async function main(argv) {
 export async function installHumanly(options) {
   const secrets = generateSecrets();
 
+  await ensureStartPrerequisites(options);
   await assertTargetWritable(options.dir, options.force);
   await fs.mkdir(options.dir, { recursive: true });
 
@@ -249,6 +256,8 @@ Usage:
 
 Options:
   --no-start                 Generate files without starting Docker Compose
+  --install-docker           Try to install Docker before starting the stack
+  --skip-preflight           Skip Docker checks before starting the stack
   --force                    Allow writing into an existing directory
   --source-ref <ref>         GitHub branch or tag to download (default: main)
   --source-url <url>         Full tar.gz source URL
@@ -264,7 +273,74 @@ Options:
 
 Local quickstart defaults use console email and local uploads, so no SendGrid,
 SMTP, S3, or other third-party services are required.
+
+Node.js and npm must already be installed before running this command because
+npx itself runs on Node. Docker is checked before startup; use --install-docker
+to let the installer try a local Docker installation on supported hosts.
 `;
+}
+
+export async function ensureStartPrerequisites(options, runner = runCapture) {
+  if (options.noStart || options.skipPreflight) {
+    return;
+  }
+
+  if (!(await commandSucceeds(runner, 'docker', ['--version']))) {
+    if (!options.installDocker) {
+      throw new Error(dockerMissingMessage());
+    }
+    await installDockerForHost();
+  }
+
+  if (!(await commandSucceeds(runner, 'docker', ['--version']))) {
+    throw new Error(dockerMissingAfterInstallMessage());
+  }
+
+  if (!(await commandSucceeds(runner, 'docker', ['compose', 'version']))) {
+    throw new Error(dockerComposeMissingMessage());
+  }
+
+  if (!(await commandSucceeds(runner, 'docker', ['info']))) {
+    throw new Error(dockerDaemonMessage());
+  }
+}
+
+export function dockerMissingMessage() {
+  return [
+    'Docker is required to start Humanly locally, but the docker command was not found.',
+    '',
+    'Options:',
+    '  1. Install Docker Desktop or Docker Engine, then rerun: npx create-humanly@latest --force',
+    '  2. Let the installer try to install Docker: npx create-humanly@latest --install-docker',
+    '  3. Scaffold files only without starting services: npx create-humanly@latest --no-start',
+    '',
+    'Node.js and npm must already be installed before running create-humanly because npx itself requires Node.',
+  ].join('\n');
+}
+
+export function dockerMissingAfterInstallMessage() {
+  return [
+    'Docker still was not available after the installer attempted installation.',
+    'Open or start Docker, then rerun: npx create-humanly@latest --force',
+  ].join('\n');
+}
+
+export function dockerComposeMissingMessage() {
+  return [
+    'Docker is installed, but Docker Compose v2 was not found.',
+    'Install Docker Compose v2 or Docker Desktop, then rerun: npx create-humanly@latest --force',
+  ].join('\n');
+}
+
+export function dockerDaemonMessage() {
+  return [
+    'Docker is installed, but the Docker daemon is not running or this user cannot access it.',
+    '',
+    'Start Docker Desktop, or on Linux run:',
+    '  sudo systemctl start docker',
+    '',
+    'Then rerun: npx create-humanly@latest --force',
+  ].join('\n');
 }
 
 export function buildSourceUrl(repo, sourceRef) {
@@ -339,6 +415,102 @@ async function run(command, args, options = {}) {
       }
     });
   });
+}
+
+async function runCapture(command, args, options = {}) {
+  await new Promise((resolve, reject) => {
+    const child = spawn(command, args, {
+      cwd: options.cwd,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+
+    let stdout = '';
+    let stderr = '';
+    child.stdout?.on('data', (chunk) => {
+      stdout += chunk.toString();
+    });
+    child.stderr?.on('data', (chunk) => {
+      stderr += chunk.toString();
+    });
+    child.on('error', reject);
+    child.on('close', (code) => {
+      if (code === 0) {
+        resolve({ stdout, stderr });
+      } else {
+        const error = new Error(`${command} ${args.join(' ')} exited with code ${code}`);
+        error.stdout = stdout;
+        error.stderr = stderr;
+        reject(error);
+      }
+    });
+  });
+}
+
+async function commandSucceeds(runner, command, args) {
+  try {
+    await runner(command, args);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function installDockerForHost() {
+  const platform = os.platform();
+
+  if (platform === 'darwin') {
+    if (!(await commandSucceeds(runCapture, 'brew', ['--version']))) {
+      throw new Error([
+        'The installer can install Docker Desktop on macOS only when Homebrew is available.',
+        'Install Docker Desktop from https://www.docker.com/products/docker-desktop/ or install Homebrew, then rerun with --install-docker.',
+      ].join('\n'));
+    }
+    console.log('Installing Docker Desktop with Homebrew. This can take several minutes.');
+    await run('brew', ['install', '--cask', 'docker']);
+    console.log('Docker Desktop was installed. Open Docker Desktop and wait until it finishes starting.');
+    return;
+  }
+
+  if (platform === 'linux') {
+    if (await commandSucceeds(runCapture, 'apt-get', ['--version'])) {
+      console.log('Installing Docker Engine with apt-get. You may be prompted for sudo.');
+      await run('sudo', ['apt-get', 'update']);
+      await run('sudo', ['apt-get', 'install', '-y', 'docker.io', 'docker-compose-plugin']);
+      await tryStartDockerService();
+      return;
+    }
+
+    if (await commandSucceeds(runCapture, 'dnf', ['--version'])) {
+      console.log('Installing Docker Engine with dnf. You may be prompted for sudo.');
+      await run('sudo', ['dnf', 'install', '-y', 'docker', 'docker-compose-plugin']);
+      await tryStartDockerService();
+      return;
+    }
+
+    if (await commandSucceeds(runCapture, 'yum', ['--version'])) {
+      console.log('Installing Docker Engine with yum. You may be prompted for sudo.');
+      await run('sudo', ['yum', 'install', '-y', 'docker', 'docker-compose-plugin']);
+      await tryStartDockerService();
+      return;
+    }
+  }
+
+  throw new Error([
+    `Automatic Docker installation is not supported on ${platform}.`,
+    'Install Docker Desktop or Docker Engine manually, then rerun: npx create-humanly@latest --force',
+  ].join('\n'));
+}
+
+async function tryStartDockerService() {
+  if (!(await commandSucceeds(runCapture, 'systemctl', ['--version']))) {
+    return;
+  }
+
+  try {
+    await run('sudo', ['systemctl', 'enable', '--now', 'docker']);
+  } catch {
+    console.warn('Docker was installed, but the installer could not start the docker service automatically.');
+  }
 }
 
 async function packageVersion() {

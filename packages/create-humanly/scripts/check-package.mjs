@@ -8,6 +8,7 @@ const requiredFiles = [
   'bin/create-humanly.mjs',
   'lib/installer.mjs',
   'README.md',
+  'scripts/install-prereqs.sh',
   'package.json',
 ];
 
