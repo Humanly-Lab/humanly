@@ -29,8 +29,9 @@ export interface CreateUserData {
   passwordHash: string;
   firstName?: string | null;
   lastName?: string | null;
-  emailVerificationToken: string;
-  emailVerificationExpires: Date;
+  emailVerified?: boolean;
+  emailVerificationToken?: string | null;
+  emailVerificationExpires?: Date | null;
 }
 
 export interface OAuthAccountData {
@@ -65,11 +66,12 @@ export class UserModel {
         name,
         first_name,
         last_name,
+        email_verified,
         email_verification_token,
         email_verification_expires,
         profile_completed
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       RETURNING ${USER_SELECT}
     `;
     const user = await queryOne<User>(sql, [
@@ -78,6 +80,7 @@ export class UserModel {
       name,
       firstName,
       lastName,
+      data.emailVerified ?? false,
       data.emailVerificationToken,
       data.emailVerificationExpires,
       profileCompleted,

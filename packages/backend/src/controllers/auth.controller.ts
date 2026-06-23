@@ -58,6 +58,25 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
   // Register user
   const user = await AuthService.register(email, password);
 
+  if (!env.emailVerificationRequired) {
+    const { user: authenticatedUser, accessToken, refreshToken } = await AuthService.login(
+      email,
+      password
+    );
+
+    setAuthCookies(res, accessToken, refreshToken);
+
+    res.status(201).json({
+      success: true,
+      message: 'Registration successful',
+      data: {
+        user: authenticatedUser,
+        accessToken,
+      },
+    });
+    return;
+  }
+
   res.status(201).json({
     success: true,
     message: 'Registration successful. Please check your email to verify your account.',

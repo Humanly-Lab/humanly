@@ -117,7 +117,16 @@ export default function RegisterPage() {
   async function onSubmit(values: RegisterFormValues) {
     try {
       setError(null);
-      await register(values.email, values.password);
+      const result = await register(values.email, values.password);
+
+      if (!result.requiresEmailVerification) {
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('pendingVerificationEmail');
+        }
+        router.push('/tasks');
+        return;
+      }
+
       setRegistrationSuccess(true);
 
       if (typeof window !== 'undefined') {

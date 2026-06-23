@@ -41,6 +41,7 @@ interface EnvConfig {
   emailUser?: string;
   emailPassword?: string;
   emailStrictDelivery: boolean;
+  emailVerificationRequired: boolean;
 
   // OAuth
   googleOAuthClientId?: string;
@@ -237,6 +238,7 @@ export const env: EnvConfig = {
   emailUser: process.env.EMAIL_USER,
   emailPassword: process.env.EMAIL_PASSWORD,
   emailStrictDelivery: getEnvBoolean('EMAIL_STRICT_DELIVERY', false),
+  emailVerificationRequired: getEnvBoolean('EMAIL_VERIFICATION_REQUIRED', false),
 
   // OAuth
   googleOAuthClientId: process.env.GOOGLE_OAUTH_CLIENT_ID,

@@ -30,7 +30,7 @@ interface AuthState {
 
   // Actions
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string) => Promise<void>;
+  register: (email: string, password: string) => Promise<{ requiresEmailVerification: boolean }>;
   logout: () => Promise<void>;
   deleteAccount: () => Promise<void>;
   verifyEmail: (code: string) => Promise<void>;
@@ -101,13 +101,28 @@ export const useAuthStore = create<AuthState>()(
         try {
           set({ isLoading: true, error: null });
 
-          await api.post<{
+          const response = await api.post<{
             success: boolean;
             message: string;
             data: {
               user: User;
+              accessToken?: string;
             };
           }>('/auth/register', { email, password });
+
+          if (response.data.accessToken) {
+            TokenManager.setAccessToken(response.data.accessToken);
+
+            set({
+              user: response.data.user,
+              isAuthenticated: true,
+              isLoading: false,
+              error: null,
+            });
+
+            initializeSocket();
+            return { requiresEmailVerification: false };
+          }
 
           // Registration successful - user needs to verify email before logging in
           // Don't set authenticated state or tokens
@@ -117,6 +132,8 @@ export const useAuthStore = create<AuthState>()(
             isLoading: false,
             error: null,
           });
+
+          return { requiresEmailVerification: true };
         } catch (error) {
           const errorMessage = error instanceof ApiError ? error.message : 'Registration failed';
           set({ isLoading: false, error: errorMessage });
