@@ -10,6 +10,8 @@ the Structured Writing category.
 - Recruitment: three independent Prolific worker groups, one for each role.
 - Qualification: Prolific AI Taskers, Structured Writing category.
 - Survey platform: Deliberation.io.
+- Response scale: five-point agreement scale, with options Strongly disagree,
+  Disagree, Neither agree nor disagree, Agree, and Strongly agree.
 - Humanly deployment: Owner and Writer participants leave Deliberation.io to
   complete a live Humanly task flow, then return to the survey. Verifier
   participants inspect fixed certificate screenshots and context material inside
