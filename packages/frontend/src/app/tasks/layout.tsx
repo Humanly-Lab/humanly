@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/auth-store';
 import { Navbar } from '@/components/navigation/navbar';
-import { BasicInfoDialog } from '@/components/account/basic-info-dialog';
 
 export default function TasksLayout({
   children,
@@ -12,9 +11,8 @@ export default function TasksLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
-  const { user, isAuthenticated, isLoading, fetchUser } = useAuthStore();
+  const { isAuthenticated, isLoading, fetchUser } = useAuthStore();
   const [isValidating, setIsValidating] = useState(true);
-  const [basicInfoOpen, setBasicInfoOpen] = useState(false);
 
   useEffect(() => {
     // Always validate session on mount
@@ -37,12 +35,6 @@ export default function TasksLayout({
     validateSession();
   }, [fetchUser, router]);
 
-  useEffect(() => {
-    if (!isValidating && isAuthenticated && user?.profileCompleted === false) {
-      setBasicInfoOpen(true);
-    }
-  }, [isAuthenticated, isValidating, user?.profileCompleted]);
-
   // Show loading state while checking authentication
   if (isLoading || isValidating) {
     return (
@@ -63,11 +55,6 @@ export default function TasksLayout({
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      <BasicInfoDialog
-        open={basicInfoOpen}
-        mode="complete"
-        onOpenChange={setBasicInfoOpen}
-      />
       <main className="humanly-page">
         {children}
       </main>

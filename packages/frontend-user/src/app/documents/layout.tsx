@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/auth-store';
-import { BasicInfoDialog } from '@/components/account/basic-info-dialog';
 import { Navbar } from '@/components/navigation/navbar';
 import { isGuestUserEmail } from '@/components/navigation/user-display';
 import { TokenManager } from '@/lib/api-client';
@@ -19,7 +18,6 @@ export default function DocumentsLayout({
   const { user, isAuthenticated, isLoading, checkAuth, clearLocalSession } = useAuthStore();
   const [hasChecked, setHasChecked] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
-  const [isBasicInfoOpen, setIsBasicInfoOpen] = useState(false);
   const isWorkspacePreviewRoute = pathname === '/documents/preview';
   const documentIdMatch = pathname.match(/^\/documents\/([^/]+)/);
   const publicDocumentId = documentIdMatch?.[1] || '';
@@ -31,12 +29,6 @@ export default function DocumentsLayout({
     isAuthenticated &&
     isGuestUserEmail(user?.email) &&
     (pathname === '/documents' || pathname === '/documents/new');
-  const requiresBasicInfo =
-    isAuthenticated &&
-    user?.profileCompleted === false &&
-    !isGuestUserEmail(user?.email) &&
-    !isWorkspacePreviewRoute &&
-    !isPublicGuestDocumentRoute;
 
   useEffect(() => {
     if (isWorkspacePreviewRoute) {
@@ -115,12 +107,6 @@ export default function DocumentsLayout({
     }
   }, [clearLocalSession, hasChecked, isCheckingAuth, isGuestWorkspaceRoute, isLoading, router, isWorkspacePreviewRoute]);
 
-  useEffect(() => {
-    if (hasChecked && !isCheckingAuth && !isLoading && requiresBasicInfo) {
-      setIsBasicInfoOpen(true);
-    }
-  }, [hasChecked, isCheckingAuth, isLoading, requiresBasicInfo]);
-
   if (isWorkspacePreviewRoute) {
     return <>{children}</>;
   }
@@ -143,11 +129,6 @@ export default function DocumentsLayout({
   return (
     <div className="min-h-screen bg-background">
       <Navbar forceGuest={isPublicGuestDocumentRoute} />
-      <BasicInfoDialog
-        open={isBasicInfoOpen}
-        mode="complete"
-        onOpenChange={setIsBasicInfoOpen}
-      />
       {children}
     </div>
   );
