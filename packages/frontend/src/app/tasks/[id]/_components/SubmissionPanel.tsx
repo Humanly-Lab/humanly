@@ -303,9 +303,7 @@ export function SubmissionPanel({
             </div>
             <div className="flex flex-wrap items-center justify-end gap-2">
               {renderDownloadButton('log-events', 'csv', 'Log events CSV')}
-              {renderDownloadButton('log-events', 'json', 'Log events JSON')}
               {renderDownloadButton('submissions', 'csv', 'Submissions CSV')}
-              {renderDownloadButton('submissions', 'json', 'Submissions JSON')}
               <Button
                 variant="outline"
                 size="icon"
