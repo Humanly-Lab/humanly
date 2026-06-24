@@ -578,7 +578,7 @@ export class CertificateService {
       return {
         valid: true,
         sealStatus: 'legacy_valid' as const,
-        message: 'Certificate legacy signature is valid',
+        message: 'Certificate legacy integrity seal is valid',
       };
     } catch {
       return {

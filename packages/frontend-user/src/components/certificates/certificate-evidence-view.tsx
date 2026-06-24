@@ -122,7 +122,7 @@ function getSealStatusPresentation(status?: CertificateSealStatus) {
       containerClass: 'border-[#d7c8a8] bg-[#fbf6e8]',
       iconClass: 'bg-[#f1e4c5] text-[#8a6b2f]',
       badgeClass: 'border-[#d7c8a8] bg-[#f8eed3] text-[#8a6b2f]',
-      message: 'This certificate has a valid legacy server seal.',
+      message: 'This certificate has a valid legacy integrity seal.',
     };
   }
 
@@ -141,7 +141,7 @@ function getSealStatusPresentation(status?: CertificateSealStatus) {
     containerClass: 'border-border/70 bg-muted/25',
     iconClass: 'bg-muted text-muted-foreground',
     badgeClass: 'border-border/70 bg-muted/35 text-muted-foreground',
-    message: 'No server-issued seal is available for this certificate.',
+    message: 'No integrity seal is available for this certificate.',
   };
 }
 
@@ -604,7 +604,7 @@ export function CertificateEvidenceView({
                 )}
                 <p className="text-muted-foreground">
                   New certificates use a public-key verifiable signature. Legacy certificates remain readable with their original
-                  server seal. The seal verifies the certificate record shown here; it does not make claims about off-platform behavior.
+                  integrity seal. The seal verifies the certificate record shown here; it does not make claims about off-platform behavior.
                 </p>
               </CollapsibleContent>
             </Collapsible>
