@@ -987,9 +987,6 @@ export function CertificateEvidenceView({
               <div>
                 <CardTitle className={SECTION_TITLE_CLASS}>Environment</CardTitle>
                 <CardDescription>The writing policy active when this certificate was created.</CardDescription>
-                <p className="text-xs text-muted-foreground">
-                  Times shown in your local timezone: {localTimeZoneLabel}
-                </p>
               </div>
               <CollapsibleTrigger asChild>
                 <Button
@@ -1007,6 +1004,9 @@ export function CertificateEvidenceView({
           </CardHeader>
           <CollapsibleContent>
             <CardContent className="space-y-3">
+              <p className="text-xs text-muted-foreground">
+                Times shown in your local timezone: {localTimeZoneLabel}
+              </p>
               {certificate.environmentConfig && (
                 <div className="flex justify-end">
                   <DropdownMenu>

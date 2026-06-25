@@ -162,10 +162,22 @@ describe('CertificateEvidenceView environment availability window', () => {
   const startTime = '2026-06-25T07:30:00.000Z';
   const endTime = '2026-07-09T07:30:00.000Z';
 
-  it('shows the viewer local timezone context in the environment header', async () => {
+  it('shows the viewer local timezone context only after expanding the environment section', async () => {
     mockLocalTimeZone('Asia/Shanghai');
+    const user = userEvent.setup();
 
-    await renderAndOpenEnvironment(buildAdminEnvironmentConfig({ startTime, endTime }));
+    render(
+      <CertificateEvidenceView
+        certificate={{
+          ...baseCertificate,
+          environmentConfig: buildAdminEnvironmentConfig({ startTime, endTime }),
+        }}
+      />
+    );
+
+    expect(screen.queryByText('Times shown in your local timezone: Asia/Shanghai')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Show environment section' }));
 
     expect(screen.getByText('Times shown in your local timezone: Asia/Shanghai')).toBeInTheDocument();
   });
