@@ -1354,9 +1354,9 @@ export default function NewDocumentPage() {
         <CardHeader className="p-4 sm:p-5">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
-              <CardTitle>Document setup</CardTitle>
+              <CardTitle>Task Setup</CardTitle>
               <CardDescription>
-                Set up the document details, AI access, and writing controls before you start.
+                Set up the task details, AI access, and writing controls before you start.
               </CardDescription>
             </div>
             <Button asChild variant="outline" className="shrink-0 gap-2">
