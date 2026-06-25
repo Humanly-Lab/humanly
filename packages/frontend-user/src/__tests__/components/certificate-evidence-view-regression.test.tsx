@@ -17,6 +17,31 @@ jest.mock('@/components/certificates/document-replay', () => ({
   DocumentReplay: () => <div data-testid="document-replay" />,
 }));
 
+function mockLocalTimeZone(timeZone: string) {
+  const realDateTimeFormat = Intl.DateTimeFormat;
+
+  jest
+    .spyOn(Intl, 'DateTimeFormat')
+    .mockImplementation(((locales?: Intl.LocalesArgument, options?: Intl.DateTimeFormatOptions) => {
+      const formatter = new realDateTimeFormat(locales, options);
+      const resolvedOptions = formatter.resolvedOptions.bind(formatter);
+
+      Object.defineProperty(formatter, 'resolvedOptions', {
+        configurable: true,
+        value: () => ({
+          ...resolvedOptions(),
+          timeZone,
+        }),
+      });
+
+      return formatter;
+    }) as typeof Intl.DateTimeFormat);
+}
+
+afterEach(() => {
+  jest.restoreAllMocks();
+});
+
 const baseCertificate: CertificateEvidenceRecord = {
   id: 'certificate-environment',
   documentId: 'document-environment',
@@ -136,6 +161,14 @@ describe('CertificateEvidenceView review signals', () => {
 describe('CertificateEvidenceView environment availability window', () => {
   const startTime = '2026-06-25T07:30:00.000Z';
   const endTime = '2026-07-09T07:30:00.000Z';
+
+  it('shows the viewer local timezone context in the environment header', async () => {
+    mockLocalTimeZone('Asia/Shanghai');
+
+    await renderAndOpenEnvironment(buildAdminEnvironmentConfig({ startTime, endTime }));
+
+    expect(screen.getByText('Times shown in your local timezone: Asia/Shanghai')).toBeInTheDocument();
+  });
 
   it('formats valid task availability timestamps instead of exposing raw ISO text', async () => {
     await renderAndOpenEnvironment(buildAdminEnvironmentConfig({ startTime, endTime }));

@@ -74,6 +74,10 @@ export function formatDisplayDateTimeRange(
   return options.emptyFallback ?? 'No date range';
 }
 
+export function getLocalTimeZoneLabel(): string {
+  return Intl.DateTimeFormat().resolvedOptions().timeZone || 'local time';
+}
+
 export function formatCompactDuration(totalSeconds: number): string {
   const safeSeconds = Math.max(0, Math.round(totalSeconds || 0));
   const hours = Math.floor(safeSeconds / 3600);

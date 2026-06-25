@@ -1,6 +1,9 @@
 import { type ClassValue, clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-import { formatDisplayDateTime } from '@humanly/shared';
+import {
+  formatDisplayDateTime,
+  getLocalTimeZoneLabel as getSharedLocalTimeZoneLabel,
+} from '@humanly/shared';
 
 /**
  * Utility function to merge Tailwind CSS classes with clsx
@@ -46,7 +49,7 @@ export function localDateTimeInputToISOString(value: string): string {
 }
 
 export function getLocalTimeZoneLabel(): string {
-  return Intl.DateTimeFormat().resolvedOptions().timeZone || 'local time';
+  return getSharedLocalTimeZoneLabel();
 }
 
 /**

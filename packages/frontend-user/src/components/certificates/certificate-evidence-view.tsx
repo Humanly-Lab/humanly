@@ -17,6 +17,7 @@ import { format } from 'date-fns';
 import {
   formatCompactDuration,
   formatDisplayDateTimeRange,
+  getLocalTimeZoneLabel,
   formatWritingAiAccess,
   formatWritingAiPolicy,
   getMaxWritingAttempts,
@@ -504,6 +505,7 @@ export function CertificateEvidenceView({
   const SealStatusIcon = sealPresentation.Icon;
   const showReplay = Boolean(certificate.includeEditHistory && replayToken);
   const environmentRows = getEnvironmentRows(certificate.environmentConfig);
+  const localTimeZoneLabel = getLocalTimeZoneLabel();
   const reviewSignals: WritingAnomalyFlag[] = getReviewSignals(certificate.anomalyFlags);
 
   useEffect(() => {
@@ -985,6 +987,9 @@ export function CertificateEvidenceView({
               <div>
                 <CardTitle className={SECTION_TITLE_CLASS}>Environment</CardTitle>
                 <CardDescription>The writing policy active when this certificate was created.</CardDescription>
+                <p className="text-xs text-muted-foreground">
+                  Times shown in your local timezone: {localTimeZoneLabel}
+                </p>
               </div>
               <CollapsibleTrigger asChild>
                 <Button
