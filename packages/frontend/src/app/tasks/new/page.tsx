@@ -55,7 +55,10 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/components/ui/use-toast';
-import { AdminEnvironmentSectionHeading as SectionHeading } from '@/components/admin-environment-ui';
+import {
+  AdminEnvironmentHelp,
+  AdminEnvironmentSectionHeading as SectionHeading,
+} from '@/components/admin-environment-ui';
 import { api } from '@/lib/api-client';
 import { MODEL_WHITELIST, getWhitelist } from '@/lib/ai-models';
 import { getFrontendUserUrl } from '@/lib/certificate-url';
@@ -150,6 +153,10 @@ const CLAUDE_BASE_URL = 'https://api.anthropic.com/v1';
 const IMPORT_ENVIRONMENT_VALUE = 'import_environment';
 const DEFAULT_TASK_WINDOW_DAYS = 14;
 const UNLIMITED_TASK_WINDOW_YEARS = 100;
+const AI_API_KEY_HELP_TEXT = 'An AI API key is a unique secret credential, usually a long string of letters and numbers, that Humanly uses to connect this task to your selected AI provider. It is never shown to enrolled users or included in exported environment configs.';
+const SHORTCUT_TOKENS_HELP_TEXT = 'Shortcut tokens limit how much text AI quick actions can generate, such as fixing grammar, improving writing, simplifying text, or making writing more formal. Higher values allow longer AI output but may use more tokens.';
+const CHAT_TOKENS_HELP_TEXT = 'Chat tokens limit how much text the AI Assistant can generate in a chat response. Higher values allow more complete answers but may increase usage per message.';
+const AI_GUARD_POLICY_HELP_TEXT = "AI Guard policy controls the boundary of AI assistance during writing. When enabled, it helps reject requests that do not follow the task's AI usage rules.";
 
 const isLocalStartDateTooFarInPast = (value?: string): boolean => (
   !!value && isTaskStartDateTooFarInPast(localDateTimeInputToISOString(value))
@@ -1231,9 +1238,8 @@ export default function NewTaskPage() {
         />
 
         <div className="grid gap-2">
-          <FormLabel>AI</FormLabel>
           <Select value={aiAccess} onValueChange={(value) => setAiAccess(value as WritingAiAccess)}>
-            <SelectTrigger>
+            <SelectTrigger aria-label="AI access">
               <SelectValue placeholder="AI access" />
             </SelectTrigger>
             <SelectContent>
@@ -1249,7 +1255,12 @@ export default function NewTaskPage() {
         {aiAccess !== 'off' && (
           <div className="grid gap-4 rounded-md border bg-muted/30 p-3">
             <div className="grid gap-2">
-              <FormLabel htmlFor="ai-api-key">AI API Key</FormLabel>
+              <div className="flex items-center gap-1.5">
+                <FormLabel htmlFor="ai-api-key">AI API Key</FormLabel>
+                <AdminEnvironmentHelp title="AI API Key">
+                  {AI_API_KEY_HELP_TEXT}
+                </AdminEnvironmentHelp>
+              </div>
               <Input
                 id="ai-api-key"
                 type="password"
@@ -1350,7 +1361,12 @@ export default function NewTaskPage() {
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="grid gap-2">
-                <FormLabel htmlFor="ai-shortcut-max-tokens">Shortcut Tokens</FormLabel>
+                <div className="flex items-center gap-1.5">
+                  <FormLabel htmlFor="ai-shortcut-max-tokens">Shortcut Tokens</FormLabel>
+                  <AdminEnvironmentHelp title="Shortcut Tokens">
+                    {SHORTCUT_TOKENS_HELP_TEXT}
+                  </AdminEnvironmentHelp>
+                </div>
                 <Input
                   id="ai-shortcut-max-tokens"
                   type="number"
@@ -1371,7 +1387,12 @@ export default function NewTaskPage() {
               </div>
 
               <div className="grid gap-2">
-                <FormLabel htmlFor="ai-chat-max-tokens">Chat Tokens</FormLabel>
+                <div className="flex items-center gap-1.5">
+                  <FormLabel htmlFor="ai-chat-max-tokens">Chat Tokens</FormLabel>
+                  <AdminEnvironmentHelp title="Chat Tokens">
+                    {CHAT_TOKENS_HELP_TEXT}
+                  </AdminEnvironmentHelp>
+                </div>
                 <Input
                   id="ai-chat-max-tokens"
                   type="number"
@@ -1395,7 +1416,12 @@ export default function NewTaskPage() {
             {chatTokensEnabled && (
               <div className="grid gap-4 rounded-md border bg-background p-3">
                 <div className="grid gap-2">
-                  <FormLabel>AI Guard policy</FormLabel>
+                  <div className="flex items-center gap-1.5">
+                    <FormLabel>AI Guard policy</FormLabel>
+                    <AdminEnvironmentHelp title="AI Guard policy">
+                      {AI_GUARD_POLICY_HELP_TEXT}
+                    </AdminEnvironmentHelp>
+                  </div>
                   <Select
                     value={normalizeWritingAiPolicy(environmentConfig.aiPolicy).mode}
                     onValueChange={(value) => setAiPolicyMode(value as WritingAiPolicyMode)}
