@@ -1,7 +1,13 @@
 'use client';
 
 import type { ReactNode } from 'react';
+import { HelpCircle } from 'lucide-react';
 
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 
 export type AdminEnvironmentSummaryItem = {
@@ -70,5 +76,31 @@ export function AdminEnvironmentDialogSection({
       <AdminEnvironmentSectionHeading title={title} description={description} />
       {children}
     </section>
+  );
+}
+
+export function AdminEnvironmentHelp({
+  children,
+  title,
+}: {
+  children: ReactNode;
+  title: string;
+}) {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          aria-label={`Explain ${title}`}
+          className="inline-flex h-4 w-4 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+        >
+          <HelpCircle className="h-3.5 w-3.5" aria-hidden="true" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="space-y-2 text-sm">
+        <p className="font-medium text-foreground">{title}</p>
+        <p className="leading-relaxed text-muted-foreground">{children}</p>
+      </PopoverContent>
+    </Popover>
   );
 }
