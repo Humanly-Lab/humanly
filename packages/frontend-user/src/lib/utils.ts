@@ -1,5 +1,6 @@
 import { type ClassValue, clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { formatDisplayDateTime } from '@humanly/shared';
 
 /**
  * Utility function to merge Tailwind CSS classes with clsx
@@ -25,17 +26,7 @@ export function formatDate(date: Date | string): string {
 }
 
 export function formatDateTime(date: Date | string | null | undefined): string {
-  if (!date) return 'Not available';
-  const d = typeof date === 'string' ? new Date(date) : date;
-  if (Number.isNaN(d.getTime())) return 'Not available';
-
-  return new Intl.DateTimeFormat(undefined, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  }).format(d);
+  return formatDisplayDateTime(date);
 }
 
 /**

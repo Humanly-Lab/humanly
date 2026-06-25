@@ -16,6 +16,7 @@ import {
 import { format } from 'date-fns';
 import {
   formatCompactDuration,
+  formatDisplayDateTimeRange,
   formatWritingAiAccess,
   formatWritingAiPolicy,
   getMaxWritingAttempts,
@@ -216,11 +217,16 @@ function formatTokenLimit(value?: number | null) {
 }
 
 function formatAvailabilityWindow(config: WritingEnvironmentConfig) {
-  if (config.time?.startTime || config.time?.endTime) {
-    return [config.time.startTime, config.time.endTime].filter(Boolean).join(' - ');
-  }
-
-  return 'No availability window';
+  return formatDisplayDateTimeRange(
+    {
+      start: config.time?.startTime,
+      end: config.time?.endTime,
+    },
+    {
+      emptyFallback: 'No availability window',
+      invalidFallback: 'Availability window unavailable',
+    }
+  );
 }
 
 function formatWritingTimeLimit(config: WritingEnvironmentConfig) {
