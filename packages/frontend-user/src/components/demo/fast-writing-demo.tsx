@@ -633,7 +633,7 @@ function DemoTaskSetup({
 
       <Card className="overflow-hidden">
         <CardHeader className="p-3 sm:p-4">
-          <CardTitle className="text-lg">Document setup</CardTitle>
+          <CardTitle className="text-lg">Task Setup</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-3 px-3 pb-3 pt-0 sm:px-4 sm:pb-4 sm:pt-0 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.2fr)] xl:items-stretch">
           <section className="h-full space-y-3 rounded-lg border border-border/70 bg-background p-3">
