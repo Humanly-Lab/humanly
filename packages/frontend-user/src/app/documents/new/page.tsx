@@ -1,12 +1,13 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   ArrowLeft,
   CheckCircle,
   Eye,
   FileText,
+  HelpCircle,
   Loader2,
   Upload,
   X,
@@ -77,6 +78,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
 import { useDocuments } from '@/hooks/use-documents';
@@ -90,6 +96,10 @@ import {
 
 const DEFAULT_AI_BASE_URL = TOGETHER_AI_BASE_URL;
 const IMPORT_ENVIRONMENT_VALUE = 'import_environment';
+const AI_API_KEY_HELP_TEXT = 'An AI API key is a unique secret credential, usually a long string of letters and numbers, that Humanly uses to connect this task to your selected AI provider. It is never shown to enrolled users or included in exported environment configs.';
+const SHORTCUT_TOKENS_HELP_TEXT = 'Shortcut tokens limit how much text AI quick actions can generate, such as fixing grammar, improving writing, simplifying text, or making writing more formal. Higher values allow longer AI output but may use more tokens.';
+const CHAT_TOKENS_HELP_TEXT = 'Chat tokens limit how much text the AI Assistant can generate in a chat response. Higher values allow more complete answers but may increase usage per message.';
+const AI_GUARD_POLICY_HELP_TEXT = "AI Guard policy controls the boundary of AI assistance during writing. When enabled, it helps reject requests that do not follow the task's AI usage rules.";
 
 type EnvironmentSelection = WritingEnvironmentPreset | typeof IMPORT_ENVIRONMENT_VALUE;
 type EnvironmentSummaryItem = {
@@ -109,6 +119,32 @@ function SectionHeading({
       <p className="humanly-eyebrow">{title}</p>
       <p className="text-sm text-muted-foreground">{description}</p>
     </div>
+  );
+}
+
+function EnvironmentHelp({
+  children,
+  title,
+}: {
+  children: ReactNode;
+  title: string;
+}) {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          aria-label={`Explain ${title}`}
+          className="inline-flex h-4 w-4 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+        >
+          <HelpCircle className="h-3.5 w-3.5" aria-hidden="true" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="space-y-2 text-sm">
+        <p className="font-medium text-foreground">{title}</p>
+        <p className="leading-relaxed text-muted-foreground">{children}</p>
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -940,7 +976,12 @@ export default function NewDocumentPage() {
         {environmentConfig.aiAccess !== 'off' && (
           <div className="grid gap-4 rounded-md border bg-muted/30 p-3">
             <div className="humanly-field">
-              <Label htmlFor="ai-api-key">AI API Key</Label>
+              <div className="flex items-center gap-1.5">
+                <Label htmlFor="ai-api-key">AI API Key</Label>
+                <EnvironmentHelp title="AI API Key">
+                  {AI_API_KEY_HELP_TEXT}
+                </EnvironmentHelp>
+              </div>
               <Input
                 id="ai-api-key"
                 type="password"
@@ -1039,7 +1080,12 @@ export default function NewDocumentPage() {
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="humanly-field">
-                <Label htmlFor="ai-shortcut-max-tokens">Shortcut Tokens</Label>
+                <div className="flex items-center gap-1.5">
+                  <Label htmlFor="ai-shortcut-max-tokens">Shortcut Tokens</Label>
+                  <EnvironmentHelp title="Shortcut Tokens">
+                    {SHORTCUT_TOKENS_HELP_TEXT}
+                  </EnvironmentHelp>
+                </div>
                 <Input
                   id="ai-shortcut-max-tokens"
                   type="number"
@@ -1052,15 +1098,20 @@ export default function NewDocumentPage() {
                   })}
                   disabled={isCreating || !shortcutTokensEnabled}
                 />
-                <p className="text-xs text-muted-foreground">
-                  {shortcutTokensEnabled
-                    ? 'Shortcut actions and fallback answers.'
-                    : 'Not available when AI access is chat only.'}
-                </p>
+                {!shortcutTokensEnabled && (
+                  <p className="text-xs text-muted-foreground">
+                    Not available when AI access is chat only.
+                  </p>
+                )}
               </div>
 
               <div className="humanly-field">
-                <Label htmlFor="ai-chat-max-tokens">Chat Tokens</Label>
+                <div className="flex items-center gap-1.5">
+                  <Label htmlFor="ai-chat-max-tokens">Chat Tokens</Label>
+                  <EnvironmentHelp title="Chat Tokens">
+                    {CHAT_TOKENS_HELP_TEXT}
+                  </EnvironmentHelp>
+                </div>
                 <Input
                   id="ai-chat-max-tokens"
                   type="number"
@@ -1073,18 +1124,23 @@ export default function NewDocumentPage() {
                   })}
                   disabled={isCreating || !chatTokensEnabled}
                 />
-                <p className="text-xs text-muted-foreground">
-                  {chatTokensEnabled
-                    ? 'Chat and retrieval tool turns, per model call.'
-                    : 'Not available when AI access is polish only.'}
-                </p>
+                {!chatTokensEnabled && (
+                  <p className="text-xs text-muted-foreground">
+                    Not available when AI access is polish only.
+                  </p>
+                )}
               </div>
             </div>
 
             {chatTokensEnabled && (
               <div className="grid gap-4 rounded-md border bg-background p-3">
                 <div className="humanly-field">
-                  <Label>AI Guard policy</Label>
+                  <div className="flex items-center gap-1.5">
+                    <Label>AI Guard policy</Label>
+                    <EnvironmentHelp title="AI Guard policy">
+                      {AI_GUARD_POLICY_HELP_TEXT}
+                    </EnvironmentHelp>
+                  </div>
                   <Select
                     value={normalizeWritingAiPolicy(environmentConfig.aiPolicy).mode}
                     onValueChange={(value) => setAiPolicyMode(value as WritingAiPolicyMode)}

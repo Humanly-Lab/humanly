@@ -91,6 +91,7 @@ import {
 import { useToast } from '@/components/ui/use-toast';
 import {
   AdminEnvironmentDialogSection,
+  AdminEnvironmentHelp,
   AdminEnvironmentSummary,
   type AdminEnvironmentSummaryItem,
 } from '@/components/admin-environment-ui';
@@ -122,6 +123,9 @@ const DEFAULT_AI_BASE_URL = 'https://api.together.xyz/v1';
 const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
 const OPENAI_BASE_URL = 'https://api.openai.com/v1';
 const CLAUDE_BASE_URL = 'https://api.anthropic.com/v1';
+const SHORTCUT_TOKENS_HELP_TEXT = 'Shortcut tokens limit how much text AI quick actions can generate, such as fixing grammar, improving writing, simplifying text, or making writing more formal. Higher values allow longer AI output but may use more tokens.';
+const CHAT_TOKENS_HELP_TEXT = 'Chat tokens limit how much text the AI Assistant can generate in a chat response. Higher values allow more complete answers but may increase usage per message.';
+const AI_GUARD_POLICY_HELP_TEXT = "AI Guard policy controls the boundary of AI assistance during writing. When enabled, it helps reject requests that do not follow the task's AI usage rules.";
 
 const fallbackWritingModels = () => (
   WRITING_AI_MODELS.filter((model) => model !== 'Custom models')
@@ -1240,7 +1244,12 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
                       {chatTokensEnabled && (
                         <div className="grid gap-4 rounded-md border border-border/70 bg-background p-4">
                           <div className="space-y-2">
-                            <FormLabel htmlFor="ai-policy-enforcement">AI Guard policy</FormLabel>
+                            <div className="flex items-center gap-1.5">
+                              <FormLabel htmlFor="ai-policy-enforcement">AI Guard policy</FormLabel>
+                              <AdminEnvironmentHelp title="AI Guard policy">
+                                {AI_GUARD_POLICY_HELP_TEXT}
+                              </AdminEnvironmentHelp>
+                            </div>
                             <select
                               id="ai-policy-enforcement"
                               aria-label="AI Guard policy"
@@ -1283,7 +1292,12 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
                         </summary>
                         <div className="mt-4 grid gap-4 sm:grid-cols-2">
                           <div className="space-y-2">
-                            <FormLabel htmlFor="ai-shortcut-max-tokens">Shortcut Tokens</FormLabel>
+                            <div className="flex items-center gap-1.5">
+                              <FormLabel htmlFor="ai-shortcut-max-tokens">Shortcut Tokens</FormLabel>
+                              <AdminEnvironmentHelp title="Shortcut Tokens">
+                                {SHORTCUT_TOKENS_HELP_TEXT}
+                              </AdminEnvironmentHelp>
+                            </div>
                             <Input
                               id="ai-shortcut-max-tokens"
                               type="number"
@@ -1296,15 +1310,20 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
                                 shortcutMaxTokens: Number(event.target.value) || AI_SHORTCUT_MAX_TOKENS_DEFAULT,
                               })}
                             />
-                            <FormDescription>
-                              {shortcutTokensEnabled
-                                ? 'Shortcut actions and fallback answers.'
-                                : 'Not available when AI access is chat only.'}
-                            </FormDescription>
+                            {!shortcutTokensEnabled && (
+                              <FormDescription>
+                                Not available when AI access is chat only.
+                              </FormDescription>
+                            )}
                           </div>
 
                           <div className="space-y-2">
-                            <FormLabel htmlFor="ai-chat-max-tokens">Chat Tokens</FormLabel>
+                            <div className="flex items-center gap-1.5">
+                              <FormLabel htmlFor="ai-chat-max-tokens">Chat Tokens</FormLabel>
+                              <AdminEnvironmentHelp title="Chat Tokens">
+                                {CHAT_TOKENS_HELP_TEXT}
+                              </AdminEnvironmentHelp>
+                            </div>
                             <Input
                               id="ai-chat-max-tokens"
                               type="number"
@@ -1317,11 +1336,11 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
                                 chatMaxTokens: Number(event.target.value) || AI_CHAT_MAX_TOKENS_DEFAULT,
                               })}
                             />
-                            <FormDescription>
-                              {chatTokensEnabled
-                                ? 'Chat and retrieval tool turns, per model call.'
-                                : 'Not available when AI access is polish only.'}
-                            </FormDescription>
+                            {!chatTokensEnabled && (
+                              <FormDescription>
+                                Not available when AI access is polish only.
+                              </FormDescription>
+                            )}
                           </div>
                         </div>
                       </details>

@@ -1379,11 +1379,11 @@ export default function NewTaskPage() {
                     shortcutMaxTokens: Number(event.target.value) || AI_SHORTCUT_MAX_TOKENS_DEFAULT,
                   })}
                 />
-                <FormDescription>
-                  {shortcutTokensEnabled
-                    ? 'Shortcut actions and fallback answers.'
-                    : 'Not available when AI access is chat only.'}
-                </FormDescription>
+                {!shortcutTokensEnabled && (
+                  <FormDescription>
+                    Not available when AI access is chat only.
+                  </FormDescription>
+                )}
               </div>
 
               <div className="grid gap-2">
@@ -1405,11 +1405,11 @@ export default function NewTaskPage() {
                     chatMaxTokens: Number(event.target.value) || AI_CHAT_MAX_TOKENS_DEFAULT,
                   })}
                 />
-                <FormDescription>
-                  {chatTokensEnabled
-                    ? 'Chat and retrieval tool turns, per model call.'
-                    : 'Not available when AI access is polish only.'}
-                </FormDescription>
+                {!chatTokensEnabled && (
+                  <FormDescription>
+                    Not available when AI access is polish only.
+                  </FormDescription>
+                )}
               </div>
             </div>
 
