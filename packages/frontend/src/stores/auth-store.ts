@@ -328,6 +328,16 @@ export const useAuthStore = create<AuthState>()(
               TokenManager.setAccessToken(refreshResponse.data.accessToken);
               console.log('[Auth] Token refreshed successfully');
               token = refreshResponse.data.accessToken;
+
+              set({
+                user: refreshResponse.data.user,
+                isAuthenticated: true,
+                isLoading: false,
+                error: null,
+              });
+
+              initializeSocket();
+              return;
             } catch (refreshError) {
               console.error('[Auth] Token refresh failed. User needs to log in again.');
               // Clear everything and let the error handler below deal with it
