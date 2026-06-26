@@ -43,9 +43,12 @@ export default function TaskDetailPage() {
   const [submissions, setSubmissions] = useState<AdminSubmission[]>([]);
   const [enrollments, setEnrollments] = useState<TaskEnrollment[]>([]);
   const [isLoadingTask, setIsLoadingTask] = useState(true);
-  const [isLoadingStats, setIsLoadingStats] = useState(true);
-  const [isLoadingSubmissions, setIsLoadingSubmissions] = useState(true);
-  const [isLoadingEnrollments, setIsLoadingEnrollments] = useState(true);
+  const [isLoadingStats, setIsLoadingStats] = useState(false);
+  const [isLoadingSubmissions, setIsLoadingSubmissions] = useState(false);
+  const [isLoadingEnrollments, setIsLoadingEnrollments] = useState(false);
+  const [hasLoadedStats, setHasLoadedStats] = useState(false);
+  const [hasLoadedSubmissions, setHasLoadedSubmissions] = useState(false);
+  const [hasLoadedEnrollments, setHasLoadedEnrollments] = useState(false);
   const [taskError, setTaskError] = useState<string | null>(null);
   const [enrollmentsError, setEnrollmentsError] = useState<string | null>(null);
   const [isChangingLifecycle, setIsChangingLifecycle] = useState(false);
@@ -94,6 +97,7 @@ export default function TaskDetailPage() {
         activeUsers24h: 0,
       });
     } finally {
+      setHasLoadedStats(true);
       if (showLoading) setIsLoadingStats(false);
     }
   }, [taskId]);
@@ -112,6 +116,7 @@ export default function TaskDetailPage() {
       console.error('Failed to load assigned tasks:', err);
       setSubmissions([]);
     } finally {
+      setHasLoadedSubmissions(true);
       if (showLoading) setIsLoadingSubmissions(false);
     }
   }, [taskId]);
@@ -132,21 +137,56 @@ export default function TaskDetailPage() {
       setEnrollmentsError(apiError.message || 'Failed to load enrolled users');
       setEnrollments([]);
     } finally {
+      setHasLoadedEnrollments(true);
       if (showLoading) setIsLoadingEnrollments(false);
     }
   }, [taskId]);
 
   useEffect(() => {
-    if (taskId) {
-      fetchTask();
-      fetchStats();
-      fetchSubmissions();
-      fetchEnrollments();
-    }
-  }, [fetchEnrollments, fetchStats, fetchSubmissions, fetchTask, taskId]);
+    if (!taskId) return;
+
+    setTask(null);
+    setStats(null);
+    setSubmissions([]);
+    setEnrollments([]);
+    setHasLoadedStats(false);
+    setHasLoadedSubmissions(false);
+    setHasLoadedEnrollments(false);
+    setEnrollmentsError(null);
+    fetchTask();
+  }, [fetchTask, taskId]);
 
   const activeTab: TaskDetailTab = requestedTab;
   const visibleTabs = useMemo(() => getTaskDetailTabs(), []);
+
+  useEffect(() => {
+    if (!taskId || !task) return;
+
+    if (activeTab === 'overview' && !hasLoadedStats && !isLoadingStats) {
+      fetchStats();
+    }
+
+    if ((activeTab === 'submission' || activeTab === 'analytics') && !hasLoadedSubmissions && !isLoadingSubmissions) {
+      fetchSubmissions();
+    }
+
+    if ((activeTab === 'submission' || activeTab === 'users' || activeTab === 'analytics') && !hasLoadedEnrollments && !isLoadingEnrollments) {
+      fetchEnrollments();
+    }
+  }, [
+    activeTab,
+    fetchEnrollments,
+    fetchStats,
+    fetchSubmissions,
+    hasLoadedEnrollments,
+    hasLoadedStats,
+    hasLoadedSubmissions,
+    isLoadingEnrollments,
+    isLoadingStats,
+    isLoadingSubmissions,
+    task,
+    taskId,
+  ]);
 
   const handleTaskLifecycleAction = async (action: 'launch' | 'pause' | 'resume' | 'end') => {
     if (!task) return;
@@ -270,9 +310,7 @@ export default function TaskDetailPage() {
           <OverviewPanel
             task={task}
             stats={stats}
-            submissions={submissions}
             isLoadingStats={isLoadingStats}
-            isLoadingSubmissions={isLoadingSubmissions}
           />
         );
     }

@@ -455,7 +455,7 @@ export class TaskService {
    * List enrolled users for an admin-owned task.
    */
   static async listTaskEnrollments(taskId: string, userId: string) {
-    const task = await TaskModel.findById(taskId);
+    const task = await TaskModel.findOwnershipById(taskId);
 
     if (!task) {
       throw new AppError(404, 'Task not found');
@@ -987,7 +987,7 @@ export class TaskService {
   }
 
   static async listTaskSubmissions(taskId: string, adminUserId: string, enrolledUserId?: string) {
-    const task = await TaskModel.findById(taskId);
+    const task = await TaskModel.findOwnershipById(taskId);
 
     if (!task) {
       throw new AppError(404, 'Task not found');
@@ -1005,7 +1005,7 @@ export class TaskService {
   }
 
   static async exportTaskSubmissions(taskId: string, adminUserId: string): Promise<TaskSubmissionExportRow[]> {
-    const task = await TaskModel.findById(taskId);
+    const task = await TaskModel.findOwnershipById(taskId);
 
     if (!task) {
       throw new AppError(404, 'Task not found');
@@ -1048,7 +1048,7 @@ export class TaskService {
   }
 
   static async exportTaskLogEvents(taskId: string, adminUserId: string): Promise<TaskLogEventExportRow[]> {
-    const task = await TaskModel.findById(taskId);
+    const task = await TaskModel.findOwnershipById(taskId);
 
     if (!task) {
       throw new AppError(404, 'Task not found');

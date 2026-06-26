@@ -45,6 +45,11 @@ export interface TaskListResult {
   totalPages: number;
 }
 
+export interface TaskOwnershipSummary {
+  id: string;
+  userId: string;
+}
+
 export interface TaskEnrollmentSummary {
   id: string;
   taskId: string;
@@ -253,6 +258,16 @@ export class TaskModel {
         AND p.deleted_at IS NULL
     `;
     return queryOne<Task>(sql, [id]);
+  }
+
+  static async findOwnershipById(id: string): Promise<TaskOwnershipSummary | null> {
+    const sql = `
+      SELECT id, user_id as "userId"
+      FROM tasks
+      WHERE id = $1
+        AND deleted_at IS NULL
+    `;
+    return queryOne<TaskOwnershipSummary>(sql, [id]);
   }
 
   /**
@@ -858,30 +873,41 @@ export class TaskModel {
    */
   static async listEnrollments(taskId: string): Promise<TaskEnrollmentSummary[]> {
     const sql = `
+      WITH scoped_enrollments AS (
+        SELECT
+          pe.id,
+          pe.task_id,
+          pe.user_id,
+          u.email,
+          pe.submission_document_id,
+          d.title as document_title,
+          pe.joined_at
+        FROM task_enrollments pe
+        JOIN users u ON u.id = pe.user_id
+        LEFT JOIN documents d ON d.id = pe.submission_document_id
+        WHERE pe.task_id = $1
+      )
       SELECT
         pe.id,
         pe.task_id as "taskId",
         pe.user_id as "userId",
-        u.email,
+        pe.email,
         pe.submission_document_id as "documentId",
-        d.title as "documentTitle",
+        pe.document_title as "documentTitle",
         active_attempt.attempt_number as "currentAttemptNumber",
         COALESCE(attempt_stats.attempt_count, 0)::int as "attemptCount",
         pe.joined_at as "joinedAt",
-        COUNT(DISTINCT s.id)::int as "sessionCount",
-        COUNT(DISTINCT sub.id)::int as "submissionCount",
-        (COUNT(DISTINCT e.id) + COUNT(DISTINCT de.id))::int as "eventCount",
-        MAX(
-          GREATEST(
-            COALESCE(s.session_end, s.session_start, pe.joined_at),
-            COALESCE(de.timestamp, pe.joined_at),
-            COALESCE(sub.submitted_at, pe.joined_at),
-            pe.joined_at
-          )
+        COALESCE(session_stats.session_count, 0)::int as "sessionCount",
+        COALESCE(submission_stats.submission_count, 0)::int as "submissionCount",
+        (COALESCE(legacy_event_stats.event_count, 0) + COALESCE(document_event_stats.event_count, 0))::int as "eventCount",
+        GREATEST(
+          pe.joined_at,
+          COALESCE(session_stats.last_session_activity, pe.joined_at),
+          COALESCE(legacy_event_stats.last_event_activity, pe.joined_at),
+          COALESCE(document_event_stats.last_event_activity, pe.joined_at),
+          COALESCE(submission_stats.last_submission_activity, pe.joined_at)
         ) as "lastActivity"
-      FROM task_enrollments pe
-      JOIN users u ON u.id = pe.user_id
-      LEFT JOIN documents d ON d.id = pe.submission_document_id
+      FROM scoped_enrollments pe
       LEFT JOIN LATERAL (
         SELECT ta.id, ta.attempt_number
         FROM task_attempts ta
@@ -896,19 +922,50 @@ export class TaskModel {
         WHERE ta.task_id = pe.task_id
           AND ta.user_id = pe.user_id
       ) attempt_stats ON true
-      LEFT JOIN sessions s
-        ON s.task_id = pe.task_id
-       AND s.external_user_id = u.email
-      LEFT JOIN events e ON e.session_id = s.id
-      LEFT JOIN task_attempts ta
-        ON ta.task_id = pe.task_id
-       AND ta.user_id = pe.user_id
-      LEFT JOIN document_events de ON de.document_id = COALESCE(ta.document_id, pe.submission_document_id)
-      LEFT JOIN submissions sub
-        ON sub.task_id = pe.task_id
-       AND sub.user_id = pe.user_id
-      WHERE pe.task_id = $1
-      GROUP BY pe.id, u.email, d.title, active_attempt.attempt_number, attempt_stats.attempt_count
+      LEFT JOIN LATERAL (
+        SELECT
+          COUNT(*)::int as session_count,
+          MAX(COALESCE(s.session_end, s.session_start)) as last_session_activity
+        FROM sessions s
+        WHERE s.task_id = pe.task_id
+          AND s.external_user_id = pe.email
+      ) session_stats ON true
+      LEFT JOIN LATERAL (
+        SELECT
+          COUNT(e.id)::int as event_count,
+          MAX(e.timestamp) as last_event_activity
+        FROM sessions s
+        JOIN events e ON e.session_id = s.id
+        WHERE s.task_id = pe.task_id
+          AND s.external_user_id = pe.email
+      ) legacy_event_stats ON true
+      LEFT JOIN LATERAL (
+        SELECT
+          COUNT(de.id)::int as event_count,
+          MAX(de.timestamp) as last_event_activity
+        FROM document_events de
+        WHERE de.document_id IN (
+          SELECT DISTINCT task_documents.document_id
+          FROM (
+            SELECT ta.document_id
+            FROM task_attempts ta
+            WHERE ta.task_id = pe.task_id
+              AND ta.user_id = pe.user_id
+              AND ta.document_id IS NOT NULL
+            UNION
+            SELECT pe.submission_document_id
+            WHERE pe.submission_document_id IS NOT NULL
+          ) task_documents
+        )
+      ) document_event_stats ON true
+      LEFT JOIN LATERAL (
+        SELECT
+          COUNT(*)::int as submission_count,
+          MAX(sub.submitted_at) as last_submission_activity
+        FROM submissions sub
+        WHERE sub.task_id = pe.task_id
+          AND sub.user_id = pe.user_id
+      ) submission_stats ON true
       ORDER BY pe.joined_at DESC
     `;
 

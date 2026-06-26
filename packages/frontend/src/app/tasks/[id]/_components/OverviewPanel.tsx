@@ -9,14 +9,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { buildTaskShareUrl } from '@/lib/certificate-url';
 import { formatDateTime, getLocalTimeZoneLabel } from '@/lib/utils';
 
-import type { AdminSubmission, TaskStats } from './types';
+import type { TaskStats } from './types';
 
 interface OverviewPanelProps {
   task: Task;
   stats: TaskStats | null;
-  submissions: AdminSubmission[];
   isLoadingStats: boolean;
-  isLoadingSubmissions: boolean;
 }
 
 const formatCharacterBounds = (submission?: NonNullable<Task['environmentConfig']>['submission']) => {
@@ -65,9 +63,7 @@ const formatAiProvider = (provider?: NonNullable<Task['environmentConfig']>['aiP
 export function OverviewPanel({
   task,
   stats,
-  submissions,
   isLoadingStats,
-  isLoadingSubmissions,
 }: OverviewPanelProps) {
   const [copyFeedback, setCopyFeedback] = useState<{
     type: 'success' | 'error';
@@ -77,9 +73,8 @@ export function OverviewPanel({
   const inviteCode = task.taskToken?.slice(0, 6).toUpperCase() || 'PENDING';
   const enrolledUserCount = task.enrolledUserCount ?? 0;
   const totalEvents = stats?.totalEvents ?? 0;
-  const totalSubmissions = submissions.length;
-  const submittedUserCount = new Set(submissions.map((submission) => submission.userId)).size;
-  const completionRate = enrolledUserCount > 0 ? (submittedUserCount / enrolledUserCount) * 100 : 0;
+  const totalSubmissions = task.submissionCount ?? 0;
+  const completionRate = stats?.completionRate ?? 0;
   const environmentAiAccess = task.environmentConfig?.aiAccess;
   const isAiEnabled = environmentAiAccess ? environmentAiAccess !== 'off' : !!task.allowedLlmModels?.length;
   const allowedLlmModels = isAiEnabled
@@ -326,14 +321,8 @@ export function OverviewPanel({
             <FileText className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            {isLoadingSubmissions ? (
-              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-            ) : (
-              <>
-                <div className="text-2xl font-bold">{totalSubmissions.toLocaleString()}</div>
-                <p className="text-xs text-muted-foreground">Across enrolled users</p>
-              </>
-            )}
+            <div className="text-2xl font-bold">{totalSubmissions.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground">Across enrolled users</p>
           </CardContent>
         </Card>
 
