@@ -5,6 +5,8 @@ export interface FormatDisplayDateTimeOptions {
   fallback?: string;
 }
 
+export type FormatDisplayTimestampOptions = FormatDisplayDateTimeOptions;
+
 export interface FormatDisplayDateTimeRangeOptions extends FormatDisplayDateTimeOptions {
   emptyFallback?: string;
   endPrefix?: string;
@@ -26,6 +28,16 @@ const DISPLAY_DATE_TIME_OPTIONS: Intl.DateTimeFormatOptions = {
   minute: '2-digit',
 };
 
+const DISPLAY_TIMESTAMP_OPTIONS: Intl.DateTimeFormatOptions = {
+  year: 'numeric',
+  month: 'short',
+  day: 'numeric',
+  hour: 'numeric',
+  minute: '2-digit',
+  second: '2-digit',
+  hour12: true,
+};
+
 function hasDisplayDateTimeValue(value: DisplayDateTimeInput): value is Date | string | number {
   return value !== null && value !== undefined && String(value).trim() !== '';
 }
@@ -45,6 +57,31 @@ export function formatDisplayDateTime(
   if (!date) return options.fallback ?? 'Not available';
 
   return new Intl.DateTimeFormat(options.locale, DISPLAY_DATE_TIME_OPTIONS).format(date);
+}
+
+export function formatDisplayTimestamp(
+  value: DisplayDateTimeInput,
+  options: FormatDisplayTimestampOptions = {}
+): string {
+  const date = parseDisplayDateTime(value);
+  if (!date) return options.fallback ?? 'Not available';
+
+  const parts = new Intl.DateTimeFormat(options.locale, DISPLAY_TIMESTAMP_OPTIONS)
+    .formatToParts(date)
+    .reduce<Record<string, string>>((acc, part) => {
+      if (part.type !== 'literal') acc[part.type] = part.value;
+      return acc;
+    }, {});
+
+  const dateText = [parts.month, parts.day ? `${parts.day},` : '', parts.year]
+    .filter(Boolean)
+    .join(' ');
+  const timeText = [parts.hour, parts.minute, parts.second]
+    .filter(Boolean)
+    .join(':');
+  const dayPeriod = parts.dayPeriod ? ` ${parts.dayPeriod}` : '';
+
+  return `${dateText} ${timeText}${dayPeriod}`.trim();
 }
 
 export function formatDisplayDateTimeRange(

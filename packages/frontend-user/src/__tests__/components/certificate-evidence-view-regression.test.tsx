@@ -6,6 +6,7 @@ import userEvent from '@testing-library/user-event';
 import {
   DEFAULT_WRITING_ENVIRONMENT_CONFIG,
   formatDisplayDateTime,
+  formatDisplayTimestamp,
   type WritingEnvironmentConfig,
 } from '@humanly/shared';
 import {
@@ -155,6 +156,49 @@ describe('CertificateEvidenceView review signals', () => {
     expect(screen.getByText('Refusal Count')).toBeInTheDocument();
     expect(screen.queryByText('Event Type')).not.toBeInTheDocument();
     expect(screen.queryByText('ai_policy_refusal')).not.toBeInTheDocument();
+  });
+
+  it('formats anomaly timestamp evidence without exposing raw ISO text', async () => {
+    const user = userEvent.setup();
+    const blurTimestamp = '2026-06-25T20:40:23.000Z';
+    const focusTimestamp = '2026-06-25T20:41:08.000Z';
+    const windowStart = '2026-06-25T20:40:00.000Z';
+    const windowEnd = '2026-06-25T20:42:00.000Z';
+
+    render(
+      <CertificateEvidenceView
+        certificate={{
+          ...baseCertificate,
+          anomalyFlags: [
+            {
+              code: 'rapid_text_accumulation',
+              severity: 'warning',
+              label: 'Rapid text accumulation',
+              description: 'A large amount of text appeared within a short time window.',
+              evidence: {
+                blurTimestamp,
+                focusTimestamp,
+                windowStart,
+                windowEnd,
+                refocusAddedCharacters: 433,
+              },
+            },
+          ],
+        }}
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Show abnormal behavior review section' }));
+
+    expect(screen.getByText('Blur Timestamp')).toBeInTheDocument();
+    expect(screen.getByText(formatDisplayTimestamp(blurTimestamp, { locale: 'en-US' }))).toBeInTheDocument();
+    expect(screen.getByText(formatDisplayTimestamp(focusTimestamp, { locale: 'en-US' }))).toBeInTheDocument();
+    expect(screen.getByText(formatDisplayTimestamp(windowStart, { locale: 'en-US' }))).toBeInTheDocument();
+    expect(screen.getByText(formatDisplayTimestamp(windowEnd, { locale: 'en-US' }))).toBeInTheDocument();
+    expect(screen.queryByText((content) => content.includes(blurTimestamp))).not.toBeInTheDocument();
+    expect(screen.queryByText((content) => content.includes(focusTimestamp))).not.toBeInTheDocument();
+    expect(screen.queryByText((content) => content.includes(windowStart))).not.toBeInTheDocument();
+    expect(screen.queryByText((content) => content.includes(windowEnd))).not.toBeInTheDocument();
   });
 });
 

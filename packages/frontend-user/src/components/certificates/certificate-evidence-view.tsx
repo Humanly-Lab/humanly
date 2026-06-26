@@ -17,6 +17,7 @@ import { format } from 'date-fns';
 import {
   formatCompactDuration,
   formatDisplayDateTimeRange,
+  formatDisplayTimestamp,
   getLocalTimeZoneLabel,
   formatWritingAiAccess,
   formatWritingAiPolicy,
@@ -423,9 +424,19 @@ function getReviewSignals(flags?: WritingAnomalyFlag[] | null): WritingAnomalyFl
     .filter((flag): flag is WritingAnomalyFlag => Boolean(flag));
 }
 
-function formatEvidenceValue(value: unknown) {
+function isTimestampEvidenceKey(key: string) {
+  return key === 'windowStart' || key === 'windowEnd' || /timestamp$/i.test(key);
+}
+
+function formatEvidenceValue(key: string, value: unknown) {
   if (value === null || value === undefined) return 'Unavailable';
   if (Array.isArray(value)) return value.join(', ');
+  if (isTimestampEvidenceKey(key)) {
+    return formatDisplayTimestamp(
+      typeof value === 'string' || typeof value === 'number' ? value : null,
+      { locale: 'en-US' }
+    );
+  }
   if (typeof value === 'number') return Number.isInteger(value) ? value.toLocaleString() : value.toFixed(1);
   return String(value);
 }
@@ -967,7 +978,7 @@ export function CertificateEvidenceView({
                               <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
                                 {formatEvidenceKey(key)}
                               </p>
-                              <p className="mt-0.5 break-words font-medium">{formatEvidenceValue(value)}</p>
+                              <p className="mt-0.5 break-words font-medium">{formatEvidenceValue(key, value)}</p>
                             </div>
                           ))}
                         </div>
