@@ -1,7 +1,23 @@
 import { query, queryOne } from '../config/database';
 import { Submission, SubmissionInsertData } from '@humanly/shared';
 
-type SubmissionSummary = Omit<Submission, 'payloadSnapshot' | 'plainTextSnapshot'>;
+export type SubmissionSummary = Omit<Submission, 'payloadSnapshot' | 'plainTextSnapshot'>;
+
+export interface SubmissionListOptions {
+  limit?: number;
+  offset?: number;
+}
+
+export interface SubmissionListResult {
+  submissions: SubmissionSummary[];
+  total: number;
+  limit: number;
+  offset: number;
+  hasMore: boolean;
+}
+
+const DEFAULT_SUBMISSION_LIST_LIMIT = 100;
+const MAX_SUBMISSION_LIST_LIMIT = 500;
 
 const SUBMISSION_SELECT_FIELDS = `
   id,
@@ -66,6 +82,20 @@ const SUBMISSION_SUMMARY_SELECT_FIELDS = `
   COALESCE(s.anomaly_flags, c.anomaly_flags, '[]'::jsonb) as "anomalyFlags",
   s.created_at as "createdAt"
 `;
+
+function normalizeSubmissionListOptions(options: SubmissionListOptions = {}) {
+  const requestedLimit = Number.isFinite(options.limit)
+    ? Math.trunc(options.limit as number)
+    : DEFAULT_SUBMISSION_LIST_LIMIT;
+  const requestedOffset = Number.isFinite(options.offset)
+    ? Math.trunc(options.offset as number)
+    : 0;
+
+  return {
+    limit: Math.min(Math.max(requestedLimit, 1), MAX_SUBMISSION_LIST_LIMIT),
+    offset: Math.max(requestedOffset, 0),
+  };
+}
 
 export class SubmissionModel {
   static async create(data: SubmissionInsertData): Promise<Submission> {
@@ -154,7 +184,19 @@ export class SubmissionModel {
     return queryOne<Submission>(sql, [taskAttemptId]);
   }
 
-  static async listForUserTask(taskId: string, userId: string): Promise<SubmissionSummary[]> {
+  private static async listForTaskScope(
+    taskId: string,
+    userId: string | null,
+    options: SubmissionListOptions = {}
+  ): Promise<SubmissionListResult> {
+    const { limit, offset } = normalizeSubmissionListOptions(options);
+    const hasUserFilter = Boolean(userId);
+    const filterClause = hasUserFilter ? 'WHERE s.task_id = $1 AND s.user_id = $2' : 'WHERE s.task_id = $1';
+    const countFilterClause = hasUserFilter ? 'WHERE task_id = $1 AND user_id = $2' : 'WHERE task_id = $1';
+    const baseParams: string[] = hasUserFilter && userId ? [taskId, userId] : [taskId];
+    const limitParamIndex = baseParams.length + 1;
+    const offsetParamIndex = baseParams.length + 2;
+
     const sql = `
       WITH scoped_submissions AS (
         SELECT ${SUBMISSION_SUMMARY_SELECT_FIELDS}
@@ -163,7 +205,9 @@ export class SubmissionModel {
         LEFT JOIN users u ON u.id = s.user_id
         LEFT JOIN documents d ON d.id = s.document_id
         LEFT JOIN task_attempts ta ON ta.id = s.task_attempt_id
-        WHERE s.task_id = $1 AND s.user_id = $2
+        ${filterClause}
+        ORDER BY s.submitted_at DESC, s.created_at DESC, s.id DESC
+        LIMIT $${limitParamIndex} OFFSET $${offsetParamIndex}
       ),
       refusal_counts AS (
         SELECT
@@ -181,43 +225,53 @@ export class SubmissionModel {
         COALESCE(rc."aiPolicyRefusalCount", 0) AS "aiPolicyRefusalCount"
       FROM scoped_submissions ss
       LEFT JOIN refusal_counts rc ON rc."submissionId" = ss."id"
-      ORDER BY ss."submittedAt" DESC, ss."createdAt" DESC
+      ORDER BY ss."submittedAt" DESC, ss."createdAt" DESC, ss."id" DESC
     `;
 
-    return query<SubmissionSummary>(sql, [taskId, userId]);
+    const countSql = `
+      SELECT COUNT(*)::int AS count
+      FROM submissions
+      ${countFilterClause}
+    `;
+
+    const [submissions, totalRow] = await Promise.all([
+      query<SubmissionSummary>(sql, [...baseParams, limit, offset]),
+      queryOne<{ count: number | string }>(countSql, baseParams),
+    ]);
+    const total = Number(totalRow?.count || 0);
+
+    return {
+      submissions,
+      total,
+      limit,
+      offset,
+      hasMore: offset + submissions.length < total,
+    };
+  }
+
+  static async listForUserTaskPage(
+    taskId: string,
+    userId: string,
+    options: SubmissionListOptions = {}
+  ): Promise<SubmissionListResult> {
+    return this.listForTaskScope(taskId, userId, options);
+  }
+
+  static async listForTaskPage(
+    taskId: string,
+    options: SubmissionListOptions = {}
+  ): Promise<SubmissionListResult> {
+    return this.listForTaskScope(taskId, null, options);
+  }
+
+  static async listForUserTask(taskId: string, userId: string): Promise<SubmissionSummary[]> {
+    const result = await this.listForUserTaskPage(taskId, userId);
+    return result.submissions;
   }
 
   static async listForTask(taskId: string): Promise<SubmissionSummary[]> {
-    const sql = `
-      WITH scoped_submissions AS (
-        SELECT ${SUBMISSION_SUMMARY_SELECT_FIELDS}
-        FROM submissions s
-        LEFT JOIN certificates c ON c.id = s.certificate_id
-        LEFT JOIN users u ON u.id = s.user_id
-        LEFT JOIN documents d ON d.id = s.document_id
-        LEFT JOIN task_attempts ta ON ta.id = s.task_attempt_id
-        WHERE s.task_id = $1
-      ),
-      refusal_counts AS (
-        SELECT
-          ss."id" AS "submissionId",
-          COUNT(de.id)::int AS "aiPolicyRefusalCount"
-        FROM scoped_submissions ss
-        JOIN document_events de
-          ON de.document_id = ss."documentId"
-          AND de.event_type = 'ai_policy_refusal'
-          AND de.timestamp <= ss."submittedAt"
-        GROUP BY ss."id"
-      )
-      SELECT
-        ss.*,
-        COALESCE(rc."aiPolicyRefusalCount", 0) AS "aiPolicyRefusalCount"
-      FROM scoped_submissions ss
-      LEFT JOIN refusal_counts rc ON rc."submissionId" = ss."id"
-      ORDER BY ss."submittedAt" DESC, ss."createdAt" DESC
-    `;
-
-    return query<SubmissionSummary>(sql, [taskId]);
+    const result = await this.listForTaskPage(taskId);
+    return result.submissions;
   }
 
   static async markHistoricalForUserTask(taskId: string, userId: string): Promise<void> {

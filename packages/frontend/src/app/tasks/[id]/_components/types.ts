@@ -54,3 +54,10 @@ export interface AdminSubmission {
   aiPolicyRefusalCount?: number;
   status: 'active' | 'historical';
 }
+
+export interface SubmissionPagination {
+  total: number;
+  limit: number;
+  offset: number;
+  hasMore: boolean;
+}

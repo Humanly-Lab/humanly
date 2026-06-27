@@ -22,15 +22,20 @@ import { buildCertificateVerifyUrl } from '@/lib/certificate-url';
 import { downloadBlob } from '@/lib/download';
 import { getReviewSignals } from '@/lib/review-signals';
 
-import type { AdminSubmission, TaskEnrollment } from './types';
+import type { AdminSubmission, SubmissionPagination, TaskEnrollment } from './types';
 
 interface SubmissionPanelProps {
   taskId: string;
   enrollments: TaskEnrollment[];
   submissions: AdminSubmission[];
+  submissionPagination: SubmissionPagination | null;
+  selectedUserId: 'all' | string;
   isLoadingEnrollments: boolean;
   isLoadingSubmissions: boolean;
+  isLoadingMoreSubmissions: boolean;
   enrollmentsError: string | null;
+  onSelectedUserChange: (userId: 'all' | string) => void;
+  onLoadMoreSubmissions: () => void;
   onRefresh: () => void;
 }
 
@@ -87,13 +92,17 @@ export function SubmissionPanel({
   taskId,
   enrollments,
   submissions,
+  submissionPagination,
+  selectedUserId,
   isLoadingEnrollments,
   isLoadingSubmissions,
+  isLoadingMoreSubmissions,
   enrollmentsError,
+  onSelectedUserChange,
+  onLoadMoreSubmissions,
   onRefresh,
 }: SubmissionPanelProps) {
   const router = useRouter();
-  const [selectedUserId, setSelectedUserId] = useState<'all' | string>('all');
   const [downloadTarget, setDownloadTarget] = useState<DownloadTarget | null>(null);
   const [downloadError, setDownloadError] = useState<string | null>(null);
 
@@ -118,11 +127,13 @@ export function SubmissionPanel({
 
   useEffect(() => {
     if (selectedUserId !== 'all' && !enrollments.some((enrollment) => enrollment.userId === selectedUserId)) {
-      setSelectedUserId('all');
+      onSelectedUserChange('all');
     }
-  }, [enrollments, selectedUserId]);
+  }, [enrollments, onSelectedUserChange, selectedUserId]);
 
-  const isLoading = isLoadingEnrollments || isLoadingSubmissions;
+  const isLoading = isLoadingEnrollments || (isLoadingSubmissions && submissions.length === 0);
+  const loadedSubmissionCount = submissions.length;
+  const totalSubmissionCount = submissionPagination?.total ?? loadedSubmissionCount;
 
   const openSubmission = (submissionId: string) => {
     router.push(`/tasks/${taskId}/submissions/${submissionId}?from=submission`);
@@ -252,7 +263,7 @@ export function SubmissionPanel({
               'flex w-full items-center justify-between rounded-md border px-3 py-2 text-left text-sm transition-colors hover:bg-accent',
               selectedUserId === 'all' ? 'border-primary bg-primary/5 text-primary' : 'bg-background'
             )}
-            onClick={() => setSelectedUserId('all')}
+            onClick={() => onSelectedUserChange('all')}
           >
             <span className="flex items-center gap-2 font-medium">
               <Users className="h-4 w-4" />
@@ -272,7 +283,7 @@ export function SubmissionPanel({
               </div>
             ) : (
               enrollments.map((enrollment) => {
-                const userSubmissionCount = submissionsByUser[enrollment.userId]?.length || 0;
+                const userSubmissionCount = enrollment.submissionCount || 0;
                 return (
                   <button
                     key={enrollment.id}
@@ -281,7 +292,7 @@ export function SubmissionPanel({
                       'w-full rounded-md border px-3 py-2.5 text-left transition-colors hover:bg-accent',
                       selectedUserId === enrollment.userId ? 'border-primary bg-primary/5' : 'bg-background'
                     )}
-                    onClick={() => setSelectedUserId(enrollment.userId)}
+                    onClick={() => onSelectedUserChange(enrollment.userId)}
                   >
                     <div className="flex items-center justify-between gap-2">
                       <span className="truncate text-sm font-medium">{enrollment.email}</span>
@@ -314,6 +325,11 @@ export function SubmissionPanel({
                   ? 'Latest submissions'
                   : selectedEnrollment?.email || 'User submissions'}
               </CardTitle>
+              {totalSubmissionCount > 0 && (
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Showing {loadedSubmissionCount.toLocaleString()} of {totalSubmissionCount.toLocaleString()} submissions
+                </p>
+              )}
             </div>
             <div className="flex flex-wrap items-center justify-end gap-2">
               {selectedUserId === 'all' ? (
@@ -377,56 +393,71 @@ export function SubmissionPanel({
                 </div>
               </div>
             ) : (
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>User</TableHead>
-                      <TableHead>Latest Submission</TableHead>
-                      <TableHead>Submitted</TableHead>
-                      <TableHead>Review Signals</TableHead>
-                      <TableHead className="text-right">Certificate</TableHead>
-                      <TableHead className="text-right">Analytics</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {latestSubmissions.map(({ enrollment, submission }) => {
-                      return (
-                        <TableRow key={enrollment.id}>
-                          <TableCell>
-                            <div className="font-medium">{enrollment.email}</div>
-                          </TableCell>
-	                          <TableCell>
-	                            <div className="flex items-start gap-2">
-	                              <FileText className="mt-0.5 h-4 w-4 text-muted-foreground" />
-	                              <div className="min-w-0">
-	                                <span className="block truncate">{submission.documentTitle || 'Submission Document'}</span>
-	                                <span className="text-xs text-muted-foreground">
-	                                  {formatAttemptLabel(submission.attemptNumber)}
-	                                </span>
-	                              </div>
-	                            </div>
-	                          </TableCell>
-                          <TableCell>{formatDateTime(submission.submittedAt)}</TableCell>
-                          <TableCell>{renderSignalsCell(submission)}</TableCell>
-                          <TableCell className="text-right">{renderCertificateCell(submission)}</TableCell>
-                          <TableCell className="text-right">
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => openSubmission(submission.id)}
-                            >
-                              <BarChart3 className="mr-2 h-4 w-4" />
-                              View Analytics
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
+              <>
+                <div className="rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>User</TableHead>
+                        <TableHead>Latest Submission</TableHead>
+                        <TableHead>Submitted</TableHead>
+                        <TableHead>Review Signals</TableHead>
+                        <TableHead className="text-right">Certificate</TableHead>
+                        <TableHead className="text-right">Analytics</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {latestSubmissions.map(({ enrollment, submission }) => {
+                        return (
+                          <TableRow key={enrollment.id}>
+                            <TableCell>
+                              <div className="font-medium">{enrollment.email}</div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-start gap-2">
+                                <FileText className="mt-0.5 h-4 w-4 text-muted-foreground" />
+                                <div className="min-w-0">
+                                  <span className="block truncate">{submission.documentTitle || 'Submission Document'}</span>
+                                  <span className="text-xs text-muted-foreground">
+                                    {formatAttemptLabel(submission.attemptNumber)}
+                                  </span>
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell>{formatDateTime(submission.submittedAt)}</TableCell>
+                            <TableCell>{renderSignalsCell(submission)}</TableCell>
+                            <TableCell className="text-right">{renderCertificateCell(submission)}</TableCell>
+                            <TableCell className="text-right">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => openSubmission(submission.id)}
+                              >
+                                <BarChart3 className="mr-2 h-4 w-4" />
+                                View Analytics
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+                {submissionPagination?.hasMore && (
+                  <div className="mt-4 flex justify-center">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={onLoadMoreSubmissions}
+                      disabled={isLoadingMoreSubmissions}
+                    >
+                      {isLoadingMoreSubmissions && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      Load more
+                    </Button>
+                  </div>
+                )}
+              </>
             )
           ) : selectedSubmissions.length === 0 ? (
             <div className="flex h-[240px] items-center justify-center rounded-md border border-dashed">
@@ -439,50 +470,65 @@ export function SubmissionPanel({
               </div>
             </div>
           ) : (
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Document</TableHead>
-                    <TableHead>Submitted</TableHead>
-                    <TableHead>Review Signals</TableHead>
-                    <TableHead className="text-right">Certificate</TableHead>
-                    <TableHead className="text-right">Analytics</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {selectedSubmissions.map((submission) => (
-                    <TableRow key={submission.id}>
-	                      <TableCell>
-	                        <div className="flex items-start gap-2">
-	                          <FileText className="mt-0.5 h-4 w-4 text-muted-foreground" />
-	                          <div className="min-w-0">
-	                            <span className="block truncate">{submission.documentTitle || 'Submission Document'}</span>
-	                            <span className="text-xs text-muted-foreground">
-	                              {formatAttemptLabel(submission.attemptNumber)}
-	                            </span>
-	                          </div>
-	                        </div>
-	                      </TableCell>
-                      <TableCell>{formatDateTime(submission.submittedAt)}</TableCell>
-                      <TableCell>{renderSignalsCell(submission)}</TableCell>
-                      <TableCell className="text-right">{renderCertificateCell(submission)}</TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => openSubmission(submission.id)}
-                        >
-                          <BarChart3 className="mr-2 h-4 w-4" />
-                          View Analytics
-                        </Button>
-                      </TableCell>
+            <>
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Document</TableHead>
+                      <TableHead>Submitted</TableHead>
+                      <TableHead>Review Signals</TableHead>
+                      <TableHead className="text-right">Certificate</TableHead>
+                      <TableHead className="text-right">Analytics</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+                  </TableHeader>
+                  <TableBody>
+                    {selectedSubmissions.map((submission) => (
+                      <TableRow key={submission.id}>
+                        <TableCell>
+                          <div className="flex items-start gap-2">
+                            <FileText className="mt-0.5 h-4 w-4 text-muted-foreground" />
+                            <div className="min-w-0">
+                              <span className="block truncate">{submission.documentTitle || 'Submission Document'}</span>
+                              <span className="text-xs text-muted-foreground">
+                                {formatAttemptLabel(submission.attemptNumber)}
+                              </span>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>{formatDateTime(submission.submittedAt)}</TableCell>
+                        <TableCell>{renderSignalsCell(submission)}</TableCell>
+                        <TableCell className="text-right">{renderCertificateCell(submission)}</TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openSubmission(submission.id)}
+                          >
+                            <BarChart3 className="mr-2 h-4 w-4" />
+                            View Analytics
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+              {submissionPagination?.hasMore && (
+                <div className="mt-4 flex justify-center">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={onLoadMoreSubmissions}
+                    disabled={isLoadingMoreSubmissions}
+                  >
+                    {isLoadingMoreSubmissions && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Load more
+                  </Button>
+                </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>

@@ -22,10 +22,14 @@ import {
   parseTaskDetailTab,
   taskDetailTabHref,
   type AdminSubmission,
+  type SubmissionPagination,
   type TaskEnrollment,
   type TaskDetailTab,
   type TaskStats,
 } from './_components/types';
+
+const SUBMISSION_PAGE_SIZE = 100;
+const ANALYTICS_SUBMISSION_PAGE_SIZE = 500;
 
 export default function TaskDetailPage() {
   const params = useParams();
@@ -41,10 +45,13 @@ export default function TaskDetailPage() {
   const [task, setTask] = useState<Task | null>(null);
   const [stats, setStats] = useState<TaskStats | null>(null);
   const [submissions, setSubmissions] = useState<AdminSubmission[]>([]);
+  const [submissionPagination, setSubmissionPagination] = useState<SubmissionPagination | null>(null);
+  const [submissionScope, setSubmissionScope] = useState<'all' | string>('all');
   const [enrollments, setEnrollments] = useState<TaskEnrollment[]>([]);
   const [isLoadingTask, setIsLoadingTask] = useState(true);
   const [isLoadingStats, setIsLoadingStats] = useState(false);
   const [isLoadingSubmissions, setIsLoadingSubmissions] = useState(false);
+  const [isLoadingMoreSubmissions, setIsLoadingMoreSubmissions] = useState(false);
   const [isLoadingEnrollments, setIsLoadingEnrollments] = useState(false);
   const [hasLoadedStats, setHasLoadedStats] = useState(false);
   const [hasLoadedSubmissions, setHasLoadedSubmissions] = useState(false);
@@ -102,24 +109,65 @@ export default function TaskDetailPage() {
     }
   }, [taskId]);
 
-  const fetchSubmissions = useCallback(async (showLoading = true) => {
+  const activeTab: TaskDetailTab = requestedTab;
+
+  const fetchSubmissions = useCallback(async (
+    showLoading = true,
+    options: {
+      append?: boolean;
+      offset?: number;
+      scope?: 'all' | string;
+      limit?: number;
+    } = {}
+  ) => {
+    const append = options.append === true;
+    const scope = options.scope ?? submissionScope;
+    const limit = options.limit ?? (activeTab === 'analytics' ? ANALYTICS_SUBMISSION_PAGE_SIZE : SUBMISSION_PAGE_SIZE);
+    const offset = options.offset ?? 0;
+
     try {
-      if (showLoading) setIsLoadingSubmissions(true);
+      if (append) {
+        setIsLoadingMoreSubmissions(true);
+      } else if (showLoading) {
+        setIsLoadingSubmissions(true);
+      }
       const response = await api.get<{
         success: boolean;
         data: {
           submissions: AdminSubmission[];
+          pagination?: SubmissionPagination;
         };
-      }>(`/api/v1/tasks/${taskId}/submissions`);
-      setSubmissions(response.data.submissions);
+      }>(`/api/v1/tasks/${taskId}/submissions`, {
+        params: {
+          limit,
+          offset,
+          ...(scope !== 'all' ? { userId: scope } : {}),
+        },
+      });
+      setSubmissions((current) => (
+        append ? [...current, ...response.data.submissions] : response.data.submissions
+      ));
+      setSubmissionPagination(response.data.pagination || {
+        total: response.data.submissions.length,
+        limit,
+        offset,
+        hasMore: false,
+      });
     } catch (err) {
       console.error('Failed to load assigned tasks:', err);
-      setSubmissions([]);
+      if (!append) {
+        setSubmissions([]);
+        setSubmissionPagination(null);
+      }
     } finally {
       setHasLoadedSubmissions(true);
-      if (showLoading) setIsLoadingSubmissions(false);
+      if (append) {
+        setIsLoadingMoreSubmissions(false);
+      } else if (showLoading) {
+        setIsLoadingSubmissions(false);
+      }
     }
-  }, [taskId]);
+  }, [activeTab, submissionScope, taskId]);
 
   const fetchEnrollments = useCallback(async (showLoading = true) => {
     try {
@@ -148,6 +196,8 @@ export default function TaskDetailPage() {
     setTask(null);
     setStats(null);
     setSubmissions([]);
+    setSubmissionPagination(null);
+    setSubmissionScope('all');
     setEnrollments([]);
     setHasLoadedStats(false);
     setHasLoadedSubmissions(false);
@@ -156,8 +206,19 @@ export default function TaskDetailPage() {
     fetchTask();
   }, [fetchTask, taskId]);
 
-  const activeTab: TaskDetailTab = requestedTab;
   const visibleTabs = useMemo(() => getTaskDetailTabs(), []);
+
+  useEffect(() => {
+    if (activeTab !== 'submission' && submissionScope !== 'all') {
+      setSubmissionScope('all');
+    }
+  }, [activeTab, submissionScope]);
+
+  useEffect(() => {
+    setSubmissions([]);
+    setSubmissionPagination(null);
+    setHasLoadedSubmissions(false);
+  }, [activeTab, submissionScope, taskId]);
 
   useEffect(() => {
     if (!taskId || !task) return;
@@ -220,6 +281,21 @@ export default function TaskDetailPage() {
     }
   };
 
+  const handleSubmissionScopeChange = useCallback((scope: 'all' | string) => {
+    setSubmissionScope(scope);
+  }, []);
+
+  const handleLoadMoreSubmissions = useCallback(() => {
+    if (!submissionPagination || isLoadingMoreSubmissions || isLoadingSubmissions) return;
+
+    fetchSubmissions(false, {
+      append: true,
+      offset: submissionPagination.offset + submissionPagination.limit,
+      scope: submissionScope,
+      limit: submissionPagination.limit,
+    });
+  }, [fetchSubmissions, isLoadingMoreSubmissions, isLoadingSubmissions, submissionPagination, submissionScope]);
+
   const handleCopyShareLink = async () => {
     if (!task) return;
     const shareLink = buildTaskShareUrl(task.taskToken);
@@ -272,12 +348,17 @@ export default function TaskDetailPage() {
             taskId={taskId}
             enrollments={enrollments}
             submissions={submissions}
+            submissionPagination={submissionPagination}
+            selectedUserId={submissionScope}
             isLoadingEnrollments={isLoadingEnrollments}
             isLoadingSubmissions={isLoadingSubmissions}
+            isLoadingMoreSubmissions={isLoadingMoreSubmissions}
             enrollmentsError={enrollmentsError}
+            onSelectedUserChange={handleSubmissionScopeChange}
+            onLoadMoreSubmissions={handleLoadMoreSubmissions}
             onRefresh={() => {
               fetchEnrollments();
-              fetchSubmissions();
+              fetchSubmissions(true, { scope: submissionScope });
             }}
           />
         );

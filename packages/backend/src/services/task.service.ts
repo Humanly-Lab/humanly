@@ -8,6 +8,7 @@ import {
 import { DocumentModel } from '../models/document.model';
 import { SessionModel } from '../models/session.model';
 import { SubmissionModel } from '../models/submission.model';
+import type { SubmissionListOptions } from '../models/submission.model';
 import { CertificateModel } from '../models/certificate.model';
 import { DocumentEventModel } from '../models/document-event.model';
 import { AIModel } from '../models/ai.model';
@@ -986,7 +987,12 @@ export class TaskService {
     };
   }
 
-  static async listTaskSubmissions(taskId: string, adminUserId: string, enrolledUserId?: string) {
+  static async listTaskSubmissions(
+    taskId: string,
+    adminUserId: string,
+    enrolledUserId?: string,
+    options?: SubmissionListOptions
+  ) {
     const task = await TaskModel.findOwnershipById(taskId);
 
     if (!task) {
@@ -998,10 +1004,10 @@ export class TaskService {
     }
 
     if (enrolledUserId) {
-      return SubmissionModel.listForUserTask(task.id, enrolledUserId);
+      return SubmissionModel.listForUserTaskPage(task.id, enrolledUserId, options);
     }
 
-    return SubmissionModel.listForTask(task.id);
+    return SubmissionModel.listForTaskPage(task.id, options);
   }
 
   static async exportTaskSubmissions(

@@ -41,6 +41,9 @@ function serializePublicTaskPreview(task: Task) {
 
 type TaskExportFormat = 'csv' | 'json';
 
+const DEFAULT_TASK_SUBMISSION_LIST_LIMIT = 100;
+const MAX_TASK_SUBMISSION_LIST_LIMIT = 500;
+
 const TASK_SUBMISSION_EXPORT_COLUMNS = [
   'submissionId',
   'taskId',
@@ -106,6 +109,33 @@ function parseTaskExportUserId(value: unknown): string | undefined {
   }
 
   return parsed.data;
+}
+
+function getFirstQueryValue(value: unknown): unknown {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+function parseTaskSubmissionListNumber(
+  value: unknown,
+  options: { fallback: number; min: number; max?: number; name: string }
+): number {
+  const firstValue = getFirstQueryValue(value);
+
+  if (firstValue === undefined || firstValue === null || firstValue === '') {
+    return options.fallback;
+  }
+
+  const parsed = Number(firstValue);
+  if (!Number.isFinite(parsed)) {
+    throw new AppError(400, `${options.name} must be a number`);
+  }
+
+  const integer = Math.trunc(parsed);
+  if (integer < options.min) {
+    throw new AppError(400, `${options.name} must be at least ${options.min}`);
+  }
+
+  return options.max ? Math.min(integer, options.max) : integer;
 }
 
 function formatExportTimestamp(date: Date): string {
@@ -598,19 +628,39 @@ export async function submitTaskDocument(req: Request, res: Response): Promise<v
 export async function listTaskSubmissions(req: Request, res: Response): Promise<void> {
   const userId = req.user!.userId;
   const taskId = req.params.id;
-  const enrolledUserId = req.query.userId as string | undefined;
+  const enrolledUserId = parseTaskExportUserId(getFirstQueryValue(req.query.userId));
+  const limit = parseTaskSubmissionListNumber(req.query.limit, {
+    fallback: DEFAULT_TASK_SUBMISSION_LIST_LIMIT,
+    min: 1,
+    max: MAX_TASK_SUBMISSION_LIST_LIMIT,
+    name: 'limit',
+  });
+  const offset = parseTaskSubmissionListNumber(req.query.offset, {
+    fallback: 0,
+    min: 0,
+    name: 'offset',
+  });
 
   if (!taskId) {
     throw new AppError(400, 'Task ID is required');
   }
 
-  const submissions = await TaskService.listTaskSubmissions(taskId, userId, enrolledUserId);
+  const result = await TaskService.listTaskSubmissions(taskId, userId, enrolledUserId, {
+    limit,
+    offset,
+  });
 
   res.json({
     success: true,
     data: {
-      submissions,
-      latestSubmission: submissions[0] || null,
+      submissions: result.submissions,
+      latestSubmission: result.submissions[0] || null,
+      pagination: {
+        total: result.total,
+        limit: result.limit,
+        offset: result.offset,
+        hasMore: result.hasMore,
+      },
     },
   });
 }
