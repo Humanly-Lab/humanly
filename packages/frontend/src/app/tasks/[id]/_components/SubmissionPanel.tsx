@@ -325,7 +325,6 @@ export function SubmissionPanel({
                 <>
                   {renderDownloadButton('log-events', 'csv', 'User log events CSV', 'selected-user')}
                   {renderDownloadButton('submissions', 'csv', 'User submissions CSV', 'selected-user')}
-                  {renderDownloadButton('log-events', 'csv', 'All log events CSV')}
                 </>
               )}
               <Button
