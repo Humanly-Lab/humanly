@@ -978,7 +978,31 @@ export class TaskService {
           environmentConfig: task.environmentConfig || null,
         });
 
-        await TaskModel.linkSubmissionDocument(task.id, participantUser.id, document.id);
+        const linkedAttempt = await TaskModel.linkSubmissionDocument(task.id, participantUser.id, document.id);
+        if (!linkedAttempt) {
+          const resolvedEnrollment = await TaskModel.findEnrollmentForUserTask(task.id, participantUser.id);
+          const canonicalDocumentId = resolvedEnrollment?.documentId;
+          const canonicalDocument = canonicalDocumentId
+            ? await DocumentModel.findByIdAndUserId(canonicalDocumentId, participantUser.id)
+            : null;
+
+          if (!canonicalDocument) {
+            throw new AppError(500, 'Failed to resolve task document');
+          }
+
+          const orphanDocumentId = document.id;
+          const publicTaskId = task.id;
+          document = canonicalDocument;
+
+          await DocumentModel.delete(orphanDocumentId, participantUser.id).catch((deleteError) => {
+            logger.warn('Failed to clean up orphan public task document', {
+              taskId: publicTaskId,
+              userId: participantUser.id,
+              documentId: orphanDocumentId,
+              error: deleteError instanceof Error ? deleteError.message : 'Unknown error',
+            });
+          });
+        }
       }
       timings.documentMs = Date.now() - documentStartedAt;
 

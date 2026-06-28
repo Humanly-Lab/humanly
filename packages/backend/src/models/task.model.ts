@@ -514,6 +514,7 @@ export class TaskModel {
           FROM task_enrollments
           WHERE task_id = $1 AND user_id = $2
           LIMIT 1
+          FOR UPDATE
         `,
         [taskId, userId]
       );

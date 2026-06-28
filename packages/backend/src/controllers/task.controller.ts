@@ -9,35 +9,15 @@ import {
   updateTaskSchema,
   validate,
 } from '@humanly/shared';
-import type { Task } from '@humanly/shared';
+import {
+  serializePublicTaskPreview,
+  serializePublicTaskStartResult,
+} from './public-task-response';
 
 const publicTaskStartSchema = z.object({
   sessionId: z.string().max(128).optional().or(z.literal('')),
   mode: z.enum(['guest', 'signed-in']).optional(),
 });
-
-type PublicTaskAvailabilityStatus = 'scheduled' | 'open' | 'ended';
-
-function getPublicTaskAvailabilityStatus(task: Task): PublicTaskAvailabilityStatus {
-  const now = Date.now();
-  const startMs = new Date(task.startDate).getTime();
-  const endMs = new Date(task.endDate).getTime();
-
-  if (Number.isFinite(startMs) && now < startMs) return 'scheduled';
-  if (Number.isFinite(endMs) && now > endMs) return 'ended';
-  return 'open';
-}
-
-function serializePublicTaskPreview(task: Task) {
-  return {
-    name: task.name,
-    description: task.description,
-    startDate: task.startDate,
-    endDate: task.endDate,
-    allowGuestSubmissions: task.allowGuestSubmissions,
-    availabilityStatus: getPublicTaskAvailabilityStatus(task),
-  };
-}
 
 type TaskExportFormat = 'csv' | 'json';
 
@@ -321,14 +301,7 @@ export async function startPublicTaskDocument(req: Request, res: Response): Prom
 
   res.status(201).json({
     success: true,
-    data: {
-      user: result.user,
-      ...(result.accessToken ? { accessToken: result.accessToken } : {}),
-      task: result.task,
-      document: result.document,
-      publicSessionId: result.publicSessionId,
-      mode: result.mode,
-    },
+    data: serializePublicTaskStartResult(result),
     message: 'Task document started successfully',
   });
 }

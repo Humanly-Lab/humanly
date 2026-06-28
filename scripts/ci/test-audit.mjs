@@ -8,6 +8,7 @@ const testFilePattern = /\.(?:test|spec)\.(?:cjs|js|mjs|ts|tsx)$/;
 
 const runnableTestFiles = new Set([
   'packages/backend/src/controllers/ai.controller.test.ts',
+  'packages/backend/src/services/task-public-share-link.service.test.ts',
   'packages/create-humanly/test/installer.test.mjs',
   'packages/frontend-user/src/components/pdf/PDFViewer.resource-options.test.js',
 ]);
