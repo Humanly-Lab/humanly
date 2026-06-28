@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import type { Document, Task, User } from '@humanly/shared';
+import type { AppFile, Document, Task, User } from '@humanly/shared';
 import {
   serializePublicTaskPreview,
   serializePublicTaskStartResult,
@@ -8,6 +8,7 @@ import { AppError } from '../middleware/error-handler';
 import { DocumentModel } from '../models/document.model';
 import { TaskModel } from '../models/task.model';
 import { UserModel } from '../models/user.model';
+import { FileService } from './file.service';
 import { TaskService } from './task.service';
 
 type MockState = {
@@ -21,6 +22,8 @@ type MockState = {
   documents: Map<string, Document>;
   enrollments: Map<string, { taskId: string; userId: string; documentId: string | null }>;
   guestUsersByEmail: Map<string, User>;
+  instructionFilesByTaskId: Map<string, AppFile[]>;
+  listInstructionFilesForTasksCalls: string[][];
   linkConflictDocumentId: string | null;
 };
 
@@ -39,6 +42,7 @@ const originals = {
   findUserById: UserModel.findById,
   findUserByEmail: UserModel.findByEmail,
   createUser: UserModel.create,
+  listTaskInstructionFilesForTasks: FileService.listTaskInstructionFilesForTasks,
   issuePublicGuestTokens: (TaskService as any).issuePublicGuestTokens,
   invalidateAnalytics: (TaskService as any).invalidateAnalytics,
 };
@@ -54,6 +58,7 @@ function restoreOriginals() {
   UserModel.findById = originals.findUserById;
   UserModel.findByEmail = originals.findUserByEmail;
   UserModel.create = originals.createUser;
+  FileService.listTaskInstructionFilesForTasks = originals.listTaskInstructionFilesForTasks;
   (TaskService as any).issuePublicGuestTokens = originals.issuePublicGuestTokens;
   (TaskService as any).invalidateAnalytics = originals.invalidateAnalytics;
 }
@@ -133,6 +138,32 @@ function makeDocument(id: string, userId: string, title = 'Public Task'): Docume
   };
 }
 
+function makeInstructionFile(taskIdValue = taskId): AppFile {
+  return {
+    id: `instruction-file-${taskIdValue}`,
+    ownerUserId: 'admin-user',
+    documentId: null,
+    taskId: taskIdValue,
+    purpose: 'task_instruction_pdf',
+    title: 'Instruction PDF',
+    originalFilename: 'instructions.pdf',
+    mimeType: 'application/pdf',
+    storageProvider: 'local',
+    storageKey: 'internal/storage/key.pdf',
+    storageBucket: null,
+    storageRegion: null,
+    storageEtag: null,
+    fileSize: 12345,
+    checksum: 'internal-checksum',
+    pageCount: 2,
+    uploadStatus: 'ready',
+    textIndexStatus: 'ready',
+    legacySourceId: null,
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
 function enrollmentKey(taskIdValue: string, userIdValue: string) {
   return `${taskIdValue}:${userIdValue}`;
 }
@@ -149,6 +180,8 @@ function installMocks(task: Task | null = makeTask()): MockState {
     documents: new Map(),
     enrollments: new Map(),
     guestUsersByEmail: new Map(),
+    instructionFilesByTaskId: task ? new Map([[task.id, [makeInstructionFile(task.id)]]]) : new Map(),
+    listInstructionFilesForTasksCalls: [],
     linkConflictDocumentId: null,
   };
 
@@ -253,6 +286,14 @@ function installMocks(task: Task | null = makeTask()): MockState {
     return user;
   };
 
+  FileService.listTaskInstructionFilesForTasks = async (taskIds: string[]) => {
+    state.listInstructionFilesForTasksCalls.push(taskIds);
+    return new Map(taskIds.map((taskIdValue) => [
+      taskIdValue,
+      state.instructionFilesByTaskId.get(taskIdValue) || [],
+    ]));
+  };
+
   (TaskService as any).issuePublicGuestTokens = async (user: User) => ({
     accessToken: `access-${user.id}`,
     refreshToken: `refresh-${user.id}`,
@@ -318,7 +359,11 @@ async function run() {
           emailVerificationToken: 'secret-token',
         } as any,
         accessToken: 'access-token',
-        task: makeTask(),
+        task: {
+          ...makeTask(),
+          instructionFile: makeInstructionFile(),
+          instructionFiles: [makeInstructionFile()],
+        },
         document: {
           ...makeDocument('document-1', 'guest-1'),
           plainText: 'private draft text',
@@ -329,6 +374,18 @@ async function run() {
 
       assert.equal(startPayload.accessToken, 'access-token');
       assert.equal((startPayload.task.environmentConfig as any)?.ai?.enabled, true);
+      assert.equal(startPayload.task.instructionFile?.id, 'instruction-file-task-public-contract');
+      assert.equal(startPayload.task.instructionFiles.length, 1);
+      assert.equal(
+        Object.prototype.hasOwnProperty.call(startPayload.task.instructionFile || {}, 'storageKey'),
+        false,
+        'started task instruction file must not expose storageKey',
+      );
+      assert.equal(
+        Object.prototype.hasOwnProperty.call(startPayload.task.instructionFile || {}, 'checksum'),
+        false,
+        'started task instruction file must not expose checksum',
+      );
       assertNoSensitivePublicKeys('started task', startPayload.task as Record<string, unknown>);
       assertNoSensitivePublicKeys('started user', startPayload.user as Record<string, unknown>);
       assertNoSensitivePublicKeys('started root', startPayload as Record<string, unknown>);
@@ -363,6 +420,8 @@ async function run() {
       assert.equal(result.user.id, signedInUserId);
       assert.equal(result.accessToken, undefined, 'signed-in public start must not issue a guest access token');
       assert.equal(result.document.id, 'document-1');
+      assert.equal(result.task.instructionFiles?.[0]?.id, 'instruction-file-task-public-contract');
+      assert.equal(state.listInstructionFilesForTasksCalls.length, 1);
       assert.equal(state.createDocumentCalls.length, 1);
       assert.equal(state.enrollCalls.length, 1);
     }

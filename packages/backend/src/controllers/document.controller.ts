@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { DocumentService } from '../services/document.service';
+import { FileService } from '../services/file.service';
 import { AppError } from '../middleware/error-handler';
 import { DocumentEventInsertData, EventType } from '@humanly/shared';
 
@@ -42,10 +43,15 @@ export async function getDocument(req: Request, res: Response): Promise<void> {
   }
 
   const document = await DocumentService.getDocument(documentId, userId);
+  const files = await FileService.listDocumentFiles(documentId, userId);
 
   res.json({
     success: true,
-    data: { document },
+    data: {
+      document,
+      linkedFile: files[0] || null,
+      linkedFiles: files,
+    },
   });
 }
 

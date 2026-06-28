@@ -161,6 +161,25 @@ export class FileService {
     return this.withTextIndexStatuses(await FileModel.findByTask(taskId));
   }
 
+  static async listTaskInstructionFilesForTasks(taskIds: string[]): Promise<Map<string, AppFile[]>> {
+    const uniqueTaskIds = Array.from(new Set(taskIds.filter(Boolean)));
+    const filesByTaskId = new Map(uniqueTaskIds.map((taskId) => [taskId, [] as AppFile[]]));
+    if (uniqueTaskIds.length === 0) {
+      return filesByTaskId;
+    }
+
+    const files = await this.withTextIndexStatuses(await FileModel.findByTaskIds(uniqueTaskIds));
+    for (const file of files) {
+      if (!file.taskId) continue;
+      const taskFiles = filesByTaskId.get(file.taskId);
+      if (taskFiles) {
+        taskFiles.push(file);
+      }
+    }
+
+    return filesByTaskId;
+  }
+
   static async listAccessibleTaskInstructionFiles(taskIdOrInviteCode: string, userId: string): Promise<AppFile[]> {
     const normalizedIdentifier = taskIdOrInviteCode.trim();
     const task = /^[A-Z0-9]{6}$/i.test(normalizedIdentifier)

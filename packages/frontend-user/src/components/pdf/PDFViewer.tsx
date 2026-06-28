@@ -22,6 +22,22 @@ import {
   waitForDocumentScopedAccessTokenReady,
 } from '@/lib/api-client'
 import { usePDFTextStore } from '@/stores/pdf-text-store'
+import { extractCompatiblePDFTextContent } from './pdf-text-content'
+
+type PDFJSModule = typeof import('pdfjs-dist')
+
+let pdfjsModulePromise: Promise<PDFJSModule> | null = null
+
+function loadPDFJS(): Promise<PDFJSModule> {
+  if (!pdfjsModulePromise) {
+    pdfjsModulePromise = import('pdfjs-dist').then((pdfjsLib) => {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs'
+      return pdfjsLib
+    })
+  }
+
+  return pdfjsModulePromise
+}
 
 interface PDFViewerProps {
   fileId?: string
@@ -55,8 +71,14 @@ function toCssPixelValue(value: number) {
   return `${Number(value.toFixed(3))}px`
 }
 
-function getTextItemHighlightRect(item: any, matchStart: number, matchLength: number, viewport: any) {
-  const transform = window.pdfjsLib.Util.transform(viewport.transform, item.transform)
+function getTextItemHighlightRect(
+  pdfjsLib: PDFJSModule,
+  item: any,
+  matchStart: number,
+  matchLength: number,
+  viewport: any
+) {
+  const transform = pdfjsLib.Util.transform(viewport.transform, item.transform)
   const textLength = Math.max(item.str.length, 1)
   const itemWidth = Math.max((item.width || 0) * viewport.scale, 1)
   const itemHeight = Math.max(Math.hypot(transform[2], transform[3]), (item.height || 12) * viewport.scale)
@@ -89,6 +111,7 @@ export default function PDFViewer({ fileId, documentId, previewUrl, viewOnly = f
 
   const containerRef = useRef<HTMLDivElement>(null)
   const pdfDocRef = useRef<any>(null)
+  const pdfjsLibRef = useRef<PDFJSModule | null>(null)
   const textContentCache = useRef<Map<number, any>>(new Map())
   const canvasRefs = useRef<(HTMLCanvasElement | null)[]>([])
   const highlightRefs = useRef<(HTMLDivElement | null)[]>([])
@@ -112,7 +135,7 @@ export default function PDFViewer({ fileId, documentId, previewUrl, viewOnly = f
       const pages: string[] = []
       for (let i = 1; i <= pdf.numPages; i++) {
         const page = await pdf.getPage(i)
-        const textContent = await page.getTextContent()
+        const textContent = await extractCompatiblePDFTextContent(page)
         pages.push(textContent.items.map((item: any) => item.str).join(' '))
       }
       const fullText = pages.join('\n\n')
@@ -156,24 +179,6 @@ export default function PDFViewer({ fileId, documentId, previewUrl, viewOnly = f
       // Ignore cancellation races; the superseding render owns the canvas.
     }
     renderTasksRef.current.delete(pageNum)
-  }, [])
-
-  // Load PDF.js from CDN
-  useEffect(() => {
-    const script = document.createElement('script')
-    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js'
-    script.async = true
-    script.onload = () => {
-      if (window.pdfjsLib) {
-        window.pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js'
-      }
-    }
-    script.onerror = () => {
-      setError('Failed to load PDF library')
-      setLoading(false)
-    }
-    document.head.appendChild(script)
-    return () => { if (document.head.contains(script)) document.head.removeChild(script) }
   }, [])
 
   // Render a single page to its canvas
@@ -254,12 +259,8 @@ export default function PDFViewer({ fileId, documentId, previewUrl, viewOnly = f
         setPdfBlobUrl(null)
         setLoading(true)
         setError(null)
-        let attempts = 0
-        while (!window.pdfjsLib && attempts < 50) {
-          await new Promise(resolve => setTimeout(resolve, 100))
-          attempts++
-        }
-        if (!window.pdfjsLib) throw new Error('PDF.js failed to load')
+        const pdfjsLib = await loadPDFJS()
+        pdfjsLibRef.current = pdfjsLib
 
         if (!previewUrl && !fileId) {
           throw new Error('No PDF file available')
@@ -270,7 +271,7 @@ export default function PDFViewer({ fileId, documentId, previewUrl, viewOnly = f
         blobUrl = previewUrl ? null : url
         setPdfBlobUrl(url)
 
-        const pdf = await window.pdfjsLib.getDocument({
+        const pdf = await pdfjsLib.getDocument({
           url,
           ...PDFJS_DOCUMENT_RESOURCE_OPTIONS,
         }).promise
@@ -371,7 +372,7 @@ export default function PDFViewer({ fileId, documentId, previewUrl, viewOnly = f
     if (textContentCache.current.has(pageNum)) return textContentCache.current.get(pageNum)
     try {
       const page = await pdfDocRef.current.getPage(pageNum)
-      const textContent = await page.getTextContent()
+      const textContent = await extractCompatiblePDFTextContent(page)
       textContentCache.current.set(pageNum, textContent)
       return textContent
     } catch {
@@ -382,7 +383,8 @@ export default function PDFViewer({ fileId, documentId, previewUrl, viewOnly = f
   // Render highlights for a single page
   const renderHighlightsForPage = useCallback(async (pageNum: number, matches: SearchMatch[], query: string, currentScale: number) => {
     const hl = highlightRefs.current[pageNum - 1]
-    if (!hl || !pdfDocRef.current) return
+    const pdfjsLib = pdfjsLibRef.current
+    if (!hl || !pdfDocRef.current || !pdfjsLib) return
     hl.innerHTML = ''
     if (matches.filter(m => m.pageNumber === pageNum).length === 0) return
 
@@ -397,7 +399,7 @@ export default function PDFViewer({ fileId, documentId, previewUrl, viewOnly = f
         const itemLower = item.str.toLowerCase()
         for (let i = 0; i < item.str.length; i++) {
           if (itemLower.substring(i, i + lowerQuery.length) === lowerQuery) {
-            const rect = getTextItemHighlightRect(item, i, lowerQuery.length, viewport)
+            const rect = getTextItemHighlightRect(pdfjsLib, item, i, lowerQuery.length, viewport)
             const div = document.createElement('div')
             div.style.cssText = `position:absolute;left:${rect.left}px;top:${rect.top}px;width:${rect.width}px;height:${rect.height}px;background:rgba(255,255,0,0.4);pointer-events:none;`
             hl.appendChild(div)
@@ -760,10 +762,4 @@ export default function PDFViewer({ fileId, documentId, previewUrl, viewOnly = f
       </div>
     </div>
   )
-}
-
-declare global {
-  interface Window {
-    pdfjsLib: any
-  }
 }

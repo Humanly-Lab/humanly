@@ -79,7 +79,7 @@ import {
   ResizableHandle,
 } from '@/components/ui/resizable';
 
-// Dynamically import PDFViewer with SSR disabled (PDF.js loaded from CDN)
+// Dynamically import PDFViewer with SSR disabled because PDF.js is browser-only.
 const PDFViewer = dynamic(() => import('@/components/pdf/PDFViewer'), {
   ssr: false,
   loading: () => (
@@ -102,6 +102,8 @@ interface TaskEnrollment {
   startDate?: string;
   endDate?: string;
   environmentConfig?: WritingEnvironmentConfig | null;
+  instructionFile?: TaskInstructionFile | null;
+  instructionFiles?: TaskInstructionFile[];
 }
 
 type TaskInstructionFile = AppFile;
@@ -312,6 +314,7 @@ export default function DocumentEditorPage() {
   const [writingRulesAcknowledged, setWritingRulesAcknowledged] = useState(false);
   const [taskInstructionFile, setTaskInstructionFile] = useState<TaskInstructionFile | null>(null);
   const [taskInstructionFiles, setTaskInstructionFiles] = useState<TaskInstructionFile[]>([]);
+  const [isTaskInstructionFilesLoading, setIsTaskInstructionFilesLoading] = useState(false);
   const [selectedInstructionFileId, setSelectedInstructionFileId] = useState<string | null>(null);
   const [submissionSessionId, setSubmissionSessionId] = useState<string | null>(null);
   const [taskEnrollment, setTaskEnrollment] = useState<TaskEnrollment | null>(null);
@@ -694,23 +697,58 @@ export default function DocumentEditorPage() {
   useEffect(() => {
     let cancelled = false;
 
+    const applyInstructionFiles = (
+      files: TaskInstructionFile[],
+      preferredFile: TaskInstructionFile | null = null
+    ) => {
+      const file = preferredFile || files[0] || null;
+      setTaskInstructionFile(file);
+      setTaskInstructionFiles(files);
+      setSelectedInstructionFileId((currentId) => {
+        if (currentId && files.some((item) => item.id === currentId)) {
+          return currentId;
+        }
+        return file?.id || null;
+      });
+    };
+
     const fetchTaskInstructionFiles = async () => {
       const enrollment = taskEnrollment;
       if (!enrollment) {
         setTaskInstructionFile(null);
         setTaskInstructionFiles([]);
+        setIsTaskInstructionFilesLoading(false);
         setSelectedInstructionFileId(null);
         return;
       }
 
+      const hydratedFiles = Array.isArray(enrollment.instructionFiles)
+        ? enrollment.instructionFiles
+        : null;
+      if (hydratedFiles) {
+        applyInstructionFiles(hydratedFiles, enrollment.instructionFile || hydratedFiles[0] || null);
+        setIsTaskInstructionFilesLoading(false);
+        if (enrollment.documentId === documentId) {
+          return;
+        }
+      }
+
       try {
+        setIsTaskInstructionFilesLoading(true);
         await waitForDocumentScopedAccessTokenReady(documentId);
 
-        await apiClient.put(
-          `/tasks/enrollments/${enrollment.id}/submission-document`,
-          { documentId },
-          getPublicDocumentAuthConfig(documentId)
-        );
+        if (enrollment.documentId !== documentId) {
+          await apiClient.put(
+            `/tasks/enrollments/${enrollment.id}/submission-document`,
+            { documentId },
+            getPublicDocumentAuthConfig(documentId)
+          );
+        }
+
+        if (hydratedFiles) {
+          return;
+        }
+
         const response = await apiClient.get(
           `/tasks/enrollments/${enrollment.id}/instruction-files`,
           getPublicDocumentAuthConfig(documentId)
@@ -718,19 +756,16 @@ export default function DocumentEditorPage() {
         if (cancelled) return;
         const files = response.data.data?.files || [];
         const file = response.data.data?.file || files[0] || null;
-        setTaskInstructionFile(file);
-        setTaskInstructionFiles(files);
-        setSelectedInstructionFileId((currentId) => {
-          if (currentId && files.some((item: TaskInstructionFile) => item.id === currentId)) {
-            return currentId;
-          }
-          return file?.id || null;
-        });
+        applyInstructionFiles(files, file);
       } catch {
         if (!cancelled) {
           setTaskInstructionFile(null);
           setTaskInstructionFiles([]);
           setSelectedInstructionFileId(null);
+        }
+      } finally {
+        if (!cancelled) {
+          setIsTaskInstructionFilesLoading(false);
         }
       }
     };
@@ -1375,10 +1410,19 @@ export default function DocumentEditorPage() {
   }
 
   const CANVAS = 'mx-auto w-full max-w-[2400px] px-3 sm:px-4';
+  const hydratedInstructionFiles = taskEnrollment?.instructionFiles || [];
+  const displayInstructionFiles = taskInstructionFiles.length > 0
+    ? taskInstructionFiles
+    : hydratedInstructionFiles;
   const selectedInstructionFile =
-    taskInstructionFiles.find((file) => file.id === selectedInstructionFileId) ||
-    taskInstructionFile;
+    displayInstructionFiles.find((file) => file.id === selectedInstructionFileId) ||
+    taskInstructionFile ||
+    taskEnrollment?.instructionFile ||
+    displayInstructionFiles[0] ||
+    null;
   const displayFile = selectedInstructionFile || linkedFile;
+  const isPdfPanelPending = !displayFile && Boolean(taskEnrollment && isTaskInstructionFilesLoading);
+  const hasPdfPanel = Boolean(displayFile) || isPdfPanelPending;
   const isResourceViewOnly = normalizeResourceAccessPolicy(currentEnvironmentConfig.resourceAccess) === 'view-only';
   const lockedAiModel = currentEnvironmentConfig.allowedModels?.[0] || (isEnvironmentManagedDocument ? 'Task model' : undefined);
   const lockedAiBaseUrl = currentEnvironmentConfig.aiProvider?.baseUrl;
@@ -1612,17 +1656,17 @@ export default function DocumentEditorPage() {
           {/* ✅ Resizable like Overleaf */}
           <ResizablePanelGroup direction="horizontal" className="h-full w-full overflow-hidden rounded-lg border border-border/80 bg-card">
             {/* PDF */}
-            {displayFile ? (
+            {hasPdfPanel ? (
               <ResizablePanel defaultSize={38} minSize={22}>
                 <div className="flex h-full flex-col overflow-hidden border-r border-border/70 bg-card">
-                  {taskInstructionFiles.length > 1 ? (
+                  {displayInstructionFiles.length > 1 ? (
                     <div className="shrink-0 border-b border-border/70 bg-muted/30 px-3 py-2">
                       <div className="flex max-w-full gap-2 overflow-x-auto pb-1">
-                        {taskInstructionFiles.map((file, index) => (
+                        {displayInstructionFiles.map((file, index) => (
                           <Button
                             key={file.id}
                             type="button"
-                            variant={file.id === displayFile.id ? 'default' : 'outline'}
+                            variant={file.id === selectedInstructionFile?.id ? 'default' : 'outline'}
                             size="sm"
                             className="max-w-[240px] shrink-0 justify-start truncate"
                             title={file.title}
@@ -1635,27 +1679,36 @@ export default function DocumentEditorPage() {
                     </div>
                   ) : null}
                   <div className="min-h-0 flex-1 overflow-hidden">
-                    <PDFViewer
-                      key={displayFile.id}
-                      fileId={displayFile.id}
-                      documentId={documentId}
-                      viewOnly={isResourceViewOnly}
-                    />
+                    {displayFile ? (
+                      <PDFViewer
+                        key={displayFile.id}
+                        fileId={displayFile.id}
+                        documentId={documentId}
+                        viewOnly={isResourceViewOnly}
+                      />
+                    ) : (
+                      <div className="flex h-full items-center justify-center bg-muted/30">
+                        <div className="flex flex-col items-center gap-3 text-sm text-muted-foreground">
+                          <Loader2 className="h-6 w-6 animate-spin" />
+                          <p>Loading PDF...</p>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </ResizablePanel>
             ) : null}
 
-            {displayFile ? <ResizableHandle withHandle /> : null}
+            {hasPdfPanel ? <ResizableHandle withHandle /> : null}
 
             {/* Editor */}
             <ResizablePanel
-              defaultSize={displayFile ? (isAIPanelVisible ? 37 : 62) : (isAIPanelVisible ? 70 : 100)}
+              defaultSize={hasPdfPanel ? (isAIPanelVisible ? 37 : 62) : (isAIPanelVisible ? 70 : 100)}
               minSize={30}
             >
               <div className="h-full overflow-auto bg-background">
-                <div className={`${displayFile || isAIPanelVisible ? 'px-4 py-4' : 'px-6 py-6'} h-full`}>
-                  {!displayFile && (
+                <div className={`${hasPdfPanel || isAIPanelVisible ? 'px-4 py-4' : 'px-6 py-6'} h-full`}>
+                  {!hasPdfPanel && (
                     <div className="mb-4 rounded-lg border border-dashed border-border/80 bg-muted/30 p-4">
                       <div>
                         <div>
@@ -1683,7 +1736,7 @@ export default function DocumentEditorPage() {
                     documentId={documentId}
                     userId={user?.id}
                     initialContent={editorInitialContent}
-                    placeholder={displayFile ? 'Start writing with your PDF open...' : 'Start typing your document...'}
+                    placeholder={hasPdfPanel ? 'Start writing with your PDF open...' : 'Start typing your document...'}
                     editable={!isEditorReadOnly}
                     trackingEnabled={!isEditorReadOnly}
                     copyPastePolicy={currentEnvironmentConfig.copyPastePolicy}

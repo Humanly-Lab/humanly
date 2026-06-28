@@ -1,4 +1,4 @@
-import type { Document, Task, User } from '@humanly/shared';
+import type { AppFile, Document, FileTextIndexStatus, Task, User } from '@humanly/shared';
 
 export type PublicTaskAvailabilityStatus = 'scheduled' | 'open' | 'ended';
 
@@ -41,8 +41,15 @@ function serializePublicUser(user: User) {
 }
 
 function serializePublicStartedTask(
-  task: Pick<Task, 'id' | 'name' | 'description' | 'startDate' | 'endDate' | 'environmentConfig'>
+  task: Pick<Task, 'id' | 'name' | 'description' | 'startDate' | 'endDate' | 'environmentConfig'> & {
+    instructionFile?: AppFile | null;
+    instructionFiles?: AppFile[];
+  }
 ) {
+  const instructionFiles = Array.isArray(task.instructionFiles)
+    ? task.instructionFiles.map(serializePublicInstructionFile)
+    : [];
+
   return {
     id: task.id,
     name: task.name,
@@ -50,6 +57,25 @@ function serializePublicStartedTask(
     startDate: task.startDate,
     endDate: task.endDate,
     environmentConfig: task.environmentConfig,
+    instructionFile: task.instructionFile
+      ? serializePublicInstructionFile(task.instructionFile)
+      : instructionFiles[0] || null,
+    instructionFiles,
+  };
+}
+
+function serializePublicInstructionFile(file: AppFile) {
+  return {
+    id: file.id,
+    title: file.title,
+    originalFilename: file.originalFilename,
+    mimeType: file.mimeType,
+    fileSize: file.fileSize,
+    pageCount: file.pageCount ?? null,
+    uploadStatus: file.uploadStatus,
+    textIndexStatus: file.textIndexStatus as FileTextIndexStatus | undefined,
+    createdAt: file.createdAt,
+    updatedAt: file.updatedAt,
   };
 }
 
@@ -63,7 +89,10 @@ function serializePublicDocument(document: Pick<Document, 'id' | 'title'>) {
 export interface PublicTaskStartSerializationInput {
   user: User;
   accessToken?: string;
-  task: Pick<Task, 'id' | 'name' | 'description' | 'startDate' | 'endDate' | 'environmentConfig'>;
+  task: Pick<Task, 'id' | 'name' | 'description' | 'startDate' | 'endDate' | 'environmentConfig'> & {
+    instructionFile?: AppFile | null;
+    instructionFiles?: AppFile[];
+  };
   document: Pick<Document, 'id' | 'title'>;
   publicSessionId: string;
   mode: 'guest' | 'signed-in';

@@ -28,19 +28,10 @@ export function useDocument(documentId: string) {
         `/documents/${documentId}`,
         getPublicDocumentAuthConfig(documentId)
       );
-      const doc = response.data.data?.document || null;
+      const data = response.data.data || {};
+      const doc = data.document || null;
       setDocument(doc);
-
-      // Check if there's a linked PDF for this document.
-      try {
-        const fileResponse = await apiClient.get(
-          `/documents/${documentId}/files`,
-          getPublicDocumentAuthConfig(documentId)
-        );
-        setLinkedFile(fileResponse.data.data?.file || null);
-      } catch {
-        setLinkedFile(null);
-      }
+      setLinkedFile(data.linkedFile || data.linkedFiles?.[0] || null);
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to fetch document');
       console.error('Error fetching document:', err);

@@ -80,6 +80,20 @@ export class FileModel {
     );
   }
 
+  static async findByTaskIds(taskIds: string[], purpose: FilePurpose = 'task_instruction_pdf'): Promise<AppFile[]> {
+    if (taskIds.length === 0) {
+      return [];
+    }
+
+    return query<AppFile>(
+      `SELECT ${this.columns}
+       FROM files
+       WHERE task_id = ANY($1::uuid[]) AND purpose = $2
+       ORDER BY task_id ASC, created_at DESC`,
+      [taskIds, purpose]
+    );
+  }
+
   static async findByOwner(userId: string): Promise<AppFile[]> {
     return query<AppFile>(
       `SELECT ${this.columns}

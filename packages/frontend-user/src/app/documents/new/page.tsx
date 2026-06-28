@@ -39,6 +39,7 @@ import {
   validateWritingEnvironmentImportTemplate,
   buildWorkspaceSetupPreviewStorageHash,
   buildWritingAiConnectionTestRequest,
+  WORKSPACE_SETUP_PREVIEW_MESSAGE_TYPE,
   WORKSPACE_SETUP_PREVIEW_STORAGE_PREFIX,
   type UserAISettings,
   type WritingAiConnectionTestResult,
@@ -949,13 +950,25 @@ export default function NewDocumentPage() {
     title,
   });
   const openWorkspacePreview = () => {
+    const payload = getWorkspacePreviewPayload();
     const storageKey = `${WORKSPACE_SETUP_PREVIEW_STORAGE_PREFIX}${crypto.randomUUID()}`;
-    sessionStorage.setItem(storageKey, JSON.stringify(getWorkspacePreviewPayload()));
-    window.open(
+    sessionStorage.setItem(storageKey, JSON.stringify(payload));
+    const previewWindow = window.open(
       `/documents/preview${buildWorkspaceSetupPreviewStorageHash(storageKey)}`,
-      '_blank',
-      'noopener,noreferrer'
+      '_blank'
     );
+
+    if (!previewWindow) return;
+
+    const message = {
+      type: WORKSPACE_SETUP_PREVIEW_MESSAGE_TYPE,
+      storageKey,
+      payload,
+    };
+
+    previewWindow.postMessage(message, window.location.origin);
+    window.setTimeout(() => previewWindow.postMessage(message, window.location.origin), 250);
+    window.setTimeout(() => previewWindow.postMessage(message, window.location.origin), 1000);
   };
 
   const customEnvironmentControls = (

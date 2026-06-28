@@ -473,7 +473,19 @@ export class TaskService {
    * List task enrollments for the current Writer Portal account.
    */
   static async listCurrentUserTaskEnrollments(userId: string) {
-    return TaskModel.listCurrentUserEnrollments(userId);
+    const enrollments = await TaskModel.listCurrentUserEnrollments(userId);
+    const instructionFilesByTaskId = await FileService.listTaskInstructionFilesForTasks(
+      enrollments.map((enrollment) => enrollment.taskId)
+    );
+
+    return enrollments.map((enrollment) => {
+      const instructionFiles = instructionFilesByTaskId.get(enrollment.taskId) || [];
+      return {
+        ...enrollment,
+        instructionFile: instructionFiles[0] || null,
+        instructionFiles,
+      };
+    });
   }
 
   /**
@@ -1007,9 +1019,11 @@ export class TaskService {
       timings.documentMs = Date.now() - documentStartedAt;
 
       const tokenStartedAt = Date.now();
-      const tokens = isGuestMode
-        ? await this.issuePublicGuestTokens(participantUser)
-        : null;
+      const [tokens, instructionFilesByTaskId] = await Promise.all([
+        isGuestMode ? this.issuePublicGuestTokens(participantUser) : Promise.resolve(null),
+        FileService.listTaskInstructionFilesForTasks([task.id]),
+      ]);
+      const instructionFiles = instructionFilesByTaskId.get(task.id) || [];
       await this.invalidateAnalytics(task.id);
       timings.tokenMs = Date.now() - tokenStartedAt;
 
@@ -1032,6 +1046,8 @@ export class TaskService {
           startDate: task.startDate,
           endDate: task.endDate,
           environmentConfig: task.environmentConfig,
+          instructionFile: instructionFiles[0] || null,
+          instructionFiles,
         },
         document: {
           id: document.id,
