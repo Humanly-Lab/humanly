@@ -37,7 +37,7 @@ type ProviderCredentialValidation =
 type ProviderCredentialRule = {
   label: string;
   validate?: (
-    normalizedUrl: string,
+    provider: TrustedProviderConfig,
     apiKey: string,
   ) => Promise<ProviderCredentialValidation>;
 };
@@ -50,12 +50,45 @@ type ProviderBaseUrlGuard = {
 const TOGETHER_AI_BASE_URL = 'https://api.together.xyz/v1';
 const OPENAI_BASE_URL = 'https://api.openai.com/v1';
 const CLAUDE_BASE_URL = 'https://api.anthropic.com/v1';
+const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
 
-const PROVIDER_CREDENTIAL_RULES: Record<string, ProviderCredentialRule> = {
+const TRUSTED_PROVIDER_CONFIGS = {
   'api.openai.com': {
     label: 'OpenAI',
-    validate: async (normalizedUrl, apiKey) => {
-      const modelsResult = await fetchProviderModelsCatalog(`${normalizedUrl}/models`, apiKey);
+    baseUrl: OPENAI_BASE_URL,
+    modelsUrl: `${OPENAI_BASE_URL}/models`,
+  },
+  'api.anthropic.com': {
+    label: 'Anthropic',
+    baseUrl: CLAUDE_BASE_URL,
+    modelsUrl: `${CLAUDE_BASE_URL}/models`,
+  },
+  'openrouter.ai': {
+    label: 'OpenRouter',
+    baseUrl: OPENROUTER_BASE_URL,
+    modelsUrl: `${OPENROUTER_BASE_URL}/models`,
+    keyUrl: `${OPENROUTER_BASE_URL}/key`,
+  },
+  'api.together.xyz': {
+    label: 'Together AI',
+    baseUrl: TOGETHER_AI_BASE_URL,
+    modelsUrl: `${TOGETHER_AI_BASE_URL}/models`,
+  },
+} as const;
+
+type TrustedProviderHost = keyof typeof TRUSTED_PROVIDER_CONFIGS;
+type TrustedProviderConfig = typeof TRUSTED_PROVIDER_CONFIGS[TrustedProviderHost] & {
+  host: TrustedProviderHost;
+};
+type TrustedProviderEndpoint = 'models' | 'key';
+
+const TRUSTED_PROVIDER_HOSTS = new Set<string>(Object.keys(TRUSTED_PROVIDER_CONFIGS));
+
+const PROVIDER_CREDENTIAL_RULES: Record<TrustedProviderHost, ProviderCredentialRule> = {
+  'api.openai.com': {
+    label: 'OpenAI',
+    validate: async (provider, apiKey) => {
+      const modelsResult = await fetchProviderModelsCatalog(provider, apiKey);
       if (!modelsResult.ok) {
         return {
           ok: false,
@@ -67,8 +100,8 @@ const PROVIDER_CREDENTIAL_RULES: Record<string, ProviderCredentialRule> = {
   },
   'api.anthropic.com': {
     label: 'Anthropic',
-    validate: async (normalizedUrl, apiKey) => {
-      const modelsResult = await fetchProviderModelsCatalog(`${normalizedUrl}/models`, apiKey);
+    validate: async (provider, apiKey) => {
+      const modelsResult = await fetchProviderModelsCatalog(provider, apiKey);
       if (!modelsResult.ok) {
         return {
           ok: false,
@@ -80,18 +113,11 @@ const PROVIDER_CREDENTIAL_RULES: Record<string, ProviderCredentialRule> = {
   },
   'openrouter.ai': {
     label: 'OpenRouter',
-    validate: async (normalizedUrl, apiKey) => {
+    validate: async (provider, apiKey) => {
       // OpenRouter's model catalog can be reachable even when the key does not
       // belong to OpenRouter. The /key endpoint validates the bearer credential
       // itself, so use it before returning the curated OpenRouter model list.
-      const response = await fetch(`${normalizedUrl}/key`, {
-        method: 'GET',
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        signal: AbortSignal.timeout(15000),
-      });
+      const response = await fetchTrustedProviderUrl(provider, 'key', apiKey);
 
       if (response.ok) {
         return { ok: true, skipCatalogProbe: true };
@@ -106,8 +132,8 @@ const PROVIDER_CREDENTIAL_RULES: Record<string, ProviderCredentialRule> = {
   },
   'api.together.xyz': {
     label: 'Together AI',
-    validate: async (normalizedUrl, apiKey) => {
-      const modelsResult = await fetchProviderModelsCatalog(`${normalizedUrl}/models`, apiKey);
+    validate: async (provider, apiKey) => {
+      const modelsResult = await fetchProviderModelsCatalog(provider, apiKey);
       if (!modelsResult.ok) {
         return {
           ok: false,
@@ -149,6 +175,20 @@ const PROVIDER_BASE_URL_GUARDS: ProviderBaseUrlGuard[] = [
     message: `Together AI base URL should include /v1: ${TOGETHER_AI_BASE_URL}`,
   },
 ];
+
+function normalizeProviderBaseUrlString(value: string): string {
+  const url = new URL(value);
+  url.username = '';
+  url.password = '';
+  url.search = '';
+  url.hash = '';
+  url.pathname = url.pathname.replace(/\/+$/, '');
+  return url.toString().replace(/\/+$/, '');
+}
+
+function isTrustedProviderHost(hostname: string): hostname is TrustedProviderHost {
+  return TRUSTED_PROVIDER_HOSTS.has(hostname);
+}
 
 function extractProviderModels(data: ProviderModelsResponse): string[] {
   const modelList = Array.isArray(data) ? data : data.data;
@@ -220,18 +260,82 @@ async function readProviderErrorMessage(response: globalThis.Response): Promise<
   return formatProviderHttpError(response.status, text);
 }
 
-function validateProviderBaseUrl(url: URL): { ok: true } | { ok: false; message: string } {
+export function validateProviderBaseUrl(url: URL): { ok: true; provider: TrustedProviderConfig } | { ok: false; message: string } {
+  if (url.protocol !== 'https:') {
+    return { ok: false, message: 'AI provider Base URL must use HTTPS.' };
+  }
+  if (url.username || url.password) {
+    return { ok: false, message: 'AI provider Base URL must not include credentials.' };
+  }
+  if (url.port) {
+    return { ok: false, message: 'AI provider Base URL must not include a custom port.' };
+  }
+  if (url.search || url.hash) {
+    return { ok: false, message: 'AI provider Base URL must not include query parameters or fragments.' };
+  }
   const failedGuard = PROVIDER_BASE_URL_GUARDS.find((guard) => guard.matches(url));
-  return failedGuard
-    ? { ok: false, message: failedGuard.message }
-    : { ok: true };
+  if (failedGuard) {
+    return { ok: false, message: failedGuard.message };
+  }
+  if (!isTrustedProviderHost(url.hostname)) {
+    return {
+      ok: false,
+      message: `Unsupported AI provider Base URL. Choose one of: ${Object.values(TRUSTED_PROVIDER_CONFIGS).map((provider) => provider.baseUrl).join(', ')}.`,
+    };
+  }
+
+  const provider = TRUSTED_PROVIDER_CONFIGS[url.hostname];
+  const normalizedUrl = normalizeProviderBaseUrlString(url.toString());
+  if (normalizedUrl !== provider.baseUrl) {
+    return {
+      ok: false,
+      message: `${provider.label} base URL should be ${provider.baseUrl}.`,
+    };
+  }
+
+  return { ok: true, provider: { ...provider, host: url.hostname } };
 }
 
-async function fetchProviderModelsCatalog(
-  modelsUrl: string,
+export function parseTrustedProviderBaseUrl(baseUrl: unknown): { ok: true; provider: TrustedProviderConfig } | { ok: false; message: string } {
+  if (typeof baseUrl !== 'string' || !baseUrl.trim()) {
+    return { ok: false, message: 'Base URL is required' };
+  }
+
+  let parsedBaseUrl: URL;
+  try {
+    parsedBaseUrl = new URL(baseUrl);
+  } catch {
+    return { ok: false, message: 'Invalid base URL format' };
+  }
+
+  return validateProviderBaseUrl(parsedBaseUrl);
+}
+
+function trustedProviderEndpointUrl(
+  provider: TrustedProviderConfig,
+  endpoint: TrustedProviderEndpoint,
+): string {
+  const config = TRUSTED_PROVIDER_CONFIGS[provider.host];
+  if (endpoint === 'key') {
+    if (!('keyUrl' in config)) {
+      throw new Error(`${config.label} does not expose a key validation endpoint`);
+    }
+    return config.keyUrl;
+  }
+  return config.modelsUrl;
+}
+
+async function fetchTrustedProviderUrl(
+  provider: TrustedProviderConfig,
+  endpoint: TrustedProviderEndpoint,
   apiKey: string,
-): Promise<{ ok: true; data: ProviderModelsResponse } | { ok: false; message: string }> {
-  const response = await fetch(modelsUrl, {
+): Promise<globalThis.Response> {
+  const trustedUrl = trustedProviderEndpointUrl(provider, endpoint);
+  const url = new URL(trustedUrl);
+  if (url.protocol !== 'https:' || !isTrustedProviderHost(url.hostname)) {
+    throw new Error('Refusing to fetch untrusted AI provider URL');
+  }
+  return fetch(url, {
     method: 'GET',
     headers: {
       Authorization: `Bearer ${apiKey}`,
@@ -239,6 +343,14 @@ async function fetchProviderModelsCatalog(
     },
     signal: AbortSignal.timeout(15000),
   });
+}
+
+async function fetchProviderModelsCatalog(
+  provider: TrustedProviderConfig,
+  apiKey: string,
+): Promise<{ ok: true; data: ProviderModelsResponse } | { ok: false; message: string }> {
+  const modelsUrl = trustedProviderEndpointUrl(provider, 'models');
+  const response = await fetchTrustedProviderUrl(provider, 'models', apiKey);
 
   const contentType = response.headers.get('content-type') || '';
   if (!contentType.includes('application/json')) {
@@ -276,16 +388,15 @@ async function fetchProviderModelsCatalog(
 }
 
 async function validateProviderCredentials(
-  normalizedUrl: string,
-  hostname: string,
+  provider: TrustedProviderConfig,
   apiKey: string,
 ): Promise<ProviderCredentialValidation> {
-  const rule = PROVIDER_CREDENTIAL_RULES[hostname];
+  const rule = PROVIDER_CREDENTIAL_RULES[provider.host];
   if (!rule?.validate) {
     return { ok: true };
   }
 
-  const providerValidation = await rule.validate(normalizedUrl, apiKey);
+  const providerValidation = await rule.validate(provider, apiKey);
   if (providerValidation.ok) {
     return providerValidation;
   }
@@ -341,28 +452,17 @@ export async function saveSettings(req: Request, res: Response): Promise<void> {
     return;
   }
 
-  // Validate URL format
-  let parsedBaseUrl: URL;
-  try {
-    parsedBaseUrl = new URL(baseUrl);
-  } catch {
+  const providerBaseUrl = parseTrustedProviderBaseUrl(baseUrl);
+  if (!providerBaseUrl.ok) {
     res.status(400).json({
       success: false,
-      error: 'Invalid base URL format',
+      error: providerBaseUrl.message,
     });
     return;
   }
 
-  const baseUrlGuard = validateProviderBaseUrl(parsedBaseUrl);
-  if (!baseUrlGuard.ok) {
-    res.status(400).json({
-      success: false,
-      error: baseUrlGuard.message,
-    });
-    return;
-  }
-
-  const whitelistedModels = getModelWhitelist(baseUrl);
+  const provider = providerBaseUrl.provider;
+  const whitelistedModels = getModelWhitelist(provider.baseUrl);
   if (whitelistedModels && !whitelistedModels.includes(model)) {
     res.status(400).json({
       success: false,
@@ -404,10 +504,8 @@ export async function saveSettings(req: Request, res: Response): Promise<void> {
   }
 
   try {
-    const normalizedUrl = baseUrl.replace(/\/+$/, '');
     const providerAuth = await validateProviderCredentials(
-      normalizedUrl,
-      parsedBaseUrl.hostname,
+      provider,
       keyToSave,
     );
     if (!providerAuth.ok) {
@@ -420,7 +518,7 @@ export async function saveSettings(req: Request, res: Response): Promise<void> {
 
     const canUseCuratedProviderModels = providerAuth.skipCatalogProbe && whitelistedModels;
     if (!providerAuth.modelsResponse && !canUseCuratedProviderModels) {
-      const modelsResult = await fetchProviderModelsCatalog(`${normalizedUrl}/models`, keyToSave);
+      const modelsResult = await fetchProviderModelsCatalog(provider, keyToSave);
       if (!modelsResult.ok) {
         res.status(400).json({
           success: false,
@@ -448,7 +546,7 @@ export async function saveSettings(req: Request, res: Response): Promise<void> {
     return;
   }
 
-  await UserAISettingsModel.upsert(userId, keyToSave, baseUrl, model, {
+  await UserAISettingsModel.upsert(userId, keyToSave, provider.baseUrl, model, {
     shortcutMaxTokens: parsedShortcutMaxTokens.value,
     chatMaxTokens: parsedChatMaxTokens.value,
   });
@@ -500,35 +598,22 @@ export async function testConnection(req: Request, res: Response): Promise<void>
     apiKey = existing.apiKey;
   }
 
-  // Validate URL format
-  let parsedBaseUrl: URL;
-  try {
-    parsedBaseUrl = new URL(baseUrl);
-  } catch {
+  const providerBaseUrl = parseTrustedProviderBaseUrl(baseUrl);
+  if (!providerBaseUrl.ok) {
     res.status(400).json({
       success: false,
-      error: 'Invalid base URL format',
+      error: providerBaseUrl.message,
     });
     return;
   }
 
-  const baseUrlGuard = validateProviderBaseUrl(parsedBaseUrl);
-  if (!baseUrlGuard.ok) {
-    res.json({
-      success: false,
-      message: baseUrlGuard.message,
-    });
-    return;
-  }
+  const provider = providerBaseUrl.provider;
 
   try {
-    // Normalize base URL: remove trailing slash
-    const normalizedUrl = baseUrl.replace(/\/+$/, '');
-    const whitelistedModels = getModelWhitelist(baseUrl);
+    const whitelistedModels = getModelWhitelist(provider.baseUrl);
 
     const providerAuth = await validateProviderCredentials(
-      normalizedUrl,
-      parsedBaseUrl.hostname,
+      provider,
       apiKey,
     );
     if (!providerAuth.ok) {
@@ -557,10 +642,9 @@ export async function testConnection(req: Request, res: Response): Promise<void>
       return;
     }
 
-    const modelsUrl = `${normalizedUrl}/models`;
     const modelsResult = providerAuth.modelsResponse
       ? { ok: true as const, data: providerAuth.modelsResponse }
-      : await fetchProviderModelsCatalog(modelsUrl, apiKey);
+      : await fetchProviderModelsCatalog(provider, apiKey);
     if (!modelsResult.ok) {
       res.json({
         success: false,

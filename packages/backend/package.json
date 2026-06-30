@@ -10,7 +10,7 @@
     "start": "node dist/index.js",
     "migrate": "node dist/db/migrate.js",
     "cleanup:orphan-storage": "tsx src/jobs/cleanup-orphan-storage.ts",
-    "test:runnable": "DATABASE_URL=postgres://humanly:humanly@localhost:5432/humanly_test REDIS_URL=redis://localhost:6379 JWT_SECRET=test-jwt-secret EMAIL_FROM=test@example.com tsx src/controllers/ai.controller.test.ts && DATABASE_URL=postgres://humanly:humanly@localhost:5432/humanly_test REDIS_URL=redis://localhost:6379 JWT_SECRET=test-jwt-secret EMAIL_FROM=test@example.com tsx src/services/task-public-share-link.service.test.ts",
+    "test:runnable": "DATABASE_URL=postgres://humanly:humanly@localhost:5432/humanly_test REDIS_URL=redis://localhost:6379 JWT_SECRET=test-jwt-secret EMAIL_FROM=test@example.com tsx src/controllers/ai-settings.controller.test.ts && DATABASE_URL=postgres://humanly:humanly@localhost:5432/humanly_test REDIS_URL=redis://localhost:6379 JWT_SECRET=test-jwt-secret EMAIL_FROM=test@example.com tsx src/controllers/ai.controller.test.ts && DATABASE_URL=postgres://humanly:humanly@localhost:5432/humanly_test REDIS_URL=redis://localhost:6379 JWT_SECRET=test-jwt-secret EMAIL_FROM=test@example.com tsx src/services/task-public-share-link.service.test.ts",
     "lint": "tsc --noEmit",
     "clean": "rm -rf dist"
   },
