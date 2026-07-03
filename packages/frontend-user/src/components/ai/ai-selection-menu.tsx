@@ -411,7 +411,7 @@ export function AISelectionMenu({
           </Button>
           <Button
             size="sm"
-            className="h-8 px-3 text-xs font-medium gap-1.5 bg-[#6f8a78] text-white hover:bg-[#607866]"
+            className="h-8 px-3 text-xs font-medium gap-1.5 bg-[var(--hly-brand)] text-white hover:bg-[#607866]"
             onClick={handleKeep}
             disabled={reviewState.isStreaming || !reviewState.suggestedText.trim()}
           >

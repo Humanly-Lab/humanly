@@ -6,25 +6,25 @@ import { HumanlyWordmark } from '@/components/brand/humanly-wordmark';
 import { HeroShowcase } from '@/components/marketing/hero-showcase';
 import { marketingHref, productAppHref } from '@/lib/app-origin';
 
-const ink = '#1a1c20';
-const muted = '#6e7176';
-const hairline = 'rgba(20,22,26,0.10)';
-const bg2 = '#ebede4';
-const good = '#6f8a78';
+const ink = 'var(--hly-ink)';
+const muted = 'var(--hly-ink-muted)';
+const hairline = 'var(--hly-hairline)';
+const bg2 = 'var(--hly-surface)';
+const good = 'var(--hly-brand)';
 const fastDemoHref = '/demo/fast-writing';
 const launchVideoSrc = '/videos/humanly-launch.mp4';
 const githubHref = 'https://github.com/ShenzheZhu/humanly/tree/main';
 
 const logRows = [
-  ['12:41:48', 'input', '#dde6df', '#4a655a', '796'],
-  ['12:41:49', 'select', '#e5e5e2', '#65655f', '42'],
-  ['12:41:50', 'ai quick', '#dee4ee', '#3a4a64', 'AI'],
-  ['12:42:03', 'paste', '#f2e0d3', '#8a5a3c', '186'],
-  ['12:42:08', 'ai question', '#dee4ee', '#3a4a64', 'AI'],
-  ['12:42:13', 'ai answer', '#dee4ee', '#3a4a64', 'AI'],
-  ['12:42:16', 'ai insert', '#dee4ee', '#3a4a64', '52'],
-  ['12:42:19', 'delete', '#e5e5e2', '#65655f', '18'],
-  ['12:42:22', 'input', '#dde6df', '#4a655a', '1,204'],
+  ['12:41:48', 'input', 'var(--hly-green-tint)', 'var(--hly-green-strong)', '796'],
+  ['12:41:49', 'select', 'var(--hly-surface-2)', 'var(--hly-neutral-text)', '42'],
+  ['12:41:50', 'ai quick', 'var(--hly-ai-bg)', 'var(--hly-ai-text)', 'AI'],
+  ['12:42:03', 'paste', 'var(--hly-paste-bg)', 'var(--hly-paste-text)', '186'],
+  ['12:42:08', 'ai question', 'var(--hly-ai-bg)', 'var(--hly-ai-text)', 'AI'],
+  ['12:42:13', 'ai answer', 'var(--hly-ai-bg)', 'var(--hly-ai-text)', 'AI'],
+  ['12:42:16', 'ai insert', 'var(--hly-ai-bg)', 'var(--hly-ai-text)', '52'],
+  ['12:42:19', 'delete', 'var(--hly-surface-2)', 'var(--hly-neutral-text)', '18'],
+  ['12:42:22', 'input', 'var(--hly-green-tint)', 'var(--hly-green-strong)', '1,204'],
 ];
 
 const toolRows = [
@@ -106,7 +106,7 @@ export default function HomePage() {
           <h1 className="text-[28px] font-semibold leading-[1.08] tracking-[-0.025em] sm:text-[36px] lg:text-[42px]">
             <span>Write with AI.</span>
             <br />
-            <span className="text-[#a0a2a7]">Prove your process.</span>
+            <span className="text-[var(--hly-neutral)]">Prove your process.</span>
           </h1>
           <p className="mx-auto mt-6 max-w-[520px] text-[14px] leading-[1.7] text-muted-foreground sm:text-[16px] sm:leading-[1.6]">
             A writing workspace that quietly records how a draft came together,
@@ -117,7 +117,7 @@ export default function HomePage() {
               href={fastDemoHref}
               target="_blank"
               rel="noopener noreferrer"
-              className="humanly-landing-btn bg-[#6f8a78] hover:bg-[#607869]"
+              className="humanly-landing-btn bg-[var(--hly-brand)] hover:bg-[var(--hly-brand-hover)]"
             >
               Try the demo <Arrow />
             </Link>
@@ -159,7 +159,7 @@ function DemoLaunchSection() {
             href={fastDemoHref}
             target="_blank"
             rel="noopener noreferrer"
-            className="humanly-landing-btn bg-[#6f8a78] hover:bg-[#607869]"
+            className="humanly-landing-btn bg-[var(--hly-brand)] hover:bg-[var(--hly-brand-hover)]"
           >
             Open Demo <Arrow />
           </Link>
@@ -252,7 +252,7 @@ function HeroVideoComposition() {
               '0 36px 80px -30px rgba(40,32,18,0.40), 0 0 0 8px #fbf9f1, 0 0 0 9px rgba(40,32,18,0.10)',
           }}
         />
-        <div className="absolute left-1/2 top-1/2 z-20 w-[88%] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-[16px] border border-[rgba(20,22,26,0.10)] bg-white p-2 shadow-[0_30px_80px_-34px_rgba(20,22,26,0.55)]">
+        <div className="absolute left-1/2 top-1/2 z-20 w-[88%] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-[16px] border border-[var(--hly-hairline)] bg-white p-2 shadow-[0_30px_80px_-34px_rgba(20,22,26,0.55)]">
           <video
             aria-label="Humanly product video"
             className="aspect-video w-full rounded-[12px] bg-foreground object-cover"
@@ -272,7 +272,7 @@ function HeroVideoComposition() {
 
 function HeroDocCalm() {
   return (
-    <div className="humanly-hover-pop overflow-hidden rounded-[14px] border border-[rgba(20,22,26,0.10)] bg-white shadow-[0_30px_80px_-30px_rgba(10,10,10,0.18)] hover:shadow-[0_38px_96px_-32px_rgba(10,10,10,0.30)]">
+    <div className="humanly-hover-pop overflow-hidden rounded-[14px] border border-[var(--hly-hairline)] bg-white shadow-[0_30px_80px_-30px_rgba(10,10,10,0.18)] hover:shadow-[0_38px_96px_-32px_rgba(10,10,10,0.30)]">
       <div className="flex items-center justify-between border-b border-[rgba(20,22,26,0.05)] px-[22px] py-[14px]">
         <div className="flex gap-1.5">
           <span className="h-2.5 w-2.5 rounded-full bg-[#e9e6df]" />
@@ -280,7 +280,7 @@ function HeroDocCalm() {
           <span className="h-2.5 w-2.5 rounded-full bg-[#e9e6df]" />
         </div>
         <span className="text-xs text-muted-foreground">A draft, in progress</span>
-        <span className="inline-flex items-center gap-1.5 text-xs text-[#6f8a78]">
+        <span className="inline-flex items-center gap-1.5 text-xs text-[var(--hly-brand)]">
           <span className="h-1.5 w-1.5 rounded-full bg-current" />
           Tracking
         </span>
@@ -292,14 +292,14 @@ function HeroDocCalm() {
           <h3 className="mb-4 text-[22px] font-bold leading-[1.2] tracking-[-0.015em]">
             Drafting with attention
           </h3>
-          <p className="mb-3 text-[13px] leading-[1.75] text-[#2a2d33]">
+          <p className="mb-3 text-[13px] leading-[1.75] text-[var(--hly-ink)]">
             The first thing to notice about a draft is the pause before it.
             Before a sentence lands on the page there is a small, deliberate{' '}
             refusal{' '}
             — the writer choosing not to type yet.
           </p>
           <div className="relative pt-11">
-            <div className="absolute left-[-6px] top-1 z-40 flex max-w-[440px] items-center gap-1.5 rounded-[9px] border border-[rgba(20,22,26,0.10)] bg-white/95 px-2 py-1.5 shadow-[0_16px_34px_-22px_rgba(20,22,26,0.55)]">
+            <div className="absolute left-[-6px] top-1 z-40 flex max-w-[440px] items-center gap-1.5 rounded-[9px] border border-[var(--hly-hairline)] bg-white/95 px-2 py-1.5 shadow-[0_16px_34px_-22px_rgba(20,22,26,0.55)]">
               {quickActions.map(({ label, Icon }, index) => (
                 <div key={label} className="flex min-w-0 items-center gap-1.5">
                   {index === 4 ? <span className="h-4 w-px bg-[rgba(20,22,26,0.12)]" /> : null}
@@ -326,26 +326,26 @@ function HeroDocCalm() {
               <span className="grid h-4 w-4 place-items-center rounded bg-foreground text-[9px] text-white">✦</span>
               AI Assistant
             </span>
-            <span className="text-xs text-[#a0a2a7]">⚙ + ⟲ ×</span>
+            <span className="text-xs text-[var(--hly-neutral)]">⚙ + ⟲ ×</span>
           </div>
 
           <div className="flex flex-1 flex-col gap-2.5 p-3.5 pb-0">
             <div className="self-center rounded-[14px] bg-foreground px-3 py-2 text-[11px] leading-normal text-white">
               Find source support for this paragraph
             </div>
-            <div className="flex flex-col gap-1 rounded-lg bg-[#ebede4] p-2 pb-2.5">
+            <div className="flex flex-col gap-1 rounded-lg bg-[var(--hly-surface)] p-2 pb-2.5">
               {toolRows.map(({ tool, detail, ms }) => (
                 <div
                   key={`${tool}-${detail}`}
-                  className="grid grid-cols-[auto_auto_minmax(0,1fr)_auto] items-center gap-1.5 rounded-md border border-[rgba(20,22,26,0.05)] bg-white px-2.5 py-1.5 text-[10px] text-[#2a2d33]"
+                  className="grid grid-cols-[auto_auto_minmax(0,1fr)_auto] items-center gap-1.5 rounded-md border border-[rgba(20,22,26,0.05)] bg-white px-2.5 py-1.5 text-[10px] text-[var(--hly-ink)]"
                 >
-                  <span className="text-[9px] text-[#6f8a78]">✓</span>
+                  <span className="text-[9px] text-[var(--hly-brand)]">✓</span>
                   <span className="font-bold">{tool}</span>
                   <span className="truncate text-[9px] text-muted-foreground">{detail}</span>
                   <span className="text-muted-foreground">{ms}</span>
                 </div>
               ))}
-              <p className="px-1 pt-1 text-[10.5px] leading-[1.55] text-[#2a2d33]">
+              <p className="px-1 pt-1 text-[10.5px] leading-[1.55] text-[var(--hly-ink)]">
                 I found support in the attached PDF: the source frames attention
                 as revision discipline, which supports your point about waiting
                 before drafting…
@@ -354,19 +354,19 @@ function HeroDocCalm() {
           </div>
 
           <div className="flex flex-col gap-1.5 p-3">
-            <div className="flex items-center gap-1.5 rounded-full bg-[rgba(91,111,140,0.10)] px-2 py-1 text-[10px] font-bold text-[#5b6f8c]">
+            <div className="flex items-center gap-1.5 rounded-full bg-[rgba(91,111,140,0.10)] px-2 py-1 text-[10px] font-bold text-[var(--hly-info)]">
               <span>⊙</span>
               PDF context available (13 pages)
             </div>
-            <div className="flex min-w-0 justify-between gap-2 rounded-md bg-[#ebede4] px-2.5 py-1.5 text-[10px] text-muted-foreground">
+            <div className="flex min-w-0 justify-between gap-2 rounded-md bg-[var(--hly-surface)] px-2.5 py-1.5 text-[10px] text-muted-foreground">
               <span className="truncate">moonshotai/Kimi-K2.6 (image+text)</span>
               <span>⇅</span>
             </div>
             <div className="flex items-stretch gap-1.5">
-              <div className="flex-1 rounded-md border border-foreground bg-white px-2.5 py-2 text-[10.5px] text-[#a0a2a7]">
+              <div className="flex-1 rounded-md border border-foreground bg-white px-2.5 py-2 text-[10.5px] text-[var(--hly-neutral)]">
                 Type your message…
               </div>
-              <button className="grid w-8 place-items-center rounded-md bg-[#a0a2a7] text-xs text-white">↗</button>
+              <button className="grid w-8 place-items-center rounded-md bg-[var(--hly-neutral)] text-xs text-white">↗</button>
             </div>
           </div>
         </div>
@@ -377,25 +377,25 @@ function HeroDocCalm() {
 
 function AIAssistCard() {
   return (
-    <div className="humanly-hover-pop absolute left-[2.5%] top-[33.3%] z-30 w-[18.2%] min-w-[176px] rotate-[-2deg] rounded-[10px] border border-[rgba(20,22,26,0.10)] bg-white px-3.5 py-3 shadow-[0_24px_60px_-18px_rgba(20,22,26,0.40)] hover:z-50 hover:shadow-[0_32px_70px_-18px_rgba(20,22,26,0.48)]">
+    <div className="humanly-hover-pop absolute left-[2.5%] top-[33.3%] z-30 w-[18.2%] min-w-[176px] rotate-[-2deg] rounded-[10px] border border-[var(--hly-hairline)] bg-white px-3.5 py-3 shadow-[0_24px_60px_-18px_rgba(20,22,26,0.40)] hover:z-50 hover:shadow-[0_32px_70px_-18px_rgba(20,22,26,0.48)]">
       <div className="mb-2 flex items-center gap-1.5">
         <span className="grid h-[18px] w-[18px] place-items-center rounded-[5px] bg-foreground text-[10px] font-bold text-white">✦</span>
         <span className="text-[11px] font-bold">AI Assistant</span>
-        <span className="ml-auto rounded-full bg-[#dee4ee] px-1.5 py-px text-[8px] font-bold text-[#3a4a64]">SIMPLIFY</span>
+        <span className="ml-auto rounded-full bg-[var(--hly-ai-bg)] px-1.5 py-px text-[8px] font-bold text-[var(--hly-ai-text)]">SIMPLIFY</span>
       </div>
-      <p className="mb-2.5 rounded-md bg-[#ebede4] px-2.5 py-2 text-[10.5px] leading-[1.55] text-[#2a2d33]">
+      <p className="mb-2.5 rounded-md bg-[var(--hly-surface)] px-2.5 py-2 text-[10.5px] leading-[1.55] text-[var(--hly-ink)]">
         Most drafts fail when the mind{' '}
         <span className="text-muted-foreground line-through decoration-[#a07868] decoration-[1.5px]">
           accepts whatever language arrives
         </span>{' '}
-        <span className="rounded-sm bg-[#dde6df] px-1 font-bold text-[#3a5040]">
+        <span className="rounded-sm bg-[var(--hly-green-tint)] px-1 font-bold text-[#3a5040]">
           takes what arrives
         </span>
         .
       </p>
       <div className="flex gap-1">
         <span className="rounded-[5px] bg-foreground px-2.5 py-1.5 text-[10px] font-bold text-white">Apply</span>
-        <span className="rounded-[5px] border border-[rgba(20,22,26,0.10)] px-2.5 py-1.5 text-[10px] font-bold text-muted-foreground">Discard</span>
+        <span className="rounded-[5px] border border-[var(--hly-hairline)] px-2.5 py-1.5 text-[10px] font-bold text-muted-foreground">Discard</span>
       </div>
     </div>
   );
@@ -403,7 +403,7 @@ function AIAssistCard() {
 
 function TrackingCard() {
   return (
-    <div className="humanly-hover-pop absolute right-[2.5%] top-[9.7%] z-40 w-[18.2%] min-w-[176px] rotate-[2deg] rounded-[10px] border border-[rgba(20,22,26,0.10)] bg-white px-3.5 py-3 shadow-[0_24px_50px_-18px_rgba(20,22,26,0.40)] hover:z-50 hover:shadow-[0_32px_70px_-18px_rgba(20,22,26,0.48)]">
+    <div className="humanly-hover-pop absolute right-[2.5%] top-[9.7%] z-40 w-[18.2%] min-w-[176px] rotate-[2deg] rounded-[10px] border border-[var(--hly-hairline)] bg-white px-3.5 py-3 shadow-[0_24px_50px_-18px_rgba(20,22,26,0.40)] hover:z-50 hover:shadow-[0_32px_70px_-18px_rgba(20,22,26,0.48)]">
       <div className="mb-2.5 flex justify-between">
         <span className="text-[11px] font-bold">Tracking log</span>
         <span className="text-[9px] text-muted-foreground">live</span>
@@ -429,12 +429,12 @@ function TrackingCard() {
 
 function CertificateCard() {
   return (
-    <div className="humanly-hover-pop absolute bottom-[5%] right-[3%] z-30 grid min-h-[84px] w-[40%] rotate-[-0.8deg] grid-cols-[1fr_auto] items-center gap-3.5 rounded-[10px] border border-[rgba(20,22,26,0.10)] bg-[#fdfcf7] px-4 py-3 shadow-[0_24px_50px_-18px_rgba(20,22,26,0.40)] hover:z-50 hover:shadow-[0_32px_70px_-18px_rgba(20,22,26,0.48)]">
+    <div className="humanly-hover-pop absolute bottom-[5%] right-[3%] z-30 grid min-h-[84px] w-[40%] rotate-[-0.8deg] grid-cols-[1fr_auto] items-center gap-3.5 rounded-[10px] border border-[var(--hly-hairline)] bg-[#fdfcf7] px-4 py-3 shadow-[0_24px_50px_-18px_rgba(20,22,26,0.40)] hover:z-50 hover:shadow-[0_32px_70px_-18px_rgba(20,22,26,0.48)]">
       <div>
         <div className="mb-1.5 flex items-center gap-1.5">
           <CertBadge />
           <span className="text-[8.5px] font-bold tracking-[0.2em] text-muted-foreground">CERTIFICATE · GENERATED</span>
-          <span className="ml-1.5 h-1.5 w-1.5 rounded-full bg-[#6f8a78]" />
+          <span className="ml-1.5 h-1.5 w-1.5 rounded-full bg-[var(--hly-brand)]" />
         </div>
         <div className="text-sm font-bold tracking-[-0.005em]">Drafting with attention</div>
         <div className="mt-1 whitespace-nowrap text-[9.5px] text-muted-foreground">
@@ -466,7 +466,7 @@ function ProblemSection() {
           <h2 className="text-[28px] font-semibold leading-[1.08] tracking-[-0.02em] sm:text-[36px]">
             <span>Did you write this,</span>
             <br />
-            <span className="text-[#a0a2a7]">or did AI?</span>
+            <span className="text-[var(--hly-neutral)]">or did AI?</span>
           </h2>
           <p className="mx-auto mt-[22px] max-w-[560px] text-[15px] leading-[1.7] text-muted-foreground sm:text-[17px]">
             The answer should not be a defense. It should be a receipt.
@@ -490,7 +490,7 @@ function ProblemSection() {
 
 function ProblemCard({ n, illo, caption }: { n: string; illo: ReactNode; caption: string }) {
   return (
-    <div className="humanly-hover-pop flex min-h-[300px] flex-col gap-6 rounded-[14px] border border-[rgba(20,22,26,0.10)] bg-white p-7 hover:shadow-[0_28px_70px_-42px_rgba(20,22,26,0.60)]">
+    <div className="humanly-hover-pop flex min-h-[300px] flex-col gap-6 rounded-[14px] border border-[var(--hly-hairline)] bg-white p-7 hover:shadow-[0_28px_70px_-42px_rgba(20,22,26,0.60)]">
       <div className="flex items-center justify-between">
         <span className="text-[11px] text-muted-foreground">· {n}</span>
         <span className="h-1 w-1 rounded-full bg-foreground" />
@@ -509,7 +509,7 @@ function TrustModelSection() {
           <Eyebrow className="mb-[22px]">Trust model</Eyebrow>
           <h2 className="text-[28px] font-semibold leading-[1.08] tracking-[-0.02em] sm:text-[36px]">
             <span>Process beats</span>{' '}
-            <span className="text-[#a0a2a7]">prediction.</span>
+            <span className="text-[var(--hly-neutral)]">prediction.</span>
           </h2>
           <p className="mx-auto mt-[22px] max-w-[640px] text-[15px] leading-[1.7] text-muted-foreground sm:text-[17px]">
             Detectors judge the finished text. Humanly records the work as it happens,
@@ -550,7 +550,7 @@ function AudienceSection() {
           <Eyebrow className="mb-[22px]">Use cases</Eyebrow>
           <h2 className="text-[28px] font-semibold leading-[1.08] tracking-[-0.02em] sm:text-[36px]">
             <span>One workspace,</span>{' '}
-            <span className="text-[#a0a2a7]">two modes.</span>
+            <span className="text-[var(--hly-neutral)]">two modes.</span>
           </h2>
           <p className="mx-auto mt-[22px] max-w-[640px] text-[15px] leading-[1.7] text-muted-foreground sm:text-[17px]">
             Writers can start personal documents. Instructors and reviewers can use
@@ -585,7 +585,7 @@ function AudienceSection() {
 
 function ConceptCard({ n, illo, title, body }: { n: string; illo: ReactNode; title: string; body: string }) {
   return (
-    <div className="humanly-hover-pop flex min-h-[360px] flex-col gap-5 rounded-[14px] border border-[rgba(20,22,26,0.10)] bg-white p-7 hover:shadow-[0_28px_70px_-42px_rgba(20,22,26,0.60)]">
+    <div className="humanly-hover-pop flex min-h-[360px] flex-col gap-5 rounded-[14px] border border-[var(--hly-hairline)] bg-white p-7 hover:shadow-[0_28px_70px_-42px_rgba(20,22,26,0.60)]">
       <div className="flex items-center justify-between">
         <span className="text-[11px] text-muted-foreground">· {n}</span>
         <span className="h-1 w-1 rounded-full bg-foreground" />
@@ -607,7 +607,7 @@ function HowItWorksSection() {
           <Eyebrow className="mb-[22px]">How it works</Eyebrow>
           <h2 className="text-[28px] font-semibold leading-[1.08] tracking-[-0.02em] sm:text-[36px]">
             <span>Four steps</span>{' '}
-            <span className="text-[#a0a2a7]">to a signed draft.</span>
+            <span className="text-[var(--hly-neutral)]">to a signed draft.</span>
           </h2>
         </div>
 
@@ -635,7 +635,7 @@ function HowItWorksSection() {
 
 function Step({ n, t, d, illo, divider }: { n: string; t: string; d: string; illo: ReactNode; divider?: boolean }) {
   return (
-    <div className={`flex flex-col gap-[22px] px-0 md:px-7 ${divider ? 'md:border-l md:border-[rgba(20,22,26,0.10)]' : ''}`}>
+    <div className={`flex flex-col gap-[22px] px-0 md:px-7 ${divider ? 'md:border-l md:border-[var(--hly-hairline)]' : ''}`}>
       <div className="flex h-[180px] items-center justify-center">{illo}</div>
       <div className="flex items-baseline gap-3">
         <span className="text-[11px] text-muted-foreground">{n}</span>
@@ -655,18 +655,18 @@ function FAQSection() {
           <h2 className="text-[28px] font-semibold leading-[1.1] tracking-[-0.015em] sm:text-[36px]">
             <span>Common questions,</span>
             <br />
-            <span className="text-[#a0a2a7]">plain answers.</span>
+            <span className="text-[var(--hly-neutral)]">plain answers.</span>
           </h2>
         </div>
         <div>
           {faqs.map(([question, answer]) => (
             <details
               key={question}
-              className="group border-t border-[rgba(20,22,26,0.10)] py-[22px]"
+              className="group border-t border-[var(--hly-hairline)] py-[22px]"
             >
               <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-left">
                 <span className="text-lg font-medium tracking-[-0.005em]">{question}</span>
-                <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full border border-[rgba(20,22,26,0.10)] transition-transform group-open:rotate-45">
+                <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full border border-[var(--hly-hairline)] transition-transform group-open:rotate-45">
                   <PlusIcon />
                 </span>
               </summary>
@@ -681,7 +681,7 @@ function FAQSection() {
 
 function Footer() {
   return (
-    <footer className="border-t border-[rgba(20,22,26,0.10)] px-5 py-9 sm:px-8 lg:px-14">
+    <footer className="border-t border-[var(--hly-hairline)] px-5 py-9 sm:px-8 lg:px-14">
       <div className="mx-auto flex max-w-[1168px] items-center justify-between gap-4">
         <Link href={marketingHref('/')}>
           <HumanlyWordmark size="sm" />
@@ -960,11 +960,11 @@ function StepIllo1() {
 
 function StepIllo2() {
   const rows: Array<[string, string, string, string, string, number]> = [
-    ['12:41:48', 'input', '#dde6df', '#4a655a', '796', 50],
+    ['12:41:48', 'input', 'var(--hly-green-tint)', 'var(--hly-green-strong)', '796', 50],
     ['12:41:48', 'focus', '#dadfd9', '#56655a', '796', 70],
-    ['12:41:31', '✦ Simplify', '#dee4ee', '#3a4a64', 'AI', 90],
-    ['12:41:16', 'delete', '#e5e5e2', '#65655f', '44', 110],
-    ['12:41:21', 'select', '#e5e5e2', '#65655f', '0', 130],
+    ['12:41:31', '✦ Simplify', 'var(--hly-ai-bg)', 'var(--hly-ai-text)', 'AI', 90],
+    ['12:41:16', 'delete', 'var(--hly-surface-2)', 'var(--hly-neutral-text)', '44', 110],
+    ['12:41:21', 'select', 'var(--hly-surface-2)', 'var(--hly-neutral-text)', '0', 130],
   ];
 
   return (

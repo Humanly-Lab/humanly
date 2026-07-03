@@ -316,7 +316,7 @@ export function AISettingsDialog({ onSettingsChanged }: AISettingsDialogProps) {
                 <div
                   className={`flex items-start gap-2 rounded-lg border p-3 text-xs min-w-0 ${
                     testResult.success
-                      ? 'border-[#c8d4c8] bg-[#eef3ed] text-[#58715f]'
+                      ? 'border-[var(--hly-green-border)] bg-[var(--hly-green-bg)] text-[var(--hly-green-text)]'
                       : 'border-red-200 bg-red-50 text-red-700'
                   }`}
                 >

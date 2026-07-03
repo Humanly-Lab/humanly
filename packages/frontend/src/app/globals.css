@@ -24,28 +24,113 @@
     --input: 70 13% 84%;
     --ring: 225 10% 11%;
     --radius: 0.5rem;
+
+    /* Humanly semantic palette (#900/#901). One duotone family per product
+       meaning: green = typed/success/verified, amber = paste/legacy,
+       red = blocked/alert, blue = AI-chat/info, purple = selection/AI-stat,
+       plus brand + neutrals. Consume via tailwind `hly-*` colors or
+       `var(--hly-*)` in style objects.
+       Keep this block in sync with packages/frontend-user/src/app/globals.css. */
+    --hly-brand: #6f8a78;
+    --hly-brand-hover: #607869;
+    --hly-green-text: #58715f;
+    --hly-green-strong: #4a655a;
+    --hly-green-bg: #eef3ed;
+    --hly-green-bg-soft: #f3f7f1;
+    --hly-green-tint: #dde6df;
+    --hly-green-icon: #dfe8dc;
+    --hly-green-border: #c8d4c8;
+    --hly-amber-text: #8a7446;
+    --hly-amber-bg: #fbf6e8;
+    --hly-amber-badge: #f8eed3;
+    --hly-amber-icon: #f1e4c5;
+    --hly-amber-border: #d7c8a8;
+    --hly-paste-text: #8a5a3c;
+    --hly-paste-bg: #f2e0d3;
+    --hly-red-text: #6f5d61;
+    --hly-red-bg: #f2edee;
+    --hly-red-border: #d6c5c7;
+    --hly-blue-text: #576777;
+    --hly-blue-bg: #eef1f4;
+    --hly-blue-border: #c8d1dc;
+    --hly-ai-text: #3a4a64;
+    --hly-ai-bg: #dee4ee;
+    --hly-info: #5b6f8c;
+    --hly-purple-text: #655d70;
+    --hly-purple-bg: #f0edf2;
+    --hly-purple-border: #d0c8d7;
+    --hly-stat-typed: #8ea8c2;
+    --hly-stat-pasted: #cfa17a;
+    --hly-stat-ai: #b5acc7;
+    --hly-neutral-text: #65655f;
+    --hly-neutral: #a0a2a7;
+    --hly-surface: #ebede4;
+    --hly-surface-2: #e5e5e2;
+    --hly-ink: #1a1c20;
+    --hly-ink-muted: #6e7176;
+    --hly-hairline: rgba(20, 22, 26, 0.1);
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --background: 0 0% 9%;
+    --foreground: 0 0% 98%;
+    --card: 0 0% 9%;
+    --card-foreground: 0 0% 98%;
+    --popover: 0 0% 9%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 0 0% 98%;
+    --primary-foreground: 0 0% 9%;
+    --secondary: 0 0% 15%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 65%;
+    --accent: 0 0% 15%;
+    --accent-foreground: 0 0% 98%;
     --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 15%;
+    --input: 0 0% 15%;
+    --ring: 0 0% 98%;
+
+    /* Humanly semantic palette, dark variants: bgs darken, texts lighten. */
+    --hly-brand: #7fa08b;
+    --hly-brand-hover: #8fb09b;
+    --hly-green-text: #a4c0ad;
+    --hly-green-strong: #b3cdbc;
+    --hly-green-bg: #1e2620;
+    --hly-green-bg-soft: #1a211c;
+    --hly-green-tint: #263029;
+    --hly-green-icon: #2c3830;
+    --hly-green-border: #3c4a40;
+    --hly-amber-text: #cdb98a;
+    --hly-amber-bg: #262115;
+    --hly-amber-badge: #2e2818;
+    --hly-amber-icon: #383019;
+    --hly-amber-border: #4e442c;
+    --hly-paste-text: #d0a382;
+    --hly-paste-bg: #2c2118;
+    --hly-red-text: #c7adb3;
+    --hly-red-bg: #271f21;
+    --hly-red-border: #4a3a3e;
+    --hly-blue-text: #a9b8c9;
+    --hly-blue-bg: #1d2127;
+    --hly-blue-border: #3a4453;
+    --hly-ai-text: #a9bad6;
+    --hly-ai-bg: #202634;
+    --hly-info: #94a9c4;
+    --hly-purple-text: #b8adc4;
+    --hly-purple-bg: #221f26;
+    --hly-purple-border: #453d50;
+    --hly-stat-typed: #8ea8c2;
+    --hly-stat-pasted: #cfa17a;
+    --hly-stat-ai: #b5acc7;
+    --hly-neutral-text: #a8a89f;
+    --hly-neutral: #83858a;
+    --hly-surface: #23241f;
+    --hly-surface-2: #2a2b26;
+    --hly-ink: #f2f2ef;
+    --hly-ink-muted: #a2a5aa;
+    --hly-hairline: rgba(235, 237, 228, 0.12);
   }
 }
 

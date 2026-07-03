@@ -461,7 +461,7 @@ export default function TaskDetailPage() {
               type="button"
               variant="outline"
               size="sm"
-              className="border-[#b99791] text-[#8d5e57] hover:bg-[#f3e9e7] hover:text-[#704942]"
+              className="border-[var(--hly-red-border)] text-[var(--hly-red-text)] hover:bg-[var(--hly-red-bg)] hover:text-[var(--hly-red-text)]"
               onClick={() => handleTaskLifecycleAction('end')}
               disabled={isChangingLifecycle || task.lifecycleStatus === 'ended'}
             >

@@ -143,7 +143,7 @@ export function BasicInfoDialog({ open, mode, onOpenChange }: BasicInfoDialogPro
           }}
         >
           <DialogHeader>
-            <div className="mb-2 grid h-10 w-10 place-items-center rounded-full bg-[#dde6df] text-[#4a655a]">
+            <div className="mb-2 grid h-10 w-10 place-items-center rounded-full bg-[var(--hly-green-tint)] text-[var(--hly-green-strong)]">
               <UserRound className="h-5 w-5" />
             </div>
             <DialogTitle>

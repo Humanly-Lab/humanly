@@ -586,8 +586,8 @@ function StepBadge({
         active
           ? 'border-foreground bg-white text-foreground'
           : complete
-            ? 'border-[#6f8a78]/40 bg-[#dde6df] text-[#4a655a]'
-            : 'border-[rgba(20,22,26,0.10)] bg-white/60'
+            ? 'border-[var(--hly-brand)]/40 bg-[var(--hly-green-tint)] text-[var(--hly-green-strong)]'
+            : 'border-[var(--hly-hairline)] bg-white/60'
       }`}
     >
       {complete ? <Check className="h-4 w-4" /> : <Icon className="h-4 w-4" />}
@@ -1179,7 +1179,7 @@ function DemoCertificatePreview({
       type: 'svg',
       margin: 2,
       color: {
-        dark: '#1a1c20',
+        dark: 'var(--hly-ink)',
         light: '#ffffff',
       },
     })

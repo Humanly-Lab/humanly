@@ -129,8 +129,8 @@ export default function VerifyEmailPage() {
       return (
         <Card>
           <CardHeader className="text-center">
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-lg border border-border/70 bg-[#eef3ed]">
-              <CheckCircle2 className="h-6 w-6 text-[#58715f]" />
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-lg border border-border/70 bg-[var(--hly-green-bg)]">
+              <CheckCircle2 className="h-6 w-6 text-[var(--hly-green-text)]" />
             </div>
             <CardTitle>Email Verified!</CardTitle>
             <CardDescription>

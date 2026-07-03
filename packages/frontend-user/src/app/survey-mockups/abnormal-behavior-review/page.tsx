@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 const SECTION_TITLE_CLASS = 'text-[26px] font-semibold leading-tight tracking-normal';
-const WARNING_BADGE_CLASS = 'border-[#d8ccba] bg-[#f2efe8] text-[#6a6256]';
+const WARNING_BADGE_CLASS = 'border-[var(--hly-amber-border)] bg-[var(--hly-surface)] text-[var(--hly-neutral-text)]';
 
 type ReviewSignal = {
   title: string;
