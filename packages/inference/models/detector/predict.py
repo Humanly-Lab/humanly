@@ -186,7 +186,7 @@ def predict(body: dict) -> dict[str, Any]:
             "ok": True,
             "label": "unknown",
             "reason": "insufficient_typing",
-            "detail": f"n_keydown={n_keydown}(<{min_kd})",
+            "detail": "Humanly did not record enough keystroke timing data to run the typing detector reliably.",
             "n_keydown": int(n_keydown),
             "typed_ratio": round(typed_ratio, 3),
         }
