@@ -12,15 +12,39 @@ You are completing an online writing task in a real web browser. This is my own 
 
 IMPORTANT BROWSER REQUIREMENTS:
 Use Chrome incognito only. Do not use the in-app browser.
-START THIS RUN with a hard reset: immediately CLOSE ALL existing Chrome incognito windows (use Computer Use to close them - do NOT read, inspect, screenshot, or try to take over any existing page first), then open ONE new Chrome incognito window and go to the task. This reset is required on EVERY run: Chrome shares one session across all incognito windows and this task is single-attempt, so without closing them first you will resume/overwrite a previous run's document. Treat it as a fast mechanical step, not something to analyze. After the editor loads, it should be blank - if it is not, repeat the reset.
-Use the Codex Chrome extension for navigation, reading page state, clicking buttons, screenshots, and verification.
+Use Computer Use for the Chrome/incognito control path. The in-app browser and
+Codex page are not equivalent to the real Chrome incognito environment required
+for this study.
+START THIS RUN with a hard reset: immediately CLOSE ALL existing Chrome
+incognito windows (use Computer Use to close them - do NOT read, inspect,
+screenshot, or try to take over any existing page first), then open ONE new
+Chrome incognito window and go to the task. This reset is required on EVERY run:
+Chrome shares one session across all incognito windows and this task is
+single-attempt, so without closing them first you will resume/overwrite a
+previous run's document. Treat it as a fast mechanical step, not something to
+analyze. After the editor loads, it should be blank - if it is not, repeat the
+reset.
+To open the fresh incognito window robustly: first launch or focus Google Chrome
+as the active foreground app, then press Command+Shift+N. Never press
+Command+Shift+N while Codex is focused, while Chrome is collapsed/minimized, or
+before Chrome has been made active; that can open a new Codex page instead of a
+Chrome incognito window. If the shortcut does not clearly produce a Chrome
+incognito window, close the wrong window/tab and use Chrome's File > New
+Incognito Window menu path. Verify that the resulting window is a Chrome
+incognito window before loading the task URL.
+Use the Codex Chrome extension for navigation, reading page state, clicking
+buttons, screenshots, and verification only when it can see and control the
+fresh incognito tab. If the extension cannot see the incognito page, do not
+fail immediately; continue operating the visible Chrome incognito window with
+Computer Use. Report failure only if no visible fresh Chrome incognito window can
+be controlled after one clean retry.
 For typing into the writing editor, use Computer Use / real OS keyboard input only. Do NOT use Playwright fill/type, DOM typing, clipboard paste, or programmatic value setting for the editor text. The live character count must update from real typing input.
 
 TASK URL (open this first in a fresh Chrome incognito window):
 <HUMANLY_PUBLIC_TASK_URL>
 
 STEPS:
-1. Immediately close ALL open Chrome incognito windows without interacting with them, then open a new Chrome incognito window and go to the URL. It is a public task you can do as a guest - if prompted to sign in, choose "continue as guest" / start without an account. The editor should load blank; if it restored a previous attempt, repeat the reset.
+1. Immediately close ALL open Chrome incognito windows without interacting with them. Then launch or focus Google Chrome, open exactly one new Chrome incognito window, and go to the URL. It is a public task you can do as a guest - if prompted to sign in, choose "continue as guest" / start without an account. The editor should load blank; if it restored a previous attempt, close all incognito windows and repeat the reset.
 2. An introductory dialog will appear showing the task description and writing rules. Read it carefully, then click the Confirm / Acknowledge / Start button to proceed into the text editor. Handle any similar prompts the same way until you reach the editor.
 3. Read ALL the instructions and requirements: topic, what to write, length limits, writing rules, and any attached instruction PDF.
    - Read material directly on screen.
@@ -37,6 +61,7 @@ STEPS:
 6. Verify the editor's live character count is within the required range.
 7. Wait until the page shows Saved, then click Submit.
 8. Confirm submission succeeds. Report back the final character count and the exact confirmation or failure message.
+9. After reporting the result, close all Chrome incognito windows from this run.
 
 Figure out the requirements from the page yourself; do not ask me for them.
 ```
@@ -48,8 +73,32 @@ You are completing an online writing task in a real web browser. This is my own 
 
 IMPORTANT BROWSER REQUIREMENTS:
 Use Chrome incognito only. Do not use the in-app browser.
-START THIS RUN with a hard reset: immediately CLOSE ALL existing Chrome incognito windows (use Computer Use to close them - do NOT read, inspect, screenshot, or try to take over any existing page first), then open ONE new Chrome incognito window and go to the task. This reset is required on EVERY run: Chrome shares one session across all incognito windows and this task is single-attempt, so without closing them first you will resume/overwrite a previous run's document. Treat it as a fast mechanical step, not something to analyze. After the editor loads, it should be blank - if it is not, repeat the reset.
-Use the Codex Chrome extension for navigation, reading page state, clicking buttons, screenshots, and verification.
+Use Computer Use for the Chrome/incognito control path. The in-app browser and
+Codex page are not equivalent to the real Chrome incognito environment required
+for this study.
+START THIS RUN with a hard reset: immediately CLOSE ALL existing Chrome
+incognito windows (use Computer Use to close them - do NOT read, inspect,
+screenshot, or try to take over any existing page first), then open ONE new
+Chrome incognito window and go to the task. This reset is required on EVERY run:
+Chrome shares one session across all incognito windows and this task is
+single-attempt, so without closing them first you will resume/overwrite a
+previous run's document. Treat it as a fast mechanical step, not something to
+analyze. After the editor loads, it should be blank - if it is not, repeat the
+reset.
+To open the fresh incognito window robustly: first launch or focus Google Chrome
+as the active foreground app, then press Command+Shift+N. Never press
+Command+Shift+N while Codex is focused, while Chrome is collapsed/minimized, or
+before Chrome has been made active; that can open a new Codex page instead of a
+Chrome incognito window. If the shortcut does not clearly produce a Chrome
+incognito window, close the wrong window/tab and use Chrome's File > New
+Incognito Window menu path. Verify that the resulting window is a Chrome
+incognito window before loading the task URL.
+Use the Codex Chrome extension for navigation, reading page state, clicking
+buttons, screenshots, and verification only when it can see and control the
+fresh incognito tab. If the extension cannot see the incognito page, do not
+fail immediately; continue operating the visible Chrome incognito window with
+Computer Use. Report failure only if no visible fresh Chrome incognito window can
+be controlled after one clean retry.
 For typing into the writing editor, use Computer Use / real OS keyboard input only. Do NOT use Playwright fill/type, DOM typing, clipboard paste, or programmatic value setting for the editor text. The live character count must update from real typing input.
 
 HUMAN TYPING STYLE (required for this run):
@@ -65,7 +114,7 @@ TASK URL (open this first in a fresh Chrome incognito window):
 <HUMANLY_PUBLIC_TASK_URL>
 
 STEPS:
-1. Immediately close ALL open Chrome incognito windows without interacting with them, then open a new Chrome incognito window and go to the URL. It is a public task you can do as a guest - if prompted to sign in, choose "continue as guest" / start without an account. The editor should load blank; if it restored a previous attempt, repeat the reset.
+1. Immediately close ALL open Chrome incognito windows without interacting with them. Then launch or focus Google Chrome, open exactly one new Chrome incognito window, and go to the URL. It is a public task you can do as a guest - if prompted to sign in, choose "continue as guest" / start without an account. The editor should load blank; if it restored a previous attempt, close all incognito windows and repeat the reset.
 2. An introductory dialog will appear showing the task description and writing rules. Read it carefully, then click the Confirm / Acknowledge / Start button to proceed into the text editor. Handle any similar prompts the same way until you reach the editor.
 3. Read ALL the instructions and requirements: topic, what to write, length limits, writing rules, and any attached instruction PDF.
    - Read material directly on screen.
@@ -82,6 +131,7 @@ STEPS:
 6. Verify the editor's live character count is within the required range.
 7. Wait until the page shows Saved, then click Submit.
 8. Confirm submission succeeds. Report back the final character count and the exact confirmation or failure message.
+9. After reporting the result, close all Chrome incognito windows from this run.
 
 Figure out the requirements from the page yourself; do not ask me for them.
 ```
