@@ -17,6 +17,7 @@ Run locally:
 from __future__ import annotations
 
 import importlib
+import os
 import pkgutil
 from typing import Any
 
@@ -42,11 +43,20 @@ def _discover_models() -> None:
 _discover_models()
 
 
+def _allow_missing_models() -> bool:
+    return os.environ.get("INFERENCE_ALLOW_MISSING_MODELS", "").lower() in {"1", "true", "yes"}
+
+
 @app.get("/health")
 def health() -> dict[str, Any]:
     models_status = {name: h.status() for name, h in REGISTRY.items()}
     all_ok = all(s.get("loaded") for s in models_status.values()) if models_status else False
-    return {"status": "ok" if all_ok else "degraded", "models": models_status}
+    allow_missing_models = _allow_missing_models()
+    return {
+        "status": "ok" if all_ok or allow_missing_models else "degraded",
+        "allowMissingModels": allow_missing_models,
+        "models": models_status,
+    }
 
 
 @app.get("/models")

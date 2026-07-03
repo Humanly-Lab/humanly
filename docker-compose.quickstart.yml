@@ -132,15 +132,17 @@ services:
 
   inference:
     # Unified multi-model inference service (Python/FastAPI). detector is the first model, served at /models/detector.
-    # The image contains code only; model weights are mounted at runtime (see volumes below).
+    # The image contains code only. Local quickstart can run without private detector weights;
+    # detector requests return an inconclusive result until model.joblib is mounted.
     image: humanly-inference:local
     build:
       context: ./packages/inference
       dockerfile: Dockerfile
-    # Weights are excluded from the image (see .dockerignore); mount the local (gitignored)
-    # weights dir read-only, mirroring prod. Requires model.joblib to exist locally.
+    # Weights are excluded from the image (see .dockerignore); mount the local
+    # gitignored weights dir read-only when model.joblib is available.
     environment:
       MODEL_PATH: /models/detector/model.joblib
+      INFERENCE_ALLOW_MISSING_MODELS: "true"
     volumes:
       - ./packages/inference/models:/models:ro
     healthcheck:

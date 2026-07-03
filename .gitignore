@@ -78,7 +78,6 @@ temp/
 
 # ── Local assistant state ─────────────────────────────────────────────────────
 .claude/
-.AGENTS/
 /CLAUDE.md
 /AGENTS.md
 /DEPLOY.md
@@ -106,7 +105,6 @@ tmp/
 Design.md
 
 # ── Local-only development / QA artifacts ────────────────────────────────────
-.agents/
 .codex/
 fixtures/qa/
 scripts/qa/
@@ -125,10 +123,5 @@ scripts/jest/
 **/example.html
 **/dev-bypass-login.html
 
-# Keep package-level implementation docs local.
-packages/**/*.md
-
-# Keep public docs focused on self-deployment only.
-docs/*
-!docs/
-!docs/SELF_DEPLOY.md
+# Keep exploratory research notes local; durable docs and repo skills are tracked.
+docs/research/

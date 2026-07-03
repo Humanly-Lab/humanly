@@ -1,0 +1,6 @@
+interface:
+  display_name: "Humanly Regression Guard"
+  short_description: "Classify Humanly QA findings and prevent recurring bugs."
+  default_prompt: "Use the Humanly regression guard to classify this finding before filing or fixing it."
+policy:
+  allow_implicit_invocation: true
