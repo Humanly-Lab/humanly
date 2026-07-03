@@ -14,8 +14,11 @@ import {
   JSONCertificate,
   AIAuthorshipStats,
   PaginatedResult,
+  CertificateDetectorResults,
+  CertificateHumanTypingDetectorResult,
   getEffectiveWritingAiPolicy,
   getCertificateFinalTextCharacterCount,
+  normalizeWritingDetectorConfig,
 } from '@humanly/shared';
 import { AppError } from '../middleware/error-handler';
 import { logger } from '../utils/logger';
@@ -27,6 +30,21 @@ import {
 } from './certificate-seal.service';
 import { AnomalyFlagsService } from './anomaly-flags.service';
 import { computeAiPolicyTextHash } from '../utils/ai-policy-hash';
+import { DetectorService } from './detector.service';
+
+function getDetectorErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'string') return error;
+  return 'Detector unavailable';
+}
+
+function getHumanTypingStatus(
+  result: CertificateHumanTypingDetectorResult['result']
+): CertificateHumanTypingDetectorResult['status'] {
+  if (!result?.ok) return 'unavailable';
+  if (result.label === 'human' || result.label === 'agent') return result.label;
+  return 'unknown';
+}
 
 export class CertificateService {
   /**
@@ -68,22 +86,34 @@ export class CertificateService {
       // certificate instead of mutating this one.
       const generatedAt = new Date();
 
+      const environmentConfig = this.normalizeEnvironmentConfig(document.environmentConfig || null);
+
       // Calculate certificate metrics
       const metrics = await this.calculateCertificateMetrics(documentId, userId, {
         endDate: generatedAt,
       });
-      const anomalyFlags = await AnomalyFlagsService.analyzeDocument(
+      const detectorPolicy = normalizeWritingDetectorConfig(environmentConfig?.detectors);
+      const anomalyFlags = detectorPolicy.anomalyPattern.enabled
+        ? await AnomalyFlagsService.analyzeDocument(
+            documentId,
+            environmentConfig,
+            undefined,
+            { endDate: generatedAt }
+          )
+        : [];
+      const detectorResults = await this.generateDetectorResults(
         documentId,
-        document.environmentConfig || null,
-        undefined,
-        { endDate: generatedAt }
+        userId,
+        environmentConfig,
+        anomalyFlags,
+        generatedAt
       );
 
       // Generate verification token
       const verificationToken = this.generateVerificationToken();
       const certificateId = crypto.randomUUID();
       const policyHash = computeAiPolicyTextHash(
-        getEffectiveWritingAiPolicy(document.environmentConfig)
+        getEffectiveWritingAiPolicy(environmentConfig)
       );
 
       // Hash access code if provided
@@ -117,6 +147,7 @@ export class CertificateService {
         processInputVolume: metrics.processInputVolume,
         editingTimeSeconds: Math.round(metrics.editingTimeSeconds),
         anomalyFlags,
+        detectorResults,
         policyHash,
         verificationToken,
         signerName: signerName || null,
@@ -147,8 +178,9 @@ export class CertificateService {
         processInputVolume: metrics.processInputVolume,
         editingTimeSeconds: Math.round(metrics.editingTimeSeconds),
         anomalyFlags,
+        detectorResults,
         policyHash,
-        environmentConfig: document.environmentConfig || null,
+        environmentConfig,
         signature,
         verificationToken,
         signerName,
@@ -166,7 +198,7 @@ export class CertificateService {
         userId,
       });
 
-      return this.withEnvironmentConfig(certificate, document.environmentConfig || null);
+      return this.withEnvironmentConfig(certificate, environmentConfig);
     } catch (error) {
       if (error instanceof AppError) throw error;
       logger.error('Error generating certificate', { error, documentId, userId });
@@ -198,18 +230,21 @@ export class CertificateService {
     knownEnvironmentConfig?: Certificate['environmentConfig']
   ): Promise<Certificate> {
     if (knownEnvironmentConfig !== undefined) {
-      return { ...certificate, environmentConfig: knownEnvironmentConfig };
+      return { ...certificate, environmentConfig: this.normalizeEnvironmentConfig(knownEnvironmentConfig) };
     }
 
     if (certificate.environmentConfig) {
-      return certificate;
+      return {
+        ...certificate,
+        environmentConfig: this.normalizeEnvironmentConfig(certificate.environmentConfig),
+      };
     }
 
     try {
       const document = await DocumentModel.findById(certificate.documentId);
       return {
         ...certificate,
-        environmentConfig: document?.environmentConfig || null,
+        environmentConfig: this.normalizeEnvironmentConfig(document?.environmentConfig || null),
       };
     } catch (error) {
       logger.warn('Unable to attach environment config to certificate', {
@@ -219,6 +254,95 @@ export class CertificateService {
       });
       return { ...certificate, environmentConfig: null };
     }
+  }
+
+  private static normalizeEnvironmentConfig(
+    environmentConfig?: Certificate['environmentConfig']
+  ): Certificate['environmentConfig'] {
+    if (!environmentConfig) return environmentConfig || null;
+
+    return {
+      ...environmentConfig,
+      detectors: normalizeWritingDetectorConfig(environmentConfig.detectors),
+    };
+  }
+
+  private static async generateDetectorResults(
+    documentId: string,
+    userId: string,
+    environmentConfig: Certificate['environmentConfig'],
+    anomalyFlags: Certificate['anomalyFlags'],
+    generatedAt: Date
+  ): Promise<CertificateDetectorResults> {
+    const detectors = normalizeWritingDetectorConfig(environmentConfig?.detectors);
+    const generatedAtIso = generatedAt.toISOString();
+    const anomalyPatternEnabled = detectors.anomalyPattern.enabled;
+    const humanTypingEnabled = detectors.humanTyping.enabled;
+    const results: CertificateDetectorResults = {
+      anomalyPattern: {
+        enabled: anomalyPatternEnabled,
+        status: anomalyPatternEnabled
+          ? (anomalyFlags || []).length > 0 ? 'review' : 'pass'
+          : 'not_enabled',
+        flags: anomalyPatternEnabled ? (anomalyFlags || []) : [],
+        generatedAt: generatedAtIso,
+      },
+      humanTyping: {
+        enabled: humanTypingEnabled,
+        status: humanTypingEnabled ? 'unknown' : 'not_enabled',
+        result: null,
+        spec: null,
+        error: null,
+        generatedAt: generatedAtIso,
+      },
+    };
+
+    if (!humanTypingEnabled) {
+      return results;
+    }
+
+    try {
+      const [result, spec] = await Promise.all([
+        DetectorService.detectDocument(documentId, userId, { endDate: generatedAt, detectorName: 'detector' }),
+        DetectorService.getSpec('detector').catch((error) => {
+          logger.warn('Unable to load detector spec for certificate', {
+            error,
+            documentId,
+          });
+          return null;
+        }),
+      ]);
+
+      results.humanTyping = {
+        enabled: true,
+        status: getHumanTypingStatus(result),
+        result,
+        spec,
+        error: result.ok === false ? result.error || result.reason || 'Detector returned an error' : null,
+        generatedAt: generatedAtIso,
+      };
+    } catch (error) {
+      const message = getDetectorErrorMessage(error);
+      logger.warn('Human typing detector unavailable for certificate', {
+        error: message,
+        documentId,
+        userId,
+      });
+      results.humanTyping = {
+        enabled: true,
+        status: 'unavailable',
+        result: {
+          ok: false,
+          label: 'unknown',
+          error: message,
+        },
+        spec: null,
+        error: message,
+        generatedAt: generatedAtIso,
+      };
+    }
+
+    return results;
   }
 
   /**
@@ -336,6 +460,7 @@ export class CertificateService {
       },
       aiAuthorshipStats: aiStats,
       anomalyFlags: certificate.anomalyFlags || [],
+      detectorResults: certificate.detectorResults || null,
       environmentConfig: certificate.environmentConfig
         ?? (await this.withEnvironmentConfig(certificate)).environmentConfig
         ?? null,
@@ -554,6 +679,7 @@ export class CertificateService {
       processInputVolume: certificate.processInputVolume || null,
       editingTimeSeconds: certificate.editingTimeSeconds,
       anomalyFlags: certificate.anomalyFlags || [],
+      detectorResults: certificate.detectorResults || null,
       policyHash: certificate.policyHash || null,
       verificationToken: certificate.verificationToken,
       signerName: certificate.signerName || null,

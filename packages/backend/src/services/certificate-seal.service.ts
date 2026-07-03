@@ -5,6 +5,7 @@ import {
   CertificateType,
   AuthorshipComposition,
   AuthorshipTextSourceSpan,
+  CertificateDetectorResults,
   WritingAnomalyFlag,
 } from '@humanly/shared';
 
@@ -18,6 +19,7 @@ export const CERTIFICATE_SEAL_SIGNATURE_PREFIX = `${CERTIFICATE_SEAL_VERSION}.`;
 export const HMAC_CERTIFICATE_SEAL_SIGNATURE_PREFIX = `${HMAC_CERTIFICATE_SEAL_VERSION}.`;
 export const LEGACY_CERTIFICATE_SEAL_SIGNATURE_PREFIX = `${LEGACY_CERTIFICATE_SEAL_VERSION}.`;
 const CERTIFICATE_SEAL_POLICY_HASH_FIELD = 'policyHash';
+const CERTIFICATE_SEAL_DETECTOR_RESULTS_FIELD = 'detectorResults';
 const CERTIFICATE_SEAL_FINAL_COMPOSITION_FIELD = 'metrics.finalTextComposition';
 const CERTIFICATE_SEAL_FINAL_SOURCE_SPANS_FIELD = 'metrics.finalTextSourceSpans';
 const CERTIFICATE_SEAL_PROCESS_COMPOSITION_FIELD = 'metrics.processInputVolume';
@@ -74,6 +76,7 @@ export interface CertificateSealInput {
   processInputVolume?: AuthorshipComposition | null;
   editingTimeSeconds: number;
   anomalyFlags?: WritingAnomalyFlag[];
+  detectorResults?: CertificateDetectorResults | null;
   policyHash?: string | null;
   verificationToken: string;
   signerName?: string | null;
@@ -308,6 +311,9 @@ export class CertificateSealService {
         ...payload,
         anomalyFlags: input.anomalyFlags || [],
       };
+      if (input.detectorResults) {
+        v2Payload.detectorResults = input.detectorResults;
+      }
       if (input.policyHash) {
         v2Payload.policyHash = input.policyHash;
       }
@@ -337,6 +343,9 @@ export class CertificateSealService {
     }
     if (input.policyHash) {
       signedFields.push(CERTIFICATE_SEAL_POLICY_HASH_FIELD);
+    }
+    if (input.detectorResults) {
+      signedFields.push(CERTIFICATE_SEAL_DETECTOR_RESULTS_FIELD);
     }
 
     return signedFields;

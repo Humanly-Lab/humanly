@@ -26,6 +26,7 @@ import {
   WRITING_AI_POLICY_OPTIONS,
   WRITING_AI_MODELS,
   formatWritingAiAccess,
+  formatWritingDetectorConfig,
   getWritingAiPolicyRejectionRuleInputValue,
   isWritingAiChatEnabled,
   isWritingAiPolishEnabled,
@@ -33,6 +34,7 @@ import {
   normalizeWritingAiAccess,
   normalizeWritingAttemptPolicy,
   normalizeCopyPastePolicy,
+  normalizeWritingDetectorConfig,
   normalizeResourceAccessPolicy,
   serializeEnvironmentConfig,
   type Task,
@@ -158,6 +160,7 @@ const AI_PROVIDER_OPTIONS = [
   { label: 'OpenAI', value: OPENAI_BASE_URL },
   { label: 'Anthropic', value: CLAUDE_BASE_URL },
 ] as const;
+const DETECTOR_HELP_TEXT = 'Anomaly Pattern uses deterministic event rules such as paste, focus, policy, and writing-flow signals. Humanly Typing Detector uses a model over writing behavior and may be inconclusive or unavailable if there is not enough usable typing data.';
 
 const getAiProviderForBaseUrl = (baseUrl: string): WritingAiProvider => {
   try {
@@ -308,7 +311,76 @@ const mergeEnvironmentConfig = (config?: WritingEnvironmentConfig | null): Writi
     ...DEFAULT_WRITING_ENVIRONMENT_CONFIG.traceability,
     ...(config?.traceability || {}),
   },
+  detectors: normalizeWritingDetectorConfig(config?.detectors),
 });
+
+function DetectorSettingsBox({
+  config,
+  disabled,
+  onChange,
+}: {
+  config: WritingEnvironmentConfig;
+  disabled?: boolean;
+  onChange: (config: WritingEnvironmentConfig) => void;
+}) {
+  const detectors = normalizeWritingDetectorConfig(config.detectors);
+  const setDetectorEnabled = (
+    detector: keyof WritingEnvironmentConfig['detectors'],
+    enabled: boolean
+  ) => {
+    onChange({
+      ...config,
+      detectors: {
+        ...detectors,
+        [detector]: { enabled },
+      },
+    });
+  };
+
+  return (
+    <div className="space-y-3 rounded-md border bg-background p-3">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <FormLabel>Anomaly behavior review</FormLabel>
+          <p className="text-xs text-muted-foreground">
+            Choose which detector results are generated for this certificate.
+          </p>
+        </div>
+        <AdminEnvironmentHelp title="Detector types">{DETECTOR_HELP_TEXT}</AdminEnvironmentHelp>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="flex items-start justify-between gap-3 rounded-md border bg-muted/30 p-3 text-sm">
+          <span>
+            <span className="font-medium">Anomaly Pattern</span>
+            <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
+              Deterministic review signals from paste, focus, policy, and writing-flow patterns.
+            </span>
+          </span>
+          <Checkbox
+            checked={detectors.anomalyPattern.enabled}
+            disabled={disabled}
+            onCheckedChange={(checked) => setDetectorEnabled('anomalyPattern', checked === true)}
+          />
+        </label>
+
+        <label className="flex items-start justify-between gap-3 rounded-md border bg-muted/30 p-3 text-sm">
+          <span>
+            <span className="font-medium">Humanly Typing Detector</span>
+            <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
+              Model-based typing analysis that estimates whether the trajectory looks human-written.
+            </span>
+          </span>
+          <Checkbox
+            checked={detectors.humanTyping.enabled}
+            disabled={disabled}
+            onCheckedChange={(checked) => setDetectorEnabled('humanTyping', checked === true)}
+          />
+        </label>
+      </div>
+    </div>
+  );
+}
 
 export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
   const { toast } = useToast();
@@ -766,6 +838,7 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
         trackAiUsage: aiAccess !== 'off',
         trackCopyPaste: normalizeCopyPastePolicy(environmentConfig.copyPastePolicy) === 'allowed',
       },
+      detectors: normalizeWritingDetectorConfig(environmentConfig.detectors),
       resourceAccess: normalizeResourceAccessPolicy(environmentConfig.resourceAccess),
     };
   };
@@ -888,6 +961,11 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
       detail: normalizeResourceAccessPolicy(environmentConfig.resourceAccess) === 'view-only'
         ? 'Writers can view instruction PDFs in the workspace.'
         : 'Writers can view and download instruction PDFs.',
+    },
+    {
+      label: 'Detectors',
+      value: formatWritingDetectorConfig(environmentConfig.detectors),
+      detail: 'Certificate review modules',
     },
   ];
 
@@ -1461,6 +1539,18 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
                   ) : null}
                 </div>
               </AdminEnvironmentDialogSection>
+
+              <DetectorSettingsBox
+                config={environmentConfig}
+                disabled={controlsDisabled}
+                onChange={(nextConfig) => {
+                  setEnvironmentConfig((current) => ({
+                    ...current,
+                    ...nextConfig,
+                    preset: 'custom',
+                  }));
+                }}
+              />
 
               <AdminEnvironmentDialogSection
                 title="Time"

@@ -10,6 +10,16 @@ export type CopyPastePolicy = 'allowed' | 'blocked';
 export type ResourceAccessPolicy = 'downloadable' | 'view-only';
 export type WritingEnvironmentPreset = 'default_writing' | 'no_ai' | 'ai_assisted' | 'timed_writing' | 'custom';
 export type WritingAiProvider = 'together' | 'openrouter' | 'openai' | 'claude' | 'custom';
+export type WritingDetectorId = 'anomalyPattern' | 'humanTyping';
+
+export interface WritingDetectorToggle {
+  enabled: boolean;
+}
+
+export interface WritingDetectorConfig {
+  anomalyPattern: WritingDetectorToggle;
+  humanTyping: WritingDetectorToggle;
+}
 
 export interface WritingAiProviderConfig {
   provider: WritingAiProvider;
@@ -69,6 +79,7 @@ export interface WritingEnvironmentConfig {
     trackCopyPaste: boolean;
     trackFocusBlur: boolean;
   };
+  detectors: WritingDetectorConfig;
   resourceAccess?: ResourceAccessPolicy;
   copyPastePolicy: CopyPastePolicy;
 }
@@ -170,6 +181,56 @@ export const normalizeResourceAccessPolicy = (policy?: string | null): ResourceA
   policy === 'view-only' ? 'view-only' : 'downloadable'
 );
 
+export const DEFAULT_WRITING_DETECTOR_CONFIG: WritingDetectorConfig = {
+  anomalyPattern: { enabled: true },
+  humanTyping: { enabled: true },
+};
+
+const normalizeDetectorToggle = (
+  value: unknown,
+  fallback: WritingDetectorToggle
+): WritingDetectorToggle => {
+  if (typeof value === 'boolean') {
+    return { enabled: value };
+  }
+
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    const enabled = (value as { enabled?: unknown }).enabled;
+    if (typeof enabled === 'boolean') {
+      return { enabled };
+    }
+  }
+
+  return { ...fallback };
+};
+
+export const normalizeWritingDetectorConfig = (
+  value?: Partial<WritingDetectorConfig> | null
+): WritingDetectorConfig => ({
+  anomalyPattern: normalizeDetectorToggle(value?.anomalyPattern, DEFAULT_WRITING_DETECTOR_CONFIG.anomalyPattern),
+  humanTyping: normalizeDetectorToggle(value?.humanTyping, DEFAULT_WRITING_DETECTOR_CONFIG.humanTyping),
+});
+
+export const isAnomalyPatternDetectorEnabled = (
+  config?: Pick<WritingEnvironmentConfig, 'detectors'> | null
+): boolean => normalizeWritingDetectorConfig(config?.detectors).anomalyPattern.enabled;
+
+export const isHumanTypingDetectorEnabled = (
+  config?: Pick<WritingEnvironmentConfig, 'detectors'> | null
+): boolean => normalizeWritingDetectorConfig(config?.detectors).humanTyping.enabled;
+
+export const formatWritingDetectorConfig = (
+  value?: Partial<WritingDetectorConfig> | null
+): string => {
+  const detectors = normalizeWritingDetectorConfig(value);
+  const enabled = [
+    detectors.anomalyPattern.enabled ? 'Anomaly Pattern' : null,
+    detectors.humanTyping.enabled ? 'Humanly Typing Detector' : null,
+  ].filter(Boolean);
+
+  return enabled.length ? enabled.join(', ') : 'None enabled';
+};
+
 export const normalizeWritingAttemptPolicy = (
   value?: Partial<WritingAttemptPolicyConfig> | null
 ): WritingAttemptPolicyConfig => {
@@ -236,6 +297,7 @@ export const DEFAULT_WRITING_ENVIRONMENT_CONFIG: WritingEnvironmentConfig = {
     trackCopyPaste: false,
     trackFocusBlur: true,
   },
+  detectors: DEFAULT_WRITING_DETECTOR_CONFIG,
   resourceAccess: 'downloadable',
   copyPastePolicy: 'allowed',
 };

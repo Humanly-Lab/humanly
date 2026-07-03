@@ -34,6 +34,7 @@ const SUBMISSION_SELECT_FIELDS = `
   supersedes_submission_id as "supersedesSubmissionId",
   status,
   anomaly_flags as "anomalyFlags",
+  detector_results as "detectorResults",
   0::int as "aiPolicyRefusalCount",
   created_at as "createdAt"
 `;
@@ -55,6 +56,7 @@ const SUBMISSION_WITH_CERTIFICATE_SELECT_FIELDS = `
   s.supersedes_submission_id as "supersedesSubmissionId",
   s.status,
   COALESCE(s.anomaly_flags, c.anomaly_flags, '[]'::jsonb) as "anomalyFlags",
+  COALESCE(s.detector_results, c.detector_results) as "detectorResults",
   COALESCE((
     SELECT COUNT(*)::int
     FROM document_events de
@@ -80,6 +82,7 @@ const SUBMISSION_SUMMARY_SELECT_FIELDS = `
   s.supersedes_submission_id as "supersedesSubmissionId",
   s.status,
   COALESCE(s.anomaly_flags, c.anomaly_flags, '[]'::jsonb) as "anomalyFlags",
+  COALESCE(s.detector_results, c.detector_results) as "detectorResults",
   s.created_at as "createdAt"
 `;
 
@@ -109,9 +112,10 @@ export class SubmissionModel {
         plain_text_snapshot,
         supersedes_submission_id,
         anomaly_flags,
+        detector_results,
         status
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
       RETURNING ${SUBMISSION_SELECT_FIELDS}
     `;
 
@@ -124,6 +128,7 @@ export class SubmissionModel {
       data.plainTextSnapshot,
       data.supersedesSubmissionId || null,
       JSON.stringify(data.anomalyFlags || []),
+      data.detectorResults === undefined ? null : JSON.stringify(data.detectorResults),
       data.status || 'active',
     ]);
 
@@ -289,7 +294,8 @@ export class SubmissionModel {
       UPDATE submissions
       SET
         certificate_id = $2,
-        anomaly_flags = COALESCE((SELECT anomaly_flags FROM certificates WHERE id = $2), '[]'::jsonb)
+        anomaly_flags = COALESCE((SELECT anomaly_flags FROM certificates WHERE id = $2), '[]'::jsonb),
+        detector_results = (SELECT detector_results FROM certificates WHERE id = $2)
       WHERE id = $1
       RETURNING ${SUBMISSION_SELECT_FIELDS}
     `;

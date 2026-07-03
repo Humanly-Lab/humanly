@@ -7,8 +7,11 @@ const ignoredSegments = new Set(['node_modules', 'dist', '.next']);
 const testFilePattern = /\.(?:test|spec)\.(?:cjs|js|mjs|ts|tsx)$/;
 
 const runnableTestFiles = new Set([
+  'packages/backend/src/controllers/ai-settings.controller.test.ts',
   'packages/backend/src/controllers/ai.controller.test.ts',
+  'packages/backend/src/services/certificate-detector-seal.service.test.ts',
   'packages/backend/src/services/task-public-share-link.service.test.ts',
+  'packages/backend/src/services/writing-detector-config.test.ts',
   'packages/create-humanly/test/installer.test.mjs',
   'packages/frontend-user/src/components/pdf/PDFViewer.resource-options.test.js',
 ]);

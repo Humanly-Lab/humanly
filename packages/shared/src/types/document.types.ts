@@ -92,6 +92,7 @@ export interface Submission {
   supersedesSubmissionId?: string | null;
   status: SubmissionStatus;
   anomalyFlags?: WritingAnomalyFlag[] | null;
+  detectorResults?: CertificateDetectorResults | null;
   aiPolicyRefusalCount?: number;
   createdAt: Date;
 }
@@ -105,6 +106,7 @@ export interface SubmissionInsertData {
   plainTextSnapshot: string;
   supersedesSubmissionId?: string | null;
   anomalyFlags?: WritingAnomalyFlag[];
+  detectorResults?: CertificateDetectorResults | null;
   status?: SubmissionStatus;
 }
 
@@ -251,6 +253,63 @@ export interface WritingAnomalyFlag {
   evidence: Record<string, WritingAnomalyFlagEvidenceValue>;
 }
 
+export type DetectorFeatureFormat = 'percent' | 'ms' | 'bits' | 'count' | 'ratio' | 'number';
+
+export interface HumanTypingDetectorFeature {
+  name: string;
+  value: number | null;
+  contribution: number;
+}
+
+export interface HumanTypingDetectorPrediction {
+  ok: boolean;
+  label?: 'human' | 'agent' | 'unknown';
+  score?: number;
+  threshold?: number | null;
+  threshold_trustworthy?: boolean;
+  reason?: string;
+  detail?: string;
+  n_keydown?: number;
+  typed_ratio?: number;
+  n_events?: number;
+  features?: HumanTypingDetectorFeature[];
+  error?: string;
+}
+
+export interface HumanTypingDetectorSpec {
+  id: string;
+  title: string;
+  verdict: {
+    positiveClass: string;
+    metricNoun: string;
+    positiveLabel: string;
+    negativeLabel: string;
+  };
+  style?: { accent?: string };
+  features: Record<string, { label: string; format: DetectorFeatureFormat; description: string }>;
+}
+
+export interface CertificateAnomalyPatternDetectorResult {
+  enabled: boolean;
+  status: 'pass' | 'review' | 'not_enabled';
+  flags: WritingAnomalyFlag[];
+  generatedAt?: string;
+}
+
+export interface CertificateHumanTypingDetectorResult {
+  enabled: boolean;
+  status: 'human' | 'agent' | 'unknown' | 'unavailable' | 'not_enabled';
+  result?: HumanTypingDetectorPrediction | null;
+  spec?: HumanTypingDetectorSpec | null;
+  error?: string | null;
+  generatedAt?: string;
+}
+
+export interface CertificateDetectorResults {
+  anomalyPattern: CertificateAnomalyPatternDetectorResult;
+  humanTyping: CertificateHumanTypingDetectorResult;
+}
+
 export interface WritingAnomalyThresholds {
   highSpeedWindowSeconds: number;
   highSpeedCharsPerMinute: number;
@@ -348,6 +407,7 @@ export interface Certificate {
   processInputVolume?: AuthorshipComposition | null;
   editingTimeSeconds: number;
   anomalyFlags?: WritingAnomalyFlag[];
+  detectorResults?: CertificateDetectorResults | null;
   policyHash?: string | null;
 
   // Verification
@@ -392,6 +452,7 @@ export interface CertificateInsertData {
   processInputVolume?: AuthorshipComposition | null;
   editingTimeSeconds: number;
   anomalyFlags?: WritingAnomalyFlag[];
+  detectorResults?: CertificateDetectorResults | null;
   policyHash?: string | null;
   environmentConfig?: WritingEnvironmentConfig | null;
   signature: string;
@@ -504,6 +565,7 @@ export interface JSONCertificate {
   };
   aiAuthorshipStats?: AIAuthorshipStats;
   anomalyFlags?: WritingAnomalyFlag[];
+  detectorResults?: CertificateDetectorResults | null;
   environmentConfig?: WritingEnvironmentConfig | null;
   evidence: {
     replayAvailable: boolean;

@@ -117,6 +117,8 @@ scripts/jest/
 **/__mocks__/
 **/*.test.*
 **/*.spec.*
+!packages/backend/src/services/certificate-detector-seal.service.test.ts
+!packages/backend/src/services/writing-detector-config.test.ts
 **/jest.config.js
 **/jest.setup.ts
 **/examples/

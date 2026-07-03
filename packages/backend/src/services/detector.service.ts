@@ -2,6 +2,14 @@ import { TaskService, TaskLogEventExportRow } from './task.service';
 import { AppError } from '../middleware/error-handler';
 import { env } from '../config/env';
 import { logger } from '../utils/logger';
+import { DocumentModel } from '../models/document.model';
+import { DocumentEventModel } from '../models/document-event.model';
+import type {
+  DocumentEvent,
+  HumanTypingDetectorFeature,
+  HumanTypingDetectorPrediction,
+  HumanTypingDetectorSpec,
+} from '@humanly/shared';
 
 /**
  * Detector integration service.
@@ -16,43 +24,24 @@ import { logger } from '../utils/logger';
 
 const DETECT_TIMEOUT_MS = 30_000;
 
-export interface DetectFeature {
-  name: string;
-  value: number | null;
-  contribution: number;
-}
-
-export interface DetectResult {
-  ok: boolean;
-  label?: 'human' | 'agent' | 'unknown';
-  score?: number;
-  threshold?: number | null;
-  threshold_trustworthy?: boolean;
-  reason?: string;
-  detail?: string;
-  n_keydown?: number;
-  typed_ratio?: number;
-  n_events?: number;
-  features?: DetectFeature[];
-  error?: string;
-}
+export type DetectFeature = HumanTypingDetectorFeature;
+export type DetectResult = HumanTypingDetectorPrediction;
 
 /** Detector component spec: the frontend renders generically from this. See SPEC in the inference service's models/<name>/predict.py. */
-export interface DetectorSpec {
-  id: string;
-  title: string;
-  verdict: {
-    positiveClass: string;
-    metricNoun: string;
-    positiveLabel: string;
-    negativeLabel: string;
-  };
-  style?: { accent?: string };
-  features: Record<string, { label: string; format: string; description: string }>;
-}
+export type DetectorSpec = HumanTypingDetectorSpec;
+
+type DetectorEventSource = {
+  eventId: string;
+  eventType: string;
+  eventTimestamp: Date | string;
+  eventCreatedAt?: Date | string | null;
+  textBefore?: string | null;
+  textAfter?: string | null;
+  metadata?: unknown;
+};
 
 /** Pick only the fields the detector actually uses, to avoid sending irrelevant columns beyond the verbatim text. */
-function toDetectorEvent(row: TaskLogEventExportRow): Record<string, unknown> {
+function toDetectorEvent(row: DetectorEventSource): Record<string, unknown> {
   return {
     eventId: row.eventId,
     eventType: row.eventType,
@@ -66,7 +55,64 @@ function toDetectorEvent(row: TaskLogEventExportRow): Record<string, unknown> {
   };
 }
 
+function documentEventToDetectorSource(event: DocumentEvent): DetectorEventSource {
+  return {
+    eventId: event.id,
+    eventType: event.eventType,
+    eventTimestamp: event.timestamp,
+    eventCreatedAt: event.createdAt,
+    textBefore: event.textBefore,
+    textAfter: event.textAfter,
+    metadata: event.metadata ?? null,
+  };
+}
+
 export class DetectorService {
+  private static prepareEvents(rows: DetectorEventSource[]): Record<string, unknown>[] {
+    const seen = new Set<string>();
+    const deduped = rows.filter((row) => {
+      if (!row.eventId || seen.has(row.eventId)) return false;
+      seen.add(row.eventId);
+      return true;
+    });
+
+    deduped.sort((a, b) => {
+      const ta = new Date(a.eventTimestamp).getTime();
+      const tb = new Date(b.eventTimestamp).getTime();
+      if (ta !== tb) return ta - tb;
+      const ca = a.eventCreatedAt ? new Date(a.eventCreatedAt).getTime() : 0;
+      const cb = b.eventCreatedAt ? new Date(b.eventCreatedAt).getTime() : 0;
+      if (ca !== cb) return ca - cb;
+      return (a.eventId || '').localeCompare(b.eventId || '');
+    });
+
+    return deduped.map(toDetectorEvent);
+  }
+
+  private static async detectPreparedEvents(
+    rows: DetectorEventSource[],
+    detectorName: string,
+    logContext: Record<string, unknown>
+  ): Promise<DetectResult> {
+    if (rows.length === 0) {
+      return { ok: true, label: 'unknown', reason: 'no_events', n_events: 0 };
+    }
+
+    const events = DetectorService.prepareEvents(rows);
+
+    logger.info('Detector run requested', {
+      ...logContext,
+      detectorName,
+      nEvents: events.length,
+    });
+
+    return DetectorService.callInference<DetectResult>(
+      'POST',
+      `/models/${detectorName}/predict`,
+      { events }
+    );
+  }
+
   /**
    * Run human/agent detection on a submission.
    * @param taskId       Task ID (used for ownership check)
@@ -95,36 +141,40 @@ export class DetectorService {
       return { ok: true, label: 'unknown', reason: 'no_events', n_events: 0 };
     }
 
-    // Dedupe by eventId (the JOIN can produce duplicates), then sort ascending by (time, server-side created time, eventId), consistent with feature extraction.
-    const seen = new Set<string>();
-    const deduped = rows.filter((r) => {
-      if (!r.eventId || seen.has(r.eventId)) return false;
-      seen.add(r.eventId);
-      return true;
-    });
-    deduped.sort((a, b) => {
-      const ta = new Date(a.eventTimestamp).getTime();
-      const tb = new Date(b.eventTimestamp).getTime();
-      if (ta !== tb) return ta - tb;
-      const ca = a.eventCreatedAt ? new Date(a.eventCreatedAt).getTime() : 0;
-      const cb = b.eventCreatedAt ? new Date(b.eventCreatedAt).getTime() : 0;
-      if (ca !== cb) return ca - cb;
-      return (a.eventId || '').localeCompare(b.eventId || '');
-    });
-
-    const events = deduped.map(toDetectorEvent);
-
-    logger.info('Detector run requested', {
+    return DetectorService.detectPreparedEvents(rows, detectorName, {
       taskId,
       submissionId,
       adminUserId,
-      nEvents: events.length,
+    });
+  }
+
+  /**
+   * Run human/agent detection on a user's document at a frozen certificate boundary.
+   */
+  static async detectDocument(
+    documentId: string,
+    userId: string,
+    options: { endDate?: Date | string; detectorName?: string } = {}
+  ): Promise<DetectResult> {
+    const document = await DocumentModel.findByIdAndUserId(documentId, userId);
+    if (!document) {
+      throw new AppError(404, 'Document not found or unauthorized');
+    }
+
+    const events = await DocumentEventModel.findByDocumentId(documentId, {
+      endDate: options.endDate ? new Date(options.endDate) : undefined,
+      limit: 50000,
+      offset: 0,
     });
 
-    return DetectorService.callInference<DetectResult>(
-      'POST',
-      `/models/${detectorName}/predict`,
-      { events }
+    return DetectorService.detectPreparedEvents(
+      events.map(documentEventToDetectorSource),
+      options.detectorName || 'detector',
+      {
+        documentId,
+        userId,
+        certificateBoundary: options.endDate ? new Date(options.endDate).toISOString() : undefined,
+      }
     );
   }
 
