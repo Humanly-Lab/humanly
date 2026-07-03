@@ -33,11 +33,11 @@ interface DocumentReplayProps {
 const AI_ACTION_FLASH_STYLES: Record<string, { overlay: string; border: string }> = {
   grammar: {
     overlay: 'bg-[#dfe6dc]/55',
-    border: 'ring-[#c8d4c8]',
+    border: 'ring-[var(--hly-green-border)]',
   },
   improve: {
     overlay: 'bg-[#dfe6dc]/55',
-    border: 'ring-[#c8d4c8]',
+    border: 'ring-[var(--hly-green-border)]',
   },
   simplify: {
     overlay: 'bg-amber-200/50',
@@ -437,7 +437,7 @@ export function DocumentReplay({ token, accessCode, className = '' }: DocumentRe
         {showQuickActionApplication && (
           <div className="absolute left-1/2 top-4 z-20 w-[420px] max-w-[calc(100%-2rem)] -translate-x-1/2 rounded-xl border bg-background/95 p-3 shadow-lg backdrop-blur-sm">
             <div className="mb-3 flex items-start gap-2">
-              <div className="mt-0.5 rounded-full bg-[#f1e8df] p-1.5 text-[#8a5f43]">
+              <div className="mt-0.5 rounded-full bg-[var(--hly-amber-bg)] p-1.5 text-[#8a5f43]">
                 <Sparkles className="h-3.5 w-3.5" />
               </div>
               <div>
@@ -492,7 +492,7 @@ export function DocumentReplay({ token, accessCode, className = '' }: DocumentRe
           </div>
         )}
         {aiActionLabel && (
-          <div className="absolute top-1.5 right-1.5 z-10 rounded bg-[#f1e8df] px-1.5 py-0.5 text-[10px] font-medium capitalize text-[#8a5f43] sm:top-2 sm:right-2 sm:px-2 sm:py-1 sm:text-xs">
+          <div className="absolute top-1.5 right-1.5 z-10 rounded bg-[var(--hly-amber-bg)] px-1.5 py-0.5 text-[10px] font-medium capitalize text-[#8a5f43] sm:top-2 sm:right-2 sm:px-2 sm:py-1 sm:text-xs">
             {aiActionLabel}
           </div>
         )}

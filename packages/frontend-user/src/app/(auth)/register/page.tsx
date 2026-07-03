@@ -87,7 +87,7 @@ function getPasswordStrength(password: string): {
   const normalizedStrength = Math.min(Math.floor(strength / 2), 3);
 
   const labels = ['', 'Weak', 'Medium', 'Strong'];
-  const colors = ['', 'bg-destructive/70', 'bg-[#d6bba8]', 'bg-[#6f8a78]'];
+  const colors = ['', 'bg-destructive/70', 'bg-[#d6bba8]', 'bg-[var(--hly-brand)]'];
 
   return {
     strength: normalizedStrength,

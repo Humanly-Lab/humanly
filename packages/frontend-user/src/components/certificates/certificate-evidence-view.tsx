@@ -81,8 +81,8 @@ const COMPOSITION_HIGHLIGHT_COLORS = {
   aiAssisted: 'rgba(150, 132, 176, 0.42)',
 } as const;
 const FINAL_TEXT_PREVIEW_ROWS = 6;
-const HUMAN_TYPING_HUMAN_COLOR = '#5b6b63';
-const HUMAN_TYPING_AGENT_COLOR = '#6f5d61';
+const HUMAN_TYPING_HUMAN_COLOR = 'var(--hly-green-text)';
+const HUMAN_TYPING_AGENT_COLOR = 'var(--hly-red-text)';
 const HUMAN_TYPING_BAR_TRACK = '#ece9e3';
 const DETECTOR_HELP_TEXT = 'Anomaly Pattern uses deterministic event rules such as paste, focus, policy, and writing-flow signals. Humanly Typing Detector uses a model over writing behavior and may be inconclusive or unavailable if there is not enough usable typing data.';
 
@@ -131,9 +131,9 @@ function getSealStatusPresentation(status?: CertificateSealStatus) {
   if (status === 'valid') {
     return {
       Icon: ShieldCheck,
-      containerClass: 'border-[#c8d4c8] bg-[#f3f7f1]',
-      iconClass: 'bg-[#dfe8dc] text-[#58715f]',
-      badgeClass: 'border-[#c8d4c8] bg-[#eef3ed] text-[#58715f]',
+      containerClass: 'border-[var(--hly-green-border)] bg-[var(--hly-green-bg-soft)]',
+      iconClass: 'bg-[var(--hly-green-icon)] text-[var(--hly-green-text)]',
+      badgeClass: 'border-[var(--hly-green-border)] bg-[var(--hly-green-bg)] text-[var(--hly-green-text)]',
       message: 'Publicly verifiable signature matches this certificate record.',
     };
   }
@@ -141,9 +141,9 @@ function getSealStatusPresentation(status?: CertificateSealStatus) {
   if (status === 'legacy_valid') {
     return {
       Icon: ShieldCheck,
-      containerClass: 'border-[#d7c8a8] bg-[#fbf6e8]',
-      iconClass: 'bg-[#f1e4c5] text-[#8a6b2f]',
-      badgeClass: 'border-[#d7c8a8] bg-[#f8eed3] text-[#8a6b2f]',
+      containerClass: 'border-[var(--hly-amber-border)] bg-[var(--hly-amber-bg)]',
+      iconClass: 'bg-[var(--hly-amber-icon)] text-[var(--hly-amber-text)]',
+      badgeClass: 'border-[var(--hly-amber-border)] bg-[var(--hly-amber-badge)] text-[var(--hly-amber-text)]',
       message: 'The integrity seal matches this certificate record.',
     };
   }
@@ -351,14 +351,14 @@ function getEnvironmentRows(config?: WritingEnvironmentConfig | null) {
 
 function getFlagSeverityClass(severity: WritingAnomalyFlag['severity']) {
   if (severity === 'critical') {
-    return 'border-[#d6c5c7] bg-[#f2edee] text-[#6f5d61]';
+    return 'border-[var(--hly-red-border)] bg-[var(--hly-red-bg)] text-[var(--hly-red-text)]';
   }
 
   if (severity === 'warning') {
-    return 'border-[#d8ccba] bg-[#f2efe8] text-[#6a6256]';
+    return 'border-[var(--hly-amber-border)] bg-[#f2efe8] text-[var(--hly-neutral-text)]';
   }
 
-  return 'border-[#c8d1dc] bg-[#eef1f4] text-[#576777]';
+  return 'border-[var(--hly-blue-border)] bg-[var(--hly-blue-bg)] text-[var(--hly-blue-text)]';
 }
 
 function normalizeReviewSignal(flag: WritingAnomalyFlag): WritingAnomalyFlag | null {
@@ -593,7 +593,7 @@ function HumanTypingDetectorPanel({
   const accent = spec?.style?.accent ?? HUMAN_TYPING_AGENT_COLOR;
   const isPositive = prediction?.label === positiveClass;
   const verdictColor = result.status === 'unknown' || result.status === 'unavailable'
-    ? '#6b6255'
+    ? 'var(--hly-neutral-text)'
     : isPositive
       ? accent
       : HUMAN_TYPING_HUMAN_COLOR;
@@ -629,10 +629,10 @@ function HumanTypingDetectorPanel({
           variant="outline"
           className={
             result.status === 'agent'
-              ? 'border-[#d6c5c7] bg-[#f2edee] text-[#6f5d61]'
+              ? 'border-[var(--hly-red-border)] bg-[var(--hly-red-bg)] text-[var(--hly-red-text)]'
               : result.status === 'human'
-                ? 'border-[#c8d4c8] bg-[#eff2ef] text-[#58715f]'
-                : 'border-[#d7cdc0] bg-[#f1eee8] text-[#6b6255]'
+                ? 'border-[var(--hly-green-border)] bg-[var(--hly-green-bg)] text-[var(--hly-green-text)]'
+                : 'border-[var(--hly-amber-border)] bg-[#f1eee8] text-[var(--hly-neutral-text)]'
           }
         >
           {statusLabel}
@@ -661,8 +661,8 @@ function HumanTypingDetectorPanel({
               className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-medium"
               style={{
                 color: verdictColor,
-                backgroundColor: isPositive ? '#f2edee' : '#eff2ef',
-                borderColor: isPositive ? '#d6c5c7' : '#cbd5ce',
+                backgroundColor: isPositive ? 'var(--hly-red-bg)' : 'var(--hly-green-bg)',
+                borderColor: isPositive ? 'var(--hly-red-border)' : 'var(--hly-green-border)',
               }}
             >
               {isPositive ? <TrendingUp className="h-3.5 w-3.5" /> : <TrendingDown className="h-3.5 w-3.5" />}
@@ -709,7 +709,7 @@ function HumanTypingDetectorPanel({
           </p>
 
           {showLowTypedRatioNote && (
-            <p className="flex items-start gap-1.5 rounded-md border border-[#d8ccba] bg-[#f6f2ea] p-3 text-xs text-[#6a6256]">
+            <p className="flex items-start gap-1.5 rounded-md border border-[var(--hly-amber-border)] bg-[#f6f2ea] p-3 text-xs text-[var(--hly-neutral-text)]">
               <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
               Only {typedRatioLabel} of the final text came from hand-typed input.
               Interpret the timing result with that coverage context.

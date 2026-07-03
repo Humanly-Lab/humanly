@@ -1612,7 +1612,7 @@ export default function NewDocumentPage() {
             {!showCustomEnvironmentSummary && !isImportingEnvironment && (
               <div className="rounded-lg border border-border/70 bg-muted/35 p-3">
                 <div className="flex items-start gap-3">
-                  <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-[#6f8a78]" />
+                  <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-[var(--hly-brand)]" />
                   <div>
                     <p className="font-medium">Default Environment</p>
                     <p className="text-sm text-muted-foreground">
@@ -1650,7 +1650,7 @@ export default function NewDocumentPage() {
               <div className="rounded-lg border border-border/70 bg-muted/35 p-3">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                   <div className="flex min-w-0 items-start gap-3">
-                    <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-[#6f8a78]" />
+                    <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-[var(--hly-brand)]" />
                     <div>
                       <p className="font-medium">Custom Environment</p>
                       <p className="text-sm text-muted-foreground">

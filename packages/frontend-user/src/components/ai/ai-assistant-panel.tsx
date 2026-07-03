@@ -153,9 +153,9 @@ function getPdfContextIndicator(status: FileTextIndexStatus | undefined, pageCou
   switch (status) {
     case 'ready':
       return {
-        icon: <CheckCircle className="h-3 w-3 shrink-0 text-[#58715f]" />,
+        icon: <CheckCircle className="h-3 w-3 shrink-0 text-[var(--hly-green-text)]" />,
         label: `PDF context available${pageCount ? ` (${pageCount} pages)` : ''}`,
-        className: 'border-[#c8d4c8] bg-[#eef3ed] text-[#58715f]',
+        className: 'border-[var(--hly-green-border)] bg-[var(--hly-green-bg)] text-[var(--hly-green-text)]',
       };
     case 'processing':
       return {
