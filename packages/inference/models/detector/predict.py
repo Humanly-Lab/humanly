@@ -172,20 +172,21 @@ def predict(body: dict) -> dict[str, Any]:
 
     feats = session_features(_normalize_metadata(events))
 
-    # Quality gate: too few keystrokes / most of the text not hand-typed → the typing model can't judge (same thresholds as the training quality_gate).
+    # Quality gate: too few keystrokes means the timing model cannot judge.
+    # Low typed_ratio is still useful review context, but it should not suppress
+    # the typing-rhythm prediction when enough keystroke events exist.
     gate = _artifact.get("quality_gate", {})
     min_kd = gate.get("min_keydown", 50)
-    min_ratio = gate.get("min_typed_ratio", 0.5)
     n_keydown = feats.get("n_keydown", 0) or 0
     final_len = feats.get("final_len", 0) or 0
     typed = feats.get("typed_chars", 0) or 0
     typed_ratio = (typed / final_len) if final_len else 0.0
-    if n_keydown < min_kd or typed_ratio < min_ratio:
+    if n_keydown < min_kd:
         return {
             "ok": True,
             "label": "unknown",
             "reason": "insufficient_typing",
-            "detail": f"n_keydown={n_keydown}(<{min_kd}) or typed ratio={typed_ratio:.2f}(<{min_ratio})",
+            "detail": f"n_keydown={n_keydown}(<{min_kd})",
             "n_keydown": int(n_keydown),
             "typed_ratio": round(typed_ratio, 3),
         }
