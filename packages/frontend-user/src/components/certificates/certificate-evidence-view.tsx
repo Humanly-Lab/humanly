@@ -8,9 +8,14 @@ import {
   Clock,
   Download,
   FileText,
+  HelpCircle,
+  Info,
   MessageSquare,
   ShieldAlert,
   ShieldCheck,
+  Shield,
+  TrendingDown,
+  TrendingUp,
   Wand2,
 } from 'lucide-react';
 import { format } from 'date-fns';
@@ -20,11 +25,13 @@ import {
   formatDisplayTimestamp,
   getLocalTimeZoneLabel,
   formatWritingAiAccess,
+  formatWritingDetectorConfig,
   formatWritingAiPolicy,
   getMaxWritingAttempts,
   isWritingAiChatEnabled,
   isWritingAiPolishEnabled,
   normalizeCopyPastePolicy,
+  normalizeWritingDetectorConfig,
   normalizeWritingAttemptPolicy,
   normalizeResourceAccessPolicy,
   getEnvironmentConfigExtension,
@@ -35,6 +42,8 @@ import {
   type CertificateSeal,
   type CertificateSealStatus,
   type CertificateType,
+  type CertificateDetectorResults,
+  type DetectorFeatureFormat,
   type EnvironmentConfigFileFormat,
   type WritingAnomalyFlag,
   type WritingEnvironmentConfig,
@@ -53,6 +62,11 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import { DocumentReplay } from '@/components/certificates/document-replay';
 
 const SECTION_TITLE_CLASS = 'text-lg font-semibold tracking-normal';
@@ -67,6 +81,10 @@ const COMPOSITION_HIGHLIGHT_COLORS = {
   aiAssisted: 'rgba(150, 132, 176, 0.42)',
 } as const;
 const FINAL_TEXT_PREVIEW_ROWS = 6;
+const HUMAN_TYPING_HUMAN_COLOR = '#5b6b63';
+const HUMAN_TYPING_AGENT_COLOR = '#6f5d61';
+const HUMAN_TYPING_BAR_TRACK = '#ece9e3';
+const DETECTOR_HELP_TEXT = 'Anomaly Pattern uses deterministic event rules such as paste, focus, policy, and writing-flow signals. Humanly Typing Detector uses a model over writing behavior and may be inconclusive or unavailable if there is not enough usable typing data.';
 
 export interface CertificateEvidenceRecord {
   id: string;
@@ -85,6 +103,7 @@ export interface CertificateEvidenceRecord {
   pasteEvents: number;
   editingTimeSeconds: number;
   anomalyFlags?: WritingAnomalyFlag[] | null;
+  detectorResults?: CertificateDetectorResults | null;
   includeEditHistory?: boolean;
   signerName?: string | null;
   environmentConfig?: WritingEnvironmentConfig | null;
@@ -325,6 +344,7 @@ function getEnvironmentRows(config?: WritingEnvironmentConfig | null) {
   }
 
   rows.push(['Traceability', formatTraceability(config)]);
+  rows.push(['Detectors', formatWritingDetectorConfig(config.detectors)]);
 
   return rows;
 }
@@ -424,6 +444,52 @@ function getReviewSignals(flags?: WritingAnomalyFlag[] | null): WritingAnomalyFl
     .filter((flag): flag is WritingAnomalyFlag => Boolean(flag));
 }
 
+function getCertificateDetectorResults(
+  certificate: CertificateEvidenceRecord
+): CertificateDetectorResults {
+  if (certificate.detectorResults) return certificate.detectorResults;
+
+  const detectors = normalizeWritingDetectorConfig(certificate.environmentConfig?.detectors);
+  const anomalyEnabled = detectors.anomalyPattern.enabled;
+  const humanTypingEnabled = detectors.humanTyping.enabled;
+  const anomalyFlags = anomalyEnabled ? (certificate.anomalyFlags || []) : [];
+
+  return {
+    anomalyPattern: {
+      enabled: anomalyEnabled,
+      status: anomalyEnabled ? (anomalyFlags.length > 0 ? 'review' : 'pass') : 'not_enabled',
+      flags: anomalyFlags,
+      generatedAt: new Date(certificate.generatedAt).toISOString(),
+    },
+    humanTyping: {
+      enabled: humanTypingEnabled,
+      status: humanTypingEnabled ? 'unknown' : 'not_enabled',
+      result: null,
+      spec: null,
+      error: humanTypingEnabled ? 'No frozen Humanly Typing Detector result is stored for this certificate.' : null,
+      generatedAt: new Date(certificate.generatedAt).toISOString(),
+    },
+  };
+}
+
+function formatDetectorFeatureValue(format: DetectorFeatureFormat | undefined, value: number | null): string {
+  if (value == null || Number.isNaN(value)) return 'Unavailable';
+  switch (format) {
+    case 'percent':
+      return `${(value * 100).toFixed(1)}%`;
+    case 'ms':
+      return `${Math.round(value)} ms`;
+    case 'bits':
+      return `${value.toFixed(2)} bits`;
+    case 'count':
+      return Math.round(value).toLocaleString();
+    case 'ratio':
+      return value.toFixed(2);
+    default:
+      return `${Math.round(value * 100) / 100}`;
+  }
+}
+
 function isTimestampEvidenceKey(key: string) {
   return key === 'windowStart' || key === 'windowEnd' || /timestamp$/i.test(key);
 }
@@ -453,6 +519,215 @@ function getVisibleEvidenceEntries(flag: WritingAnomalyFlag) {
   return Object.entries(flag.evidence || {})
     .filter(([key]) => !HIDDEN_EVIDENCE_KEYS.has(key))
     .slice(0, 6);
+}
+
+function AnomalyPatternPanel({
+  result,
+}: {
+  result: CertificateDetectorResults['anomalyPattern'];
+}) {
+  const reviewSignals = getReviewSignals(result.flags);
+
+  return (
+    <div className="space-y-3 rounded-lg border border-border/70 bg-muted/20 p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <p className="font-medium">Anomaly Pattern</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Deterministic review signals from write-time event patterns.
+          </p>
+        </div>
+        <Badge
+          variant="outline"
+          className={
+            result.status === 'review'
+              ? 'border-[#d8ccba] bg-[#f2efe8] text-[#6a6256]'
+              : result.status === 'not_enabled'
+                ? 'border-border/70 bg-background text-muted-foreground'
+                : 'border-[#c8d4c8] bg-[#eff2ef] text-[#58715f]'
+          }
+        >
+          {result.status === 'review' ? 'Review' : result.status === 'not_enabled' ? 'Not enabled' : 'No signals'}
+        </Badge>
+      </div>
+
+      {!result.enabled ? (
+        <p className="rounded-md border border-border/60 bg-background/70 p-3 text-sm text-muted-foreground">
+          Anomaly Pattern was not enabled for this writing setup.
+        </p>
+      ) : reviewSignals.length === 0 ? (
+        <p className="rounded-md border border-border/60 bg-background/70 p-3 text-sm text-muted-foreground">
+          No recorded deterministic review signals were detected before this certificate was generated.
+        </p>
+      ) : (
+        <div className="space-y-3">
+          {reviewSignals.map((flag, index) => (
+            <div key={`${flag.code}-${index}`} className="rounded-md border border-border/60 bg-background/70 p-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge
+                  variant="outline"
+                  className={`capitalize ${getFlagSeverityClass(flag.severity)}`}
+                >
+                  {flag.severity}
+                </Badge>
+                <p className="text-sm font-medium">{flag.label}</p>
+              </div>
+              <p className="mt-2 text-sm text-muted-foreground">{flag.description}</p>
+              {getVisibleEvidenceEntries(flag).length > 0 && (
+                <div className="mt-3 grid gap-2 text-xs sm:grid-cols-2">
+                  {getVisibleEvidenceEntries(flag).map(([key, value]) => (
+                    <div key={key} className="rounded-md bg-muted/45 px-2 py-1.5">
+                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                        {formatEvidenceKey(key)}
+                      </p>
+                      <p className="mt-0.5 break-words font-medium">{formatEvidenceValue(key, value)}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function HumanTypingDetectorPanel({
+  result,
+}: {
+  result: CertificateDetectorResults['humanTyping'];
+}) {
+  const spec = result.spec || null;
+  const prediction = result.result || null;
+  const positiveClass = spec?.verdict.positiveClass ?? 'agent';
+  const metricNoun = spec?.verdict.metricNoun ?? 'computer-use agent';
+  const positiveLabel = spec?.verdict.positiveLabel ?? 'Likely agent';
+  const negativeLabel = spec?.verdict.negativeLabel ?? 'Likely human';
+  const accent = spec?.style?.accent ?? HUMAN_TYPING_AGENT_COLOR;
+  const isPositive = prediction?.label === positiveClass;
+  const verdictColor = result.status === 'unknown' || result.status === 'unavailable'
+    ? '#6b6255'
+    : isPositive
+      ? accent
+      : HUMAN_TYPING_HUMAN_COLOR;
+  const probability = Math.round((prediction?.score ?? 0) * 100);
+  const features = prediction?.features || [];
+  const maxContribution = features.reduce((max, feature) => Math.max(max, Math.abs(feature.contribution)), 0) || 1;
+  const statusLabel = result.status === 'human'
+    ? negativeLabel
+    : result.status === 'agent'
+      ? positiveLabel
+      : result.status === 'not_enabled'
+        ? 'Not enabled'
+        : result.status === 'unavailable'
+          ? 'Unavailable'
+          : 'Inconclusive';
+
+  return (
+    <div className="space-y-3 rounded-lg border border-border/70 bg-muted/20 p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <p className="flex items-center gap-2 font-medium">
+            <Shield className="h-4 w-4" style={{ color: accent }} />
+            Humanly Typing Detector
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Model-based analysis of typing and writing behavior.
+          </p>
+        </div>
+        <Badge
+          variant="outline"
+          className={
+            result.status === 'agent'
+              ? 'border-[#d6c5c7] bg-[#f2edee] text-[#6f5d61]'
+              : result.status === 'human'
+                ? 'border-[#c8d4c8] bg-[#eff2ef] text-[#58715f]'
+                : 'border-[#d7cdc0] bg-[#f1eee8] text-[#6b6255]'
+          }
+        >
+          {statusLabel}
+        </Badge>
+      </div>
+
+      {!result.enabled ? (
+        <p className="rounded-md border border-border/60 bg-background/70 p-3 text-sm text-muted-foreground">
+          Humanly Typing Detector was not enabled for this writing setup.
+        </p>
+      ) : result.status === 'human' || result.status === 'agent' ? (
+        <div className="space-y-5 rounded-md border border-border/60 bg-background/70 p-3">
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
+            <div className="flex items-baseline gap-2.5">
+              <span
+                className="text-[2.75rem] font-bold leading-none tracking-normal"
+                style={{ color: verdictColor }}
+              >
+                {probability}%
+              </span>
+              <span className="max-w-[10rem] text-sm leading-snug text-muted-foreground">
+                probability of {metricNoun}
+              </span>
+            </div>
+            <span
+              className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-medium"
+              style={{
+                color: verdictColor,
+                backgroundColor: isPositive ? '#f2edee' : '#eff2ef',
+                borderColor: isPositive ? '#d6c5c7' : '#cbd5ce',
+              }}
+            >
+              {isPositive ? <TrendingUp className="h-3.5 w-3.5" /> : <TrendingDown className="h-3.5 w-3.5" />}
+              {isPositive ? positiveLabel : negativeLabel}
+            </span>
+          </div>
+
+          {features.length > 0 && (
+            <div className="space-y-1 border-t border-dashed border-border pt-4">
+              <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Top contributing features
+              </p>
+              {features.map((feature) => {
+                const meta = spec?.features?.[feature.name];
+                const width = Math.round((Math.abs(feature.contribution) / maxContribution) * 100);
+                return (
+                  <div key={feature.name} className="border-b border-border/40 py-2 last:border-0">
+                    <div className="flex items-baseline justify-between gap-3 text-sm">
+                      <span className="text-foreground/80">{meta?.label ?? feature.name}</span>
+                      <span className="font-semibold tabular-nums">
+                        {formatDetectorFeatureValue(meta?.format, feature.value)}
+                      </span>
+                    </div>
+                    <div className="mt-1.5 h-1.5 overflow-hidden rounded-full" style={{ backgroundColor: HUMAN_TYPING_BAR_TRACK }}>
+                      <div
+                        className="h-full rounded-full"
+                        style={{ width: `${width}%`, backgroundColor: verdictColor }}
+                      />
+                    </div>
+                    {meta?.description && (
+                      <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
+                        {meta.description}
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          <p className="flex items-start gap-1.5 border-t border-dashed border-border pt-4 text-xs text-muted-foreground">
+            <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+            Advisory only, not a verdict. Based on {(prediction?.n_events ?? 0).toLocaleString()} writing events.
+          </p>
+        </div>
+      ) : (
+        <p className="rounded-md border border-border/60 bg-background/70 p-3 text-sm text-muted-foreground">
+          {prediction?.reason === 'no_events'
+            ? 'No writing events were available for typing detection.'
+            : result.error || prediction?.detail || prediction?.error || 'The frozen typing detector result is inconclusive.'}
+        </p>
+      )}
+    </div>
+  );
 }
 
 function downloadEnvironmentConfig(
@@ -518,7 +793,7 @@ export function CertificateEvidenceView({
   const showReplay = Boolean(certificate.includeEditHistory && replayToken);
   const environmentRows = getEnvironmentRows(certificate.environmentConfig);
   const localTimeZoneLabel = getLocalTimeZoneLabel();
-  const reviewSignals: WritingAnomalyFlag[] = getReviewSignals(certificate.anomalyFlags);
+  const detectorResults = getCertificateDetectorResults(certificate);
 
   useEffect(() => {
     if (!hasFinalTextVisualization || !finalTextVisualizationRef.current) {
@@ -928,7 +1203,24 @@ export function CertificateEvidenceView({
           <CardHeader className="pb-3">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <CardTitle className={SECTION_TITLE_CLASS}>Anomaly Behavior Review</CardTitle>
+                <div className="flex items-center gap-2">
+                  <CardTitle className={SECTION_TITLE_CLASS}>Anomaly Behavior Review</CardTitle>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <button
+                        type="button"
+                        aria-label="Explain detector types"
+                        className="inline-flex h-5 w-5 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                      >
+                        <HelpCircle className="h-4 w-4" aria-hidden="true" />
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent align="start" className="space-y-2 text-sm">
+                      <p className="font-medium text-foreground">Detector types</p>
+                      <p className="leading-relaxed text-muted-foreground">{DETECTOR_HELP_TEXT}</p>
+                    </PopoverContent>
+                  </Popover>
+                </div>
                 <CardDescription>
                   Review write-time signals that may need attention. These are evidence for review, not automatic verdicts.
                 </CardDescription>
@@ -953,40 +1245,10 @@ export function CertificateEvidenceView({
           </CardHeader>
           <CollapsibleContent>
             <CardContent>
-              {reviewSignals.length === 0 ? (
-                <div className="rounded-lg border border-border/60 bg-muted/25 p-4 text-sm text-muted-foreground">
-                  No recorded write-time review signals were detected before this certificate was generated.
-                </div>
-              ) : (
-                <div className="grid gap-3 md:grid-cols-2">
-                  {reviewSignals.map((flag) => (
-                    <div key={flag.code} className="rounded-lg border border-border/70 bg-muted/20 p-4">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Badge
-                          variant="outline"
-                          className={`capitalize ${getFlagSeverityClass(flag.severity)}`}
-                        >
-                          {flag.severity}
-                        </Badge>
-                        <p className="font-medium">{flag.label}</p>
-                      </div>
-                      <p className="mt-2 text-sm text-muted-foreground">{flag.description}</p>
-                      {getVisibleEvidenceEntries(flag).length > 0 && (
-                        <div className="mt-3 grid gap-2 text-xs sm:grid-cols-2">
-                          {getVisibleEvidenceEntries(flag).map(([key, value]) => (
-                            <div key={key} className="rounded-md bg-background/70 px-2 py-1.5">
-                              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                                {formatEvidenceKey(key)}
-                              </p>
-                              <p className="mt-0.5 break-words font-medium">{formatEvidenceValue(key, value)}</p>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
+              <div className="grid gap-3 lg:grid-cols-2">
+                <AnomalyPatternPanel result={detectorResults.anomalyPattern} />
+                <HumanTypingDetectorPanel result={detectorResults.humanTyping} />
+              </div>
             </CardContent>
           </CollapsibleContent>
         </Collapsible>

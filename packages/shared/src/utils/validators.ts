@@ -13,6 +13,7 @@ import {
 } from './constants';
 import type {
   WritingAiAccess,
+  WritingDetectorConfig,
   WritingAiPolicyConfig,
   WritingEnvironmentConfig,
   WritingTaskType,
@@ -20,6 +21,7 @@ import type {
 import {
   isWritingAiChatEnabled,
   normalizeWritingAiAccess,
+  normalizeWritingDetectorConfig,
   normalizeWritingAttemptPolicy,
   normalizeWritingAiPolicy,
 } from '../types/environment.types';
@@ -64,6 +66,14 @@ const writingAiPolicySchema = z.any()
     normalizeWritingAiPolicy(value as Partial<WritingAiPolicyConfig> | null | undefined)
   ));
 
+const writingDetectorConfigSchema = z.preprocess(
+  (value) => normalizeWritingDetectorConfig(value as Partial<WritingDetectorConfig> | null | undefined),
+  z.object({
+    anomalyPattern: z.object({ enabled: z.boolean() }),
+    humanTyping: z.object({ enabled: z.boolean() }),
+  })
+) as z.ZodType<WritingDetectorConfig>;
+
 export const writingEnvironmentConfigSchema = z.object({
   preset: z.enum(['default_writing', 'no_ai', 'ai_assisted', 'timed_writing', 'custom']).optional(),
   taskType: z.enum(['personal', 'admin_assigned']),
@@ -103,6 +113,7 @@ export const writingEnvironmentConfigSchema = z.object({
     trackCopyPaste: z.boolean(),
     trackFocusBlur: z.boolean(),
   }),
+  detectors: writingDetectorConfigSchema,
   // Legacy field accepted for older environment JSON. The product no longer
   // exposes screenshot deterrence because browser apps cannot reliably detect
   // OS-level screenshots.

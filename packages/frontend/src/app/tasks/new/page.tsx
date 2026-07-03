@@ -87,6 +87,7 @@ import {
   WRITING_AI_MODELS,
   WRITING_ENVIRONMENT_PRESETS,
   formatWritingAiAccess,
+  formatWritingDetectorConfig,
   getMaxWritingAttempts,
   getWritingAiPolicyRejectionRuleInputValue,
   isWritingAiChatEnabled,
@@ -96,6 +97,7 @@ import {
   normalizeWritingAiAccess,
   normalizeWritingAttemptPolicy,
   normalizeCopyPastePolicy,
+  normalizeWritingDetectorConfig,
   normalizeResourceAccessPolicy,
   parseEnvironmentConfigContent,
   validateWritingEnvironmentImportTemplate,
@@ -159,6 +161,7 @@ const AI_API_KEY_HELP_TEXT = 'An AI API key is a unique secret credential, usual
 const SHORTCUT_TOKENS_HELP_TEXT = 'Shortcut tokens limit how much text AI quick actions can generate, such as fixing grammar, improving writing, simplifying text, or making writing more formal. Higher values allow longer AI output but may use more tokens.';
 const CHAT_TOKENS_HELP_TEXT = 'Chat tokens limit how much text the AI Assistant can generate in a chat response. Higher values allow more complete answers but may increase usage per message.';
 const AI_GUARD_POLICY_HELP_TEXT = "AI Guard policy controls the boundary of AI assistance during writing. When enabled, it helps reject requests that do not follow the task's AI usage rules.";
+const DETECTOR_HELP_TEXT = 'Anomaly Pattern uses deterministic event rules such as paste, focus, policy, and writing-flow signals. Humanly Typing Detector uses a model over writing behavior and may be inconclusive or unavailable if there is not enough usable typing data.';
 
 const isLocalStartDateTooFarInPast = (value?: string): boolean => (
   !!value && isTaskStartDateTooFarInPast(localDateTimeInputToISOString(value))
@@ -245,11 +248,80 @@ type EnvironmentSummaryItem = {
   detail?: string;
 };
 
+function DetectorSettingsBox({
+  config,
+  disabled,
+  onChange,
+}: {
+  config: WritingEnvironmentConfig;
+  disabled?: boolean;
+  onChange: (config: WritingEnvironmentConfig) => void;
+}) {
+  const detectors = normalizeWritingDetectorConfig(config.detectors);
+  const setDetectorEnabled = (
+    detector: keyof WritingEnvironmentConfig['detectors'],
+    enabled: boolean
+  ) => {
+    onChange({
+      ...config,
+      detectors: {
+        ...detectors,
+        [detector]: { enabled },
+      },
+    });
+  };
+
+  return (
+    <div className="space-y-3 rounded-md border bg-background p-3">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <FormLabel>Anomaly behavior review</FormLabel>
+          <p className="text-xs text-muted-foreground">
+            Choose which detector results are generated for this certificate.
+          </p>
+        </div>
+        <AdminEnvironmentHelp title="Detector types">{DETECTOR_HELP_TEXT}</AdminEnvironmentHelp>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="flex items-start justify-between gap-3 rounded-md border bg-muted/30 p-3 text-sm">
+          <span>
+            <span className="font-medium">Anomaly Pattern</span>
+            <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
+              Deterministic review signals from paste, focus, policy, and writing-flow patterns.
+            </span>
+          </span>
+          <Checkbox
+            checked={detectors.anomalyPattern.enabled}
+            disabled={disabled}
+            onCheckedChange={(checked) => setDetectorEnabled('anomalyPattern', checked === true)}
+          />
+        </label>
+
+        <label className="flex items-start justify-between gap-3 rounded-md border bg-muted/30 p-3 text-sm">
+          <span>
+            <span className="font-medium">Humanly Typing Detector</span>
+            <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
+              Model-based typing analysis that estimates whether the trajectory looks human-written.
+            </span>
+          </span>
+          <Checkbox
+            checked={detectors.humanTyping.enabled}
+            disabled={disabled}
+            onCheckedChange={(checked) => setDetectorEnabled('humanTyping', checked === true)}
+          />
+        </label>
+      </div>
+    </div>
+  );
+}
+
 const getAdminEnvironmentConfig = (preset: WritingEnvironmentPreset = 'default_writing'): WritingEnvironmentConfig => ({
   ...WRITING_ENVIRONMENT_PRESETS[preset],
   taskType: 'admin_assigned',
   preset,
   copyPastePolicy: normalizeCopyPastePolicy(WRITING_ENVIRONMENT_PRESETS[preset].copyPastePolicy),
+  detectors: normalizeWritingDetectorConfig(WRITING_ENVIRONMENT_PRESETS[preset].detectors),
   resourceAccess: normalizeResourceAccessPolicy(WRITING_ENVIRONMENT_PRESETS[preset].resourceAccess),
   aiAccess: preset === 'default_writing' ? 'off' : normalizeWritingAiAccess(WRITING_ENVIRONMENT_PRESETS[preset].aiAccess),
   allowedModels: preset === 'default_writing' ? [] : WRITING_ENVIRONMENT_PRESETS[preset].allowedModels,
@@ -315,6 +387,7 @@ const normalizeImportedEnvironmentConfig = (value: unknown): WritingEnvironmentC
       trackAiUsage: aiAccess !== 'off',
       trackCopyPaste: copyPastePolicy === 'allowed',
     },
+    detectors: normalizeWritingDetectorConfig(imported.detectors),
     resourceAccess,
     copyPastePolicy,
   };
@@ -444,6 +517,11 @@ const buildAdminEnvironmentSummary = ({
       label: 'Traceability',
       value: formatAdminTraceability(config),
       detail: 'Captured evidence',
+    },
+    {
+      label: 'Detectors',
+      value: formatWritingDetectorConfig(config.detectors),
+      detail: 'Certificate review modules',
     },
   ];
 
@@ -1097,6 +1175,7 @@ export default function NewTaskPage() {
             trackAiUsage: aiAccess !== 'off',
             trackCopyPaste: normalizeCopyPastePolicy(environmentConfig.copyPastePolicy) === 'allowed',
           },
+          detectors: normalizeWritingDetectorConfig(environmentConfig.detectors),
           resourceAccess: normalizeResourceAccessPolicy(environmentConfig.resourceAccess),
         },
       };
@@ -1228,6 +1307,7 @@ export default function NewTaskPage() {
       trackAiUsage: aiAccess !== 'off',
       trackCopyPaste: normalizeCopyPastePolicy(effectiveEnvironmentConfig.copyPastePolicy) === 'allowed',
     },
+    detectors: normalizeWritingDetectorConfig(effectiveEnvironmentConfig.detectors),
   };
   const getWorkspacePreviewPayload = (): WorkspaceSetupPreviewPayload => ({
     allowGuestSubmissions,
@@ -1645,6 +1725,18 @@ export default function NewTaskPage() {
         </div>
       </div>
 
+      <DetectorSettingsBox
+        config={environmentConfig}
+        disabled={isSubmitting}
+        onChange={(nextConfig) => {
+          setEnvironmentConfig((current) => ({
+            ...current,
+            ...nextConfig,
+            preset: 'custom',
+          }));
+        }}
+      />
+
       <div className="space-y-4 rounded-md border p-4">
         <SectionHeading
           title="Time"
@@ -2051,7 +2143,7 @@ export default function NewTaskPage() {
                       </div>
                     </div>
 
-                    <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                    <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                       <div className="rounded-lg border border-border/60 bg-background p-2.5">
                         <p className="humanly-eyebrow">AI</p>
                         <p className="mt-1 text-sm font-medium">Off</p>
@@ -2064,10 +2156,14 @@ export default function NewTaskPage() {
                         <p className="humanly-eyebrow">Time</p>
                         <p className="mt-1 text-sm font-medium">Two-week window</p>
                       </div>
+                      <div className="rounded-lg border border-border/60 bg-background p-2.5">
+                        <p className="humanly-eyebrow">Detectors</p>
+                        <p className="mt-1 text-sm font-medium">Both on</p>
+                      </div>
                     </div>
 
                     <p className="mt-3 text-sm text-muted-foreground">
-                      Choose Custom to configure AI access, copy-paste rules, or task timing.
+                      Choose Custom to configure AI access, copy-paste rules, detector policy, or task timing.
                     </p>
                   </div>
                 )}

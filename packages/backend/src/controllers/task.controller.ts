@@ -41,6 +41,7 @@ const TASK_SUBMISSION_EXPORT_COLUMNS = [
   'plainTextSnapshot',
   'payloadSnapshot',
   'anomalyFlags',
+  'detectorResults',
   'createdAt',
 ] as const;
 

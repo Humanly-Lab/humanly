@@ -27,6 +27,7 @@ const CERTIFICATE_SELECT_FIELDS = `
   process_input_volume as "processInputVolume",
   editing_time_seconds as "editingTimeSeconds",
   anomaly_flags as "anomalyFlags",
+  detector_results as "detectorResults",
   policy_hash as "policyHash",
   environment_config as "environmentConfig",
   signature,
@@ -56,7 +57,7 @@ export class CertificateModel {
         total_events, typing_events, paste_events,
         total_characters, typed_characters, pasted_characters,
         final_text_composition, final_text_source_spans, process_input_volume,
-        editing_time_seconds, anomaly_flags, policy_hash, environment_config, signature, verification_token,
+        editing_time_seconds, anomaly_flags, detector_results, policy_hash, environment_config, signature, verification_token,
         signer_name, include_full_text, include_edit_history,
         access_code, access_code_hash, is_protected, generated_at
       )
@@ -66,9 +67,9 @@ export class CertificateModel {
         $10, $11, $12,
         $13, $14, $15,
         $16, $17, $18,
-        $19, $20, $21, $22, $23, $24,
-        $25, $26, $27,
-        $28, $29, $30, COALESCE($31::timestamptz, NOW())
+        $19, $20, $21, $22, $23, $24, $25,
+        $26, $27, $28,
+        $29, $30, $31, COALESCE($32::timestamptz, NOW())
       )
       RETURNING ${CERTIFICATE_SELECT_FIELDS}
     `;
@@ -94,6 +95,7 @@ export class CertificateModel {
       data.processInputVolume === undefined ? null : JSON.stringify(data.processInputVolume),
       data.editingTimeSeconds,
       JSON.stringify(data.anomalyFlags || []),
+      data.detectorResults === undefined ? null : JSON.stringify(data.detectorResults),
       data.policyHash || null,
       data.environmentConfig === undefined ? null : JSON.stringify(data.environmentConfig),
       data.signature,

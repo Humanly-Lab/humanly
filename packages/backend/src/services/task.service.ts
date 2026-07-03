@@ -59,6 +59,7 @@ export interface TaskSubmissionExportRow {
   plainTextSnapshot: string | null;
   payloadSnapshot: unknown;
   anomalyFlags: unknown;
+  detectorResults: unknown;
   createdAt: Date;
 }
 
@@ -1134,6 +1135,7 @@ export class TaskService {
           s.plain_text_snapshot AS "plainTextSnapshot",
           s.payload_snapshot AS "payloadSnapshot",
           COALESCE(s.anomaly_flags, c.anomaly_flags, '[]'::jsonb) AS "anomalyFlags",
+          COALESCE(s.detector_results, c.detector_results) AS "detectorResults",
           s.created_at AS "createdAt"
         FROM submissions s
         LEFT JOIN users u ON u.id = s.user_id

@@ -24,6 +24,7 @@ NAME = "detector"
 # they are provided at runtime via a bind-mounted volume, located through MODEL_PATH.
 # Falls back to the path next to this module (only present if a weights file was placed there).
 _MODEL_PATH = os.environ.get("MODEL_PATH") or os.path.join(os.path.dirname(__file__), "model.joblib")
+_ALLOW_MISSING_MODEL = os.environ.get("INFERENCE_ALLOW_MISSING_MODELS", "").lower() in {"1", "true", "yes"}
 
 # Component spec: tells the frontend "how to display this detector". Wording/labels/units/descriptions/style
 # all live here, and the frontend renders generically from a shared contract. Future detectors just provide
@@ -154,6 +155,15 @@ def _normalize_metadata(events: list[dict]) -> list[dict]:
 
 def predict(body: dict) -> dict[str, Any]:
     if _artifact is None:
+        if _ALLOW_MISSING_MODEL:
+            events = (body or {}).get("events") or []
+            return {
+                "ok": True,
+                "label": "unknown",
+                "reason": "model_unavailable",
+                "detail": "Detector model weights are not installed in this local quickstart.",
+                "n_events": len(events),
+            }
         return {"ok": False, "error": f"model not loaded: {_load_error}"}
 
     events = (body or {}).get("events") or []

@@ -1,5 +1,6 @@
 'use client';
 
+import { HelpCircle } from 'lucide-react';
 import {
   AI_CHAT_MAX_TOKENS_DEFAULT,
   AI_MAX_TOKENS_MAX,
@@ -17,6 +18,7 @@ import {
   normalizeWritingAttemptPolicy,
   normalizeWritingAiPolicy,
   normalizeCopyPastePolicy,
+  normalizeWritingDetectorConfig,
   normalizeResourceAccessPolicy,
   WritingEnvironmentConfig,
   WritingAiPolicyMode,
@@ -25,6 +27,11 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 
 interface EnvironmentConfigFieldsProps {
   value: WritingEnvironmentConfig;
@@ -66,6 +73,7 @@ const parseMaxAttempts = (value: string, fallback = 2): number => {
   if (!Number.isFinite(parsed)) return fallback;
   return Math.max(2, Math.min(20, Math.floor(parsed)));
 };
+const DETECTOR_HELP_TEXT = 'Anomaly Pattern uses deterministic event rules such as paste, focus, policy, and writing-flow signals. Humanly Typing Detector uses a model over writing behavior and may be inconclusive or unavailable if there is not enough usable typing data.';
 
 export default function EnvironmentConfigFields({
   value,
@@ -97,6 +105,7 @@ export default function EnvironmentConfigFields({
       ...DEFAULT_WRITING_ENVIRONMENT_CONFIG.traceability,
       ...value.traceability,
     },
+    detectors: normalizeWritingDetectorConfig(value.detectors),
     aiAccess: normalizeWritingAiAccess(value.aiAccess),
     aiPolicy: normalizeWritingAiPolicy(value.aiPolicy),
     resourceAccess: normalizeResourceAccessPolicy(value.resourceAccess),
@@ -499,6 +508,72 @@ export default function EnvironmentConfigFields({
           <p className="text-xs text-muted-foreground">
             View-only instruction PDFs load through short-lived workspace access.
           </p>
+        </div>
+      </div>
+
+      <div className="space-y-3 rounded-md border bg-muted/30 p-3">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <Label>Anomaly behavior review</Label>
+            <p className="text-xs text-muted-foreground">
+              Choose which detector results are generated for the certificate.
+            </p>
+          </div>
+          <Popover>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                aria-label="Explain detector types"
+                className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              >
+                <HelpCircle className="h-4 w-4" aria-hidden="true" />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent align="start" className="space-y-2 text-sm">
+              <p className="font-medium text-foreground">Detector types</p>
+              <p className="leading-relaxed text-muted-foreground">{DETECTOR_HELP_TEXT}</p>
+            </PopoverContent>
+          </Popover>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="flex items-start justify-between gap-3 rounded-md border bg-background p-3 text-sm">
+            <span>
+              <span className="font-medium">Anomaly Pattern</span>
+              <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
+                Deterministic review signals from paste, focus, policy, and writing-flow patterns.
+              </span>
+            </span>
+            <Checkbox
+              checked={config.detectors.anomalyPattern.enabled}
+              disabled={disabled}
+              onCheckedChange={(checked) => onChange(setNested(config, {
+                detectors: {
+                  ...config.detectors,
+                  anomalyPattern: { enabled: checked === true },
+                },
+              }))}
+            />
+          </label>
+
+          <label className="flex items-start justify-between gap-3 rounded-md border bg-background p-3 text-sm">
+            <span>
+              <span className="font-medium">Humanly Typing Detector</span>
+              <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
+                Model-based typing analysis that estimates whether the trajectory looks human-written.
+              </span>
+            </span>
+            <Checkbox
+              checked={config.detectors.humanTyping.enabled}
+              disabled={disabled}
+              onCheckedChange={(checked) => onChange(setNested(config, {
+                detectors: {
+                  ...config.detectors,
+                  humanTyping: { enabled: checked === true },
+                },
+              }))}
+            />
+          </label>
         </div>
       </div>
 
