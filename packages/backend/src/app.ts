@@ -20,6 +20,7 @@ import documentRoutes from './routes/documents.routes';
 import certificateRoutes from './routes/certificates.routes';
 import aiRoutes from './routes/ai.routes';
 import fileRoutes from './routes/files.routes';
+import detectorRoutes from './routes/detector.routes';
 
 export function createApp(): Express {
   const app = express();
@@ -126,6 +127,7 @@ export function createApp(): Express {
   app.use('/api/v1/certificates', certificateRoutes);
   app.use('/api/v1/track', trackingRoutes);
   app.use('/api/v1/tasks', exportRoutes);
+  app.use('/api/v1', detectorRoutes);
   app.use('/api/v1/tasks', analyticsRoutes);
   app.use('/api/v1/ai', aiRoutes);
   app.use('/api/v1', fileRoutes);

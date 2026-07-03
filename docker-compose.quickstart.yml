@@ -112,6 +112,7 @@ services:
       AI_PROVIDER_TIMEOUT_MS: 180000
       AI_ENCRYPTION_KEY: "0000000000000000000000000000000000000000000000000000000000000000"
       LOG_LEVEL: info
+      INFERENCE_URL: http://inference:8000
     ports:
       - "127.0.0.1:3001:3001"
     volumes:
@@ -127,6 +128,27 @@ services:
       timeout: 5s
       retries: 12
       start_period: 20s
+    restart: unless-stopped
+
+  inference:
+    # Unified multi-model inference service (Python/FastAPI). detector is the first model, served at /models/detector.
+    # The image contains code only; model weights are mounted at runtime (see volumes below).
+    image: humanly-inference:local
+    build:
+      context: ./packages/inference
+      dockerfile: Dockerfile
+    # Weights are excluded from the image (see .dockerignore); mount the local (gitignored)
+    # weights dir read-only, mirroring prod. Requires model.joblib to exist locally.
+    environment:
+      MODEL_PATH: /models/detector/model.joblib
+    volumes:
+      - ./packages/inference/models:/models:ro
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health').status==200 else 1)\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
     restart: unless-stopped
 
   frontend:

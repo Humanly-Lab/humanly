@@ -34,6 +34,27 @@ services:
     networks:
       - humanly-network
 
+  inference:
+    # Unified multi-model inference service (Python/FastAPI). detector is the first model, served at /models/detector.
+    # Production uses the CI-prebuilt image pushed to Artifact Registry (not build:); cluster-internal only, not exposed through nginx.
+    image: ${INFERENCE_IMAGE:?INFERENCE_IMAGE is required}
+    container_name: humanly-inference
+    # Private model weights are NOT in the image; they are placed on the host at
+    # /opt/humanly/models (out-of-band via scp) and bind-mounted read-only at runtime.
+    environment:
+      MODEL_PATH: /models/detector/model.joblib
+    volumes:
+      - /opt/humanly/models:/models:ro
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health').status==200 else 1)\""]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    restart: unless-stopped
+    networks:
+      - humanly-network
+
   backend:
     image: ${BACKEND_IMAGE:?BACKEND_IMAGE is required}
     container_name: humanly-backend
@@ -42,12 +63,15 @@ services:
       NODE_ENV: production
       PORT: 3001
       UPLOAD_DIR: /app/uploads
+      INFERENCE_URL: http://inference:8000
     volumes:
       - ./uploads:/app/uploads
     depends_on:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      inference:
         condition: service_healthy
     restart: unless-stopped
     networks:
