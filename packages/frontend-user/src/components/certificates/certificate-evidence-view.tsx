@@ -530,25 +530,11 @@ function AnomalyPatternPanel({
 
   return (
     <div className="space-y-3 rounded-lg border border-border/70 bg-muted/20 p-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <p className="font-medium">Anomaly Pattern</p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Deterministic review signals from write-time event patterns.
-          </p>
-        </div>
-        <Badge
-          variant="outline"
-          className={
-            result.status === 'review'
-              ? 'border-[#d8ccba] bg-[#f2efe8] text-[#6a6256]'
-              : result.status === 'not_enabled'
-                ? 'border-border/70 bg-background text-muted-foreground'
-                : 'border-[#c8d4c8] bg-[#eff2ef] text-[#58715f]'
-          }
-        >
-          {result.status === 'review' ? 'Review' : result.status === 'not_enabled' ? 'Not enabled' : 'No signals'}
-        </Badge>
+      <div>
+        <p className="font-medium">Anomaly Pattern</p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Deterministic review signals from write-time event patterns.
+        </p>
       </div>
 
       {!result.enabled ? (
@@ -614,6 +600,9 @@ function HumanTypingDetectorPanel({
   const probability = Math.round((prediction?.score ?? 0) * 100);
   const features = prediction?.features || [];
   const maxContribution = features.reduce((max, feature) => Math.max(max, Math.abs(feature.contribution)), 0) || 1;
+  const typedRatio = typeof prediction?.typed_ratio === 'number' ? prediction.typed_ratio : null;
+  const showLowTypedRatioNote = typedRatio !== null && typedRatio < 0.5;
+  const typedRatioLabel = typedRatio !== null ? `${Math.round(typedRatio * 100)}%` : null;
   const statusLabel = result.status === 'human'
     ? negativeLabel
     : result.status === 'agent'
@@ -718,6 +707,14 @@ function HumanTypingDetectorPanel({
             <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
             Advisory only, not a verdict. Based on {(prediction?.n_events ?? 0).toLocaleString()} writing events.
           </p>
+
+          {showLowTypedRatioNote && (
+            <p className="flex items-start gap-1.5 rounded-md border border-[#d8ccba] bg-[#f6f2ea] p-3 text-xs text-[#6a6256]">
+              <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              Only {typedRatioLabel} of the final text came from hand-typed input.
+              Interpret the timing result with that coverage context.
+            </p>
+          )}
         </div>
       ) : (
         <p className="rounded-md border border-border/60 bg-background/70 p-3 text-sm text-muted-foreground">
