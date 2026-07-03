@@ -122,7 +122,7 @@ function LogEntry({ log }: LogEntryProps) {
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'success':
-        return <CheckCircle className="h-4 w-4 text-[#58715f]" />;
+        return <CheckCircle className="h-4 w-4 text-[var(--hly-green-text)]" />;
       case 'error':
         return <XCircle className="h-4 w-4 text-destructive" />;
       case 'cancelled':
@@ -138,9 +138,9 @@ function LogEntry({ log }: LogEntryProps) {
     const variants: Record<AIQueryType, { label: string; className: string }> = {
       grammar_check: { label: 'Grammar', className: 'bg-muted text-foreground' },
       spelling_check: { label: 'Spelling', className: 'bg-muted text-foreground' },
-      rewrite: { label: 'Rewrite', className: 'bg-[#f1e8df] text-[#8a5f43]' },
-      summarize: { label: 'Summary', className: 'bg-[#eef3ed] text-[#58715f]' },
-      expand: { label: 'Expand', className: 'bg-[#f1e8df] text-[#8a5f43]' },
+      rewrite: { label: 'Rewrite', className: 'bg-[var(--hly-amber-bg)] text-[#8a5f43]' },
+      summarize: { label: 'Summary', className: 'bg-[var(--hly-green-bg)] text-[var(--hly-green-text)]' },
+      expand: { label: 'Expand', className: 'bg-[var(--hly-amber-bg)] text-[#8a5f43]' },
       translate: { label: 'Translate', className: 'bg-muted text-foreground' },
       format: { label: 'Format', className: 'bg-muted text-foreground' },
       question: { label: 'Q&A', className: 'bg-muted text-foreground' },
@@ -214,7 +214,7 @@ function LogEntry({ log }: LogEntryProps) {
                   {log.modifications.map((mod, idx) => (
                     <div key={idx} className="text-xs bg-muted rounded p-2">
                       <div className="text-red-600 line-through">{mod.before}</div>
-                      <div className="text-[#58715f]">{mod.after}</div>
+                      <div className="text-[var(--hly-green-text)]">{mod.after}</div>
                     </div>
                   ))}
                 </div>

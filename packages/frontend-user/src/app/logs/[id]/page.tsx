@@ -79,33 +79,33 @@ function getFullTextToggleLabel(isExpanded: boolean, scope: 'full' | 'all' = 'fu
 }
 
 const TIMELINE_COLORS: Partial<Record<DocumentEventTimelineItem['kind'], CSSProperties>> = {
-  typing_burst: { backgroundColor: '#EEF1F4', borderColor: '#C8D1DC', color: '#576777' },
-  line_break: { backgroundColor: '#EFF2EF', borderColor: '#CBD5CE', color: '#5B6B63' },
-  ai_insert: { backgroundColor: '#F0EDF2', borderColor: '#D0C8D7', color: '#655D70' },
-  ai_paste: { backgroundColor: '#F0EDF2', borderColor: '#D0C8D7', color: '#655D70' },
-  replace: { backgroundColor: '#EEF1F4', borderColor: '#C8D1DC', color: '#576777' },
-  paste: { backgroundColor: '#F2EFE8', borderColor: '#D8CCBA', color: '#6A6256' },
-  delete: { backgroundColor: '#F2EDEE', borderColor: '#D6C5C7', color: '#6F5D61' },
+  typing_burst: { backgroundColor: 'var(--hly-blue-bg)', borderColor: 'var(--hly-blue-border)', color: 'var(--hly-blue-text)' },
+  line_break: { backgroundColor: 'var(--hly-green-bg)', borderColor: 'var(--hly-green-border)', color: 'var(--hly-green-text)' },
+  ai_insert: { backgroundColor: 'var(--hly-purple-bg)', borderColor: 'var(--hly-purple-border)', color: 'var(--hly-purple-text)' },
+  ai_paste: { backgroundColor: 'var(--hly-purple-bg)', borderColor: 'var(--hly-purple-border)', color: 'var(--hly-purple-text)' },
+  replace: { backgroundColor: 'var(--hly-blue-bg)', borderColor: 'var(--hly-blue-border)', color: 'var(--hly-blue-text)' },
+  paste: { backgroundColor: '#F2EFE8', borderColor: 'var(--hly-amber-border)', color: 'var(--hly-neutral-text)' },
+  delete: { backgroundColor: 'var(--hly-red-bg)', borderColor: 'var(--hly-red-border)', color: 'var(--hly-red-text)' },
 };
 const DEFAULT_TIMELINE_COLOR: CSSProperties = {
   backgroundColor: '#EEEDEA',
   borderColor: '#D1CDC7',
-  color: '#605D58',
+  color: 'var(--hly-neutral-text)',
 };
 const AI_LOG_BADGE_COLOR: CSSProperties = {
-  backgroundColor: '#F0EDF2',
-  borderColor: '#D0C8D7',
-  color: '#655D70',
+  backgroundColor: 'var(--hly-purple-bg)',
+  borderColor: 'var(--hly-purple-border)',
+  color: 'var(--hly-purple-text)',
 };
 const ANOMALY_BADGE_COLOR: CSSProperties = {
-  backgroundColor: '#F4ECEA',
-  borderColor: '#D9BDB8',
-  color: '#7A5550',
+  backgroundColor: 'var(--hly-red-bg)',
+  borderColor: 'var(--hly-red-border)',
+  color: 'var(--hly-red-text)',
 };
 const SELECTION_BADGE_COLOR: CSSProperties = {
   backgroundColor: '#F1EEE8',
-  borderColor: '#D7CDC0',
-  color: '#6B6255',
+  borderColor: 'var(--hly-amber-border)',
+  color: 'var(--hly-neutral-text)',
 };
 
 const FORMAT_EVENT_TYPES = new Set<string>([

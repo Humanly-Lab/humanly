@@ -95,7 +95,7 @@ export function ToolCallCard({ entry }: ToolCallCardProps): JSX.Element {
               />
             )}
             {entry.status === 'done' && !entry.isError && (
-              <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-[#58715f]" />
+              <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-[var(--hly-green-text)]" />
             )}
             {isError && (
               <XCircle className="h-3.5 w-3.5 shrink-0 text-red-600" />
@@ -176,7 +176,7 @@ export function ToolCallTimeline({ entries }: ToolCallTimelineProps): JSX.Elemen
               />
             )}
             {!isPending && !hasErrors && (
-              <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-[#58715f]" />
+              <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-[var(--hly-green-text)]" />
             )}
             {!isPending && hasErrors && (
               <XCircle className="h-3.5 w-3.5 shrink-0 text-red-600" />
