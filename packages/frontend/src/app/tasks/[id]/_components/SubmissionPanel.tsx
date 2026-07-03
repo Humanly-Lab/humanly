@@ -59,9 +59,9 @@ const severityRank = {
 } as const;
 
 const getFlagBadgeClass = (severity: keyof typeof severityRank) => {
-  if (severity === 'critical') return 'border-[#d6c5c7] bg-[#f2edee] text-[#6f5d61]';
-  if (severity === 'warning') return 'border-[#d8ccba] bg-[#f2efe8] text-[#6a6256]';
-  return 'border-[#c8d1dc] bg-[#eef1f4] text-[#576777]';
+  if (severity === 'critical') return 'border-[var(--hly-red-border)] bg-[var(--hly-red-bg)] text-[var(--hly-red-text)]';
+  if (severity === 'warning') return 'border-[var(--hly-amber-border)] bg-[var(--hly-surface)] text-[var(--hly-neutral-text)]';
+  return 'border-[var(--hly-blue-border)] bg-[var(--hly-blue-bg)] text-[var(--hly-blue-text)]';
 };
 
 type TaskExportKind = 'submissions' | 'log-events';
@@ -214,7 +214,7 @@ export function SubmissionPanel({
           </Badge>
         )}
         {refusalCount > 0 && !hasRefusalFlag && (
-          <Badge variant="outline" className="gap-1 border-[#B56F5C]/35 bg-[#B56F5C]/10 text-[#6E3F35]">
+          <Badge variant="outline" className="gap-1 border-[var(--hly-red-border)] bg-[var(--hly-red-bg)] text-[var(--hly-red-text)]">
             <ShieldAlert className="h-3 w-3" />
             Chat refusals · {refusalCount}
           </Badge>

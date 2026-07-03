@@ -355,7 +355,7 @@ function getFlagSeverityClass(severity: WritingAnomalyFlag['severity']) {
   }
 
   if (severity === 'warning') {
-    return 'border-[var(--hly-amber-border)] bg-[#f2efe8] text-[var(--hly-neutral-text)]';
+    return 'border-[var(--hly-amber-border)] bg-[var(--hly-surface)] text-[var(--hly-neutral-text)]';
   }
 
   return 'border-[var(--hly-blue-border)] bg-[var(--hly-blue-bg)] text-[var(--hly-blue-text)]';

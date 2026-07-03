@@ -71,8 +71,8 @@ const formatCompletionCount = (task: TaskDashboardItem) => {
 
 const statusToneClass: Record<TaskWindowStatus['tone'], string> = {
   muted: 'border-border/80 bg-muted/45 text-muted-foreground',
-  success: 'border-[#b9c8b8] bg-[#edf2eb] text-[#5d7766]',
-  warning: 'border-[#dfc8aa] bg-[#f6efe4] text-[#92714e]',
+  success: 'border-[var(--hly-green-border)] bg-[var(--hly-green-bg)] text-[var(--hly-green-text)]',
+  warning: 'border-[var(--hly-amber-border)] bg-[var(--hly-amber-bg)] text-[var(--hly-amber-text)]',
 };
 
 export function TaskCard({
