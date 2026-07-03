@@ -41,6 +41,7 @@ import { ANALYTICS_CHART_COLORS } from '@/lib/analytics-palette';
 import { buildCertificateVerifyUrl } from '@/lib/certificate-url';
 import { formatDateTime } from '@/lib/utils';
 import { getReviewSignals } from '@/lib/review-signals';
+import DetectorCard from './_components/DetectorCard';
 import {
   getAIActionLabel,
   getAIInteractionLogLabel,
@@ -1707,6 +1708,10 @@ export default function TaskSubmissionAnalyticsPage() {
             )}
           </CardContent>
         </Card>
+      )}
+
+      {!error && submission && (
+        <DetectorCard taskId={taskId} submissionId={submissionId} detectorName="detector" />
       )}
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">

@@ -36,6 +36,7 @@ jobs:
       BACKEND_IMAGE_NAME: humanly-backend
       FRONTEND_USER_IMAGE_NAME: humanly-frontend-user
       FRONTEND_IMAGE_NAME: humanly-frontend
+      INFERENCE_IMAGE_NAME: humanly-inference
 
     steps:
       - name: Checkout repository
@@ -100,12 +101,14 @@ jobs:
           backend=false
           frontend_user=false
           frontend=false
+          inference=false
           deploy=false
 
           if [[ "$force_all" == "true" ]]; then
             backend=true
             frontend_user=true
             frontend=true
+            inference=true
             deploy=true
           else
             while IFS= read -r file; do
@@ -116,7 +119,11 @@ jobs:
                   backend=true
                   frontend_user=true
                   frontend=true
+                  inference=true
                   deploy=true
+                  ;;
+                packages/inference/*|packages/inference/**)
+                  inference=true
                   ;;
                 packages/shared/*|packages/shared/**)
                   backend=true
@@ -139,7 +146,7 @@ jobs:
             done < "$changed_file"
           fi
 
-          if [[ "$backend" == "true" || "$frontend_user" == "true" || "$frontend" == "true" ]]; then
+          if [[ "$backend" == "true" || "$frontend_user" == "true" || "$frontend" == "true" || "$inference" == "true" ]]; then
             deploy=true
           fi
 
@@ -148,12 +155,14 @@ jobs:
           echo "Build backend: ${backend}"
           echo "Build frontend-user: ${frontend_user}"
           echo "Build frontend: ${frontend}"
+          echo "Build inference: ${inference}"
           echo "Run VM deploy: ${deploy}"
 
           {
             echo "backend=${backend}"
             echo "frontend_user=${frontend_user}"
             echo "frontend=${frontend}"
+            echo "inference=${inference}"
             echo "deploy=${deploy}"
           } >> "$GITHUB_OUTPUT"
 
@@ -164,16 +173,19 @@ jobs:
           backend_image="${registry}/${BACKEND_IMAGE_NAME}:${GITHUB_SHA}"
           frontend_user_image="${registry}/${FRONTEND_USER_IMAGE_NAME}:${GITHUB_SHA}"
           frontend_image="${registry}/${FRONTEND_IMAGE_NAME}:${GITHUB_SHA}"
+          inference_image="${registry}/${INFERENCE_IMAGE_NAME}:${GITHUB_SHA}"
 
           {
             echo "backend_image=${backend_image}"
             echo "frontend_user_image=${frontend_user_image}"
             echo "frontend_image=${frontend_image}"
+            echo "inference_image=${inference_image}"
           } >> "$GITHUB_OUTPUT"
 
           echo "Backend image: ${backend_image}"
           echo "Frontend-user image: ${frontend_user_image}"
           echo "Frontend image: ${frontend_image}"
+          echo "Inference image: ${inference_image}"
 
       - name: Build and push backend image
         if: ${{ steps.changes.outputs.backend == 'true' }}
@@ -216,11 +228,23 @@ jobs:
           cache-from: type=gha,scope=frontend
           cache-to: type=gha,mode=max,scope=frontend
 
+      - name: Build and push inference image
+        if: ${{ steps.changes.outputs.inference == 'true' }}
+        uses: docker/build-push-action@v7
+        with:
+          context: packages/inference
+          file: packages/inference/Dockerfile
+          push: true
+          tags: ${{ steps.images.outputs.inference_image }}
+          cache-from: type=gha,scope=inference
+          cache-to: type=gha,mode=max,scope=inference
+
       - name: Show skipped image builds
         run: |
           echo "backend build: ${{ steps.changes.outputs.backend }}"
           echo "frontend-user build: ${{ steps.changes.outputs.frontend_user }}"
           echo "frontend build: ${{ steps.changes.outputs.frontend }}"
+          echo "inference build: ${{ steps.changes.outputs.inference }}"
 
       - name: Deploy images on VM
         if: ${{ steps.changes.outputs.deploy == 'true' }}
@@ -229,9 +253,11 @@ jobs:
           BACKEND_IMAGE: ${{ steps.changes.outputs.backend == 'true' && steps.images.outputs.backend_image || '' }}
           FRONTEND_USER_IMAGE: ${{ steps.changes.outputs.frontend_user == 'true' && steps.images.outputs.frontend_user_image || '' }}
           FRONTEND_IMAGE: ${{ steps.changes.outputs.frontend == 'true' && steps.images.outputs.frontend_image || '' }}
+          INFERENCE_IMAGE: ${{ steps.changes.outputs.inference == 'true' && steps.images.outputs.inference_image || '' }}
           BACKEND_CHANGED: ${{ steps.changes.outputs.backend }}
           FRONTEND_USER_CHANGED: ${{ steps.changes.outputs.frontend_user }}
           FRONTEND_CHANGED: ${{ steps.changes.outputs.frontend }}
+          INFERENCE_CHANGED: ${{ steps.changes.outputs.inference }}
           VM_DEPLOY_PATH: ${{ env.VM_DEPLOY_PATH }}
           GITHUB_SHA: ${{ github.sha }}
           GH_REPO_TOKEN: ${{ github.token }}
@@ -239,7 +265,7 @@ jobs:
           host: ${{ env.VM_HOST }}
           username: ${{ env.VM_USER }}
           key: ${{ secrets.VM_SSH_KEY }}
-          envs: BACKEND_IMAGE,FRONTEND_USER_IMAGE,FRONTEND_IMAGE,BACKEND_CHANGED,FRONTEND_USER_CHANGED,FRONTEND_CHANGED,VM_DEPLOY_PATH,GITHUB_SHA,GH_REPO_TOKEN
+          envs: BACKEND_IMAGE,FRONTEND_USER_IMAGE,FRONTEND_IMAGE,INFERENCE_IMAGE,BACKEND_CHANGED,FRONTEND_USER_CHANGED,FRONTEND_CHANGED,INFERENCE_CHANGED,VM_DEPLOY_PATH,GITHUB_SHA,GH_REPO_TOKEN
           script: |
             set -euo pipefail
 
@@ -264,7 +290,7 @@ jobs:
             git_with_auth pull --ff-only origin main
             unset git_auth_header
             test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
-            BACKEND_IMAGE="$BACKEND_IMAGE" FRONTEND_USER_IMAGE="$FRONTEND_USER_IMAGE" FRONTEND_IMAGE="$FRONTEND_IMAGE" BACKEND_CHANGED="$BACKEND_CHANGED" FRONTEND_USER_CHANGED="$FRONTEND_USER_CHANGED" FRONTEND_CHANGED="$FRONTEND_CHANGED" VM_DEPLOY_PATH="$VM_DEPLOY_PATH" bash scripts/deploy.sh
+            BACKEND_IMAGE="$BACKEND_IMAGE" FRONTEND_USER_IMAGE="$FRONTEND_USER_IMAGE" FRONTEND_IMAGE="$FRONTEND_IMAGE" INFERENCE_IMAGE="$INFERENCE_IMAGE" BACKEND_CHANGED="$BACKEND_CHANGED" FRONTEND_USER_CHANGED="$FRONTEND_USER_CHANGED" FRONTEND_CHANGED="$FRONTEND_CHANGED" INFERENCE_CHANGED="$INFERENCE_CHANGED" VM_DEPLOY_PATH="$VM_DEPLOY_PATH" bash scripts/deploy.sh
           script_stop: true
           command_timeout: 40m
 

@@ -47,10 +47,12 @@ cd "$REPO_DIR"
 INCOMING_BACKEND_IMAGE="${BACKEND_IMAGE:-}"
 INCOMING_FRONTEND_USER_IMAGE="${FRONTEND_USER_IMAGE:-}"
 INCOMING_FRONTEND_IMAGE="${FRONTEND_IMAGE:-}"
+INCOMING_INFERENCE_IMAGE="${INFERENCE_IMAGE:-}"
 
 BACKEND_CHANGED="$(bool_env "${BACKEND_CHANGED:-false}")"
 FRONTEND_USER_CHANGED="$(bool_env "${FRONTEND_USER_CHANGED:-false}")"
 FRONTEND_CHANGED="$(bool_env "${FRONTEND_CHANGED:-false}")"
+INFERENCE_CHANGED="$(bool_env "${INFERENCE_CHANGED:-false}")"
 RESTART_ALL="$(bool_env "${RESTART_ALL:-false}")"
 
 echo "==> [2/8] Load and persist image tags"
@@ -59,8 +61,8 @@ if [[ -f "$IMAGE_ENV_FILE" ]]; then
   # shellcheck disable=SC1090
   source "$IMAGE_ENV_FILE"
   set +a
-elif [[ -z "$INCOMING_BACKEND_IMAGE" || -z "$INCOMING_FRONTEND_USER_IMAGE" || -z "$INCOMING_FRONTEND_IMAGE" ]]; then
-  echo "ERROR: ${IMAGE_ENV_FILE} does not exist; all three image tags are required for the first deploy." >&2
+elif [[ -z "$INCOMING_BACKEND_IMAGE" || -z "$INCOMING_FRONTEND_USER_IMAGE" || -z "$INCOMING_FRONTEND_IMAGE" || -z "$INCOMING_INFERENCE_IMAGE" ]]; then
+  echo "ERROR: ${IMAGE_ENV_FILE} does not exist; all four image tags are required for the first deploy." >&2
   exit 1
 fi
 
@@ -79,6 +81,11 @@ if [[ "$FRONTEND_CHANGED" == "true" && "$RESTART_ALL" != "true" && -z "$INCOMING
   exit 1
 fi
 
+if [[ "$INFERENCE_CHANGED" == "true" && "$RESTART_ALL" != "true" && -z "$INCOMING_INFERENCE_IMAGE" ]]; then
+  echo "ERROR: INFERENCE_CHANGED=true but INFERENCE_IMAGE was not provided." >&2
+  exit 1
+fi
+
 if [[ -n "$INCOMING_BACKEND_IMAGE" ]]; then
   BACKEND_IMAGE="$INCOMING_BACKEND_IMAGE"
   BACKEND_CHANGED=true
@@ -94,26 +101,35 @@ if [[ -n "$INCOMING_FRONTEND_IMAGE" ]]; then
   FRONTEND_CHANGED=true
 fi
 
+if [[ -n "$INCOMING_INFERENCE_IMAGE" ]]; then
+  INFERENCE_IMAGE="$INCOMING_INFERENCE_IMAGE"
+  INFERENCE_CHANGED=true
+fi
+
 if [[ "$RESTART_ALL" == "true" ]]; then
   BACKEND_CHANGED=true
   FRONTEND_USER_CHANGED=true
   FRONTEND_CHANGED=true
+  INFERENCE_CHANGED=true
 fi
 
 : "${BACKEND_IMAGE:?BACKEND_IMAGE is required}"
 : "${FRONTEND_USER_IMAGE:?FRONTEND_USER_IMAGE is required}"
 : "${FRONTEND_IMAGE:?FRONTEND_IMAGE is required}"
+: "${INFERENCE_IMAGE:?INFERENCE_IMAGE is required}"
 
 umask 077
 {
   printf 'BACKEND_IMAGE=%s\n' "$BACKEND_IMAGE"
   printf 'FRONTEND_USER_IMAGE=%s\n' "$FRONTEND_USER_IMAGE"
   printf 'FRONTEND_IMAGE=%s\n' "$FRONTEND_IMAGE"
+  printf 'INFERENCE_IMAGE=%s\n' "$INFERENCE_IMAGE"
 } > "$IMAGE_ENV_FILE"
 
 echo "    backend: ${BACKEND_IMAGE} (changed=${BACKEND_CHANGED})"
 echo "    frontend-user: ${FRONTEND_USER_IMAGE} (changed=${FRONTEND_USER_CHANGED})"
 echo "    frontend: ${FRONTEND_IMAGE} (changed=${FRONTEND_CHANGED})"
+echo "    inference: ${INFERENCE_IMAGE} (changed=${INFERENCE_CHANGED})"
 
 echo "==> [3/8] Ensure uploads directory exists"
 mkdir -p uploads
@@ -133,14 +149,19 @@ if [[ "$FRONTEND_CHANGED" == "true" ]]; then
 fi
 
 echo "==> [5/8] Pull changed prebuilt application images"
+if [[ "$INFERENCE_CHANGED" == "true" ]]; then
+  docker compose -f "$COMPOSE_FILE" pull inference
+fi
 if [[ "${#changed_services[@]}" -gt 0 ]]; then
   docker compose -f "$COMPOSE_FILE" pull "${changed_services[@]}"
 else
   echo "    No application image changes; preserving existing image tags."
 fi
 
-echo "==> [6/8] Ensure stateful services are running"
-docker compose -f "$COMPOSE_FILE" up -d --wait postgres redis
+echo "==> [6/8] Ensure stateful + inference services are running"
+# inference is a backend dependency (detector inference) and stays resident like postgres/redis;
+# placed here so it is ready before migrations/backend restart, and gets rebuilt when its image changes.
+docker compose -f "$COMPOSE_FILE" up -d --wait postgres redis inference
 
 echo "==> [7/8] Run pending database migrations"
 if [[ "$BACKEND_CHANGED" == "true" || "${RUN_MIGRATIONS:-0}" == "1" ]]; then

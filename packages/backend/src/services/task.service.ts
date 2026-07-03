@@ -1151,7 +1151,8 @@ export class TaskService {
   static async exportTaskLogEvents(
     taskId: string,
     adminUserId: string,
-    enrolledUserId?: string
+    enrolledUserId?: string,
+    submissionId?: string
   ): Promise<TaskLogEventExportRow[]> {
     const task = await TaskModel.findOwnershipById(taskId);
 
@@ -1170,8 +1171,22 @@ export class TaskService {
       }
     }
 
-    const userFilterClause = enrolledUserId ? 'AND s.user_id = $2' : '';
-    const queryParams = enrolledUserId ? [task.id, enrolledUserId] : [task.id];
+    // Apply optional filters on demand (user / single submission). Parameter
+    // positions are numbered dynamically by push order to avoid hardcoding $2
+    // and misaligning when multiple filters are present. submissionId lets us
+    // query a single submission at the DB layer instead of pulling all task
+    // events and filtering them in memory.
+    const queryParams: string[] = [task.id];
+    let userFilterClause = '';
+    if (enrolledUserId) {
+      queryParams.push(enrolledUserId);
+      userFilterClause = `AND s.user_id = $${queryParams.length}`;
+    }
+    let submissionFilterClause = '';
+    if (submissionId) {
+      queryParams.push(submissionId);
+      submissionFilterClause = `AND s.id = $${queryParams.length}`;
+    }
 
     return query<TaskLogEventExportRow>(
       `
@@ -1213,6 +1228,7 @@ export class TaskService {
           AND de.timestamp <= s.submitted_at
         WHERE s.task_id = $1
           ${userFilterClause}
+          ${submissionFilterClause}
         ORDER BY s.submitted_at DESC, s.id ASC, de.timestamp ASC, de.created_at ASC, de.id ASC
       `,
       queryParams

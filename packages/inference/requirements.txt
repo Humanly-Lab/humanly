@@ -1,0 +1,8 @@
+# Inference service runtime dependencies (excludes shap/matplotlib — those are training-only).
+fastapi
+uvicorn[standard]
+joblib
+numpy
+pandas
+scikit-learn
+lightgbm

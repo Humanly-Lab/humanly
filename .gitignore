@@ -47,6 +47,10 @@ backups/
 *.dump
 *.sql.gz
 
+# ── Private model weights (delivered to the server out-of-band, never committed) ──
+*.joblib
+*.pkl
+
 # ── Logs ──────────────────────────────────────────────────────────────────────
 /logs/
 *.log

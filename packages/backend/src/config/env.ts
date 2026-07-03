@@ -18,6 +18,9 @@ interface EnvConfig {
   // Redis
   redisUrl: string;
 
+  // Inference service (Python multi-model inference) base URL
+  inferenceUrl: string;
+
   // JWT
   jwtSecret: string;
   jwtAccessExpires: string;
@@ -219,6 +222,9 @@ export const env: EnvConfig = {
 
   // Redis
   redisUrl: getEnv('REDIS_URL'),
+
+  // Inference service (Python multi-model inference). Defaults to localhost; compose injects http://inference:8000
+  inferenceUrl: getEnv('INFERENCE_URL', 'http://localhost:8000'),
 
   // JWT
   jwtSecret: getEnv('JWT_SECRET'),

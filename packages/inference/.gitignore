@@ -1,0 +1,7 @@
+# Python caches / build artifacts — not committed.
+# Note: model weights (*.joblib) are also NOT committed; they are excluded by the root
+# .gitignore and delivered to the server out-of-band (see docker-compose MODEL_PATH).
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
