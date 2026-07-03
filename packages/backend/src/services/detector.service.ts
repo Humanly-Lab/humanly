@@ -14,12 +14,16 @@ import type {
 /**
  * Detector integration service.
  *
- * Design: invoked per submission from the admin console; the result is returned immediately and
- * not persisted (zero schema changes). Reuses TaskService.exportTaskLogEvents, which already
- * checks task ownership and gathers writing events, then filters by submission, dedupes by
- * eventId (the submissions×events JOIN can produce duplicate events; same de-duplication the
- * inference service's feature extraction applies), sorts by ascending time, and forwards to the
- * Python inference service.
+ * The admin submission path uses this as an ad-hoc read path: the result is returned immediately
+ * and is not persisted. The certificate path also calls this service at the certificate boundary;
+ * CertificateService persists that frozen detector result with the certificate so later renders
+ * show the exact evidence generated at seal time.
+ *
+ * Submission detection reuses TaskService.exportTaskLogEvents, which already checks task ownership
+ * and gathers writing events, then filters by submission, dedupes by eventId (the
+ * submissions×events JOIN can produce duplicate events; same de-duplication the inference
+ * service's feature extraction applies), sorts by ascending time, and forwards to the Python
+ * inference service.
  */
 
 const DETECT_TIMEOUT_MS = 30_000;
