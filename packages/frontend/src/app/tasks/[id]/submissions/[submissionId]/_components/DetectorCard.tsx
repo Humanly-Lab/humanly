@@ -49,9 +49,9 @@ interface DetectResult {
   error?: string;
 }
 
-const HUMAN_COLOR = '#5b6b63';
-const DEFAULT_ACCENT = '#6f5d61';
-const BAR_TRACK = '#ece9e3';
+const HUMAN_COLOR = 'var(--hly-green-text)';
+const DEFAULT_ACCENT = 'var(--hly-red-text)';
+const BAR_TRACK = 'var(--hly-surface)';
 
 function formatValue(format: FeatureFormat | undefined, v: number | null): string {
   if (v == null || Number.isNaN(v)) return '—';
@@ -132,7 +132,7 @@ export default function DetectorCard({
   const accent = spec?.style?.accent ?? DEFAULT_ACCENT;
 
   const isPositive = result?.label === positiveClass;
-  const verdictColor = result?.label === 'unknown' ? '#6b6255' : isPositive ? accent : HUMAN_COLOR;
+  const verdictColor = result?.label === 'unknown' ? 'var(--hly-neutral-text)' : isPositive ? accent : HUMAN_COLOR;
   const pct = Math.round((result?.score ?? 0) * 100);
   const feats = result?.features ?? [];
   const maxContrib = feats.reduce((m, f) => Math.max(m, Math.abs(f.contribution)), 0) || 1;
@@ -188,7 +188,7 @@ export default function DetectorCard({
 
         {result && result.label === 'unknown' && (
           <div className="flex items-start gap-3">
-            <span className="mt-0.5 inline-flex shrink-0 items-center rounded-full border border-[#d7cdc0] bg-[#f1eee8] px-2.5 py-0.5 text-xs font-medium text-[#6b6255]">
+            <span className="mt-0.5 inline-flex shrink-0 items-center rounded-full border border-[var(--hly-amber-border)] bg-[var(--hly-surface)] px-2.5 py-0.5 text-xs font-medium text-[var(--hly-neutral-text)]">
               {result.reason === 'no_events' ? 'No data' : 'Inconclusive'}
             </span>
             <p className="text-sm text-muted-foreground">
@@ -218,8 +218,8 @@ export default function DetectorCard({
                 className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-medium"
                 style={{
                   color: verdictColor,
-                  backgroundColor: isPositive ? '#f2edee' : '#eff2ef',
-                  borderColor: isPositive ? '#d6c5c7' : '#cbd5ce',
+                  backgroundColor: isPositive ? 'var(--hly-red-bg)' : 'var(--hly-green-bg)',
+                  borderColor: isPositive ? 'var(--hly-red-border)' : 'var(--hly-green-border)',
                 }}
               >
                 {isPositive ? <TrendingUp className="h-3.5 w-3.5" /> : <TrendingDown className="h-3.5 w-3.5" />}

@@ -79,7 +79,7 @@ const MAX_DAILY_SUBMISSION_TIMELINE_DAYS = 120;
 const COMPLETION_DIFFICULTY_HELP = 'Calculated from non-submitters, average editing time, and resubmissions; more of any raises difficulty.';
 const EVENT_TYPE_VISIBLE_LIMIT = 6;
 const OTHER_EVENT_TYPE = '__other_event_types__';
-const OTHER_EVENT_TYPE_COLOR = '#6F747B';
+const OTHER_EVENT_TYPE_COLOR = 'var(--hly-neutral-text)';
 
 interface EventTypeChartItem extends Omit<EventTypeDistribution, 'eventType'> {
   eventType: string;
