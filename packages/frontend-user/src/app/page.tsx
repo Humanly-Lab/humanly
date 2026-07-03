@@ -68,7 +68,7 @@ const steps = [
   [
     '04',
     'Certify',
-    'Create a verifiable PDF and JSON record that shows how the draft came together.',
+    'Issue a sealed certificate with authorship statistics, the activity log, replay, and anomaly review that any reader can verify.',
   ],
 ] as const;
 
@@ -83,7 +83,11 @@ const faqs = [
   ],
   [
     'What does a certificate show?',
-    'It links the final draft to a recorded writing process: typing, paste activity, timing, and AI assistance.',
+    'It links the final draft to the recorded writing process: authorship statistics, the activity log, a step-through replay, anomaly behavior review, and a server-issued seal that any reader can verify.',
+  ],
+  [
+    'How does Humanly flag unusual activity?',
+    'Certificates include an Anomaly Behavior Review: deterministic pattern signals such as paste, focus, and writing-flow events, plus the Humanly Typing Detector, a model over writing behavior. Both are advisory evidence for a human reader, not an automatic verdict.',
   ],
   [
     'Who controls the writing rules?',
@@ -433,7 +437,7 @@ function CertificateCard() {
       <div>
         <div className="mb-1.5 flex items-center gap-1.5">
           <CertBadge />
-          <span className="text-[8.5px] font-bold tracking-[0.2em] text-muted-foreground">CERTIFICATE · GENERATED</span>
+          <span className="text-[8.5px] font-bold tracking-[0.2em] text-muted-foreground">CERTIFICATE · SEALED</span>
           <span className="ml-1.5 h-1.5 w-1.5 rounded-full bg-[var(--hly-brand)]" />
         </div>
         <div className="text-sm font-bold tracking-[-0.005em]">Drafting with attention</div>
@@ -575,7 +579,7 @@ function AudienceSection() {
             n="03"
             illo={<UseIllo3 />}
             title="For reviewers"
-            body="Review the writing process and AI assistance trail instead of relying on detector scores alone."
+            body="Inspect the writing process, the AI assistance trail, and anomaly behavior review instead of relying on final-text detector scores alone."
           />
         </div>
       </div>
