@@ -39,15 +39,12 @@ export interface AnomalyCadenceFeature {
 }
 
 export interface AnomalyTextInfluxFeature {
-  eventType: string | null;
-  timestamp: Date | null;
-  addedCharacters: number;
-}
-
-export interface AnomalyFocusInfluxFeature {
-  blurTimestamp: Date | null;
-  focusTimestamp: Date | null;
-  addedCharacters: number;
+  eventCount: number;
+  totalAddedCharacters: number;
+  largestEventType: string | null;
+  largestTimestamp: Date | null;
+  largestAddedCharacters: number;
+  eventTypes: string[];
 }
 
 export interface AnomalyClockSkewFeature {
@@ -64,7 +61,6 @@ export interface DocumentAnomalyAnalysisFeatures {
   speed: AnomalyTypingSpeedFeature;
   cadence: AnomalyCadenceFeature;
   textInflux: AnomalyTextInfluxFeature;
-  focusInflux: AnomalyFocusInfluxFeature;
   awayFromWorkspace: AwayFromWorkspaceStats;
   clockSkew: AnomalyClockSkewFeature;
   copyPaste: {
@@ -859,13 +855,12 @@ export class DocumentEventModel {
     thresholds: WritingAnomalyThresholds,
     filters: Pick<DocumentEventQueryFilters, 'startDate' | 'endDate'> = {}
   ): Promise<DocumentAnomalyAnalysisFeatures> {
-    const [metrics, speed, cadence, textInflux, focusInflux, awayFromWorkspace, clockSkew, typingMetrics] = await Promise.all([
+    const [metrics, speed, cadence, textInflux, awayFromWorkspace, clockSkew, typingMetrics] = await Promise.all([
       this.getEventMetrics(documentId, filters),
       this.getTypingSpeedFeature(documentId, thresholds.highSpeedWindowSeconds, filters),
       this.getCadenceFeature(documentId, filters),
-      this.getTextInfluxFeature(documentId, thresholds.textInfluxMinimumCharacters, filters),
-      this.getFocusInfluxFeature(documentId, thresholds.focusInfluxWindowSeconds, filters),
-      this.getAwayFromWorkspaceStats(documentId, thresholds.rapidTabSwitchWindowSeconds, filters),
+      this.getTextInfluxFeature(documentId, filters),
+      this.getAwayFromWorkspaceStats(documentId, thresholds.workspaceSwitchWindowSeconds, filters),
       this.getClockSkewFeature(documentId, thresholds.clockSkewMinimumEvents, filters),
       this.calculateTypingMetrics(documentId, filters),
     ]);
@@ -877,7 +872,6 @@ export class DocumentEventModel {
       speed,
       cadence,
       textInflux,
-      focusInflux,
       awayFromWorkspace,
       clockSkew,
       copyPaste: {
@@ -1021,10 +1015,9 @@ export class DocumentEventModel {
 
   private static async getTextInfluxFeature(
     documentId: string,
-    minimumCharacters: number,
     filters: Pick<DocumentEventQueryFilters, 'startDate' | 'endDate'> = {}
   ): Promise<AnomalyTextInfluxFeature> {
-    const params: any[] = [documentId, minimumCharacters];
+    const params: any[] = [documentId];
     const dateClauses: string[] = [];
     if (filters.startDate) {
       dateClauses.push(`timestamp >= $${params.length + 1}`);
@@ -1045,110 +1038,49 @@ export class DocumentEventModel {
         WHERE document_id = $1
           AND text_after IS NOT NULL
           ${dateClauses.length ? `AND ${dateClauses.join(' AND ')}` : ''}
+      ),
+      untracked AS (
+        SELECT event_type, timestamp, added_chars
+        FROM deltas
+        WHERE added_chars > 0
+          AND event_type NOT IN (
+            'keydown',
+            'input',
+            'paste',
+            'ai_modification_applied',
+            'ai_insert_from_chat',
+            'ai_response_paste',
+            'ai_selection_action',
+            'replace',
+            'replace-all'
+          )
       )
       SELECT
-        event_type,
-        timestamp,
-        added_chars::int
-      FROM deltas
-      WHERE added_chars >= $2
-        AND event_type NOT IN (
-          'keydown',
-          'input',
-          'paste',
-          'ai_modification_applied',
-          'ai_insert_from_chat',
-          'ai_response_paste',
-          'ai_selection_action',
-          'replace',
-          'replace-all'
-        )
-      ORDER BY added_chars DESC, timestamp ASC
-      LIMIT 1
+        COUNT(*)::int as event_count,
+        COALESCE(SUM(added_chars), 0)::int as total_added_chars,
+        COALESCE(ARRAY_AGG(DISTINCT event_type) FILTER (WHERE event_type IS NOT NULL), ARRAY[]::text[]) as event_types,
+        (ARRAY_AGG(event_type ORDER BY added_chars DESC, timestamp ASC))[1] as largest_event_type,
+        (ARRAY_AGG(timestamp ORDER BY added_chars DESC, timestamp ASC))[1] as largest_timestamp,
+        COALESCE((ARRAY_AGG(added_chars ORDER BY added_chars DESC, timestamp ASC))[1], 0)::int as largest_added_chars
+      FROM untracked
     `;
 
     const result = await queryOne<{
-      event_type: string;
-      timestamp: Date;
-      added_chars: number | string;
+      event_count: number | string;
+      total_added_chars: number | string;
+      event_types: string[] | null;
+      largest_event_type: string | null;
+      largest_timestamp: Date | null;
+      largest_added_chars: number | string;
     }>(sql, params);
 
     return {
-      eventType: result?.event_type || null,
-      timestamp: result?.timestamp || null,
-      addedCharacters: parseInt(String(result?.added_chars || '0'), 10),
-    };
-  }
-
-  private static async getFocusInfluxFeature(
-    documentId: string,
-    windowSeconds: number,
-    filters: Pick<DocumentEventQueryFilters, 'startDate' | 'endDate'> = {}
-  ): Promise<AnomalyFocusInfluxFeature> {
-    const params: any[] = [documentId, windowSeconds];
-    const dateClauses: string[] = [];
-    if (filters.startDate) {
-      dateClauses.push(`focus_event.timestamp >= $${params.length + 1}`);
-      params.push(filters.startDate);
-    }
-    if (filters.endDate) {
-      dateClauses.push(`focus_event.timestamp <= $${params.length + 1}`);
-      params.push(filters.endDate);
-    }
-
-    const sql = `
-      WITH focus_events AS (
-        SELECT
-          focus_event.timestamp as focus_timestamp,
-          (
-            SELECT MAX(blur_event.timestamp)
-            FROM document_events blur_event
-            WHERE blur_event.document_id = $1
-              AND blur_event.event_type = 'blur'
-              AND blur_event.timestamp < focus_event.timestamp
-          ) as blur_timestamp
-        FROM document_events focus_event
-        WHERE focus_event.document_id = $1
-          AND focus_event.event_type = 'focus'
-          ${dateClauses.length ? `AND ${dateClauses.join(' AND ')}` : ''}
-      ),
-      focus_windows AS (
-        SELECT *
-        FROM focus_events
-        WHERE blur_timestamp IS NOT NULL
-      ),
-      influx AS (
-        SELECT
-          focus_windows.blur_timestamp,
-          focus_windows.focus_timestamp,
-          COALESCE(SUM(GREATEST(
-            char_length(COALESCE(event.text_after, '')) - char_length(COALESCE(event.text_before, '')),
-            0
-          )), 0)::int as added_chars
-        FROM focus_windows
-        LEFT JOIN document_events event
-          ON event.document_id = $1
-          AND event.timestamp >= focus_windows.focus_timestamp
-          AND event.timestamp <= focus_windows.focus_timestamp + ($2::int * INTERVAL '1 second')
-          AND event.event_type IN ('keydown', 'input', 'paste')
-        GROUP BY focus_windows.blur_timestamp, focus_windows.focus_timestamp
-      )
-      SELECT blur_timestamp, focus_timestamp, added_chars
-      FROM influx
-      ORDER BY added_chars DESC, focus_timestamp ASC
-      LIMIT 1
-    `;
-
-    const result = await queryOne<{
-      blur_timestamp: Date;
-      focus_timestamp: Date;
-      added_chars: number | string;
-    }>(sql, params);
-
-    return {
-      blurTimestamp: result?.blur_timestamp || null,
-      focusTimestamp: result?.focus_timestamp || null,
-      addedCharacters: parseInt(String(result?.added_chars || '0'), 10),
+      eventCount: parseInt(String(result?.event_count || '0'), 10),
+      totalAddedCharacters: parseInt(String(result?.total_added_chars || '0'), 10),
+      largestEventType: result?.largest_event_type || null,
+      largestTimestamp: result?.largest_timestamp || null,
+      largestAddedCharacters: parseInt(String(result?.largest_added_chars || '0'), 10),
+      eventTypes: Array.isArray(result?.event_types) ? result.event_types : [],
     };
   }
 

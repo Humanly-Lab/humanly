@@ -158,6 +158,7 @@ const MINOR_RAW_EVENT_TYPES = new Set<string>([
 
 const SYNTHETIC_LOG_ANOMALY_CODES = new Set<string>([
   'rapid_tab_switching',
+  'repeated_workspace_switching',
 ]);
 
 const TIMELINE_ICONS: Partial<Record<DocumentEventTimelineItem['kind'], JSX.Element>> = {
@@ -613,8 +614,10 @@ function getAnomalyTagLabel(code: string) {
   if (code === 'chat_refusal' || code === 'ai_policy_refusal') return 'chat refusal';
   if (code === 'blocked_copy_paste_attempt' || code === 'paste_policy_violation') return 'blocked copy-paste';
   if (code === 'rapid_text_accumulation') return 'rapid text accumulation';
-  if (code === 'large_paste_volume') return 'large paste volume';
-  if (code === 'rapid_tab_switching') return 'rapid tab switching';
+  if (code === 'untracked_text_source' || code === 'text_influx_without_input') return 'untracked text source';
+  if (code === 'rapid_tab_switching' || code === 'repeated_workspace_switching') {
+    return 'repeated workspace switching';
+  }
   if (code === 'long_or_repeated_away_from_workspace' || code === 'away_from_workspace') {
     return 'away from workspace';
   }
@@ -760,6 +763,7 @@ function getSyntheticAnomalyTimestamp(flag: WritingAnomalyFlag) {
   return (
     getFlagEvidenceString(flag, 'windowEnd') ||
     getFlagEvidenceString(flag, 'windowStart') ||
+    getFlagEvidenceString(flag, 'largestTimestamp') ||
     getFlagEvidenceString(flag, 'untrackedTimestamp') ||
     getFlagEvidenceString(flag, 'focusTimestamp') ||
     new Date().toISOString()
@@ -767,7 +771,7 @@ function getSyntheticAnomalyTimestamp(flag: WritingAnomalyFlag) {
 }
 
 function getSyntheticAnomalyCount(flag: WritingAnomalyFlag) {
-  if (flag.code === 'rapid_tab_switching') {
+  if (flag.code === 'rapid_tab_switching' || flag.code === 'repeated_workspace_switching') {
     const switchCount = getFlagEvidenceNumber(flag, 'switchCount');
     const duration = getFlagEvidenceString(flag, 'windowDuration');
     if (switchCount != null && duration) return `${switchCount} switches · ${duration}`;

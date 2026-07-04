@@ -3,11 +3,10 @@ import type { WritingAnomalyFlag } from '@humanly/shared';
 const hiddenReviewSignalCodes = new Set<WritingAnomalyFlag['code']>([
   'clock_skew_anomaly',
   'uniform_key_cadence',
+  'large_paste_volume',
 ]);
 
 const rapidTextAccumulationCodes = new Set<WritingAnomalyFlag['code']>([
-  'text_influx_without_input',
-  'focus_text_influx',
   'sustained_high_typing_speed',
 ]);
 
@@ -41,6 +40,23 @@ export function normalizeReviewSignal(flag: WritingAnomalyFlag): WritingAnomalyF
     };
   }
 
+  if (flag.code === 'text_influx_without_input') {
+    return {
+      ...flag,
+      code: 'untracked_text_source',
+      label: 'Untracked text source',
+      description: "Text was added through an event source outside Humanly's tracked text-input categories.",
+      evidence: {
+        legacyCode: flag.code,
+        ...(flag.evidence || {}),
+      },
+    };
+  }
+
+  if (flag.code === 'focus_text_influx') {
+    return null;
+  }
+
   if (flag.code === 'away_from_workspace') {
     if (!isClearlyLongOrRepeatedAway(flag)) return null;
 
@@ -56,11 +72,16 @@ export function normalizeReviewSignal(flag: WritingAnomalyFlag): WritingAnomalyF
     };
   }
 
-  if (flag.code === 'rapid_tab_switching') {
+  if (flag.code === 'rapid_tab_switching' || flag.code === 'repeated_workspace_switching') {
     return {
       ...flag,
-      label: 'Rapid tab switching',
+      code: 'repeated_workspace_switching',
+      label: 'Repeated workspace switching',
       description: 'The writer repeatedly left and returned to the Humanly workspace in a short window.',
+      evidence: {
+        ...(flag.code === 'rapid_tab_switching' ? { legacyCode: flag.code } : {}),
+        ...(flag.evidence || {}),
+      },
     };
   }
 

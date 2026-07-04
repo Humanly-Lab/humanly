@@ -84,7 +84,7 @@ const FINAL_TEXT_PREVIEW_ROWS = 6;
 const HUMAN_TYPING_HUMAN_COLOR = 'var(--hly-green-text)';
 const HUMAN_TYPING_AGENT_COLOR = 'var(--hly-red-text)';
 const HUMAN_TYPING_BAR_TRACK = '#ece9e3';
-const DETECTOR_HELP_TEXT = 'Anomaly Pattern uses deterministic event rules such as paste, focus, policy, and writing-flow signals. Humanly Typing Detector uses a model over writing behavior and may be inconclusive or unavailable if there is not enough usable typing data.';
+const DETECTOR_HELP_TEXT = 'Anomaly Pattern uses deterministic event rules such as typing bursts, untracked text sources, workspace switching, policy refusals, and blocked copy-paste attempts. Humanly Typing Detector uses a model over writing behavior and may be inconclusive or unavailable if there is not enough usable typing data.';
 
 export interface CertificateEvidenceRecord {
   id: string;
@@ -362,13 +362,15 @@ function getFlagSeverityClass(severity: WritingAnomalyFlag['severity']) {
 }
 
 function normalizeReviewSignal(flag: WritingAnomalyFlag): WritingAnomalyFlag | null {
-  if (flag.code === 'clock_skew_anomaly' || flag.code === 'uniform_key_cadence') {
+  if (
+    flag.code === 'clock_skew_anomaly' ||
+    flag.code === 'uniform_key_cadence' ||
+    flag.code === 'large_paste_volume'
+  ) {
     return null;
   }
 
   if (
-    flag.code === 'text_influx_without_input' ||
-    flag.code === 'focus_text_influx' ||
     flag.code === 'sustained_high_typing_speed'
   ) {
     return {
@@ -381,6 +383,23 @@ function normalizeReviewSignal(flag: WritingAnomalyFlag): WritingAnomalyFlag | n
         ...(flag.evidence || {}),
       },
     };
+  }
+
+  if (flag.code === 'text_influx_without_input') {
+    return {
+      ...flag,
+      code: 'untracked_text_source',
+      label: 'Untracked text source',
+      description: "Text was added through an event source outside Humanly's tracked text-input categories.",
+      evidence: {
+        legacyCode: flag.code,
+        ...(flag.evidence || {}),
+      },
+    };
+  }
+
+  if (flag.code === 'focus_text_influx') {
+    return null;
   }
 
   if (flag.code === 'away_from_workspace') {
@@ -406,11 +425,16 @@ function normalizeReviewSignal(flag: WritingAnomalyFlag): WritingAnomalyFlag | n
     };
   }
 
-  if (flag.code === 'rapid_tab_switching') {
+  if (flag.code === 'rapid_tab_switching' || flag.code === 'repeated_workspace_switching') {
     return {
       ...flag,
-      label: 'Rapid tab switching',
+      code: 'repeated_workspace_switching',
+      label: 'Repeated workspace switching',
       description: 'The writer repeatedly left and returned to the Humanly workspace in a short window.',
+      evidence: {
+        ...(flag.code === 'rapid_tab_switching' ? { legacyCode: flag.code } : {}),
+        ...(flag.evidence || {}),
+      },
     };
   }
 

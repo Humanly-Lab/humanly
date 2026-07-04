@@ -73,7 +73,7 @@ const parseMaxAttempts = (value: string, fallback = 2): number => {
   if (!Number.isFinite(parsed)) return fallback;
   return Math.max(2, Math.min(20, Math.floor(parsed)));
 };
-const DETECTOR_HELP_TEXT = 'Anomaly Pattern uses deterministic event rules such as paste, focus, policy, and writing-flow signals. Humanly Typing Detector uses a model over writing behavior and may be inconclusive or unavailable if there is not enough usable typing data.';
+const DETECTOR_HELP_TEXT = 'Anomaly Pattern uses deterministic event rules such as typing bursts, untracked text sources, workspace switching, policy refusals, and blocked copy-paste attempts. Humanly Typing Detector uses a model over writing behavior and may be inconclusive or unavailable if there is not enough usable typing data.';
 
 export default function EnvironmentConfigFields({
   value,
@@ -541,7 +541,7 @@ export default function EnvironmentConfigFields({
             <span>
               <span className="font-medium">Anomaly Pattern</span>
               <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
-                Deterministic review signals from paste, focus, policy, and writing-flow patterns.
+                Deterministic review signals from typing bursts, untracked text sources, workspace switching, policy refusals, and blocked copy-paste attempts.
               </span>
             </span>
             <Checkbox

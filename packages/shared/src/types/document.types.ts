@@ -233,6 +233,8 @@ export type WritingAnomalyFlagCode =
   | 'large_paste_volume'
   | 'rapid_text_accumulation'
   | 'rapid_tab_switching'
+  | 'untracked_text_source'
+  | 'repeated_workspace_switching'
   | 'long_or_repeated_away_from_workspace';
 
 export type WritingAnomalyFlagSeverity = 'info' | 'warning' | 'critical';
@@ -317,16 +319,11 @@ export interface WritingAnomalyThresholds {
   uniformCadenceMinimumEvents: number;
   uniformCadenceMaximumStddevMs: number;
   uniformCadenceMaximumMeanMs: number;
-  textInfluxMinimumCharacters: number;
-  focusInfluxWindowSeconds: number;
   clockSkewMinimumEvents: number;
   clockSkewMinimumClientSpanSeconds: number;
   clockSkewMaximumServerSpanSeconds: number;
-  largePasteMinimumCharacters: number;
-  largePasteMinimumPercentage: number;
-  largePasteAbsoluteCharacters: number;
-  rapidTabSwitchWindowSeconds: number;
-  rapidTabSwitchMinimumSwitches: number;
+  workspaceSwitchWindowSeconds: number;
+  workspaceSwitchMinimumSwitches: number;
 }
 
 export interface AwayFromWorkspaceStats {

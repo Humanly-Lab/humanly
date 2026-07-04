@@ -160,7 +160,7 @@ const AI_PROVIDER_OPTIONS = [
   { label: 'OpenAI', value: OPENAI_BASE_URL },
   { label: 'Anthropic', value: CLAUDE_BASE_URL },
 ] as const;
-const DETECTOR_HELP_TEXT = 'Anomaly Pattern uses deterministic event rules such as paste, focus, policy, and writing-flow signals. Humanly Typing Detector uses a model over writing behavior and may be inconclusive or unavailable if there is not enough usable typing data.';
+const DETECTOR_HELP_TEXT = 'Anomaly Pattern uses deterministic event rules such as typing bursts, untracked text sources, workspace switching, policy refusals, and blocked copy-paste attempts. Humanly Typing Detector uses a model over writing behavior and may be inconclusive or unavailable if there is not enough usable typing data.';
 
 const getAiProviderForBaseUrl = (baseUrl: string): WritingAiProvider => {
   try {
@@ -354,7 +354,7 @@ function DetectorSettingsBox({
           <span>
             <span className="font-medium">Anomaly Pattern</span>
             <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
-              Deterministic review signals from paste, focus, policy, and writing-flow patterns.
+              Deterministic review signals from typing bursts, untracked text sources, workspace switching, policy refusals, and blocked copy-paste attempts.
             </span>
           </span>
           <Checkbox
