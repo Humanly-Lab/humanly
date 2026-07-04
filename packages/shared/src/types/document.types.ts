@@ -284,6 +284,7 @@ export interface HumanTypingDetectorSpec {
     metricNoun: string;
     positiveLabel: string;
     negativeLabel: string;
+    scale?: { min: string; max: string };
   };
   style?: { accent?: string };
   features: Record<string, { label: string; format: DetectorFeatureFormat; description: string }>;

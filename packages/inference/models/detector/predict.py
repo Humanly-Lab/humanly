@@ -36,9 +36,11 @@ SPEC = {
     "verdict": {
         # score is the "positive class" probability; the large number is shown as "{pct}% probability of {metricNoun}"
         "positiveClass": "agent",
-        "metricNoun": "automated typing, e.g. a computer-use agent",
+        "metricNoun": "automated typing",
         "positiveLabel": "Likely automated",
         "negativeLabel": "Likely human",
+        # Endpoint labels for the score scale (score=0 → min, score=1 → max)
+        "scale": {"min": "Human", "max": "Automated"},
     },
     "style": {"accent": "#6f5d61"},
     "features": {
