@@ -143,6 +143,8 @@ services:
     environment:
       MODEL_PATH: /models/detector/model.joblib
       INFERENCE_ALLOW_MISSING_MODELS: "true"
+      MIN_KEYDOWN: "50"   # detector quality gate: min keystrokes to judge (runtime policy, not in the model)
+      DETECTOR_THRESHOLD: "0.85"   # agent verdict cutoff; overrides the threshold stored in the model
     volumes:
       - ./packages/inference/models:/models:ro
     healthcheck:

@@ -118,6 +118,19 @@ _artifact: dict[str, Any] | None = None
 _load_error: str | None = None
 
 
+def _decision_threshold() -> float | None:
+    """Decision threshold for the agent/human verdict. The DETECTOR_THRESHOLD env var, when set,
+    takes precedence so operators can tune the cutoff without retraining or re-uploading the model.
+    Otherwise falls back to the threshold stored in the model artifact."""
+    env = os.environ.get("DETECTOR_THRESHOLD")
+    if env:
+        try:
+            return float(env)
+        except ValueError:
+            pass  # malformed override: ignore it and use the artifact's threshold
+    return (_artifact or {}).get("threshold")
+
+
 def load() -> None:
     global _artifact, _load_error
     try:
@@ -133,11 +146,12 @@ def status() -> dict[str, Any]:
         return {"loaded": False, "error": _load_error}
     # Operational status only. Training metadata (n_train, note) is intentionally NOT exposed;
     # it is development detail and the note may carry non-English text.
+    threshold = _decision_threshold()
     return {
         "loaded": True,
         "n_features": len(_artifact.get("features", [])),
-        "threshold": _artifact.get("threshold"),
-        "threshold_trustworthy": _artifact.get("threshold") is not None,
+        "threshold": threshold,
+        "threshold_trustworthy": threshold is not None,
     }
 
 
@@ -175,8 +189,11 @@ def predict(body: dict) -> dict[str, Any]:
     # Quality gate: too few keystrokes means the timing model cannot judge.
     # Low typed_ratio is still useful review context, but it should not suppress
     # the typing-rhythm prediction when enough keystroke events exist.
+    # The MIN_KEYDOWN env var overrides the artifact's gate, so operators can tune it
+    # without retraining; newer artifacts may not carry a quality_gate at all.
     gate = _artifact.get("quality_gate", {})
-    min_kd = gate.get("min_keydown", 50)
+    env_kd = os.environ.get("MIN_KEYDOWN", "")
+    min_kd = int(env_kd) if env_kd.isdigit() else gate.get("min_keydown", 50)
     n_keydown = feats.get("n_keydown", 0) or 0
     final_len = feats.get("final_len", 0) or 0
     typed = feats.get("typed_chars", 0) or 0
@@ -205,7 +222,7 @@ def predict(body: dict) -> dict[str, Any]:
 
     model = _artifact["model"]
     score = float(model.predict_proba(X)[0, 1])  # agent probability
-    threshold = _artifact.get("threshold")
+    threshold = _decision_threshold()
     if threshold is not None:
         label = "agent" if score >= threshold else "human"
         trustworthy = True
