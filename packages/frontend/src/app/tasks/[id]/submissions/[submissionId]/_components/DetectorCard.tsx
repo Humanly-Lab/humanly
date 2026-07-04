@@ -27,6 +27,7 @@ interface DetectorSpec {
     metricNoun: string;
     positiveLabel: string;
     negativeLabel: string;
+    scale?: { min: string; max: string };
   };
   style?: { accent?: string };
   features: Record<string, { label: string; format: FeatureFormat; description: string }>;
@@ -42,6 +43,8 @@ interface DetectResult {
   ok: boolean;
   label?: 'human' | 'agent' | 'unknown';
   score?: number;
+  threshold?: number | null;
+  threshold_trustworthy?: boolean;
   reason?: string;
   detail?: string;
   n_events?: number;
@@ -131,9 +134,14 @@ export default function DetectorCard({
   const negativeLabel = spec?.verdict.negativeLabel ?? 'Likely human';
   const accent = spec?.style?.accent ?? DEFAULT_ACCENT;
 
+  const scaleMin = spec?.verdict.scale?.min ?? 'Human';
+  const scaleMax = spec?.verdict.scale?.max ?? 'Automated';
+
   const isPositive = result?.label === positiveClass;
   const verdictColor = result?.label === 'unknown' ? 'var(--hly-neutral-text)' : isPositive ? accent : HUMAN_COLOR;
   const pct = Math.round((result?.score ?? 0) * 100);
+  const thresholdPct =
+    result?.threshold != null && result.threshold_trustworthy ? Math.round(result.threshold * 100) : null;
   const feats = result?.features ?? [];
   const maxContrib = feats.reduce((m, f) => Math.max(m, Math.abs(f.contribution)), 0) || 1;
 
@@ -201,30 +209,65 @@ export default function DetectorCard({
 
         {result && (result.label === 'human' || result.label === 'agent') && (
           <div className="space-y-6">
-            {/* Probability + verdict */}
-            <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
-              <div className="flex items-baseline gap-2.5">
+            {/* Verdict + probability: badge leads (the conclusion), the probability and scale explain it */}
+            <div className="max-w-3xl space-y-4">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
                 <span
-                  className="text-[2.75rem] font-bold leading-none tracking-tight"
-                  style={{ color: verdictColor }}
+                  className="inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-semibold"
+                  style={{
+                    color: verdictColor,
+                    backgroundColor: isPositive ? 'var(--hly-red-bg)' : 'var(--hly-green-bg)',
+                    borderColor: isPositive ? 'var(--hly-red-border)' : 'var(--hly-green-border)',
+                  }}
                 >
-                  {pct}%
+                  {isPositive ? <TrendingUp className="h-3.5 w-3.5" /> : <TrendingDown className="h-3.5 w-3.5" />}
+                  {isPositive ? positiveLabel : negativeLabel}
                 </span>
-                <span className="max-w-[10rem] text-sm leading-snug text-muted-foreground">
-                  probability of {metricNoun}
-                </span>
+                <div className="flex items-baseline gap-2">
+                  <span
+                    className="text-3xl font-bold leading-none tracking-tight tabular-nums"
+                    style={{ color: verdictColor }}
+                  >
+                    {pct}%
+                  </span>
+                  <span className="text-sm text-muted-foreground">probability of {metricNoun}</span>
+                </div>
               </div>
-              <span
-                className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-medium"
-                style={{
-                  color: verdictColor,
-                  backgroundColor: isPositive ? 'var(--hly-red-bg)' : 'var(--hly-green-bg)',
-                  borderColor: isPositive ? 'var(--hly-red-border)' : 'var(--hly-green-border)',
-                }}
-              >
-                {isPositive ? <TrendingUp className="h-3.5 w-3.5" /> : <TrendingDown className="h-3.5 w-3.5" />}
-                {isPositive ? positiveLabel : negativeLabel}
-              </span>
+
+              {/* Score on a min→max scale; the color shift is centered on the decision threshold */}
+              <div>
+                <div className="mb-1.5 flex items-center justify-between text-[10px] font-medium uppercase tracking-wide">
+                  <span style={{ color: HUMAN_COLOR }}>{scaleMin}</span>
+                  <span style={{ color: accent }}>{scaleMax}</span>
+                </div>
+                <div
+                  className="relative h-2 rounded-full"
+                  style={{
+                    background: `linear-gradient(to right, var(--hly-green-border) ${Math.max((thresholdPct ?? 50) - 12, 0)}%, var(--hly-red-border) ${Math.min((thresholdPct ?? 50) + 12, 100)}%)`,
+                  }}
+                >
+                  {thresholdPct != null && (
+                    <div
+                      className="absolute top-1/2 h-3.5 w-0.5 -translate-x-1/2 -translate-y-1/2 rounded-full"
+                      style={{ left: `${thresholdPct}%`, backgroundColor: 'var(--hly-neutral-text)' }}
+                    />
+                  )}
+                  <div
+                    className="absolute top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-background shadow-sm"
+                    style={{ left: `clamp(7px, ${pct}%, calc(100% - 7px))`, backgroundColor: verdictColor }}
+                  />
+                </div>
+                {thresholdPct != null && (
+                  <div className="relative mt-1.5 h-3.5 text-[10px] text-muted-foreground">
+                    <span
+                      className="absolute -translate-x-1/2 whitespace-nowrap"
+                      style={{ left: `clamp(70px, ${thresholdPct}%, calc(100% - 70px))` }}
+                    >
+                      decision threshold · {thresholdPct}%
+                    </span>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Top contributing features (click to expand the description) */}

@@ -628,6 +628,12 @@ function HumanTypingDetectorPanel({
       ? accent
       : HUMAN_TYPING_HUMAN_COLOR;
   const probability = Math.round((prediction?.score ?? 0) * 100);
+  const scaleMin = spec?.verdict.scale?.min ?? 'Human';
+  const scaleMax = spec?.verdict.scale?.max ?? 'Automated';
+  const thresholdPct =
+    prediction?.threshold != null && prediction.threshold_trustworthy
+      ? Math.round(prediction.threshold * 100)
+      : null;
   const features = prediction?.features || [];
   const maxContribution = features.reduce((max, feature) => Math.max(max, Math.abs(feature.contribution)), 0) || 1;
   const typedRatio = typeof prediction?.typed_ratio === 'number' ? prediction.typed_ratio : null;
@@ -675,29 +681,64 @@ function HumanTypingDetectorPanel({
         </p>
       ) : result.status === 'human' || result.status === 'agent' ? (
         <div className="space-y-5 rounded-md border border-border/60 bg-background/70 p-3">
-          <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
-            <div className="flex items-baseline gap-2.5">
+          <div className="max-w-3xl space-y-4">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
               <span
-                className="text-[2.75rem] font-bold leading-none tracking-normal"
-                style={{ color: verdictColor }}
+                className="inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-semibold"
+                style={{
+                  color: verdictColor,
+                  backgroundColor: isPositive ? 'var(--hly-red-bg)' : 'var(--hly-green-bg)',
+                  borderColor: isPositive ? 'var(--hly-red-border)' : 'var(--hly-green-border)',
+                }}
               >
-                {probability}%
+                {isPositive ? <TrendingUp className="h-3.5 w-3.5" /> : <TrendingDown className="h-3.5 w-3.5" />}
+                {isPositive ? positiveLabel : negativeLabel}
               </span>
-              <span className="max-w-[10rem] text-sm leading-snug text-muted-foreground">
-                probability of {metricNoun}
-              </span>
+              <div className="flex items-baseline gap-2">
+                <span
+                  className="text-3xl font-bold leading-none tracking-normal tabular-nums"
+                  style={{ color: verdictColor }}
+                >
+                  {probability}%
+                </span>
+                <span className="text-sm text-muted-foreground">probability of {metricNoun}</span>
+              </div>
             </div>
-            <span
-              className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-medium"
-              style={{
-                color: verdictColor,
-                backgroundColor: isPositive ? 'var(--hly-red-bg)' : 'var(--hly-green-bg)',
-                borderColor: isPositive ? 'var(--hly-red-border)' : 'var(--hly-green-border)',
-              }}
-            >
-              {isPositive ? <TrendingUp className="h-3.5 w-3.5" /> : <TrendingDown className="h-3.5 w-3.5" />}
-              {isPositive ? positiveLabel : negativeLabel}
-            </span>
+
+            {/* Score on a min→max scale; the color shift is centered on the decision threshold */}
+            <div>
+              <div className="mb-1.5 flex items-center justify-between text-[10px] font-medium uppercase tracking-wide">
+                <span style={{ color: HUMAN_TYPING_HUMAN_COLOR }}>{scaleMin}</span>
+                <span style={{ color: accent }}>{scaleMax}</span>
+              </div>
+              <div
+                className="relative h-2 rounded-full"
+                style={{
+                  background: `linear-gradient(to right, var(--hly-green-border) ${Math.max((thresholdPct ?? 50) - 12, 0)}%, var(--hly-red-border) ${Math.min((thresholdPct ?? 50) + 12, 100)}%)`,
+                }}
+              >
+                {thresholdPct != null && (
+                  <div
+                    className="absolute top-1/2 h-3.5 w-0.5 -translate-x-1/2 -translate-y-1/2 rounded-full"
+                    style={{ left: `${thresholdPct}%`, backgroundColor: 'var(--hly-neutral-text)' }}
+                  />
+                )}
+                <div
+                  className="absolute top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-background shadow-sm"
+                  style={{ left: `clamp(7px, ${probability}%, calc(100% - 7px))`, backgroundColor: verdictColor }}
+                />
+              </div>
+              {thresholdPct != null && (
+                <div className="relative mt-1.5 h-3.5 text-[10px] text-muted-foreground">
+                  <span
+                    className="absolute -translate-x-1/2 whitespace-nowrap"
+                    style={{ left: `clamp(70px, ${thresholdPct}%, calc(100% - 70px))` }}
+                  >
+                    decision threshold · {thresholdPct}%
+                  </span>
+                </div>
+              )}
+            </div>
           </div>
 
           {features.length > 0 && (
