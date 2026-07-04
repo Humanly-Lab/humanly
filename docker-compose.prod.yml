@@ -43,6 +43,8 @@ services:
     # /opt/humanly/models (out-of-band via scp) and bind-mounted read-only at runtime.
     environment:
       MODEL_PATH: /models/detector/model.joblib
+      MIN_KEYDOWN: "50"   # detector quality gate: min keystrokes to judge (runtime policy, not in the model)
+      DETECTOR_THRESHOLD: "0.85"   # agent verdict cutoff; overrides the threshold stored in the model
     volumes:
       - /opt/humanly/models:/models:ro
     healthcheck:
