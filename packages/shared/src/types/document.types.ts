@@ -235,6 +235,7 @@ export type WritingAnomalyFlagCode =
   | 'rapid_tab_switching'
   | 'untracked_text_source'
   | 'repeated_workspace_switching'
+  | 'frequent_workspace_exits'
   | 'long_or_repeated_away_from_workspace';
 
 export type WritingAnomalyFlagSeverity = 'info' | 'warning' | 'critical';
@@ -322,8 +323,8 @@ export interface WritingAnomalyThresholds {
   clockSkewMinimumEvents: number;
   clockSkewMinimumClientSpanSeconds: number;
   clockSkewMaximumServerSpanSeconds: number;
-  workspaceSwitchWindowSeconds: number;
-  workspaceSwitchMinimumSwitches: number;
+  workspaceExitWindowSeconds: number;
+  workspaceExitMinimumExits: number;
 }
 
 export interface AwayFromWorkspaceStats {

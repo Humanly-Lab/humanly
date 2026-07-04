@@ -21,8 +21,8 @@ export const DEFAULT_ANOMALY_THRESHOLDS: WritingAnomalyThresholds = {
   clockSkewMinimumEvents: 80,
   clockSkewMinimumClientSpanSeconds: 120,
   clockSkewMaximumServerSpanSeconds: 5,
-  workspaceSwitchWindowSeconds: 90,
-  workspaceSwitchMinimumSwitches: 6,
+  workspaceExitWindowSeconds: 90,
+  workspaceExitMinimumExits: 6,
 };
 
 function formatDurationMs(valueMs: number) {
@@ -94,17 +94,17 @@ export function computeWritingAnomalyFlags(
     });
   }
 
-  if (features.awayFromWorkspace.rapidSwitchCount >= thresholds.workspaceSwitchMinimumSwitches) {
+  if (features.awayFromWorkspace.rapidSwitchCount >= thresholds.workspaceExitMinimumExits) {
     flags.push({
-      code: 'repeated_workspace_switching',
+      code: 'frequent_workspace_exits',
       severity: 'warning',
-      label: 'Repeated workspace switching',
+      label: 'Frequent workspace exits',
       description: 'The writer repeatedly left and returned to the Humanly workspace in a short window.',
       evidence: {
-        switchCount: features.awayFromWorkspace.rapidSwitchCount,
+        exitCount: features.awayFromWorkspace.rapidSwitchCount,
         windowDuration: formatDurationMs(features.awayFromWorkspace.rapidSwitchWindowMs),
-        windowSeconds: thresholds.workspaceSwitchWindowSeconds,
-        thresholdSwitches: thresholds.workspaceSwitchMinimumSwitches,
+        windowSeconds: thresholds.workspaceExitWindowSeconds,
+        thresholdExits: thresholds.workspaceExitMinimumExits,
         windowStart: features.awayFromWorkspace.rapidSwitchWindowStart,
         windowEnd: features.awayFromWorkspace.rapidSwitchWindowEnd,
       },

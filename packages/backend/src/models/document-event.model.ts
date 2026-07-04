@@ -860,7 +860,7 @@ export class DocumentEventModel {
       this.getTypingSpeedFeature(documentId, thresholds.highSpeedWindowSeconds, filters),
       this.getCadenceFeature(documentId, filters),
       this.getTextInfluxFeature(documentId, filters),
-      this.getAwayFromWorkspaceStats(documentId, thresholds.workspaceSwitchWindowSeconds, filters),
+      this.getAwayFromWorkspaceStats(documentId, thresholds.workspaceExitWindowSeconds, filters),
       this.getClockSkewFeature(documentId, thresholds.clockSkewMinimumEvents, filters),
       this.calculateTypingMetrics(documentId, filters),
     ]);

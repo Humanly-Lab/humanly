@@ -72,14 +72,20 @@ export function normalizeReviewSignal(flag: WritingAnomalyFlag): WritingAnomalyF
     };
   }
 
-  if (flag.code === 'rapid_tab_switching' || flag.code === 'repeated_workspace_switching') {
+  if (
+    flag.code === 'rapid_tab_switching' ||
+    flag.code === 'repeated_workspace_switching' ||
+    flag.code === 'frequent_workspace_exits'
+  ) {
+    const isLegacyCode = flag.code === 'rapid_tab_switching' || flag.code === 'repeated_workspace_switching';
+
     return {
       ...flag,
-      code: 'repeated_workspace_switching',
-      label: 'Repeated workspace switching',
+      code: 'frequent_workspace_exits',
+      label: 'Frequent workspace exits',
       description: 'The writer repeatedly left and returned to the Humanly workspace in a short window.',
       evidence: {
-        ...(flag.code === 'rapid_tab_switching' ? { legacyCode: flag.code } : {}),
+        ...(isLegacyCode ? { legacyCode: flag.code } : {}),
         ...(flag.evidence || {}),
       },
     };

@@ -84,7 +84,7 @@ const FINAL_TEXT_PREVIEW_ROWS = 6;
 const HUMAN_TYPING_HUMAN_COLOR = 'var(--hly-green-text)';
 const HUMAN_TYPING_AGENT_COLOR = 'var(--hly-red-text)';
 const HUMAN_TYPING_BAR_TRACK = '#ece9e3';
-const DETECTOR_HELP_TEXT = 'Anomaly Pattern uses deterministic event rules such as typing bursts, untracked text sources, workspace switching, policy refusals, and blocked copy-paste attempts. Humanly Typing Detector uses a model over writing behavior and may be inconclusive or unavailable if there is not enough usable typing data.';
+const DETECTOR_HELP_TEXT = 'Anomaly Pattern uses deterministic event rules such as typing bursts, untracked text sources, workspace exits, policy refusals, and blocked copy-paste attempts. Humanly Typing Detector uses a model over writing behavior and may be inconclusive or unavailable if there is not enough usable typing data.';
 
 export interface CertificateEvidenceRecord {
   id: string;
@@ -425,14 +425,20 @@ function normalizeReviewSignal(flag: WritingAnomalyFlag): WritingAnomalyFlag | n
     };
   }
 
-  if (flag.code === 'rapid_tab_switching' || flag.code === 'repeated_workspace_switching') {
+  if (
+    flag.code === 'rapid_tab_switching' ||
+    flag.code === 'repeated_workspace_switching' ||
+    flag.code === 'frequent_workspace_exits'
+  ) {
+    const isLegacyCode = flag.code === 'rapid_tab_switching' || flag.code === 'repeated_workspace_switching';
+
     return {
       ...flag,
-      code: 'repeated_workspace_switching',
-      label: 'Repeated workspace switching',
+      code: 'frequent_workspace_exits',
+      label: 'Frequent workspace exits',
       description: 'The writer repeatedly left and returned to the Humanly workspace in a short window.',
       evidence: {
-        ...(flag.code === 'rapid_tab_switching' ? { legacyCode: flag.code } : {}),
+        ...(isLegacyCode ? { legacyCode: flag.code } : {}),
         ...(flag.evidence || {}),
       },
     };

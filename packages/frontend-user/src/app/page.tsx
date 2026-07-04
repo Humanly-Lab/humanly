@@ -87,7 +87,7 @@ const faqs = [
   ],
   [
     'How does Humanly flag unusual activity?',
-    'Certificates include an Anomaly Behavior Review: deterministic pattern signals such as typing bursts, untracked text sources, workspace switching, policy refusals, and blocked copy-paste attempts, plus the Humanly Typing Detector, a model over writing behavior. Both are advisory evidence for a human reader, not an automatic verdict.',
+    'Certificates include an Anomaly Behavior Review: deterministic pattern signals such as typing bursts, untracked text sources, workspace exits, policy refusals, and blocked copy-paste attempts, plus the Humanly Typing Detector, a model over writing behavior. Both are advisory evidence for a human reader, not an automatic verdict.',
   ],
   [
     'Who controls the writing rules?',

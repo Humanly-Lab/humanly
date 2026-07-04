@@ -192,6 +192,7 @@ const MINOR_RAW_EVENT_TYPES = new Set<string>([
 const SYNTHETIC_LOG_ANOMALY_CODES = new Set<string>([
   'rapid_tab_switching',
   'repeated_workspace_switching',
+  'frequent_workspace_exits',
 ]);
 
 const FLAG_BADGE_STYLES: Record<WritingAnomalyFlag['severity'], string> = {
@@ -615,8 +616,12 @@ function getAnomalyTagLabel(code: string) {
   if (code === 'blocked_copy_paste_attempt' || code === 'paste_policy_violation') return 'blocked copy-paste';
   if (code === 'rapid_text_accumulation') return 'rapid text accumulation';
   if (code === 'untracked_text_source' || code === 'text_influx_without_input') return 'untracked text source';
-  if (code === 'rapid_tab_switching' || code === 'repeated_workspace_switching') {
-    return 'repeated workspace switching';
+  if (
+    code === 'rapid_tab_switching' ||
+    code === 'repeated_workspace_switching' ||
+    code === 'frequent_workspace_exits'
+  ) {
+    return 'frequent workspace exits';
   }
   if (code === 'long_or_repeated_away_from_workspace' || code === 'away_from_workspace') {
     return 'away from workspace';
@@ -757,11 +762,17 @@ function getSyntheticAnomalyTimestamp(flag: WritingAnomalyFlag) {
 }
 
 function getSyntheticAnomalyCount(flag: WritingAnomalyFlag) {
-  if (flag.code === 'rapid_tab_switching' || flag.code === 'repeated_workspace_switching') {
-    const switchCount = getFlagEvidenceNumber(flag, 'switchCount');
+  if (
+    flag.code === 'rapid_tab_switching' ||
+    flag.code === 'repeated_workspace_switching' ||
+    flag.code === 'frequent_workspace_exits'
+  ) {
+    const exitCount =
+      getFlagEvidenceNumber(flag, 'exitCount') ??
+      getFlagEvidenceNumber(flag, 'switchCount');
     const duration = getFlagEvidenceString(flag, 'windowDuration');
-    if (switchCount != null && duration) return `${switchCount} switches · ${duration}`;
-    if (switchCount != null) return `${switchCount} switches`;
+    if (exitCount != null && duration) return `${exitCount} exits · ${duration}`;
+    if (exitCount != null) return `${exitCount} exits`;
   }
 
   return '—';

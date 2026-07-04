@@ -105,7 +105,7 @@ const AI_API_KEY_HELP_TEXT = 'An AI API key is a unique secret credential, usual
 const SHORTCUT_TOKENS_HELP_TEXT = 'Shortcut tokens limit how much text AI quick actions can generate, such as fixing grammar, improving writing, simplifying text, or making writing more formal. Higher values allow longer AI output but may use more tokens.';
 const CHAT_TOKENS_HELP_TEXT = 'Chat tokens limit how much text the AI Assistant can generate in a chat response. Higher values allow more complete answers but may increase usage per message.';
 const AI_GUARD_POLICY_HELP_TEXT = "AI Guard policy controls the boundary of AI assistance during writing. When enabled, it helps reject requests that do not follow the task's AI usage rules.";
-const DETECTOR_HELP_TEXT = 'Anomaly Pattern uses deterministic event rules such as typing bursts, untracked text sources, workspace switching, policy refusals, and blocked copy-paste attempts. Humanly Typing Detector uses a model over writing behavior and may be inconclusive or unavailable if there is not enough usable typing data.';
+const DETECTOR_HELP_TEXT = 'Anomaly Pattern uses deterministic event rules such as typing bursts, untracked text sources, workspace exits, policy refusals, and blocked copy-paste attempts. Humanly Typing Detector uses a model over writing behavior and may be inconclusive or unavailable if there is not enough usable typing data.';
 
 type EnvironmentSelection = WritingEnvironmentPreset | typeof IMPORT_ENVIRONMENT_VALUE;
 type EnvironmentSummaryItem = {
@@ -194,7 +194,7 @@ function DetectorSettingsBox({
           <span>
             <span className="font-medium">Anomaly Pattern</span>
             <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
-              Deterministic review signals from typing bursts, untracked text sources, workspace switching, policy refusals, and blocked copy-paste attempts.
+              Deterministic review signals from typing bursts, untracked text sources, workspace exits, policy refusals, and blocked copy-paste attempts.
             </span>
           </span>
           <Checkbox
