@@ -33,10 +33,8 @@ pnpm --filter @humanly/frontend-user type-check
 
 5. If you changed the database schema, add a migration under
    `packages/backend/src/db/migrations` and verify it carefully.
-6. Add an entry under `## [Unreleased]` in [CHANGELOG.md](CHANGELOG.md) for any
-   user-visible change.
-7. Commit and push your branch.
-8. Open a pull request against `main`.
+6. Commit and push your branch.
+7. Open a pull request against `main`.
 
 There is no root `pnpm test` script in the current package manifests. If you add
 or change focused tests, document the exact command you ran in the pull request.

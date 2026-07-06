@@ -153,7 +153,6 @@ attachments.
 
 ## Links
 
-- Release notes: [CHANGELOG.md](CHANGELOG.md)
 - Self-deployment guide: [docs/SELF_DEPLOY.md](docs/SELF_DEPLOY.md)
 - Contributing: [CONTRIBUTING.md](CONTRIBUTING.md)
 - Code of conduct: [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
