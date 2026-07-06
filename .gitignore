@@ -106,6 +106,7 @@ Design.md
 
 # ── Local-only development / QA artifacts ────────────────────────────────────
 .codex/
+.agents/skills/
 fixtures/qa/
 scripts/qa/
 scripts/agentic-integration-test.mjs
@@ -125,5 +126,22 @@ scripts/jest/
 **/example.html
 **/dev-bypass-login.html
 
-# Keep exploratory research notes local; durable docs and repo skills are tracked.
+# Keep internal process, QA, and research artifacts local for the launch repo.
+docs/README.md
+docs/AGENT_PROGRESS.md
+docs/AI_USAGE_STRESS_TEST_REPORT_*.md
+docs/ARCHITECTURE_OPTIMIZATION_BACKLOG.md
+docs/BACKEND_STRESS_TESTING.md
+docs/CODEX_DEVELOPMENT_MANUAL.md
+docs/EPIC_*_GUIDE.md
+docs/ISSUE_AUTHORING_GUIDE.md
+docs/LOCAL_DEV.md
+docs/MODEL_WHITELIST_QA_*.md
+docs/PRODUCTION_DEPLOYMENT.md
+docs/PRODUCTION_QA_PLAYBOOK.md
+docs/REGRESSION_GUARD.md
+docs/REGRESSION_LEDGER.md
+docs/assets/
+docs/testing/
 docs/research/
+paper-artifacts/

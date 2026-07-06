@@ -33,6 +33,5 @@ Primary routes:
 
 Reference docs:
 
-- Root docs map: `../../docs/README.md`
-- Local dev: `../../docs/LOCAL_DEV.md`
-- Production QA: `../../docs/PRODUCTION_QA_PLAYBOOK.md`
+- Project overview: `../../README.md`
+- Self-deployment guide: `../../docs/SELF_DEPLOY.md`

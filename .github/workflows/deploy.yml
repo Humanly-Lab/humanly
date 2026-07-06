@@ -139,7 +139,7 @@ jobs:
                 packages/frontend/*|packages/frontend/**)
                   frontend=true
                   ;;
-                nginx/*|nginx/**|scripts/ensure-production-cert.sh|docs/PRODUCTION_DEPLOYMENT.md)
+                nginx/*|nginx/**|scripts/ensure-production-cert.sh)
                   deploy=true
                   ;;
               esac
