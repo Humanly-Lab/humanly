@@ -5,6 +5,10 @@ import compression from 'compression';
 import cookieParser from 'cookie-parser';
 import { env } from './config/env';
 import { logger } from './utils/logger';
+import {
+  authenticatedApiAllowedHeaders,
+  authenticatedApiExposedHeaders,
+} from './config/cors';
 
 // Middleware
 import { errorHandler } from './middleware/error-handler';
@@ -66,7 +70,8 @@ export function createApp(): Express {
       origin: allowedOrigins,
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization', 'X-Task-Token', 'X-Session-Id', 'X-Access-Code'],
+      allowedHeaders: authenticatedApiAllowedHeaders,
+      exposedHeaders: authenticatedApiExposedHeaders,
     })
   );
 

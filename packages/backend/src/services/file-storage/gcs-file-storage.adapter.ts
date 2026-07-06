@@ -3,6 +3,7 @@ import { Storage, type StorageOptions } from '@google-cloud/storage';
 import { AppError } from '../../middleware/error-handler';
 import type {
   FileStorageAdapter,
+  FileStorageStreamOptions,
   ListStorageObjectsOptions,
   NormalizedFileStorageLocator,
   StoredFile,
@@ -45,9 +46,15 @@ export class GcsFileStorageAdapter implements FileStorageAdapter {
     };
   }
 
-  async getStream(locator: NormalizedFileStorageLocator): Promise<Readable> {
+  async getStream(
+    locator: NormalizedFileStorageLocator,
+    options: FileStorageStreamOptions = {}
+  ): Promise<Readable> {
     const gcsFile = await this.getExistingGcsFile(locator);
-    return gcsFile.createReadStream();
+    return gcsFile.createReadStream({
+      start: options.start,
+      end: options.end,
+    });
   }
 
   async getBuffer(locator: NormalizedFileStorageLocator): Promise<Buffer> {

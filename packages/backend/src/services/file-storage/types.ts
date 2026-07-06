@@ -37,11 +37,16 @@ export interface StoredFile {
   uploadStatus: FileUploadStatus;
 }
 
+export interface FileStorageStreamOptions {
+  start?: number;
+  end?: number;
+}
+
 export interface FileStorageAdapter {
   readonly provider: FileStorageProvider;
   init(): Promise<void>;
   store(file: Buffer, storageKey: string, checksum: string): Promise<StoredFile>;
-  getStream(locator: NormalizedFileStorageLocator): Promise<Readable>;
+  getStream(locator: NormalizedFileStorageLocator, options?: FileStorageStreamOptions): Promise<Readable>;
   getBuffer(locator: NormalizedFileStorageLocator): Promise<Buffer>;
   delete(locator: NormalizedFileStorageLocator): Promise<void>;
   listObjects(options?: ListStorageObjectsOptions): AsyncIterable<StorageObjectMetadata>;

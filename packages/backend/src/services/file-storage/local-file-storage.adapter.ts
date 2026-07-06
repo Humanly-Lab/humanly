@@ -4,6 +4,7 @@ import type { Readable } from 'stream';
 import { AppError } from '../../middleware/error-handler';
 import type {
   FileStorageAdapter,
+  FileStorageStreamOptions,
   ListStorageObjectsOptions,
   NormalizedFileStorageLocator,
   StoredFile,
@@ -38,9 +39,15 @@ export class LocalFileStorageAdapter implements FileStorageAdapter {
     };
   }
 
-  async getStream(locator: NormalizedFileStorageLocator): Promise<Readable> {
+  async getStream(
+    locator: NormalizedFileStorageLocator,
+    options: FileStorageStreamOptions = {}
+  ): Promise<Readable> {
     const absolutePath = await this.resolveAndVerify(locator.storageKey);
-    return fs.createReadStream(absolutePath);
+    return fs.createReadStream(absolutePath, {
+      start: options.start,
+      end: options.end,
+    });
   }
 
   async getBuffer(locator: NormalizedFileStorageLocator): Promise<Buffer> {

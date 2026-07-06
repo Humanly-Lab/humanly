@@ -16,6 +16,7 @@ import {
   Download,
 } from 'lucide-react'
 import { fileApi } from '@/lib/file-api'
+import type { PdfDocumentSource } from '@/lib/file-api'
 import {
   api,
   getPublicDocumentAuthConfig,
@@ -51,6 +52,8 @@ interface SearchMatch {
   matchIndex: number
   text: string
 }
+
+const PDF_LOAD_TIMEOUT_MS = 30_000
 
 export const PDFJS_DOCUMENT_RESOURCE_OPTIONS = {
   cMapUrl: '/pdfjs/cmaps/',
@@ -107,7 +110,8 @@ export default function PDFViewer({ fileId, documentId, previewUrl, viewOnly = f
   const [showSearch, setShowSearch] = useState<boolean>(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null)
+  const [loadAttempt, setLoadAttempt] = useState(0)
+  const [isDownloading, setIsDownloading] = useState(false)
 
   const containerRef = useRef<HTMLDivElement>(null)
   const pdfDocRef = useRef<any>(null)
@@ -236,8 +240,10 @@ export default function PDFViewer({ fileId, documentId, previewUrl, viewOnly = f
 
   // Load PDF document
   useEffect(() => {
-    let blobUrl: string | null = null
     let cancelled = false
+    let source: PdfDocumentSource | null = null
+    let loadingTask: any = null
+    let timeoutId: ReturnType<typeof setTimeout> | null = null
 
     const loadPDF = async () => {
       try {
@@ -256,7 +262,6 @@ export default function PDFViewer({ fileId, documentId, previewUrl, viewOnly = f
         setCurrentMatchIndex(-1)
         setShowSearch(false)
         setTextExtractionError(null)
-        setPdfBlobUrl(null)
         setLoading(true)
         setError(null)
         const pdfjsLib = await loadPDFJS()
@@ -266,17 +271,37 @@ export default function PDFViewer({ fileId, documentId, previewUrl, viewOnly = f
           throw new Error('No PDF file available')
         }
 
-        const url = previewUrl || await fileApi.getPdfBlob(fileId!, { viewOnly, documentId })
+        source = previewUrl
+          ? { url: previewUrl }
+          : await fileApi.getPdfDocumentSource(fileId!, { viewOnly, documentId })
         if (cancelled) return
-        blobUrl = previewUrl ? null : url
-        setPdfBlobUrl(url)
 
-        const pdf = await pdfjsLib.getDocument({
-          url,
+        loadingTask = pdfjsLib.getDocument({
+          url: source.url,
+          httpHeaders: source.httpHeaders,
+          withCredentials: source.withCredentials,
           ...PDFJS_DOCUMENT_RESOURCE_OPTIONS,
-        }).promise
+        })
+
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          timeoutId = setTimeout(() => {
+            try {
+              loadingTask?.destroy?.()
+            } catch {
+              // Ignore PDF.js teardown races; the timeout error owns the UI state.
+            }
+            reject(new Error('PDF loading timed out. Please try again.'))
+          }, PDF_LOAD_TIMEOUT_MS)
+        })
+
+        const pdf = await Promise.race([loadingTask.promise, timeoutPromise])
+        if (timeoutId) {
+          clearTimeout(timeoutId)
+          timeoutId = null
+        }
         if (cancelled) return
         pdfDocRef.current = pdf
+        loadingTask = null
         setNumPages(pdf.numPages)
         setFitToWidth(true)
         setLoading(false)
@@ -294,8 +319,14 @@ export default function PDFViewer({ fileId, documentId, previewUrl, viewOnly = f
     loadPDF()
     return () => {
       cancelled = true
+      if (timeoutId) clearTimeout(timeoutId)
+      try {
+        loadingTask?.destroy?.()
+      } catch {
+        // Ignore cleanup errors from interrupted PDF.js loading tasks.
+      }
+      source?.cleanup?.()
       cancelCurrentRenderGeneration()
-      if (blobUrl) URL.revokeObjectURL(blobUrl)
       if (pdfDocRef.current) {
         try {
           pdfDocRef.current.destroy()
@@ -305,7 +336,7 @@ export default function PDFViewer({ fileId, documentId, previewUrl, viewOnly = f
       }
       pdfDocRef.current = null
     }
-  }, [fileId, documentId, previewUrl, viewOnly, extractPDFTextInBackground, cancelCurrentRenderGeneration])
+  }, [fileId, documentId, previewUrl, viewOnly, loadAttempt, extractPDFTextInBackground, cancelCurrentRenderGeneration])
 
   // Re-render all pages on scale change
   useEffect(() => {
@@ -524,17 +555,38 @@ export default function PDFViewer({ fileId, documentId, previewUrl, viewOnly = f
     return undefined
   }, [])
 
-  const handleDownloadPdf = useCallback(() => {
-    if (!pdfBlobUrl || viewOnly) return
+  const handleDownloadPdf = useCallback(async () => {
+    if (viewOnly || (!previewUrl && !fileId)) return
 
-    const anchor = document.createElement('a')
-    anchor.href = pdfBlobUrl
-    anchor.download = `humanly-source-${fileId || 'preview'}.pdf`
-    anchor.style.display = 'none'
-    document.body.appendChild(anchor)
-    anchor.click()
-    anchor.remove()
-  }, [fileId, pdfBlobUrl, viewOnly])
+    setIsDownloading(true)
+    let objectUrl: string | null = null
+    try {
+      let downloadUrl: string
+      if (previewUrl) {
+        downloadUrl = previewUrl
+      } else if (fileId) {
+        const blob = await fileApi.downloadPdf(fileId, { documentId })
+        objectUrl = URL.createObjectURL(blob)
+        downloadUrl = objectUrl
+      } else {
+        throw new Error('Download URL is not ready')
+      }
+
+      const anchor = document.createElement('a')
+      anchor.href = downloadUrl
+      anchor.download = `humanly-source-${fileId || 'preview'}.pdf`
+      anchor.style.display = 'none'
+      document.body.appendChild(anchor)
+      anchor.click()
+      anchor.remove()
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to download PDF'
+      alert(message)
+    } finally {
+      if (objectUrl) URL.revokeObjectURL(objectUrl)
+      setIsDownloading(false)
+    }
+  }, [documentId, fileId, previewUrl, viewOnly])
 
   const logViewOnlyViewerAttempt = useCallback(async (eventType: 'copy' | 'contextmenu') => {
     if (!viewOnly || !documentId) return
@@ -619,9 +671,17 @@ export default function PDFViewer({ fileId, documentId, previewUrl, viewOnly = f
   if (error) {
     return (
       <div className="h-full flex items-center justify-center bg-gray-100">
-        <div className="text-center">
+        <div className="text-center px-4">
           <p className="text-red-600 mb-2">Failed to load PDF</p>
-          <p className="text-sm text-gray-600">{error}</p>
+          <p className="text-sm text-gray-600 mb-4">{error}</p>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setLoadAttempt((attempt) => attempt + 1)}
+          >
+            Retry
+          </Button>
         </div>
       </div>
     )
@@ -649,12 +709,12 @@ export default function PDFViewer({ fileId, documentId, previewUrl, viewOnly = f
             variant="ghost"
             size="sm"
             onClick={handleDownloadPdf}
-            disabled={!pdfBlobUrl}
+            disabled={isDownloading || (!previewUrl && !fileId)}
             title="Download PDF"
             className="h-7 gap-1.5 px-2 text-xs"
           >
-            <Download className="h-3.5 w-3.5" />
-            Download PDF
+            {isDownloading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+            {isDownloading ? 'Downloading...' : 'Download PDF'}
           </Button>
         )}
 

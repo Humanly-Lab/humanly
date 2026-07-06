@@ -6,6 +6,8 @@ const { extractCompatiblePDFTextContent } = require('./pdf-text-content');
 
 const viewerPath = path.join(__dirname, 'PDFViewer.tsx');
 const viewerSource = fs.readFileSync(viewerPath, 'utf8');
+const fileApiPath = path.join(__dirname, '../../lib/file-api.ts');
+const fileApiSource = fs.readFileSync(fileApiPath, 'utf8');
 const newDocumentPagePath = path.join(__dirname, '../../app/documents/new/page.tsx');
 const newDocumentPageSource = fs.readFileSync(newDocumentPagePath, 'utf8');
 
@@ -18,6 +20,25 @@ test('PDFViewer loads PDFs with app-hosted CMap and standard font assets', () =>
   assert.match(viewerSource, /\.\.\.PDFJS_DOCUMENT_RESOURCE_OPTIONS/);
   assert.match(viewerSource, /pdfjsLib\.getDocument\(\{/);
   assert.doesNotMatch(viewerSource, /window\.pdfjsLib|cdnjs/);
+});
+
+test('PDFViewer gives PDF.js an authenticated document source instead of a preloaded blob URL', () => {
+  assert.match(fileApiSource, /interface PdfDocumentSource \{/);
+  assert.match(fileApiSource, /getPdfDocumentSource/);
+  assert.match(fileApiSource, /httpHeaders\?: Record<string, string>/);
+  assert.match(fileApiSource, /withCredentials\?: boolean/);
+  assert.match(fileApiSource, /headers\['X-File-View-Token'\] = viewToken/);
+  assert.match(fileApiSource, /withCredentials: true/);
+  assert.match(fileApiSource, /downloadPdf/);
+
+  assert.match(viewerSource, /fileApi\.getPdfDocumentSource\(fileId!, \{ viewOnly, documentId \}\)/);
+  assert.match(viewerSource, /url: source\.url/);
+  assert.match(viewerSource, /httpHeaders: source\.httpHeaders/);
+  assert.match(viewerSource, /withCredentials: source\.withCredentials/);
+  assert.match(viewerSource, /fileApi\.downloadPdf\(fileId, \{ documentId \}\)/);
+  assert.match(viewerSource, /loadingTask\?\.destroy\?\.\(\)/);
+  assert.doesNotMatch(viewerSource, /getPdfBlob/);
+  assert.doesNotMatch(fileApiSource, /getPdfBlob/);
 });
 
 test('PDFViewer includes CJK CMap and standard font assets required by PDF.js', () => {
