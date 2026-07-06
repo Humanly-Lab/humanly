@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { FileService } from '../services/file.service';
 import { AppError } from '../middleware/error-handler';
+import { logger } from '../utils/logger';
 
 export async function uploadDocumentFile(req: Request, res: Response): Promise<void> {
   if (!req.file) {
@@ -84,13 +85,54 @@ export async function streamFileContent(req: Request, res: Response): Promise<vo
   const viewToken = typeof req.query.viewToken === 'string'
     ? req.query.viewToken
     : req.get('X-File-View-Token') || undefined;
-  const stream = await FileService.streamFile(req.params.fileId, req.user!.userId, { viewToken });
+  const result = await FileService.streamFile(req.params.fileId, req.user!.userId, {
+    viewToken,
+    rangeHeader: req.get('Range') || undefined,
+  });
 
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', 'inline');
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Cache-Control', 'private, no-cache, no-store, must-revalidate');
   res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('Accept-Ranges', 'bytes');
+
+  if (result.kind === 'range_not_satisfiable') {
+    res.setHeader('Content-Range', result.contentRange);
+    res.status(416).end();
+    return;
+  }
+
+  res.setHeader('Content-Length', result.contentLength.toString());
+  if (result.contentRange) {
+    res.setHeader('Content-Range', result.contentRange);
+    res.status(206);
+  } else {
+    res.status(200);
+  }
+
+  const { stream } = result;
+  let streamCompleted = false;
+
+  stream.on('end', () => {
+    streamCompleted = true;
+  });
+
+  stream.on('error', (error) => {
+    logger.error('PDF file stream failed', {
+      fileId: req.params.fileId,
+      error,
+    });
+    if (!res.destroyed) {
+      res.destroy(error);
+    }
+  });
+
+  res.on('close', () => {
+    if (!streamCompleted) {
+      stream.destroy();
+    }
+  });
 
   stream.pipe(res);
 }

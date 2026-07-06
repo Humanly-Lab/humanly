@@ -3,6 +3,7 @@ import { TASK_INSTRUCTION_PDF_MAX_FILES } from '@humanly/shared';
 import { normalizeResourceAccessPolicy } from '@humanly/shared';
 import crypto from 'crypto';
 import jwt, { JwtPayload } from 'jsonwebtoken';
+import type { Readable } from 'stream';
 import { query, queryOne } from '../config/database';
 import { env } from '../config/env';
 import { DocumentModel } from '../models/document.model';
@@ -10,6 +11,7 @@ import { FileModel } from '../models/file.model';
 import { TaskModel } from '../models/task.model';
 import { AppError } from '../middleware/error-handler';
 import { logger } from '../utils/logger';
+import { parseSingleByteRange, type ByteRange } from '../utils/http-range';
 import { FileStorageService } from './file-storage.service';
 import { AIRetrievalService } from './ai-retrieval.service';
 
@@ -30,6 +32,21 @@ interface FileViewTokenPayload extends JwtPayload {
   fileId: string;
   userId: string;
 }
+
+export type StreamFileResult =
+  | {
+      kind: 'stream';
+      stream: Readable;
+      fileSize: number;
+      contentLength: number;
+      range: ByteRange | null;
+      contentRange?: string;
+    }
+  | {
+      kind: 'range_not_satisfiable';
+      fileSize: number;
+      contentRange: string;
+    };
 
 export class FileService {
   static async uploadDocumentFile(
@@ -238,8 +255,8 @@ export class FileService {
   static async streamFile(
     fileId: string,
     userId: string,
-    options: { viewToken?: string } = {}
-  ): Promise<NodeJS.ReadableStream> {
+    options: { viewToken?: string; rangeHeader?: string } = {}
+  ): Promise<StreamFileResult> {
     const appFile = await FileModel.findById(fileId);
     if (!appFile) {
       throw new AppError(404, 'File not found');
@@ -251,7 +268,26 @@ export class FileService {
       this.assertValidViewOnlyToken(options.viewToken, fileId, userId);
     }
 
-    return FileStorageService.getStream(appFile);
+    const parsedRange = parseSingleByteRange(options.rangeHeader, appFile.fileSize);
+    if (parsedRange.kind === 'not_satisfiable') {
+      return {
+        kind: 'range_not_satisfiable',
+        fileSize: parsedRange.fileSize,
+        contentRange: parsedRange.contentRange,
+      };
+    }
+
+    const range = parsedRange.kind === 'partial' ? parsedRange.range : null;
+    const stream = await FileStorageService.getStream(appFile, range || undefined);
+
+    return {
+      kind: 'stream',
+      stream,
+      fileSize: parsedRange.fileSize,
+      contentLength: parsedRange.contentLength,
+      range,
+      contentRange: parsedRange.kind === 'partial' ? parsedRange.contentRange : undefined,
+    };
   }
 
   static async deleteFile(fileId: string, userId: string): Promise<void> {

@@ -7,6 +7,7 @@ import type {
   FileStorageAdapter,
   FileStorageLocator,
   FileStorageProvider,
+  FileStorageStreamOptions,
   ListStorageObjectsOptions,
   NormalizedFileStorageLocator,
   StoredFile,
@@ -27,9 +28,9 @@ export class FileStorageService {
     return this.writeAdapter().store(file, storageKey, checksum);
   }
 
-  static async getStream(locator: FileStorageLocator) {
+  static async getStream(locator: FileStorageLocator, options?: FileStorageStreamOptions) {
     const normalized = this.normalizeLocator(locator);
-    return this.readAdapter(normalized.storageProvider).getStream(normalized);
+    return this.readAdapter(normalized.storageProvider).getStream(normalized, options);
   }
 
   static async getBuffer(locator: FileStorageLocator): Promise<Buffer> {
