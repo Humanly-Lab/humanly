@@ -414,6 +414,7 @@ export async function joinTask(req: Request, res: Response): Promise<void> {
         startDate: task.startDate,
         endDate: task.endDate,
         lifecycleStatus: task.lifecycleStatus,
+        effectiveStatus: task.effectiveStatus,
         environmentConfig: task.environmentConfig,
         enrolledUserCount: task.enrolledUserCount ?? 0,
         inviteCode: task.taskToken.slice(0, 6).toUpperCase(),

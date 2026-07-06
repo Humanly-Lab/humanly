@@ -23,6 +23,7 @@ import {
   TASK_START_DATE_PAST_ERROR_MESSAGE,
   getIframeComment,
   getMaxWritingAttempts,
+  getTaskEffectiveStatus,
   getTrackerComment,
   isWritingRestartAllowed,
   isTaskStartDateTooFarInPast,
@@ -236,6 +237,13 @@ const withInstructionPdfFlag = (data: CreateTaskData): CreateTaskData => {
 };
 
 export class TaskService {
+  private static withEffectiveStatus<T extends Task>(task: T): T {
+    return {
+      ...task,
+      effectiveStatus: getTaskEffectiveStatus(task),
+    };
+  }
+
   private static async invalidateAnalytics(taskId: string): Promise<void> {
     await cacheDelPattern(`analytics:${taskId}:*`);
   }
@@ -373,7 +381,7 @@ export class TaskService {
       });
 
       return {
-        ...task,
+        ...this.withEffectiveStatus(task),
         trackingSnippet,
         iframeSnippet,
       };
@@ -411,7 +419,7 @@ export class TaskService {
     );
 
     return {
-      ...task,
+      ...this.withEffectiveStatus(task),
       trackingSnippet,
       iframeSnippet,
     };
@@ -430,7 +438,7 @@ export class TaskService {
 
     this.assertTaskAcceptsWriters(task);
 
-    return task;
+    return this.withEffectiveStatus(task);
   }
 
   /**
@@ -446,7 +454,10 @@ export class TaskService {
 
       const result = await TaskModel.findByUserId(userId, pagination, search);
 
-      return result;
+      return {
+        ...result,
+        tasks: result.tasks.map((task) => this.withEffectiveStatus(task)),
+      };
     } catch (error) {
       logger.error('Error listing tasks', { error, userId });
       throw error;
@@ -516,7 +527,7 @@ export class TaskService {
     const enrolledTask = await TaskModel.findById(task.id);
     const enrollment = await TaskModel.findEnrollmentForUserTask(task.id, userId);
     return {
-      task: enrolledTask || task,
+      task: this.withEffectiveStatus(enrolledTask || task),
       enrollment,
     };
   }
@@ -662,7 +673,7 @@ export class TaskService {
     await this.invalidateAnalytics(task.id);
 
     return {
-      task,
+      task: this.withEffectiveStatus(task),
       document,
       enrollment,
       attempt,
@@ -1325,7 +1336,7 @@ export class TaskService {
 
     logger.info('Task updated successfully', { taskId, userId });
 
-    return updatedTask;
+    return this.withEffectiveStatus(updatedTask);
   }
 
   static async updateTaskLifecycle(
@@ -1352,7 +1363,7 @@ export class TaskService {
     };
 
     if (currentStatus === nextStatus) {
-      return task;
+      return this.withEffectiveStatus(task);
     }
 
     if (!allowedTransitions[currentStatus].includes(nextStatus)) {
@@ -1373,7 +1384,7 @@ export class TaskService {
     await this.invalidateTaskTokenCache(updatedTask);
     logger.info('Task lifecycle updated', { taskId, userId, currentStatus, nextStatus });
 
-    return updatedTask;
+    return this.withEffectiveStatus(updatedTask);
   }
 
   static async duplicateTask(taskId: string, userId: string): Promise<Task> {
@@ -1417,7 +1428,7 @@ export class TaskService {
     }
 
     logger.info('Task duplicated', { taskId, duplicatedTaskId: duplicatedTask.id, userId });
-    return duplicatedTask;
+    return this.withEffectiveStatus(duplicatedTask);
   }
 
   private static async materializeDuplicatedTaskInstructionFiles(
@@ -1575,7 +1586,7 @@ export class TaskService {
     logger.info('Task token regenerated successfully', { taskId, userId });
 
     return {
-      ...updatedTask,
+      ...this.withEffectiveStatus(updatedTask),
       trackingSnippet,
       iframeSnippet,
     };
