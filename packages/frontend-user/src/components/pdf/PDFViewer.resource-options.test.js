@@ -46,6 +46,28 @@ test('PDFViewer gives PDF.js an authenticated document source instead of a prelo
   assert.doesNotMatch(fileApiSource, /getPdfBlob/);
 });
 
+test('PDFViewer uses a bounded visible-page render queue instead of rendering every page eagerly', () => {
+  assert.match(viewerSource, /MAX_CONCURRENT_PAGE_RENDERS = 2/);
+  assert.match(viewerSource, /PDFPageView owns page DOM\/text\/annotation layers/);
+  assert.match(viewerSource, /PRE_RENDER_RADIUS = 1/);
+  assert.match(viewerSource, /RETAINED_PAGE_RADIUS = 4/);
+  assert.match(viewerSource, /MAX_CANVAS_PIXELS = 16_000_000/);
+  assert.match(viewerSource, /function getBoundedOutputScale/);
+  assert.match(viewerSource, /const \[pageLayouts, setPageLayouts\] = useState<PageLayout\[\]>\(\[\]\)/);
+  assert.match(viewerSource, /const visiblePagesRef = useRef<Set<number>>\(new Set\(\)\)/);
+  assert.match(viewerSource, /const numPagesRef = useRef<number>\(0\)/);
+  assert.match(viewerSource, /const currentPageRef = useRef<number>\(1\)/);
+  assert.match(viewerSource, /const renderQueueRef = useRef<number\[\]>\(\[\]\)/);
+  assert.match(viewerSource, /const pumpRenderQueue = useCallback/);
+  assert.match(viewerSource, /const schedulePagesForRendering = useCallback/);
+  assert.match(viewerSource, /const scheduleVisiblePagesForRendering = useCallback/);
+  assert.match(viewerSource, /data-rendered=\{isRendered \? 'true' : 'false'\}/);
+  assert.match(viewerSource, /style=\{\{ width, height \}\}/);
+  assert.match(viewerSource, /schedulePagesForRendering\(\[page, page \+ 1, page - 1\], true\)/);
+  assert.match(viewerSource, /if \(Math\.abs\(scaleRef\.current - nextScale\) < 0\.001\) \{\s*return\s*\}/s);
+  assert.doesNotMatch(viewerSource, /renderAllPages/);
+});
+
 test('PDFViewer includes CJK CMap and standard font assets required by PDF.js', () => {
   const publicDir = path.join(__dirname, '../../../public/pdfjs');
 
