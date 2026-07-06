@@ -74,6 +74,21 @@ function toCssPixelValue(value: number) {
   return `${Number(value.toFixed(3))}px`
 }
 
+function getSafePreviewDownloadUrl(previewUrl: string): string | null {
+  try {
+    const parsed = new URL(previewUrl, window.location.origin)
+    if (parsed.origin !== window.location.origin) {
+      return null
+    }
+    if (parsed.protocol === 'http:' || parsed.protocol === 'https:' || parsed.protocol === 'blob:') {
+      return parsed.toString()
+    }
+    return null
+  } catch {
+    return null
+  }
+}
+
 function getTextItemHighlightRect(
   pdfjsLib: PDFJSModule,
   item: any,
@@ -563,7 +578,11 @@ export default function PDFViewer({ fileId, documentId, previewUrl, viewOnly = f
     try {
       let downloadUrl: string
       if (previewUrl) {
-        downloadUrl = previewUrl
+        const safePreviewUrl = getSafePreviewDownloadUrl(previewUrl)
+        if (!safePreviewUrl) {
+          throw new Error('Invalid preview download URL')
+        }
+        downloadUrl = safePreviewUrl
       } else if (fileId) {
         const blob = await fileApi.downloadPdf(fileId, { documentId })
         objectUrl = URL.createObjectURL(blob)

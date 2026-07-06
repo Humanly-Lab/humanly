@@ -36,7 +36,12 @@ test('PDFViewer gives PDF.js an authenticated document source instead of a prelo
   assert.match(viewerSource, /httpHeaders: source\.httpHeaders/);
   assert.match(viewerSource, /withCredentials: source\.withCredentials/);
   assert.match(viewerSource, /fileApi\.downloadPdf\(fileId, \{ documentId \}\)/);
+  assert.match(viewerSource, /function getSafePreviewDownloadUrl\(previewUrl: string\): string \| null/);
+  assert.match(viewerSource, /parsed\.origin !== window\.location\.origin/);
+  assert.match(viewerSource, /parsed\.protocol === 'http:' \|\| parsed\.protocol === 'https:' \|\| parsed\.protocol === 'blob:'/);
+  assert.match(viewerSource, /throw new Error\('Invalid preview download URL'\)/);
   assert.match(viewerSource, /loadingTask\?\.destroy\?\.\(\)/);
+  assert.doesNotMatch(viewerSource, /downloadUrl = previewUrl/);
   assert.doesNotMatch(viewerSource, /getPdfBlob/);
   assert.doesNotMatch(fileApiSource, /getPdfBlob/);
 });
