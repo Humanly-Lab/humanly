@@ -1,4 +1,4 @@
-import type { Task } from '@humanly/shared';
+import { getTaskEffectiveStatus, type Task, type TaskEffectiveStatus } from '@humanly/shared';
 
 export type TaskDashboardTab = 'open' | 'archived';
 
@@ -15,8 +15,9 @@ export interface TaskDashboardItem extends Task {
 }
 
 export interface TaskWindowStatus {
-  label: 'Draft' | 'Active' | 'Paused' | 'Ended' | 'Archived';
+  label: 'Draft' | 'Scheduled' | 'Active' | 'Paused' | 'Ended' | 'Archived';
   tone: 'muted' | 'success' | 'warning';
+  effectiveStatus: TaskEffectiveStatus;
 }
 
 export const getTaskDashboardTab = (task: Pick<TaskDashboardItem, 'isActive'>): TaskDashboardTab => (
@@ -24,24 +25,26 @@ export const getTaskDashboardTab = (task: Pick<TaskDashboardItem, 'isActive'>): 
 );
 
 export const getTaskWindowStatus = (
-  task: Pick<TaskDashboardItem, 'lifecycleStatus'> & Partial<Pick<TaskDashboardItem, 'isActive'>>,
-  _nowMs = Date.now()
+  task: Pick<TaskDashboardItem, 'lifecycleStatus' | 'startDate' | 'endDate'> & Partial<Pick<TaskDashboardItem, 'isActive'>>,
+  nowMs = Date.now()
 ): TaskWindowStatus => {
-  if (task.isActive === false) {
-    return { label: 'Archived', tone: 'muted' };
-  }
+  const effectiveStatus = getTaskEffectiveStatus(task, nowMs);
 
-  if (task.lifecycleStatus === 'draft') {
-    return { label: 'Draft', tone: 'muted' };
+  switch (effectiveStatus) {
+    case 'archived':
+      return { label: 'Archived', tone: 'muted', effectiveStatus };
+    case 'draft':
+      return { label: 'Draft', tone: 'muted', effectiveStatus };
+    case 'scheduled':
+      return { label: 'Scheduled', tone: 'muted', effectiveStatus };
+    case 'paused':
+      return { label: 'Paused', tone: 'warning', effectiveStatus };
+    case 'ended':
+      return { label: 'Ended', tone: 'warning', effectiveStatus };
+    case 'open':
+    default:
+      return { label: 'Active', tone: 'success', effectiveStatus };
   }
-  if (task.lifecycleStatus === 'paused') {
-    return { label: 'Paused', tone: 'warning' };
-  }
-  if (task.lifecycleStatus === 'ended') {
-    return { label: 'Ended', tone: 'warning' };
-  }
-
-  return { label: 'Active', tone: 'success' };
 };
 
 export const filterTasksForDashboard = (

@@ -1,6 +1,13 @@
 import assert from 'node:assert/strict';
-import type { AppFile, Document, Task, User } from '@humanly/shared';
 import {
+  getTaskEffectiveStatus,
+  type AppFile,
+  type Document,
+  type Task,
+  type User,
+} from '@humanly/shared';
+import {
+  getPublicTaskAvailabilityStatus,
   serializePublicTaskPreview,
   serializePublicTaskStartResult,
 } from '../controllers/public-task-response';
@@ -351,6 +358,41 @@ async function run() {
       ].sort(), 'public preview exposes only the preview contract');
       assert.equal(preview.availabilityStatus, 'open');
       assertNoSensitivePublicKeys('preview task', preview as Record<string, unknown>);
+
+      assert.equal(getTaskEffectiveStatus(makeTask({ isActive: false }), now), 'archived');
+      assert.equal(getTaskEffectiveStatus(makeTask({ lifecycleStatus: 'draft' }), now), 'draft');
+      assert.equal(getTaskEffectiveStatus(makeTask({ lifecycleStatus: 'paused' }), now), 'paused');
+      assert.equal(
+        getTaskEffectiveStatus(
+          makeTask({
+            startDate: new Date('2026-07-01T00:00:00.000Z'),
+            endDate: new Date('2026-07-31T00:00:00.000Z'),
+          }),
+          now
+        ),
+        'scheduled'
+      );
+      assert.equal(
+        getTaskEffectiveStatus(
+          makeTask({
+            startDate: new Date('2026-06-01T00:00:00.000Z'),
+            endDate: new Date('2026-06-20T00:00:00.000Z'),
+          }),
+          now
+        ),
+        'ended'
+      );
+      assert.equal(
+        getPublicTaskAvailabilityStatus(
+          makeTask({
+            startDate: new Date('2026-06-01T00:00:00.000Z'),
+            endDate: new Date('2026-06-20T00:00:00.000Z'),
+          }),
+          now
+        ),
+        'ended',
+        'public availability should share the same deadline semantics as admin task status'
+      );
 
       const startPayload = serializePublicTaskStartResult({
         user: {

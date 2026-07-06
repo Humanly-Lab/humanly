@@ -2,6 +2,7 @@ import { WritingEnvironmentConfig } from './environment.types';
 
 export type ExternalServiceType = 'qualtrics' | 'google-forms' | 'custom' | 'other';
 export type TaskLifecycleStatus = 'draft' | 'active' | 'paused' | 'ended';
+export type TaskEffectiveStatus = 'archived' | 'draft' | 'paused' | 'scheduled' | 'open' | 'ended';
 
 export interface Task {
   id: string;
@@ -20,6 +21,7 @@ export interface Task {
   allowGuestSubmissions: boolean;
   isActive: boolean;
   lifecycleStatus: TaskLifecycleStatus;
+  effectiveStatus?: TaskEffectiveStatus;
   launchedAt?: Date | null;
   pausedAt?: Date | null;
   endedAt?: Date | null;

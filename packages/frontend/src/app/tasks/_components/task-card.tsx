@@ -133,6 +133,14 @@ export function TaskCard({
         icon: Play,
       };
     }
+    if (taskWindowStatus.effectiveStatus === 'ended') {
+      return {
+        action: null,
+        label: 'Ended',
+        pendingLabel: 'Ended',
+        icon: Square,
+      };
+    }
     if (task.lifecycleStatus === 'active') {
       return {
         action: 'pause' as const,
@@ -254,7 +262,7 @@ export function TaskCard({
       </Button>
       <Button
         type="button"
-        variant={task.lifecycleStatus === 'active' ? 'outline' : 'secondary'}
+        variant={task.lifecycleStatus === 'active' && taskWindowStatus.effectiveStatus !== 'ended' ? 'outline' : 'secondary'}
         size="sm"
         className="min-w-[112px]"
         disabled={!lifecycleAction.action || isChangingLifecycleState || activeTab === 'archived'}
@@ -316,7 +324,7 @@ export function TaskCard({
           <div className="flex items-center justify-end gap-2">
             <Button
               type="button"
-              variant={task.lifecycleStatus === 'active' ? 'outline' : 'secondary'}
+              variant={task.lifecycleStatus === 'active' && taskWindowStatus.effectiveStatus !== 'ended' ? 'outline' : 'secondary'}
               size="sm"
               className="min-w-[96px]"
               disabled={!lifecycleAction.action || isChangingLifecycleState || activeTab === 'archived'}

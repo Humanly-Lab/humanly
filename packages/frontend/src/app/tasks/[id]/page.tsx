@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { cn } from '@/lib/utils';
 
+import { getTaskWindowStatus } from '../_components/task-dashboard-lifecycle';
 import { AnalyticsPanel } from './_components/AnalyticsPanel';
 import { OverviewPanel } from './_components/OverviewPanel';
 import { SettingsPanel } from './_components/SettingsPanel';
@@ -339,6 +340,8 @@ export default function TaskDetailPage() {
   }
 
   const isArchived = task.isActive === false;
+  const taskWindowStatus = getTaskWindowStatus(task);
+  const isEffectivelyEnded = taskWindowStatus.effectiveStatus === 'ended';
 
   const renderActivePanel = () => {
     switch (activeTab) {
@@ -422,6 +425,17 @@ export default function TaskDetailPage() {
               Archived
             </Button>
           )}
+          {!isArchived && isEffectivelyEnded && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled
+            >
+              <Square className="mr-2 h-4 w-4" />
+              Ended
+            </Button>
+          )}
           {!isArchived && task.lifecycleStatus === 'draft' && (
             <Button
               type="button"
@@ -433,7 +447,7 @@ export default function TaskDetailPage() {
               Launch
             </Button>
           )}
-          {!isArchived && task.lifecycleStatus === 'active' && (
+          {!isArchived && task.lifecycleStatus === 'active' && !isEffectivelyEnded && (
             <Button
               type="button"
               variant="outline"
@@ -463,7 +477,7 @@ export default function TaskDetailPage() {
               size="sm"
               className="border-[var(--hly-red-border)] text-[var(--hly-red-text)] hover:bg-[var(--hly-red-bg)] hover:text-[var(--hly-red-text)]"
               onClick={() => handleTaskLifecycleAction('end')}
-              disabled={isChangingLifecycle || task.lifecycleStatus === 'ended'}
+              disabled={isChangingLifecycle || isEffectivelyEnded}
             >
               {isChangingLifecycle ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Square className="mr-2 h-4 w-4" />}
               End Study

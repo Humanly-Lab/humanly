@@ -1,18 +1,22 @@
-import type { AppFile, Document, FileTextIndexStatus, Task, User } from '@humanly/shared';
+import {
+  getTaskEffectiveStatus,
+  type AppFile,
+  type Document,
+  type FileTextIndexStatus,
+  type Task,
+  type User,
+} from '@humanly/shared';
 
 export type PublicTaskAvailabilityStatus = 'scheduled' | 'open' | 'ended';
 
 export function getPublicTaskAvailabilityStatus(
-  task: Pick<Task, 'startDate' | 'endDate'>,
+  task: Pick<Task, 'isActive' | 'lifecycleStatus' | 'startDate' | 'endDate'>,
   now: Date = new Date()
 ): PublicTaskAvailabilityStatus {
-  const nowMs = now.getTime();
-  const startMs = new Date(task.startDate).getTime();
-  const endMs = new Date(task.endDate).getTime();
-
-  if (Number.isFinite(startMs) && nowMs < startMs) return 'scheduled';
-  if (Number.isFinite(endMs) && nowMs > endMs) return 'ended';
-  return 'open';
+  const effectiveStatus = getTaskEffectiveStatus(task, now);
+  if (effectiveStatus === 'scheduled') return 'scheduled';
+  if (effectiveStatus === 'open') return 'open';
+  return 'ended';
 }
 
 export function serializePublicTaskPreview(task: Task) {
