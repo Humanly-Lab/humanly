@@ -158,9 +158,10 @@ function getPdfContextIndicator(status: FileTextIndexStatus | undefined, pageCou
         className: 'border-[var(--hly-green-border)] bg-[var(--hly-green-bg)] text-[var(--hly-green-text)]',
       };
     case 'processing':
+    case 'pending':
       return {
         icon: <Loader2 className="h-3 w-3 shrink-0 animate-spin text-muted-foreground" />,
-        label: 'PDF context processing',
+        label: status === 'pending' ? 'PDF context pending' : 'PDF context processing',
         className: 'border-border bg-muted/35 text-muted-foreground',
       };
     case 'failed':

@@ -1,108 +1,18 @@
 import OpenAI from 'openai';
-import path from 'path';
 import { query, queryOne } from '../config/database';
 import { DocumentModel } from '../models/document.model';
-import { FileModel } from '../models/file.model';
-import { FileStorageService } from './file-storage.service';
 import { AppError } from '../middleware/error-handler';
 import { logger } from '../utils/logger';
+import { FileTextIndexService } from './file-text-index.service';
 
 type Tool = OpenAI.Responses.FunctionTool;
 
 const MAX_TEXT = 12000;
-const CHUNK_SIZE = 1800;
-const CHUNK_OVERLAP = 200;
 const COMPACT_CONTEXT_MAX_CHARS = 18000;
 const COMPACT_CONTEXT_MAX_FILES = 3;
 
 function excerpt(text: string, maxLength = MAX_TEXT): string {
   return text.length > maxLength ? `${text.slice(0, maxLength)}\n[truncated]` : text;
-}
-
-function makeChunks(text: string, size = CHUNK_SIZE, overlap = CHUNK_OVERLAP): string[] {
-  const chunks: string[] = [];
-  let start = 0;
-  while (start < text.length) {
-    chunks.push(text.slice(start, start + size));
-    start += size - overlap;
-  }
-  return chunks;
-}
-
-function detectSections(pages: Array<{ pageNumber: number; text: string }>): Array<{
-  sectionTitle: string;
-  startPage: number;
-  endPage: number;
-  text: string;
-}> {
-  const headings: Array<{ title: string; pageNumber: number; offset: number }> = [];
-  const headingPattern = /^(abstract|introduction|background|related work|methods?|methodology|results?|discussion|conclusion|references|bibliography|appendix|[0-9]+\.?\s+[A-Z][^\n]{2,90})$/i;
-
-  for (const page of pages) {
-    const lines = page.text.split('\n');
-    let offset = 0;
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (trimmed.length <= 120 && headingPattern.test(trimmed)) {
-        headings.push({ title: trimmed, pageNumber: page.pageNumber, offset });
-      }
-      offset += line.length + 1;
-    }
-  }
-
-  if (headings.length === 0) {
-    return [];
-  }
-
-  const fullText = pages.map(page => `\n\n[Page ${page.pageNumber}]\n${page.text}`).join('');
-  return headings.slice(0, 80).map((heading, index) => {
-    const next = headings[index + 1];
-    const titleIndex = fullText.toLowerCase().indexOf(heading.title.toLowerCase());
-    const nextIndex = next ? fullText.toLowerCase().indexOf(next.title.toLowerCase(), Math.max(titleIndex + heading.title.length, 0)) : -1;
-    return {
-      sectionTitle: heading.title,
-      startPage: heading.pageNumber,
-      endPage: next?.pageNumber || pages[pages.length - 1]?.pageNumber || heading.pageNumber,
-      text: excerpt(fullText.slice(Math.max(titleIndex, 0), nextIndex > titleIndex ? nextIndex : undefined), MAX_TEXT),
-    };
-  });
-}
-
-function textItemsToString(items: any[]): string {
-  let lastY: number | undefined;
-  let text = '';
-  for (const item of items || []) {
-    const y = item.transform?.[5];
-    text += lastY === y || lastY === undefined ? item.str : `\n${item.str}`;
-    lastY = y;
-  }
-  return text;
-}
-
-async function extractPdfPages(buffer: Buffer): Promise<Array<{ pageNumber: number; text: string }>> {
-  const pdfjs = require('pdfjs-dist/build/pdf.js') as any;
-  const packageDir = path.dirname(require.resolve('pdfjs-dist/package.json'));
-  const loadingTask = pdfjs.getDocument({
-    data: new Uint8Array(buffer),
-    disableWorker: true,
-    standardFontDataUrl: path.join(packageDir, 'standard_fonts') + path.sep,
-  });
-  const pdf = await loadingTask.promise;
-
-  try {
-    const pages: Array<{ pageNumber: number; text: string }> = [];
-    for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
-      const page = await pdf.getPage(pageNumber);
-      const textContent = await page.getTextContent({
-        normalizeWhitespace: false,
-        disableCombineTextItems: false,
-      });
-      pages.push({ pageNumber, text: textItemsToString(textContent.items) });
-    }
-    return pages;
-  } finally {
-    await pdf.destroy();
-  }
 }
 
 export class AIRetrievalService {
@@ -239,64 +149,7 @@ export class AIRetrievalService {
   }
 
   static async indexFile(fileId: string): Promise<void> {
-    const appFile = await FileModel.findById(fileId);
-    if (!appFile) {
-      throw new AppError(404, 'File not found');
-    }
-
-    const existing = await queryOne<{ count: string }>(
-      'SELECT COUNT(*) as count FROM file_pages WHERE file_id = $1',
-      [fileId]
-    );
-    if (parseInt(existing?.count || '0', 10) > 0) {
-      return;
-    }
-
-    const buffer = await FileStorageService.getBuffer(appFile);
-
-    try {
-      const pages = await extractPdfPages(buffer);
-
-      await query('DELETE FROM file_pages WHERE file_id = $1', [fileId]);
-      await query('DELETE FROM file_sections WHERE file_id = $1', [fileId]);
-      await query('DELETE FROM file_text_chunks WHERE file_id = $1', [fileId]);
-
-      for (const page of pages) {
-        await query(
-          `INSERT INTO file_pages (file_id, page_number, text)
-           VALUES ($1, $2, $3)
-           ON CONFLICT (file_id, page_number)
-           DO UPDATE SET text = EXCLUDED.text, updated_at = NOW()`,
-          [fileId, page.pageNumber, page.text]
-        );
-      }
-
-      let chunkIndex = 0;
-      for (const page of pages) {
-        for (const chunk of makeChunks(page.text)) {
-          if (chunk.trim()) {
-            await query(
-              `INSERT INTO file_text_chunks (file_id, page_number, chunk_index, text)
-               VALUES ($1, $2, $3, $4)
-               ON CONFLICT (file_id, chunk_index)
-               DO UPDATE SET page_number = EXCLUDED.page_number, text = EXCLUDED.text`,
-              [fileId, page.pageNumber, chunkIndex++, chunk]
-            );
-          }
-        }
-      }
-
-      for (const section of detectSections(pages)) {
-        await query(
-          `INSERT INTO file_sections (file_id, section_title, start_page, end_page, text)
-           VALUES ($1, $2, $3, $4, $5)`,
-          [fileId, section.sectionTitle, section.startPage, section.endPage, section.text]
-        );
-      }
-    } catch (error) {
-      logger.error('Failed to index file text', { fileId, error });
-      throw new AppError(500, 'Failed to extract file text');
-    }
+    await FileTextIndexService.ensureIndexed(fileId);
   }
 
   private static async getOwnedDocument(userId: string, documentId: string) {
@@ -425,7 +278,13 @@ export class AIRetrievalService {
       throw new AppError(400, 'file is required');
     }
     await this.assertLinkedFile(userId, documentId, fileId);
-    await this.indexFile(fileId);
+    const index = await FileTextIndexService.ensureIndexed(fileId);
+    if (index.status === 'processing' || index.status === 'pending') {
+      throw new AppError(409, 'File text indexing is still processing');
+    }
+    if (index.status === 'failed') {
+      throw new AppError(500, index.lastError || 'File text indexing failed');
+    }
 
     const rows = await query<{ page_number: number; text: string }>(
       'SELECT page_number, text FROM file_pages WHERE file_id = $1 ORDER BY page_number ASC',

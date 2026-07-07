@@ -1,6 +1,6 @@
 export type FilePurpose = 'document_source_pdf' | 'task_instruction_pdf';
 export type FileUploadStatus = 'pending' | 'ready' | 'failed';
-export type FileTextIndexStatus = 'processing' | 'ready' | 'unavailable' | 'failed';
+export type FileTextIndexStatus = 'pending' | 'processing' | 'ready' | 'unavailable' | 'failed';
 
 export interface AppFile {
   id: string;

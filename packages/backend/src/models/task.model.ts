@@ -1289,6 +1289,38 @@ export class TaskModel {
           FROM file_text_chunks
           WHERE file_id = $1
         `, [sourceFile.id, newFileId]);
+
+        await client.query(`
+          INSERT INTO file_text_indexes (
+            file_id,
+            status,
+            generation_id,
+            index_version,
+            attempts,
+            page_count,
+            text_page_count,
+            started_at,
+            completed_at,
+            last_error,
+            created_at,
+            updated_at
+          )
+          SELECT
+            $2,
+            status,
+            uuid_generate_v4(),
+            index_version,
+            attempts,
+            page_count,
+            text_page_count,
+            started_at,
+            completed_at,
+            last_error,
+            NOW(),
+            NOW()
+          FROM file_text_indexes
+          WHERE file_id = $1
+        `, [sourceFile.id, newFileId]);
       }
 
       return duplicatedTaskId;
