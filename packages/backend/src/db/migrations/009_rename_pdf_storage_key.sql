@@ -4,20 +4,5 @@
 -- Both represent a "where is the file" pointer, so rename to the
 -- more generic term used by the local-disk implementation.
 
-DO $$
-BEGIN
-  IF EXISTS (
-    SELECT 1
-    FROM information_schema.columns
-    WHERE table_name = 'papers'
-      AND column_name = 'pdf_storage_key'
-  ) AND NOT EXISTS (
-    SELECT 1
-    FROM information_schema.columns
-    WHERE table_name = 'papers'
-      AND column_name = 'pdf_storage_path'
-  ) THEN
-    ALTER TABLE papers
-      RENAME COLUMN pdf_storage_key TO pdf_storage_path;
-  END IF;
-END $$;
+ALTER TABLE papers
+  RENAME COLUMN pdf_storage_key TO pdf_storage_path;
