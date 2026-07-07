@@ -4,7 +4,7 @@ import { normalizeResourceAccessPolicy } from '@humanly/shared';
 import crypto from 'crypto';
 import jwt, { JwtPayload } from 'jsonwebtoken';
 import type { Readable } from 'stream';
-import { query, queryOne } from '../config/database';
+import { queryOne } from '../config/database';
 import { env } from '../config/env';
 import { DocumentModel } from '../models/document.model';
 import { FileModel } from '../models/file.model';
@@ -13,7 +13,7 @@ import { AppError } from '../middleware/error-handler';
 import { logger } from '../utils/logger';
 import { parseSingleByteRange, type ByteRange } from '../utils/http-range';
 import { FileStorageService } from './file-storage.service';
-import { AIRetrievalService } from './ai-retrieval.service';
+import { FileTextIndexService } from './file-text-index.service';
 
 const VIEW_ONLY_FILE_TOKEN_AUDIENCE = 'humanly:file-view';
 const VIEW_ONLY_FILE_TOKEN_PURPOSE = 'view_only_file';
@@ -478,7 +478,7 @@ export class FileService {
 
   private static async indexFileBestEffort(appFile: AppFile): Promise<void> {
     try {
-      await AIRetrievalService.indexFile(appFile.id);
+      await FileTextIndexService.ensureIndexed(appFile.id);
     } catch (error) {
       logger.warn('File uploaded but text indexing failed', { fileId: appFile.id, error });
     }
@@ -494,46 +494,21 @@ export class FileService {
       return files;
     }
 
-    const rows = await query<{
-      file_id: string;
-      page_count: string;
-      text_page_count: string;
-    }>(
-      `
-        SELECT
-          files.id AS file_id,
-          COUNT(file_pages.id)::text AS page_count,
-          (COUNT(file_pages.id) FILTER (WHERE length(btrim(file_pages.text)) > 0))::text AS text_page_count
-        FROM files
-        LEFT JOIN file_pages
-          ON file_pages.file_id = files.id
-        WHERE files.id = ANY($1::uuid[])
-        GROUP BY files.id
-      `,
-      [files.map((file) => file.id)]
-    );
-
-    const indexStats = new Map(rows.map((row) => [
-      row.file_id,
-      {
-        pageCount: parseInt(row.page_count, 10) || 0,
-        textPageCount: parseInt(row.text_page_count, 10) || 0,
-      },
-    ]));
+    const indexStatuses = await FileTextIndexService.getStatusForFiles(files.map((file) => file.id));
 
     return files.map((file) => {
-      const stats = indexStats.get(file.id) || { pageCount: 0, textPageCount: 0 };
+      const textIndex = indexStatuses.get(file.id);
       return {
         ...file,
-        pageCount: stats.pageCount || file.pageCount || null,
-        textIndexStatus: this.deriveTextIndexStatus(file, stats),
+        pageCount: textIndex?.pageCount || file.pageCount || null,
+        textIndexStatus: this.deriveTextIndexStatus(file, textIndex?.status),
       };
     });
   }
 
   private static deriveTextIndexStatus(
     file: AppFile,
-    stats: { pageCount: number; textPageCount: number }
+    persistedStatus?: FileTextIndexStatus
   ): FileTextIndexStatus {
     if (file.uploadStatus === 'pending') {
       return 'processing';
@@ -543,10 +518,6 @@ export class FileService {
       return 'failed';
     }
 
-    if (stats.textPageCount > 0) {
-      return 'ready';
-    }
-
-    return 'unavailable';
+    return persistedStatus || 'pending';
   }
 }

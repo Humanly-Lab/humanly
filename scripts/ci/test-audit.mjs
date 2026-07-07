@@ -11,6 +11,7 @@ const runnableTestFiles = new Set([
   'packages/backend/src/controllers/ai-settings.controller.test.ts',
   'packages/backend/src/controllers/ai.controller.test.ts',
   'packages/backend/src/services/certificate-detector-seal.service.test.ts',
+  'packages/backend/src/services/file-text-index.service.test.ts',
   'packages/backend/src/services/task-public-share-link.service.test.ts',
   'packages/backend/src/services/writing-detector-config.test.ts',
   'packages/backend/src/utils/http-range.test.ts',
