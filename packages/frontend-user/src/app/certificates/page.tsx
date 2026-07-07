@@ -175,9 +175,6 @@ export default function CertificatesPage() {
           Back to Dashboard
         </Button>
         <h1 className="text-2xl font-medium sm:text-3xl">Certificates</h1>
-        <p className="mt-2 max-w-2xl text-sm text-muted-foreground sm:text-base">
-          Writing certificates grouped by task
-        </p>
       </div>
 
       {error && (

@@ -55,7 +55,7 @@ export default function TasksLayout({
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      <main className="humanly-page">
+      <main className="humanly-dashboard-page">
         {children}
       </main>
     </div>

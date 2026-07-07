@@ -22,7 +22,7 @@ export default function AuthLayout({
             <HumanlyWordmark size="lg" />
           </Link>
           <p className="mx-auto mt-5 max-w-sm text-sm leading-7 text-muted-foreground">
-            Write with AI. Prove your process.
+            A verifiable workspace for human writing.
           </p>
         </div>
         <Suspense fallback={

@@ -96,28 +96,24 @@ const steps = [
 
 const faqs = [
   [
-    'Does Humanly slow down writing?',
-    'No. The editor feels like a normal writing surface while Humanly records provenance in the background.',
+    'Why is final text not enough?',
+    'A final document cannot show whether it came from human typing, AI generation, or mixed human-AI writing. Humanly records the writing process itself.',
   ],
   [
-    'Can writers still use AI?',
-    'Yes. Humanly is built for transparent AI collaboration. AI use can be allowed, limited, or disabled depending on the writing environment.',
-  ],
-  [
-    'What does a certificate show?',
-    'It links the final draft to the recorded writing process: authorship statistics, the activity log, a step-through replay, anomaly behavior review, and a server-issued seal that any reader can verify.',
-  ],
-  [
-    'How does Humanly flag unusual activity?',
-    'Certificates include an Anomaly Behavior Review: deterministic pattern signals such as typing bursts, untracked text sources, workspace exits, policy refusals, and blocked copy-paste attempts, plus the Humanly Typing Detector, a model over writing behavior. Both are advisory evidence for a human reader, not an automatic verdict.',
+    'What does Humanly record?',
+    'Humanly records in-platform writing activity, including text edits, clipboard actions, workspace status, and AI assistance, then turns them into logs and replay.',
   ],
   [
     'Who controls the writing rules?',
-    'For assigned tasks, the task owner sets the AI, paste, time, and character rules before writing begins.',
+    'The owner configures the writing environment before drafting starts, including AI access, copy-paste rules, resources, timing, length bounds, and detectors.',
   ],
   [
-    'Can I use Humanly for personal writing?',
-    'Yes. You can create private writing documents, work with or without AI, and generate a certificate when you want proof of process.',
+    'What does a certificate show?',
+    'A certificate packages authorship statistics, environment settings, activity log, replay, anomaly behavior review, and signature verification.',
+  ],
+  [
+    'How does Humanly help prevent cheating?',
+    'Humanly uses two-layer anomaly detection: statistic-based anomaly patterns and model-based human typing detection. These signals surface suspicious behavior for review, rather than making an automatic verdict.',
   ],
 ] as const;
 
@@ -155,11 +151,9 @@ export default function HomePage() {
               </Link>
               <Link
                 href={fastDemoHref}
-                className="group inline-flex items-center gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+                className="humanly-landing-btn-ghost"
               >
-                <span className="border-b border-[var(--hly-hairline)] pb-px transition-colors group-hover:border-foreground">
-                  Try the live demo
-                </span>
+                Try the live demo
                 <Arrow />
               </Link>
             </div>
@@ -212,7 +206,7 @@ function DemoLaunchSection() {
 
 function NavBar() {
   return (
-    <header className="grid grid-cols-[1fr_auto] items-center px-5 py-5 sm:px-8 lg:grid-cols-[1fr_auto_1fr] lg:px-14 lg:py-[26px]">
+    <header className="grid grid-cols-[1fr_auto] items-center bg-[#fffdfa] px-5 py-2.5 sm:px-8 lg:grid-cols-[1fr_auto_1fr] lg:px-14 lg:py-3">
       <Link href={marketingHref('/')} className="justify-self-start">
         <HumanlyWordmark
           size="md"

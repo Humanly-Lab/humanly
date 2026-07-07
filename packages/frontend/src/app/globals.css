@@ -11,7 +11,7 @@
     --card-foreground: 42 17% 12%;
     --popover: 0 0% 100%;
     --popover-foreground: 42 17% 12%;
-    --primary: 42 17% 12%;
+    --primary: 40 12% 17%; /* #302d26 warm charcoal */
     --primary-foreground: 44 35% 94%;
     --secondary: 45 22% 93%;
     --secondary-foreground: 42 17% 12%;
@@ -160,6 +160,10 @@
     @apply mx-auto w-full max-w-7xl px-5 py-7 sm:px-8 lg:px-10;
   }
 
+  .humanly-dashboard-page {
+    @apply mx-auto w-full max-w-[95rem] px-5 py-7 sm:px-8 lg:px-10;
+  }
+
   .humanly-surface {
     @apply rounded-lg border border-border/80 bg-card shadow-none;
   }
@@ -176,6 +180,10 @@
 @layer utilities {
   .humanly-cursor-blink {
     animation: humanly-cursor-blink 1s steps(1) infinite;
+  }
+
+  .humanly-panel-shadow {
+    box-shadow: 0 30px 80px -35px rgba(26, 28, 32, 0.35);
   }
 
   @keyframes humanly-cursor-blink {

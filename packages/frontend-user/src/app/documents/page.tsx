@@ -15,6 +15,7 @@ import {
   List,
   Plus,
   RotateCcw,
+  Search,
   Trash2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -307,6 +308,7 @@ export default function DocumentsPage() {
     useState<DocumentViewMode>('list');
   const [activeWorkspaceTab, setActiveWorkspaceTab] =
     useState<WorkspaceTab>('documents');
+  const [searchQuery, setSearchQuery] = useState('');
   const [showJoinDialog, setShowJoinDialog] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState<TaskEnrollment | null>(null);
   const [taskToRestart, setTaskToRestart] = useState<TaskEnrollment | null>(
@@ -542,7 +544,15 @@ export default function DocumentsPage() {
   const taskDocumentIds = new Set(
     validTaskEnrollments.map((task) => task.documentId)
   );
-  const personalDocuments = (documents || [])
+  const normalizedSearchQuery = searchQuery.trim().toLowerCase();
+  const hasSearchQuery = normalizedSearchQuery.length > 0;
+  const matchesSearchQuery = (...values: Array<string | null | undefined>) => {
+    if (!hasSearchQuery) return true;
+    return values.some((value) =>
+      (value || '').toLowerCase().includes(normalizedSearchQuery)
+    );
+  };
+  const allPersonalDocuments = (documents || [])
     .filter((document) => !taskDocumentIds.has(document.id))
     .sort((a, b) => {
       if (sortBy === 'title') {
@@ -559,16 +569,26 @@ export default function DocumentsPage() {
         new Date(a.updatedAt || a.createdAt).getTime()
       );
     });
+  const personalDocuments = allPersonalDocuments.filter((document) =>
+    matchesSearchQuery(document.title, document.description, document.plainText)
+  );
+  const filteredTaskEnrollments = validTaskEnrollments.filter((task) =>
+    matchesSearchQuery(
+      getDisplayTaskName(task),
+      getDisplayTaskDescription(task),
+      task.inviteCode
+    )
+  );
   const hasStartedWritingTimer = [
     ...validTaskEnrollments,
-    ...personalDocuments,
+    ...allPersonalDocuments,
   ].some(
     (source) =>
       getWritingTimeLimitSeconds(source) !== null &&
       getTimestampMs(source.writingStartedAt) !== null
   );
 
-  const containerClass = 'humanly-page';
+  const containerClass = 'humanly-dashboard-page';
 
   useEffect(() => {
     if (!hasStartedWritingTimer) return;
@@ -637,10 +657,26 @@ export default function DocumentsPage() {
         value={activeWorkspaceTab}
         onValueChange={(value) => setActiveWorkspaceTab(value as WorkspaceTab)}
       >
-        <TabsList className="mb-6 grid w-full grid-cols-2 border border-border/70 bg-muted/60 sm:w-[470px]">
-          <TabsTrigger value="documents">Personal Writing</TabsTrigger>
-          <TabsTrigger value="tasks">Assigned Task</TabsTrigger>
-        </TabsList>
+        <div className="mb-6 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+          <div className="relative w-full sm:max-w-sm">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              type="search"
+              placeholder={
+                activeWorkspaceTab === 'documents'
+                  ? 'Search documents...'
+                  : 'Search assigned tasks...'
+              }
+              className="pl-10"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+            />
+          </div>
+          <TabsList className="grid w-full grid-cols-2 border border-border/70 bg-muted/60 sm:w-[310px]">
+            <TabsTrigger value="documents">Personal Writing</TabsTrigger>
+            <TabsTrigger value="tasks">Assigned Task</TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="documents" className="mt-0 space-y-6">
           <section className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -676,19 +712,32 @@ export default function DocumentsPage() {
             <div className="humanly-surface flex min-h-[360px] flex-col items-center justify-center bg-card px-6 text-center">
               <FileText className="h-10 w-10 text-accent" />
               <h3 className="mt-4 text-lg font-medium">
-                No personal documents yet
+                {hasSearchQuery
+                  ? 'No documents found'
+                  : 'No personal documents yet'}
               </h3>
               <p className="mt-2 max-w-sm text-center text-sm text-muted-foreground">
-                Start a personal writing document when you want authorship
-                tracking and certificate generation.
+                {hasSearchQuery
+                  ? 'No personal writing documents match your search.'
+                  : 'Start a personal writing document when you want authorship tracking and certificate generation.'}
               </p>
-              <Button
-                className="mt-4"
-                onClick={() => router.push('/documents/new')}
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                Create Writing
-              </Button>
+              {hasSearchQuery ? (
+                <Button
+                  variant="outline"
+                  className="mt-4"
+                  onClick={() => setSearchQuery('')}
+                >
+                  Clear Search
+                </Button>
+              ) : (
+                <Button
+                  className="mt-4"
+                  onClick={() => router.push('/documents/new')}
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  Create Writing
+                </Button>
+              )}
             </div>
           ) : (
             <>
@@ -850,20 +899,30 @@ export default function DocumentsPage() {
             </Dialog>
           </section>
 
-          {validTaskEnrollments.length === 0 ? (
+          {filteredTaskEnrollments.length === 0 ? (
             <div className="humanly-surface flex min-h-[360px] flex-col items-center justify-center bg-card px-6 text-center">
               <BookOpen className="h-10 w-10 text-accent" />
               <h3 className="mt-4 text-lg font-medium">
-                No assigned tasks yet
+                {hasSearchQuery ? 'No assigned tasks found' : 'No assigned tasks yet'}
               </h3>
               <p className="mt-2 max-w-sm text-center text-sm text-muted-foreground">
-                Use an invite code when an instructor or organization asks you
-                to complete a Humanly task.
+                {hasSearchQuery
+                  ? 'No assigned tasks match your search.'
+                  : 'Use an invite code when an instructor or organization asks you to complete a Humanly task.'}
               </p>
+              {hasSearchQuery ? (
+                <Button
+                  variant="outline"
+                  className="mt-4"
+                  onClick={() => setSearchQuery('')}
+                >
+                  Clear Search
+                </Button>
+              ) : null}
             </div>
           ) : (
             <div className="grid min-w-0 gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {validTaskEnrollments.map((task) => {
+              {filteredTaskEnrollments.map((task) => {
                 const taskName = getDisplayTaskName(task);
                 const taskDescription = getDisplayTaskDescription(task);
                 const timerState = getWritingTimerState(task, dashboardNowMs, {
