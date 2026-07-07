@@ -3,12 +3,23 @@ import { apiClient } from '@/lib/api-client';
 import { uploadPdfForDocument } from '@/lib/document-pdf';
 import type { Document, WritingEnvironmentConfig } from '@humanly/shared';
 
-export function useDocuments() {
+interface UseDocumentsOptions {
+  skip?: boolean;
+}
+
+export function useDocuments(options: UseDocumentsOptions = {}) {
   const [documents, setDocuments] = useState<Document[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(!options.skip);
   const [error, setError] = useState<string | null>(null);
 
   const fetchDocuments = useCallback(async () => {
+    if (options.skip) {
+      setDocuments([]);
+      setIsLoading(false);
+      setError(null);
+      return;
+    }
+
     try {
       setIsLoading(true);
       setError(null);
@@ -23,7 +34,7 @@ export function useDocuments() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [options.skip]);
 
   useEffect(() => {
     fetchDocuments();

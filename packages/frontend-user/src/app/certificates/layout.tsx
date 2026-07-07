@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/auth-store';
 import { Navbar } from '@/components/navigation/navbar';
 import { TokenManager } from '@/lib/api-client';
+import { isDemoCertificateId } from '@/lib/demo-workspace';
 
 export default function CertificatesLayout({
   children,
@@ -18,24 +19,42 @@ export default function CertificatesLayout({
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const certificateIdMatch = pathname.match(/^\/certificates\/([^/]+)/);
   const publicCertificateId = certificateIdMatch?.[1] || '';
+  const isDemoCertificateRoute = isDemoCertificateId(publicCertificateId);
   const isPublicGuestCertificateRoute = Boolean(
     publicCertificateId && TokenManager.getPublicCertificateAccessToken(publicCertificateId)
   );
 
   useEffect(() => {
+    if (isDemoCertificateRoute) {
+      setHasChecked(true);
+      setIsCheckingAuth(false);
+      return;
+    }
+
     if (!hasChecked) {
       checkAuth().finally(() => {
         setHasChecked(true);
         setIsCheckingAuth(false);
       });
     }
-  }, [hasChecked, checkAuth]);
+  }, [hasChecked, checkAuth, isDemoCertificateRoute]);
 
   useEffect(() => {
-    if (hasChecked && !isCheckingAuth && !isLoading && !isAuthenticated) {
+    if (!isDemoCertificateRoute && hasChecked && !isCheckingAuth && !isLoading && !isAuthenticated) {
       router.push('/login');
     }
-  }, [isAuthenticated, isLoading, router, hasChecked, isCheckingAuth]);
+  }, [isAuthenticated, isLoading, router, hasChecked, isCheckingAuth, isDemoCertificateRoute]);
+
+  if (isDemoCertificateRoute) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar forceGuest />
+        <main className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
+          {children}
+        </main>
+      </div>
+    );
+  }
 
   if (isCheckingAuth || isLoading) {
     return (

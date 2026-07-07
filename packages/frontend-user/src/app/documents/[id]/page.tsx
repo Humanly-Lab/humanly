@@ -43,6 +43,11 @@ import {
   waitForDocumentScopedAccessTokenReady,
 } from '@/lib/api-client';
 import {
+  appendDemoEvents,
+  generateDemoCertificate,
+  isDemoDocumentId,
+} from '@/lib/demo-workspace';
+import {
   AI_PROVIDER_OPTIONS,
   getProviderValueForBaseUrl,
   getWhitelist,
@@ -291,6 +296,7 @@ export default function DocumentEditorPage() {
   const router = useRouter();
   const { toast } = useToast();
   const documentId = params.id as string;
+  const isDemoDocument = isDemoDocumentId(documentId);
   const { user } = useAuthStore();
   const {
     document,
@@ -302,7 +308,7 @@ export default function DocumentEditorPage() {
     startWritingSession,
     trackEvents,
   } = useDocument(documentId);
-  const { generateCertificate } = useCertificates();
+  const { generateCertificate } = useCertificates(undefined, { skip: isDemoDocument });
 
   const [title, setTitle] = useState('');
   const [isTitleEditing, setIsTitleEditing] = useState(false);
@@ -395,9 +401,9 @@ export default function DocumentEditorPage() {
   }, [document?.environmentConfig, isTaskDocument, taskEnvironmentConfig]);
 
   const aiAccessMode = normalizeWritingAiAccess(currentEnvironmentConfig.aiAccess);
-  const aiEnabled = isWritingAiEnabled(aiAccessMode);
-  const aiPolishEnabled = isWritingAiPolishEnabled(aiAccessMode);
-  const aiChatEnabled = isWritingAiChatEnabled(aiAccessMode);
+  const aiEnabled = !isDemoDocument && isWritingAiEnabled(aiAccessMode);
+  const aiPolishEnabled = !isDemoDocument && isWritingAiPolishEnabled(aiAccessMode);
+  const aiChatEnabled = !isDemoDocument && isWritingAiChatEnabled(aiAccessMode);
   const isAIPanelVisible = aiChatEnabled && isAIPanelOpen;
 
   const editorInitialContent = useMemo(
@@ -642,6 +648,14 @@ export default function DocumentEditorPage() {
     let cancelled = false;
     let refreshInterval: number | null = null;
 
+    if (isDemoDocument) {
+      setTaskEnrollment(null);
+      setTaskAccessError(null);
+      setIsTaskEnrollmentLoading(false);
+      taskDocumentKnownRef.current = false;
+      return undefined;
+    }
+
     const fetchTaskEnrollment = async (showLoading = false) => {
       try {
         if (showLoading) {
@@ -692,7 +706,7 @@ export default function DocumentEditorPage() {
         window.clearInterval(refreshInterval);
       }
     };
-  }, [documentId]);
+  }, [documentId, isDemoDocument]);
 
   useEffect(() => {
     let cancelled = false;
@@ -976,6 +990,11 @@ export default function DocumentEditorPage() {
       return true;
     }
 
+    if (isDemoDocument) {
+      appendDemoEvents(documentId, batch.events);
+      return true;
+    }
+
     const url = `${API_URL}/documents/${documentId}/events`;
 
     if (typeof fetch !== 'function') {
@@ -1008,10 +1027,15 @@ export default function DocumentEditorPage() {
       console.error('Emergency event flush could not be queued:', error);
       return false;
     }
-  }, [buildEventBatchPayload, documentId]);
+  }, [buildEventBatchPayload, documentId, isDemoDocument]);
 
   const postEventBatch = useCallback(
     async (batch: PendingActivityEventBatch) => {
+      if (isDemoDocument) {
+        appendDemoEvents(documentId, batch.events);
+        return;
+      }
+
       const shouldUseKeepalive =
         containsWorkspaceLifecycleEvent(batch.events) ||
         (typeof window !== 'undefined' && window.document.visibilityState === 'hidden');
@@ -1038,7 +1062,7 @@ export default function DocumentEditorPage() {
       await waitForDocumentScopedAccessTokenReady(documentId);
       await trackEvents(batch.events as any, batch.sessionId, { throwOnError: true });
     },
-    [buildEventBatchPayload, documentId, trackEvents]
+    [buildEventBatchPayload, documentId, isDemoDocument, trackEvents]
   );
 
   const retryFailedEventBatches = useCallback(async () => {
@@ -1132,7 +1156,7 @@ export default function DocumentEditorPage() {
   }, [flushActivityLogWrites, showActivityLogSaveError]);
 
   const handleViewLogs = useCallback(async () => {
-    const destination = `/logs/${documentId}`;
+    const destination = `/logs/${documentId}${isDemoDocument ? '?demo=1' : ''}`;
     setIsSyncingActivityLogs(true);
 
     try {
@@ -1146,7 +1170,7 @@ export default function DocumentEditorPage() {
     } finally {
       setIsSyncingActivityLogs(false);
     }
-  }, [documentId, flushActivityLogWrites, retryFailedEventBatches, router, showActivityLogSaveError]);
+  }, [documentId, flushActivityLogWrites, isDemoDocument, retryFailedEventBatches, router, showActivityLogSaveError]);
 
   const handleWorkspaceExitReady = useCallback((markWorkspaceExit: WorkspaceExitMarker | null) => {
     markWorkspaceExitRef.current = markWorkspaceExit;
@@ -1294,6 +1318,20 @@ export default function DocumentEditorPage() {
       const activityLogsSynced = await syncActivityLogsForAuditAction();
       if (!activityLogsSynced) return;
 
+      if (isDemoDocument) {
+        const certificate = generateDemoCertificate(documentId, {
+          certificateType: 'full_authorship',
+          includeFullText: true,
+          includeEditHistory: true,
+        });
+        if (!certificate) {
+          throw new Error('Demo certificate could not be generated');
+        }
+        toast({ title: 'Success', description: 'Demo certificate preview generated locally' });
+        router.push(`/certificates/${certificate.id}?demo=1`);
+        return;
+      }
+
       const certificate = await generateCertificate(documentId, {
         certificateType: 'full_authorship',
         includeFullText: true,
@@ -1396,7 +1434,7 @@ export default function DocumentEditorPage() {
           <p className="text-destructive">{error || taskAccessError || 'Document not found'}</p>
           {!isGuestDocumentContext && (
             <Button
-              onClick={() => router.push('/documents')}
+              onClick={() => router.push(isDemoDocument ? '/documents/new?demo=1' : '/documents')}
               variant="ghost"
               className="mt-4 px-2 text-muted-foreground hover:bg-transparent hover:text-foreground"
             >
@@ -1421,6 +1459,9 @@ export default function DocumentEditorPage() {
     displayInstructionFiles[0] ||
     null;
   const displayFile = selectedInstructionFile || linkedFile;
+  const demoPdfPreviewUrl = isDemoDocument && displayFile?.storageProvider === 'browser-local'
+    ? displayFile.storageKey || undefined
+    : undefined;
   const isPdfPanelPending = !displayFile && Boolean(taskEnrollment && isTaskInstructionFilesLoading);
   const hasPdfPanel = Boolean(displayFile) || isPdfPanelPending;
   const isResourceViewOnly = normalizeResourceAccessPolicy(currentEnvironmentConfig.resourceAccess) === 'view-only';
@@ -1452,11 +1493,11 @@ export default function DocumentEditorPage() {
               {!isPublicTaskGuestDocument && (
                 <Button
                   variant="ghost"
-                  size="icon"
-                  className="-ml-2 text-muted-foreground hover:bg-transparent hover:text-foreground"
-                  aria-label="Back to Documents"
-                  onClick={() => router.push('/documents')}
-                >
+	                  size="icon"
+	                  className="-ml-2 text-muted-foreground hover:bg-transparent hover:text-foreground"
+	                  aria-label="Back to Documents"
+	                  onClick={() => router.push(isDemoDocument ? '/documents/new?demo=1' : '/documents')}
+	                >
                   <ArrowLeft className="h-4 w-4" />
                 </Button>
               )}
@@ -1679,13 +1720,14 @@ export default function DocumentEditorPage() {
                     </div>
                   ) : null}
                   <div className="min-h-0 flex-1 overflow-hidden">
-                    {displayFile ? (
-                      <PDFViewer
-                        key={displayFile.id}
-                        fileId={displayFile.id}
-                        documentId={documentId}
-                        viewOnly={isResourceViewOnly}
-                      />
+	                    {displayFile ? (
+	                      <PDFViewer
+	                        key={displayFile.id}
+	                        fileId={demoPdfPreviewUrl ? undefined : displayFile.id}
+	                        documentId={documentId}
+	                        previewUrl={demoPdfPreviewUrl}
+	                        viewOnly={isResourceViewOnly}
+	                      />
                     ) : (
                       <div className="flex h-full items-center justify-center bg-muted/30">
                         <div className="flex flex-col items-center gap-3 text-sm text-muted-foreground">

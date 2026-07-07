@@ -118,6 +118,7 @@ interface CertificateEvidenceViewProps {
   seal?: CertificateSeal;
   sealStatus?: CertificateSealStatus;
   integrityMessage?: string;
+  isDemoPreview?: boolean;
 }
 
 function getSealStatusLabel(status?: CertificateSealStatus) {
@@ -164,6 +165,16 @@ function getSealStatusPresentation(status?: CertificateSealStatus) {
     iconClass: 'bg-muted text-muted-foreground',
     badgeClass: 'border-border/70 bg-muted/35 text-muted-foreground',
     message: 'No integrity seal is available for this certificate.',
+  };
+}
+
+function getDemoSealPresentation() {
+  return {
+    Icon: Shield,
+    containerClass: 'border-[var(--hly-amber-border)] bg-[var(--hly-amber-bg)]',
+    iconClass: 'bg-[var(--hly-amber-icon)] text-[var(--hly-amber-text)]',
+    badgeClass: 'border-[var(--hly-amber-border)] bg-[var(--hly-amber-badge)] text-[var(--hly-amber-text)]',
+    message: 'Demo certificate only. This preview is generated locally for reference and is not publicly verifiable.',
   };
 }
 
@@ -826,6 +837,7 @@ export function CertificateEvidenceView({
   seal,
   sealStatus,
   integrityMessage,
+  isDemoPreview = false,
 }: CertificateEvidenceViewProps) {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [sealDetailsOpen, setSealDetailsOpen] = useState(false);
@@ -856,7 +868,7 @@ export function CertificateEvidenceView({
     ['Public key fingerprint', seal?.publicKeyFingerprint ? `${seal.publicKeyFingerprint.slice(0, 12)}...${seal.publicKeyFingerprint.slice(-12)}` : 'Unavailable'],
     ['Signed fields', seal?.signedFields?.length ? seal.signedFields.length.toLocaleString() : 'Unavailable'],
   ];
-  const sealPresentation = getSealStatusPresentation(sealStatus);
+  const sealPresentation = isDemoPreview ? getDemoSealPresentation() : getSealStatusPresentation(sealStatus);
   const SealStatusIcon = sealPresentation.Icon;
   const showReplay = Boolean(certificate.includeEditHistory && replayToken);
   const environmentRows = getEnvironmentRows(certificate.environmentConfig);
@@ -929,10 +941,15 @@ export function CertificateEvidenceView({
                       variant="outline"
                       className={`px-2 py-0.5 text-xs ${sealPresentation.badgeClass}`}
                     >
-                      {getSealStatusLabel(sealStatus)}
+                      {isDemoPreview ? 'Reference only' : getSealStatusLabel(sealStatus)}
                     </Badge>
                   </div>
                   <p className="mt-1 text-sm text-muted-foreground">{sealPresentation.message}</p>
+                  {isDemoPreview && (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      This fake seal only shows where a real Humanly certificate displays public verification.
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
@@ -959,8 +976,9 @@ export function CertificateEvidenceView({
                 </div>
                 <p className="font-medium">Certificate integrity</p>
                 <p>
-                  This certificate was checked against the Humanly integrity seal for the protected certificate record, including
-                  the writing metrics, document identity, generated timestamp, and current display options.
+                  {isDemoPreview
+                    ? 'This demo preview is generated entirely in the browser and has not been checked against a Humanly public verification record.'
+                    : 'This certificate was checked against the Humanly integrity seal for the protected certificate record, including the writing metrics, document identity, generated timestamp, and current display options.'}
                 </p>
                 {integrityMessage && (
                   <p className="text-muted-foreground">{integrityMessage}</p>

@@ -1,26 +1,54 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { usePathname, useRouter } from 'next/navigation';
+import { Suspense, useEffect, useState } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/stores/auth-store';
 import { Navbar } from '@/components/navigation/navbar';
 import { isGuestUserEmail } from '@/components/navigation/user-display';
 import { TokenManager } from '@/lib/api-client';
 import { usePublicDocumentToken } from '@/hooks/use-public-document-token';
+import { isDemoDocumentId } from '@/lib/demo-workspace';
+
+function DocumentsLoading() {
+  return (
+    <div className="flex min-h-screen items-center justify-center">
+      <div className="text-center">
+        <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]" />
+        <p className="mt-4 text-muted-foreground">Loading...</p>
+      </div>
+    </div>
+  );
+}
 
 export default function DocumentsLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  return (
+    <Suspense fallback={<DocumentsLoading />}>
+      <DocumentsLayoutInner>{children}</DocumentsLayoutInner>
+    </Suspense>
+  );
+}
+
+function DocumentsLayoutInner({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { user, isAuthenticated, isLoading, checkAuth, clearLocalSession } = useAuthStore();
   const [hasChecked, setHasChecked] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const isWorkspacePreviewRoute = pathname === '/documents/preview';
   const documentIdMatch = pathname.match(/^\/documents\/([^/]+)/);
   const publicDocumentId = documentIdMatch?.[1] || '';
+  const isDemoWorkspaceRoute =
+    (pathname === '/documents/new' && searchParams.get('demo') === '1') ||
+    isDemoDocumentId(publicDocumentId);
   const isPublicDocumentTokenReady = usePublicDocumentToken(publicDocumentId);
   const isPublicGuestDocumentRoute = Boolean(
     publicDocumentId && TokenManager.getPublicDocumentAccessToken(publicDocumentId)
@@ -31,7 +59,7 @@ export default function DocumentsLayout({
     (pathname === '/documents' || pathname === '/documents/new');
 
   useEffect(() => {
-    if (isWorkspacePreviewRoute) {
+    if (isWorkspacePreviewRoute || isDemoWorkspaceRoute) {
       return;
     }
 
@@ -73,6 +101,7 @@ export default function DocumentsLayout({
     checkAuth,
     isPublicDocumentTokenReady,
     isPublicGuestDocumentRoute,
+    isDemoWorkspaceRoute,
     isWorkspacePreviewRoute,
     pathname,
     router,
@@ -82,6 +111,7 @@ export default function DocumentsLayout({
     // Only redirect after we've checked auth and user is not authenticated
     if (
       !isWorkspacePreviewRoute
+      && !isDemoWorkspaceRoute
       && !isPublicGuestDocumentRoute
       && hasChecked
       && !isCheckingAuth
@@ -96,30 +126,33 @@ export default function DocumentsLayout({
     router,
     hasChecked,
     isCheckingAuth,
+    isDemoWorkspaceRoute,
     isWorkspacePreviewRoute,
     isPublicGuestDocumentRoute,
   ]);
 
   useEffect(() => {
-    if (!isWorkspacePreviewRoute && hasChecked && !isCheckingAuth && !isLoading && isGuestWorkspaceRoute) {
+    if (!isWorkspacePreviewRoute && !isDemoWorkspaceRoute && hasChecked && !isCheckingAuth && !isLoading && isGuestWorkspaceRoute) {
       clearLocalSession();
       router.replace('/login');
     }
-  }, [clearLocalSession, hasChecked, isCheckingAuth, isGuestWorkspaceRoute, isLoading, router, isWorkspacePreviewRoute]);
+  }, [clearLocalSession, hasChecked, isCheckingAuth, isDemoWorkspaceRoute, isGuestWorkspaceRoute, isLoading, router, isWorkspacePreviewRoute]);
 
   if (isWorkspacePreviewRoute) {
     return <>{children}</>;
   }
 
-  if ((isPublicGuestDocumentRoute && !isPublicDocumentTokenReady) || isCheckingAuth || isLoading) {
+  if (isDemoWorkspaceRoute) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="text-center">
-          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]" />
-          <p className="mt-4 text-muted-foreground">Loading...</p>
-        </div>
+      <div className="min-h-screen bg-background">
+        <Navbar forceGuest />
+        {children}
       </div>
     );
+  }
+
+  if ((isPublicGuestDocumentRoute && !isPublicDocumentTokenReady) || isCheckingAuth || isLoading) {
+    return <DocumentsLoading />;
   }
 
   if ((!isAuthenticated && !isPublicGuestDocumentRoute) || isGuestWorkspaceRoute) {

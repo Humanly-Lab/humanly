@@ -24,6 +24,7 @@ import { MarkdownContent } from '@/components/markdown-content';
 import { API_URL, TokenManager, apiClient, getPublicDocumentAuthConfig } from '@/lib/api-client';
 import { usePublicDocumentToken } from '@/hooks/use-public-document-token';
 import { useAuthStore } from '@/stores/auth-store';
+import { getDemoDocument, getDemoTimeline, isDemoDocumentId } from '@/lib/demo-workspace';
 import {
   getAIActionLabel,
   getAIInteractionLogLabel,
@@ -1492,6 +1493,7 @@ export default function DocumentLogsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const documentId = params.id as string;
+  const isDemoLogs = isDemoDocumentId(documentId);
   const returnTo = searchParams.get('returnTo');
   const certificateId = searchParams.get('certificateId');
   const certificateToken = searchParams.get('certificateToken');
@@ -1500,8 +1502,8 @@ export default function DocumentLogsPage() {
   const backHref = isPublicCertificateLogs && certificateToken
     ? `/verify/${certificateToken}`
     : returnTo === 'certificate' && certificateId
-    ? `/certificates/${certificateId}`
-    : `/documents/${documentId}`;
+    ? `/certificates/${certificateId}${isDemoLogs ? '?demo=1' : ''}`
+    : `/documents/${documentId}${isDemoLogs ? '?demo=1' : ''}`;
   const { checkAuth } = useAuthStore();
   usePublicDocumentToken(documentId);
 
@@ -1515,14 +1517,29 @@ export default function DocumentLogsPage() {
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    if (isPublicCertificateLogs) return;
+    if (isPublicCertificateLogs || isDemoLogs) return;
     checkAuth();
-  }, [checkAuth, isPublicCertificateLogs]);
+  }, [checkAuth, isDemoLogs, isPublicCertificateLogs]);
 
   const fetchLogs = useCallback(async () => {
     try {
       setIsLoading(true);
       setError(null);
+
+      if (isDemoLogs) {
+        const demo = getDemoDocument(documentId);
+        const timeline = getDemoTimeline(documentId);
+        if (!demo || !timeline) {
+          throw new Error('Demo logs not found');
+        }
+
+        setDocumentTitle(demo.document.title || 'Demo document');
+        setTimelineItems(timeline.items);
+        setTimelineSummary(timeline.summary);
+        setAiLogs([]);
+        setCertificateAnomalyFlags([]);
+        return;
+      }
 
       if (isPublicCertificateLogs && certificateToken) {
         const headers: HeadersInit = {};
@@ -1596,7 +1613,7 @@ export default function DocumentLogsPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [certificateId, certificateToken, documentId, isPublicCertificateLogs, publicCertificateId]);
+  }, [certificateId, certificateToken, documentId, isDemoLogs, isPublicCertificateLogs, publicCertificateId]);
 
   useEffect(() => {
     fetchLogs();

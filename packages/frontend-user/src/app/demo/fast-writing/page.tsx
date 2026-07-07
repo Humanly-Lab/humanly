@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { FastWritingDemo } from '@/components/demo/fast-writing-demo';
+import { redirect } from 'next/navigation';
 
 export const metadata: Metadata = {
   title: 'Humanly Demo | Humanly',
@@ -7,9 +7,5 @@ export const metadata: Metadata = {
 };
 
 export default function FastWritingDemoPage() {
-  return (
-    <main className="min-h-screen bg-background text-foreground">
-      <FastWritingDemo />
-    </main>
-  );
+  redirect('/documents/new?demo=1');
 }

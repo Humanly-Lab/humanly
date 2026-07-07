@@ -35,6 +35,7 @@ import { TokenManager } from '@/lib/api-client';
 import { useAuthStore } from '@/stores/auth-store';
 import { isGuestUserEmail } from '@/components/navigation/user-display';
 import { CertificateEvidenceView } from '@/components/certificates/certificate-evidence-view';
+import { getDemoCertificate, isDemoCertificateId } from '@/lib/demo-workspace';
 
 function usePublicCertificateToken(certificateId: string) {
   const previousAccessTokenRef = useRef<string | null | undefined>(undefined);
@@ -71,20 +72,30 @@ export default function CertificateDetailPage() {
   const router = useRouter();
   const { toast } = useToast();
   const certificateId = params.id as string;
+  const isDemoCertificateView = isDemoCertificateId(certificateId);
   const { user } = useAuthStore();
   usePublicCertificateToken(certificateId);
   const {
-    certificate,
-    aiStats,
-    seal,
-    sealStatus,
-    integrityMessage,
-    isLoading,
-    isLoadingAiStats,
-    error,
+    certificate: fetchedCertificate,
+    aiStats: fetchedAiStats,
+    seal: fetchedSeal,
+    sealStatus: fetchedSealStatus,
+    integrityMessage: fetchedIntegrityMessage,
+    isLoading: isFetchedCertificateLoading,
+    isLoadingAiStats: isFetchedAiStatsLoading,
+    error: fetchedError,
     updateAccessCode,
     updateDisplayOptions,
-  } = useCertificate(certificateId);
+  } = useCertificate(certificateId, { skip: isDemoCertificateView });
+  const demoCertificate = isDemoCertificateView ? getDemoCertificate(certificateId) : null;
+  const certificate = isDemoCertificateView ? demoCertificate?.certificate || null : fetchedCertificate;
+  const aiStats = isDemoCertificateView ? null : fetchedAiStats;
+  const seal = isDemoCertificateView ? demoCertificate?.seal : fetchedSeal;
+  const sealStatus = isDemoCertificateView ? demoCertificate?.sealStatus : fetchedSealStatus;
+  const integrityMessage = isDemoCertificateView ? demoCertificate?.integrityMessage : fetchedIntegrityMessage;
+  const isLoading = isDemoCertificateView ? false : isFetchedCertificateLoading;
+  const isLoadingAiStats = isDemoCertificateView ? false : isFetchedAiStatsLoading;
+  const error = isDemoCertificateView && !demoCertificate ? 'Demo certificate not found' : fetchedError;
   const [qrCodeDataURL, setQrCodeDataURL] = useState<string>('');
   const [copied, setCopied] = useState(false);
   const [isEditingAccessCode, setIsEditingAccessCode] = useState(false);
@@ -93,9 +104,10 @@ export default function CertificateDetailPage() {
   const [isUpdatingDisplay, setIsUpdatingDisplay] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [verificationUrl, setVerificationUrl] = useState('');
-  const showOwnerDetails = !certificate?.submissionId;
+  const showOwnerDetails = !isDemoCertificateView && !certificate?.submissionId;
   const isGuestCertificateView = isGuestUserEmail(user?.email)
-    || Boolean(TokenManager.getPublicCertificateAccessToken(certificateId));
+    || Boolean(TokenManager.getPublicCertificateAccessToken(certificateId))
+    || isDemoCertificateView;
 
   const generateAccessCode = () => {
     const fallbackCode = () => Math.floor(Math.random() * 10000);
@@ -111,7 +123,9 @@ export default function CertificateDetailPage() {
 
   useEffect(() => {
     if (certificate) {
-      const verifyUrl = `${window.location.origin}/verify/${certificate.verificationToken}`;
+      const verifyUrl = isDemoCertificateView
+        ? window.location.href
+        : `${window.location.origin}/verify/${certificate.verificationToken}`;
       setVerificationUrl(verifyUrl);
       QRCode.toDataURL(verifyUrl, {
         width: 200,
@@ -126,7 +140,7 @@ export default function CertificateDetailPage() {
     } else {
       setVerificationUrl('');
     }
-  }, [certificate]);
+  }, [certificate, isDemoCertificateView]);
 
   const showCopyUnavailableToast = (label: string) => {
     toast({
@@ -346,7 +360,7 @@ export default function CertificateDetailPage() {
 
         <div className="flex flex-wrap gap-2">
           <Button
-            onClick={() => router.push(`/logs/${certificate.documentId}?returnTo=certificate&certificateId=${certificate.id}`)}
+            onClick={() => router.push(`/logs/${certificate.documentId}?returnTo=certificate&certificateId=${certificate.id}${isDemoCertificateView ? '&demo=1' : ''}`)}
             variant="outline"
             size="sm"
             className="min-w-0"
@@ -366,11 +380,12 @@ export default function CertificateDetailPage() {
           certificate={certificate}
           aiStats={aiStats}
           isLoadingAiStats={isLoadingAiStats}
-          replayToken={certificate.verificationToken}
+          replayToken={isDemoCertificateView ? undefined : certificate.verificationToken}
           replayAccessCode={certificate.accessCode || undefined}
           seal={seal}
           sealStatus={sealStatus}
           integrityMessage={integrityMessage}
+          isDemoPreview={isDemoCertificateView}
         />
 
         {showOwnerDetails ? (

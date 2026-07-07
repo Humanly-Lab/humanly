@@ -11,13 +11,25 @@ export interface CertificatesFilters {
   sortOrder?: 'asc' | 'desc';
 }
 
-export function useCertificates(filters?: CertificatesFilters) {
+interface UseCertificatesOptions {
+  skip?: boolean;
+}
+
+export function useCertificates(filters?: CertificatesFilters, options: UseCertificatesOptions = {}) {
   const [certificates, setCertificates] = useState<Certificate[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(!options.skip);
   const [error, setError] = useState<string | null>(null);
   const [total, setTotal] = useState(0);
 
   const fetchCertificates = useCallback(async () => {
+    if (options.skip) {
+      setCertificates([]);
+      setTotal(0);
+      setError(null);
+      setIsLoading(false);
+      return;
+    }
+
     try {
       setIsLoading(true);
       setError(null);
@@ -48,7 +60,7 @@ export function useCertificates(filters?: CertificatesFilters) {
     } finally {
       setIsLoading(false);
     }
-  }, [filters?.documentId, filters?.limit, filters?.offset, filters?.sortBy, filters?.sortOrder]);
+  }, [filters?.documentId, filters?.limit, filters?.offset, filters?.sortBy, filters?.sortOrder, options.skip]);
 
   useEffect(() => {
     fetchCertificates();
@@ -108,7 +120,7 @@ export function useCertificates(filters?: CertificatesFilters) {
   };
 }
 
-export function useCertificate(certificateId: string) {
+export function useCertificate(certificateId: string, options: UseCertificatesOptions = {}) {
   const [certificate, setCertificate] = useState<Certificate | null>(null);
   const [aiStats, setAiStats] = useState<AIAuthorshipStats | null>(null);
   const [seal, setSeal] = useState<CertificateSeal | undefined>(undefined);
@@ -119,6 +131,16 @@ export function useCertificate(certificateId: string) {
   const [error, setError] = useState<string | null>(null);
 
   const fetchCertificate = useCallback(async () => {
+    if (options.skip) {
+      setCertificate(null);
+      setSeal(undefined);
+      setSealStatus(undefined);
+      setIntegrityMessage(undefined);
+      setError(null);
+      setIsLoading(false);
+      return;
+    }
+
     try {
       setIsLoading(true);
       setError(null);
@@ -140,9 +162,15 @@ export function useCertificate(certificateId: string) {
     } finally {
       setIsLoading(false);
     }
-  }, [certificateId]);
+  }, [certificateId, options.skip]);
 
   const fetchAIStats = useCallback(async () => {
+    if (options.skip) {
+      setAiStats(null);
+      setIsLoadingAiStats(false);
+      return;
+    }
+
     try {
       setIsLoadingAiStats(true);
       const response = await apiClient.get<any>(`/certificates/${certificateId}/ai-stats`);
@@ -153,7 +181,7 @@ export function useCertificate(certificateId: string) {
     } finally {
       setIsLoadingAiStats(false);
     }
-  }, [certificateId]);
+  }, [certificateId, options.skip]);
 
   useEffect(() => {
     if (certificateId) {

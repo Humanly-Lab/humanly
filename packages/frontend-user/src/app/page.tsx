@@ -11,7 +11,7 @@ const muted = 'var(--hly-ink-muted)';
 const hairline = 'var(--hly-hairline)';
 const bg2 = 'var(--hly-surface)';
 const good = 'var(--hly-brand)';
-const fastDemoHref = '/demo/fast-writing';
+const fastDemoHref = '/documents/new?demo=1';
 const launchVideoSrc = '/videos/humanly-launch.mp4';
 const githubHref = 'https://github.com/ShenzheZhu/humanly/tree/main';
 
@@ -119,8 +119,6 @@ export default function HomePage() {
           <div className="mt-7 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Link
               href={fastDemoHref}
-              target="_blank"
-              rel="noopener noreferrer"
               className="humanly-landing-btn bg-[var(--hly-brand)] hover:bg-[var(--hly-brand-hover)]"
             >
               Try the demo <Arrow />
@@ -161,8 +159,6 @@ function DemoLaunchSection() {
         <div className="mt-8 flex justify-center">
           <Link
             href={fastDemoHref}
-            target="_blank"
-            rel="noopener noreferrer"
             className="humanly-landing-btn bg-[var(--hly-brand)] hover:bg-[var(--hly-brand-hover)]"
           >
             Open Demo <Arrow />

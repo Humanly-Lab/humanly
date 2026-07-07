@@ -5,6 +5,13 @@ import {
   waitForDocumentScopedAccessTokenReady,
   type HumanlyAxiosRequestConfig,
 } from '@/lib/api-client';
+import {
+  appendDemoEvents,
+  getDemoDocument,
+  isDemoDocumentId,
+  startDemoWritingSession,
+  updateDemoDocument,
+} from '@/lib/demo-workspace';
 import type { AppFile, Document, DocumentEvent } from '@humanly/shared';
 
 interface TrackEventsOptions {
@@ -12,6 +19,7 @@ interface TrackEventsOptions {
 }
 
 export function useDocument(documentId: string) {
+  const isDemoDocument = isDemoDocumentId(documentId);
   const [document, setDocument] = useState<Document | null>(null);
   const [linkedFile, setLinkedFile] = useState<AppFile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -19,6 +27,17 @@ export function useDocument(documentId: string) {
   const [isSaving, setIsSaving] = useState(false);
 
   const fetchDocument = useCallback(async () => {
+    if (isDemoDocument) {
+      setIsLoading(true);
+      setError(null);
+      const demo = getDemoDocument(documentId);
+      setDocument(demo?.document || null);
+      setLinkedFile(demo?.linkedFile || null);
+      setError(demo ? null : 'Demo document not found');
+      setIsLoading(false);
+      return;
+    }
+
     try {
       setIsLoading(true);
       setError(null);
@@ -38,7 +57,7 @@ export function useDocument(documentId: string) {
     } finally {
       setIsLoading(false);
     }
-  }, [documentId]);
+  }, [documentId, isDemoDocument]);
 
   useEffect(() => {
     if (documentId) {
@@ -51,6 +70,17 @@ export function useDocument(documentId: string) {
     plainText: string,
     title?: string
   ) => {
+    if (isDemoDocument) {
+      setIsSaving(true);
+      const updatedDocument = updateDemoDocument(documentId, content, plainText, title);
+      setDocument(updatedDocument);
+      setIsSaving(false);
+      if (!updatedDocument) {
+        throw new Error('Demo document not found');
+      }
+      return updatedDocument;
+    }
+
     try {
       setIsSaving(true);
       await waitForDocumentScopedAccessTokenReady(documentId);
@@ -72,9 +102,18 @@ export function useDocument(documentId: string) {
     } finally {
       setIsSaving(false);
     }
-  }, [documentId]);
+  }, [documentId, isDemoDocument]);
 
   const startWritingSession = useCallback(async () => {
+    if (isDemoDocument) {
+      const startedDocument = startDemoWritingSession(documentId);
+      setDocument(startedDocument);
+      if (!startedDocument) {
+        throw new Error('Demo document not found');
+      }
+      return startedDocument;
+    }
+
     try {
       await waitForDocumentScopedAccessTokenReady(documentId);
 
@@ -90,13 +129,21 @@ export function useDocument(documentId: string) {
       console.error('Error starting writing session:', err);
       throw new Error(err.response?.data?.message || 'Failed to start writing session');
     }
-  }, [documentId]);
+  }, [documentId, isDemoDocument]);
 
   const trackEvents = useCallback(async (
     events: Partial<DocumentEvent>[],
     sessionId?: string | null,
     options: TrackEventsOptions = {}
   ) => {
+    if (isDemoDocument) {
+      appendDemoEvents(documentId, events.map((event) => ({
+        ...event,
+        sessionId: sessionId || event.sessionId,
+      })));
+      return;
+    }
+
     try {
       await waitForDocumentScopedAccessTokenReady(documentId);
 
@@ -115,7 +162,7 @@ export function useDocument(documentId: string) {
         throw err;
       }
     }
-  }, [documentId]);
+  }, [documentId, isDemoDocument]);
 
   return {
     document,

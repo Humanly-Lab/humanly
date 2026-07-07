@@ -1,7 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   ArrowLeft,
   CheckCircle,
@@ -92,6 +92,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
 import { useDocuments } from '@/hooks/use-documents';
 import { apiClient } from '@/lib/api-client';
+import { createDemoDocument } from '@/lib/demo-workspace';
 import {
   AI_PROVIDER_OPTIONS,
   TOGETHER_AI_BASE_URL,
@@ -398,10 +399,31 @@ const buildPersonalEnvironmentSummary = (
   return items;
 };
 
+function NewDocumentPageLoading() {
+  return (
+    <div className="flex min-h-screen items-center justify-center">
+      <div className="text-center">
+        <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]" />
+        <p className="mt-4 text-muted-foreground">Loading...</p>
+      </div>
+    </div>
+  );
+}
+
 export default function NewDocumentPage() {
+  return (
+    <Suspense fallback={<NewDocumentPageLoading />}>
+      <NewDocumentPageContent />
+    </Suspense>
+  );
+}
+
+function NewDocumentPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const isDemoMode = searchParams.get('demo') === '1';
   const { toast } = useToast();
-  const { createDocument } = useDocuments();
+  const { createDocument } = useDocuments({ skip: isDemoMode });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [title, setTitle] = useState('');
@@ -435,6 +457,12 @@ export default function NewDocumentPage() {
   };
 
   useEffect(() => {
+    if (isDemoMode) {
+      setHasExistingAiKey(true);
+      setMaskedAiKey('demo-local');
+      return;
+    }
+
     let cancelled = false;
 
     const loadAiSettings = async () => {
@@ -476,7 +504,7 @@ export default function NewDocumentPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [isDemoMode]);
 
   useEffect(() => {
     if (!pdfFile || typeof URL === 'undefined' || typeof URL.createObjectURL !== 'function') {
@@ -708,6 +736,14 @@ export default function NewDocumentPage() {
   }: {
     showFailureToast?: boolean;
   } = {}): Promise<boolean> => {
+    if (isDemoMode) {
+      setAiConnectionResult({
+        success: true,
+        message: 'Demo mode uses local browser-only AI preview settings.',
+      });
+      return true;
+    }
+
     const failConnectionTest = (title: string, message: string): false => {
       setAiConnectionResult({
         success: false,
@@ -911,7 +947,7 @@ export default function NewDocumentPage() {
         return;
       }
 
-      if (environmentConfig.aiAccess !== 'off') {
+      if (!isDemoMode && environmentConfig.aiAccess !== 'off') {
         if (!aiApiKey.trim() && !hasExistingAiKey) {
           toast({
             title: 'AI key required',
@@ -960,18 +996,33 @@ export default function NewDocumentPage() {
         };
       }
 
-      const document = await createDocument(
-        title,
-        pdfFile || undefined,
-        configToCreate,
-        description
-      );
+      const document = isDemoMode
+        ? createDemoDocument({
+            title,
+            description,
+            environmentConfig: configToCreate,
+            pdf: pdfFile
+              ? {
+                  name: pdfFile.name,
+                  size: pdfFile.size,
+                  previewUrl: pdfPreviewUrl,
+                }
+              : null,
+          })
+        : await createDocument(
+            title,
+            pdfFile || undefined,
+            configToCreate,
+            description
+          );
 
       toast({
         title: 'Success',
-        description: pdfFile ? 'Document created with linked PDF' : 'Document created successfully',
+        description: isDemoMode
+          ? 'Demo document created locally in this browser session'
+          : pdfFile ? 'Document created with linked PDF' : 'Document created successfully',
       });
-      router.push(`/documents/${document.id}`);
+      router.push(`/documents/${document.id}${isDemoMode ? '?demo=1' : ''}`);
     } catch (err: any) {
       toast({
         title: 'Error',
@@ -993,6 +1044,8 @@ export default function NewDocumentPage() {
     hasExistingAiKey,
     selectedAiModel,
     createDocument,
+    isDemoMode,
+    pdfPreviewUrl,
     toast,
     router,
   ]);
@@ -1449,10 +1502,10 @@ export default function NewDocumentPage() {
           variant="ghost"
           size="sm"
           className="mb-3 -ml-2 h-auto px-2 py-1 text-muted-foreground hover:bg-transparent hover:text-foreground"
-          onClick={() => router.push('/documents')}
+          onClick={() => router.push(isDemoMode ? '/' : '/documents')}
         >
           <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Workspace
+          {isDemoMode ? 'Back to Home' : 'Back to Workspace'}
         </Button>
         <p className="humanly-eyebrow">Personal writing</p>
         <h1 className="mt-2 text-2xl font-semibold tracking-normal sm:text-3xl">Create Writing</h1>
@@ -1689,7 +1742,7 @@ export default function NewDocumentPage() {
 
         </CardContent>
         <CardFooter className="mt-4 flex justify-end gap-3 border-t border-border/70 bg-muted/20 px-5 pb-5 pt-7 sm:pt-7">
-          <Button variant="outline" onClick={() => router.push('/documents')} disabled={isCreating}>
+          <Button variant="outline" onClick={() => router.push(isDemoMode ? '/' : '/documents')} disabled={isCreating}>
             Cancel
           </Button>
           <Button onClick={handleCreateDocument} disabled={isCreating}>
