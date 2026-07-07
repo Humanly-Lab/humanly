@@ -3,7 +3,6 @@ import Link from 'next/link';
 import { BookOpen, Check, MessageSquare, Sparkles, Wand2 } from 'lucide-react';
 import { AuthenticatedRedirect } from '@/components/auth/authenticated-redirect';
 import { HumanlyWordmark } from '@/components/brand/humanly-wordmark';
-import { HeroShowcase } from '@/components/marketing/hero-showcase';
 import { marketingHref, productAppHref } from '@/lib/app-origin';
 
 const ink = 'var(--hly-ink)';
@@ -12,19 +11,42 @@ const hairline = 'var(--hly-hairline)';
 const bg2 = 'var(--hly-surface)';
 const good = 'var(--hly-brand)';
 const fastDemoHref = '/documents/new?demo=1';
-const launchVideoSrc = '/videos/humanly-launch.mp4';
 const githubHref = 'https://github.com/ShenzheZhu/humanly/tree/main';
 
 const logRows = [
-  ['12:41:48', 'input', 'var(--hly-green-tint)', 'var(--hly-green-strong)', '796'],
-  ['12:41:49', 'select', 'var(--hly-surface-2)', 'var(--hly-neutral-text)', '42'],
+  [
+    '12:41:48',
+    'input',
+    'var(--hly-green-tint)',
+    'var(--hly-green-strong)',
+    '796',
+  ],
+  [
+    '12:41:49',
+    'select',
+    'var(--hly-surface-2)',
+    'var(--hly-neutral-text)',
+    '42',
+  ],
   ['12:41:50', 'ai quick', 'var(--hly-ai-bg)', 'var(--hly-ai-text)', 'AI'],
   ['12:42:03', 'paste', 'var(--hly-paste-bg)', 'var(--hly-paste-text)', '186'],
   ['12:42:08', 'ai question', 'var(--hly-ai-bg)', 'var(--hly-ai-text)', 'AI'],
   ['12:42:13', 'ai answer', 'var(--hly-ai-bg)', 'var(--hly-ai-text)', 'AI'],
   ['12:42:16', 'ai insert', 'var(--hly-ai-bg)', 'var(--hly-ai-text)', '52'],
-  ['12:42:19', 'delete', 'var(--hly-surface-2)', 'var(--hly-neutral-text)', '18'],
-  ['12:42:22', 'input', 'var(--hly-green-tint)', 'var(--hly-green-strong)', '1,204'],
+  [
+    '12:42:19',
+    'delete',
+    'var(--hly-surface-2)',
+    'var(--hly-neutral-text)',
+    '18',
+  ],
+  [
+    '12:42:22',
+    'input',
+    'var(--hly-green-tint)',
+    'var(--hly-green-strong)',
+    '1,204',
+  ],
 ];
 
 const toolRows = [
@@ -105,31 +127,48 @@ export default function HomePage() {
       <AuthenticatedRedirect />
       <NavBar />
 
-      <section id="product" className="relative px-5 pb-14 pt-12 sm:px-8 sm:pb-16 sm:pt-16 lg:px-14 lg:pt-[58px]">
-        <div className="mx-auto max-w-[940px] text-center">
-          <h1 className="text-[28px] font-semibold leading-[1.08] tracking-[-0.025em] sm:text-[36px] lg:text-[42px]">
-            <span>Write with AI.</span>
-            <br />
-            <span className="text-[var(--hly-neutral)]">Prove your process.</span>
-          </h1>
-          <p className="mx-auto mt-6 max-w-[520px] text-[14px] leading-[1.7] text-muted-foreground sm:text-[16px] sm:leading-[1.6]">
-            A writing workspace that quietly records how a draft came together,
-            then signs it with a certificate any reader can verify.
-          </p>
-          <div className="mt-7 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <Link
-              href={fastDemoHref}
-              className="humanly-landing-btn bg-[var(--hly-brand)] hover:bg-[var(--hly-brand-hover)]"
-            >
-              Try the demo <Arrow />
-            </Link>
-            <Link href={productAppHref('/register')} className="humanly-landing-btn">
-              Start writing <Arrow />
-            </Link>
+      <section
+        id="product"
+        className="relative px-5 pb-14 pt-10 sm:px-8 sm:pb-16 sm:pt-14 lg:px-14 lg:pt-[48px]"
+      >
+        <div className="mx-auto grid max-w-[1280px] items-center gap-10 lg:grid-cols-[0.85fr_1.15fr] lg:gap-12">
+          <div className="mx-auto max-w-[560px] text-center lg:mx-0 lg:max-w-none lg:text-left">
+            <h1 className="font-serif text-[32px] font-light leading-[1.12] tracking-normal sm:text-[40px] lg:text-[44px]">
+              <span className="lg:whitespace-nowrap">
+                Every piece of writing has a{' '}
+                <span className="text-[var(--hly-brand)]">story</span>.
+              </span>
+              <br />
+              Now you can prove it.
+            </h1>
+            <p className="mx-auto mt-6 max-w-[470px] text-[14.5px] leading-[1.75] text-muted-foreground sm:text-[16px] lg:mx-0">
+              A writing workspace that records every draft step, from keystrokes
+              to AI exchanges, then signs the process with a verifiable
+              certificate.
+            </p>
+            <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row lg:justify-start">
+              <Link
+                href={productAppHref('/register')}
+                className="humanly-landing-btn"
+              >
+                Start writing <Arrow />
+              </Link>
+              <Link
+                href={fastDemoHref}
+                className="group inline-flex items-center gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+              >
+                <span className="border-b border-[var(--hly-hairline)] pb-px transition-colors group-hover:border-foreground">
+                  Try the live demo
+                </span>
+                <Arrow />
+              </Link>
+            </div>
+          </div>
+
+          <div className="relative mx-auto mt-12 w-full max-w-[1100px] overflow-visible pb-8 lg:-ml-[2%] lg:mt-0 lg:w-[108%] lg:max-w-none">
+            <HeroComposition />
           </div>
         </div>
-
-        <HeroShowcase video={<HeroVideoComposition />} workspace={<HeroComposition />} />
       </section>
 
       <ProblemSection />
@@ -145,10 +184,12 @@ export default function HomePage() {
 
 function DemoLaunchSection() {
   return (
-    <section id="demo" className="bg-background px-5 py-[104px] sm:px-8 lg:px-14">
+    <section
+      id="demo"
+      className="bg-background px-5 py-[104px] sm:px-8 lg:px-14"
+    >
       <div className="mx-auto max-w-[720px] text-center">
-        <Eyebrow className="mb-[22px]">Interactive demo</Eyebrow>
-        <h2 className="text-[28px] font-semibold leading-[1.08] tracking-normal sm:text-[36px]">
+        <h2 className="font-serif text-[30px] font-medium leading-[1.12] tracking-[-0.01em] sm:text-[38px]">
           Humanly Demo
         </h2>
         <p className="mx-auto mt-5 max-w-[560px] text-[15px] leading-[1.7] text-muted-foreground sm:text-[17px]">
@@ -173,14 +214,22 @@ function NavBar() {
   return (
     <header className="grid grid-cols-[1fr_auto] items-center px-5 py-5 sm:px-8 lg:grid-cols-[1fr_auto_1fr] lg:px-14 lg:py-[26px]">
       <Link href={marketingHref('/')} className="justify-self-start">
-        <HumanlyWordmark size="md" className="max-[380px]:text-xl max-[380px]:[&_img]:h-9 max-[380px]:[&_img]:w-9" />
+        <HumanlyWordmark
+          size="md"
+          className="max-[380px]:text-xl max-[380px]:[&_img]:h-9 max-[380px]:[&_img]:w-9"
+        />
       </Link>
 
       <nav className="hidden items-center gap-9 text-sm font-medium text-muted-foreground lg:flex">
-        <a href="#product" className="hover:text-foreground">Product</a>
-        <a href="#demo" className="hover:text-foreground">Demo</a>
-        <a href="#process" className="hover:text-foreground">How it works</a>
-        <a href="#faq" className="hover:text-foreground">FAQ</a>
+        <a href="#process" className="hover:text-foreground">
+          How it works
+        </a>
+        <a href="#faq" className="hover:text-foreground">
+          FAQ
+        </a>
+        <a href="#demo" className="hover:text-foreground">
+          Demo
+        </a>
         <a
           href={githubHref}
           target="_blank"
@@ -192,10 +241,16 @@ function NavBar() {
       </nav>
 
       <div className="flex items-center gap-2 justify-self-end sm:gap-3">
-        <Link href={productAppHref('/login')} className="text-[13px] font-medium text-muted-foreground hover:text-foreground sm:text-sm">
+        <Link
+          href={productAppHref('/login')}
+          className="text-[13px] font-medium text-muted-foreground hover:text-foreground sm:text-sm"
+        >
           Log in
         </Link>
-        <Link href={productAppHref('/register')} className="humanly-landing-btn px-[14px] py-[9px] text-[13px] sm:px-[18px]">
+        <Link
+          href={productAppHref('/register')}
+          className="humanly-landing-btn px-[14px] py-[9px] text-[13px] sm:px-[18px]"
+        >
           Start
         </Link>
       </div>
@@ -211,12 +266,14 @@ function HeroComposition() {
     >
       <div
         className="absolute left-1/2 top-0 h-[720px] w-[1100px] origin-top"
-        style={{ transform: 'translateX(-50%) scale(min(1, calc(100cqw / 1100px)))' }}
+        style={{
+          transform: 'translateX(-50%) scale(min(1, calc(100cqw / 1100px)))',
+        }}
       >
         <div
           className="absolute inset-0 rotate-[-0.6deg] rounded-md bg-cover bg-center"
           style={{
-            backgroundImage: "url('/brand/monet-windmills.jpg')",
+            backgroundImage: "url('/brand/monet-water-lilies.png')",
             boxShadow:
               '0 36px 80px -30px rgba(40,32,18,0.40), 0 0 0 8px #fbf9f1, 0 0 0 9px rgba(40,32,18,0.10)',
           }}
@@ -234,42 +291,6 @@ function HeroComposition() {
   );
 }
 
-function HeroVideoComposition() {
-  return (
-    <div
-      className="relative mx-auto w-full max-w-[1100px] overflow-visible"
-      style={{ aspectRatio: '1100 / 720', containerType: 'inline-size' }}
-    >
-      <div
-        className="absolute left-1/2 top-0 h-[720px] w-[1100px] origin-top"
-        style={{ transform: 'translateX(-50%) scale(min(1, calc(100cqw / 1100px)))' }}
-      >
-        <div
-          className="absolute inset-0 rotate-[-0.6deg] rounded-md bg-cover bg-center"
-          style={{
-            backgroundImage: "url('/brand/monet-windmills.jpg')",
-            boxShadow:
-              '0 36px 80px -30px rgba(40,32,18,0.40), 0 0 0 8px #fbf9f1, 0 0 0 9px rgba(40,32,18,0.10)',
-          }}
-        />
-        <div className="absolute left-1/2 top-1/2 z-20 w-[88%] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-[16px] border border-[var(--hly-hairline)] bg-white p-2 shadow-[0_30px_80px_-34px_rgba(20,22,26,0.55)]">
-          <video
-            aria-label="Humanly product video"
-            className="aspect-video w-full rounded-[12px] bg-foreground object-cover"
-            controls
-            muted
-            poster="/videos/humanly-launch-poster.png"
-            playsInline
-            preload="metadata"
-          >
-            <source src={launchVideoSrc} type="video/mp4" />
-          </video>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function HeroDocCalm() {
   return (
     <div className="humanly-hover-pop overflow-hidden rounded-[14px] border border-[var(--hly-hairline)] bg-white shadow-[0_30px_80px_-30px_rgba(10,10,10,0.18)] hover:shadow-[0_38px_96px_-32px_rgba(10,10,10,0.30)]">
@@ -279,7 +300,9 @@ function HeroDocCalm() {
           <span className="h-2.5 w-2.5 rounded-full bg-[#e9e6df]" />
           <span className="h-2.5 w-2.5 rounded-full bg-[#e9e6df]" />
         </div>
-        <span className="text-xs text-muted-foreground">A draft, in progress</span>
+        <span className="text-xs text-muted-foreground">
+          A draft, in progress
+        </span>
         <span className="inline-flex items-center gap-1.5 text-xs text-[var(--hly-brand)]">
           <span className="h-1.5 w-1.5 rounded-full bg-current" />
           Tracking
@@ -288,21 +311,24 @@ function HeroDocCalm() {
 
       <div className="grid min-h-[510px] grid-cols-[1.5fr_1fr]">
         <div className="border-r border-[rgba(20,22,26,0.05)] p-9">
-          <div className="mb-2 text-[11px] text-muted-foreground">Untitled draft</div>
+          <div className="mb-2 text-[11px] text-muted-foreground">
+            Untitled draft
+          </div>
           <h3 className="mb-4 text-[22px] font-bold leading-[1.2] tracking-[-0.015em]">
             Drafting with attention
           </h3>
           <p className="mb-3 text-[13px] leading-[1.75] text-[var(--hly-ink)]">
             The first thing to notice about a draft is the pause before it.
             Before a sentence lands on the page there is a small, deliberate{' '}
-            refusal{' '}
-            — the writer choosing not to type yet.
+            refusal — the writer choosing not to type yet.
           </p>
           <div className="relative pt-11">
             <div className="absolute left-[-6px] top-1 z-40 flex max-w-[440px] items-center gap-1.5 rounded-[9px] border border-[var(--hly-hairline)] bg-white/95 px-2 py-1.5 shadow-[0_16px_34px_-22px_rgba(20,22,26,0.55)]">
               {quickActions.map(({ label, Icon }, index) => (
                 <div key={label} className="flex min-w-0 items-center gap-1.5">
-                  {index === 4 ? <span className="h-4 w-px bg-[rgba(20,22,26,0.12)]" /> : null}
+                  {index === 4 ? (
+                    <span className="h-4 w-px bg-[rgba(20,22,26,0.12)]" />
+                  ) : null}
                   <span className="inline-flex min-w-0 items-center gap-1 whitespace-nowrap text-[8.8px] font-medium leading-none text-foreground">
                     <Icon className="h-3 w-3 shrink-0" strokeWidth={1.8} />
                     {label}
@@ -311,9 +337,10 @@ function HeroDocCalm() {
               ))}
             </div>
             <p className="text-[13px] leading-[1.75] text-muted-foreground">
-              <span className="box-decoration-clone bg-[rgba(142,190,238,0.62)] px-[2px] py-[1px]">
-                Most drafts fail in this earlier moment, when the mind accepts whatever
-                language arrives first. The discipline is to wait, then to choose.
+              <span className="box-decoration-clone bg-[rgba(196,167,178,0.45)] px-[2px] py-[1px]">
+                Most drafts fail in this earlier moment, when the mind accepts
+                whatever language arrives first. The discipline is to wait, then
+                to choose.
               </span>
             </p>
           </div>
@@ -323,7 +350,9 @@ function HeroDocCalm() {
         <div className="flex flex-col bg-[#fcfcfb]">
           <div className="flex items-center justify-between border-b border-[rgba(20,22,26,0.05)] px-3.5 py-3">
             <span className="inline-flex items-center gap-1.5 text-[11.5px] font-bold">
-              <span className="grid h-4 w-4 place-items-center rounded bg-foreground text-[9px] text-white">✦</span>
+              <span className="grid h-4 w-4 place-items-center rounded bg-foreground text-[9px] text-white">
+                ✦
+              </span>
               AI Assistant
             </span>
             <span className="text-xs text-[var(--hly-neutral)]">⚙ + ⟲ ×</span>
@@ -341,7 +370,9 @@ function HeroDocCalm() {
                 >
                   <span className="text-[9px] text-[var(--hly-brand)]">✓</span>
                   <span className="font-bold">{tool}</span>
-                  <span className="truncate text-[9px] text-muted-foreground">{detail}</span>
+                  <span className="truncate text-[9px] text-muted-foreground">
+                    {detail}
+                  </span>
                   <span className="text-muted-foreground">{ms}</span>
                 </div>
               ))}
@@ -359,14 +390,18 @@ function HeroDocCalm() {
               PDF context available (13 pages)
             </div>
             <div className="flex min-w-0 justify-between gap-2 rounded-md bg-[var(--hly-surface)] px-2.5 py-1.5 text-[10px] text-muted-foreground">
-              <span className="truncate">moonshotai/Kimi-K2.6 (image+text)</span>
+              <span className="truncate">
+                moonshotai/Kimi-K2.6 (image+text)
+              </span>
               <span>⇅</span>
             </div>
             <div className="flex items-stretch gap-1.5">
               <div className="flex-1 rounded-md border border-foreground bg-white px-2.5 py-2 text-[10.5px] text-[var(--hly-neutral)]">
                 Type your message…
               </div>
-              <button className="grid w-8 place-items-center rounded-md bg-[var(--hly-neutral)] text-xs text-white">↗</button>
+              <button className="grid w-8 place-items-center rounded-md bg-[var(--hly-neutral)] text-xs text-white">
+                ↗
+              </button>
             </div>
           </div>
         </div>
@@ -379,23 +414,31 @@ function AIAssistCard() {
   return (
     <div className="humanly-hover-pop absolute left-[2.5%] top-[33.3%] z-30 w-[18.2%] min-w-[176px] rotate-[-2deg] rounded-[10px] border border-[var(--hly-hairline)] bg-white px-3.5 py-3 shadow-[0_24px_60px_-18px_rgba(20,22,26,0.40)] hover:z-50 hover:shadow-[0_32px_70px_-18px_rgba(20,22,26,0.48)]">
       <div className="mb-2 flex items-center gap-1.5">
-        <span className="grid h-[18px] w-[18px] place-items-center rounded-[5px] bg-foreground text-[10px] font-bold text-white">✦</span>
+        <span className="grid h-[18px] w-[18px] place-items-center rounded-[5px] bg-foreground text-[10px] font-bold text-white">
+          ✦
+        </span>
         <span className="text-[11px] font-bold">AI Assistant</span>
-        <span className="ml-auto rounded-full bg-[var(--hly-ai-bg)] px-1.5 py-px text-[8px] font-bold text-[var(--hly-ai-text)]">SIMPLIFY</span>
+        <span className="ml-auto rounded-full bg-[var(--hly-ai-bg)] px-1.5 py-px text-[8px] font-bold text-[var(--hly-ai-text)]">
+          SIMPLIFY
+        </span>
       </div>
       <p className="mb-2.5 rounded-md bg-[var(--hly-surface)] px-2.5 py-2 text-[10.5px] leading-[1.55] text-[var(--hly-ink)]">
         Most drafts fail when the mind{' '}
         <span className="text-muted-foreground line-through decoration-[#a07868] decoration-[1.5px]">
           accepts whatever language arrives
         </span>{' '}
-        <span className="rounded-sm bg-[var(--hly-green-tint)] px-1 font-bold text-[#3a5040]">
+        <span className="rounded-sm bg-[var(--hly-green-tint)] px-1 font-bold text-[var(--hly-green-strong)]">
           takes what arrives
         </span>
         .
       </p>
       <div className="flex gap-1">
-        <span className="rounded-[5px] bg-foreground px-2.5 py-1.5 text-[10px] font-bold text-white">Apply</span>
-        <span className="rounded-[5px] border border-[var(--hly-hairline)] px-2.5 py-1.5 text-[10px] font-bold text-muted-foreground">Discard</span>
+        <span className="rounded-[5px] bg-foreground px-2.5 py-1.5 text-[10px] font-bold text-white">
+          Apply
+        </span>
+        <span className="rounded-[5px] border border-[var(--hly-hairline)] px-2.5 py-1.5 text-[10px] font-bold text-muted-foreground">
+          Discard
+        </span>
       </div>
     </div>
   );
@@ -433,10 +476,14 @@ function CertificateCard() {
       <div>
         <div className="mb-1.5 flex items-center gap-1.5">
           <CertBadge />
-          <span className="text-[8.5px] font-bold tracking-[0.2em] text-muted-foreground">CERTIFICATE · SEALED</span>
+          <span className="text-[8.5px] font-bold tracking-[0.2em] text-muted-foreground">
+            CERTIFICATE · SEALED
+          </span>
           <span className="ml-1.5 h-1.5 w-1.5 rounded-full bg-[var(--hly-brand)]" />
         </div>
-        <div className="text-sm font-bold tracking-[-0.005em]">Drafting with attention</div>
+        <div className="text-sm font-bold tracking-[-0.005em]">
+          Drafting with attention
+        </div>
         <div className="mt-1 whitespace-nowrap text-[9.5px] text-muted-foreground">
           Generated May 19, 2026 · token · 9F3A 7B2C
         </div>
@@ -448,8 +495,12 @@ function CertificateCard() {
           ['TIME', '18 min'],
         ].map(([label, value]) => (
           <div key={label} className="text-right">
-            <div className="text-[8.5px] tracking-[0.12em] text-muted-foreground">{label}</div>
-            <div className="mt-0.5 text-sm font-bold tracking-[-0.01em]">{value}</div>
+            <div className="text-[8.5px] tracking-[0.12em] text-muted-foreground">
+              {label}
+            </div>
+            <div className="mt-0.5 text-sm font-bold tracking-[-0.01em]">
+              {value}
+            </div>
           </div>
         ))}
       </div>
@@ -459,11 +510,10 @@ function CertificateCard() {
 
 function ProblemSection() {
   return (
-    <section className="px-5 py-[120px] sm:px-8 lg:px-14">
+    <section id="process" className="px-5 py-[120px] sm:px-8 lg:px-14">
       <div className="mx-auto max-w-[1080px]">
         <div className="mb-16 text-center">
-          <Eyebrow className="mb-[22px]">Problem</Eyebrow>
-          <h2 className="text-[28px] font-semibold leading-[1.08] tracking-[-0.02em] sm:text-[36px]">
+          <h2 className="font-serif text-[30px] font-medium leading-[1.12] tracking-[-0.01em] sm:text-[38px]">
             <span>Did you write this,</span>
             <br />
             <span className="text-[var(--hly-neutral)]">or did AI?</span>
@@ -478,7 +528,13 @@ function ProblemSection() {
             <ProblemCard
               key={caption}
               n={`0${index + 1}`}
-              illo={[<ProblemIllo1 key="1" />, <ProblemIllo2 key="2" />, <ProblemIllo3 key="3" />][index]}
+              illo={
+                [
+                  <ProblemIllo1 key="1" />,
+                  <ProblemIllo2 key="2" />,
+                  <ProblemIllo3 key="3" />,
+                ][index]
+              }
               caption={caption}
             />
           ))}
@@ -488,7 +544,15 @@ function ProblemSection() {
   );
 }
 
-function ProblemCard({ n, illo, caption }: { n: string; illo: ReactNode; caption: string }) {
+function ProblemCard({
+  n,
+  illo,
+  caption,
+}: {
+  n: string;
+  illo: ReactNode;
+  caption: string;
+}) {
   return (
     <div className="humanly-hover-pop flex min-h-[300px] flex-col gap-6 rounded-[14px] border border-[var(--hly-hairline)] bg-white p-7 hover:shadow-[0_28px_70px_-42px_rgba(20,22,26,0.60)]">
       <div className="flex items-center justify-between">
@@ -496,24 +560,25 @@ function ProblemCard({ n, illo, caption }: { n: string; illo: ReactNode; caption
         <span className="h-1 w-1 rounded-full bg-foreground" />
       </div>
       <div className="flex flex-1 items-center justify-center">{illo}</div>
-      <p className="text-base font-medium leading-[1.4] tracking-[-0.01em]">{caption}</p>
+      <p className="text-base font-medium leading-[1.4] tracking-[-0.01em]">
+        {caption}
+      </p>
     </div>
   );
 }
 
 function TrustModelSection() {
   return (
-    <section className="bg-[#f4f5f0] px-5 py-[110px] sm:px-8 lg:px-14">
+    <section className="px-5 py-[110px] sm:px-8 lg:px-14">
       <div className="mx-auto max-w-[1080px]">
         <div className="mb-14 text-center">
-          <Eyebrow className="mb-[22px]">Trust model</Eyebrow>
-          <h2 className="text-[28px] font-semibold leading-[1.08] tracking-[-0.02em] sm:text-[36px]">
+          <h2 className="font-serif text-[30px] font-medium leading-[1.12] tracking-[-0.01em] sm:text-[38px]">
             <span>Process beats</span>{' '}
             <span className="text-[var(--hly-neutral)]">prediction.</span>
           </h2>
           <p className="mx-auto mt-[22px] max-w-[640px] text-[15px] leading-[1.7] text-muted-foreground sm:text-[17px]">
-            Detectors judge the finished text. Humanly records the work as it happens,
-            then lets a reader verify the process later.
+            Detectors judge the finished text. Humanly records the work as it
+            happens, then lets a reader verify the process later.
           </p>
         </div>
 
@@ -547,14 +612,13 @@ function AudienceSection() {
     <section className="px-5 py-[110px] sm:px-8 lg:px-14">
       <div className="mx-auto max-w-[1080px]">
         <div className="mb-14 text-center">
-          <Eyebrow className="mb-[22px]">Use cases</Eyebrow>
-          <h2 className="text-[28px] font-semibold leading-[1.08] tracking-[-0.02em] sm:text-[36px]">
+          <h2 className="font-serif text-[30px] font-medium leading-[1.12] tracking-[-0.01em] sm:text-[38px]">
             <span>One workspace,</span>{' '}
             <span className="text-[var(--hly-neutral)]">two modes.</span>
           </h2>
           <p className="mx-auto mt-[22px] max-w-[640px] text-[15px] leading-[1.7] text-muted-foreground sm:text-[17px]">
-            Writers can start personal documents. Instructors and reviewers can use
-            assigned tasks when the writing environment needs rules.
+            Writers can start personal documents. Instructors and reviewers can
+            use assigned tasks when the writing environment needs rules.
           </p>
         </div>
 
@@ -583,7 +647,17 @@ function AudienceSection() {
   );
 }
 
-function ConceptCard({ n, illo, title, body }: { n: string; illo: ReactNode; title: string; body: string }) {
+function ConceptCard({
+  n,
+  illo,
+  title,
+  body,
+}: {
+  n: string;
+  illo: ReactNode;
+  title: string;
+  body: string;
+}) {
   return (
     <div className="humanly-hover-pop flex min-h-[360px] flex-col gap-5 rounded-[14px] border border-[var(--hly-hairline)] bg-white p-7 hover:shadow-[0_28px_70px_-42px_rgba(20,22,26,0.60)]">
       <div className="flex items-center justify-between">
@@ -592,8 +666,12 @@ function ConceptCard({ n, illo, title, body }: { n: string; illo: ReactNode; tit
       </div>
       <div className="flex flex-1 items-center justify-center">{illo}</div>
       <div>
-        <h3 className="text-xl font-semibold leading-snug tracking-[-0.015em]">{title}</h3>
-        <p className="mt-3 text-[14.5px] leading-[1.65] text-muted-foreground">{body}</p>
+        <h3 className="text-xl font-semibold leading-snug tracking-[-0.015em]">
+          {title}
+        </h3>
+        <p className="mt-3 text-[14.5px] leading-[1.65] text-muted-foreground">
+          {body}
+        </p>
       </div>
     </div>
   );
@@ -601,13 +679,15 @@ function ConceptCard({ n, illo, title, body }: { n: string; illo: ReactNode; tit
 
 function HowItWorksSection() {
   return (
-    <section id="process" className="px-5 py-[140px] sm:px-8 lg:px-14">
+    <section className="px-5 py-[140px] sm:px-8 lg:px-14">
       <div className="mx-auto max-w-[1240px]">
         <div className="mb-20 text-center">
           <Eyebrow className="mb-[22px]">How it works</Eyebrow>
           <h2 className="text-[28px] font-semibold leading-[1.08] tracking-[-0.02em] sm:text-[36px]">
             <span>Four steps</span>{' '}
-            <span className="text-[var(--hly-neutral)]">to a signed draft.</span>
+            <span className="text-[var(--hly-neutral)]">
+              to a signed draft.
+            </span>
           </h2>
         </div>
 
@@ -618,12 +698,14 @@ function HowItWorksSection() {
               n={number}
               t={title}
               d={description}
-              illo={[
-                <StepIllo0 key="0" />,
-                <StepIllo1 key="1" />,
-                <StepIllo2 key="2" />,
-                <StepIllo3 key="3" />,
-              ][index]}
+              illo={
+                [
+                  <StepIllo0 key="0" />,
+                  <StepIllo1 key="1" />,
+                  <StepIllo2 key="2" />,
+                  <StepIllo3 key="3" />,
+                ][index]
+              }
               divider={index > 0}
             />
           ))}
@@ -633,13 +715,31 @@ function HowItWorksSection() {
   );
 }
 
-function Step({ n, t, d, illo, divider }: { n: string; t: string; d: string; illo: ReactNode; divider?: boolean }) {
+function Step({
+  n,
+  t,
+  d,
+  illo,
+  divider,
+}: {
+  n: string;
+  t: string;
+  d: string;
+  illo: ReactNode;
+  divider?: boolean;
+}) {
   return (
-    <div className={`flex flex-col gap-[22px] px-0 md:px-7 ${divider ? 'md:border-l md:border-[var(--hly-hairline)]' : ''}`}>
+    <div
+      className={`flex flex-col gap-[22px] px-0 md:px-7 ${
+        divider ? 'md:border-l md:border-[var(--hly-hairline)]' : ''
+      }`}
+    >
       <div className="flex h-[180px] items-center justify-center">{illo}</div>
       <div className="flex items-baseline gap-3">
         <span className="text-[11px] text-muted-foreground">{n}</span>
-        <h3 className="text-[22px] font-semibold leading-snug tracking-[-0.015em]">{t}</h3>
+        <h3 className="text-[22px] font-semibold leading-snug tracking-[-0.015em]">
+          {t}
+        </h3>
       </div>
       <p className="text-[14.5px] leading-[1.6] text-muted-foreground">{d}</p>
     </div>
@@ -651,11 +751,8 @@ function FAQSection() {
     <section id="faq" className="px-5 py-[120px] sm:px-8 lg:px-14">
       <div className="mx-auto grid max-w-[980px] gap-12 md:grid-cols-[1fr_2fr] md:gap-20">
         <div>
-          <Eyebrow className="mb-[22px]">FAQ</Eyebrow>
-          <h2 className="text-[28px] font-semibold leading-[1.1] tracking-[-0.015em] sm:text-[36px]">
-            <span>Common questions,</span>
-            <br />
-            <span className="text-[var(--hly-neutral)]">plain answers.</span>
+          <h2 className="font-serif text-[30px] font-medium leading-[1.14] tracking-[-0.01em] sm:text-[38px]">
+            Common Q&amp;A
           </h2>
         </div>
         <div>
@@ -665,12 +762,16 @@ function FAQSection() {
               className="group border-t border-[var(--hly-hairline)] py-[22px]"
             >
               <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-left">
-                <span className="text-lg font-medium tracking-[-0.005em]">{question}</span>
+                <span className="text-lg font-medium tracking-[-0.005em]">
+                  {question}
+                </span>
                 <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full border border-[var(--hly-hairline)] transition-transform group-open:rotate-45">
                   <PlusIcon />
                 </span>
               </summary>
-              <p className="mt-3.5 max-w-[580px] text-[15px] leading-[1.6] text-muted-foreground">{answer}</p>
+              <p className="mt-3.5 max-w-[580px] text-[15px] leading-[1.6] text-muted-foreground">
+                {answer}
+              </p>
             </details>
           ))}
         </div>
@@ -687,9 +788,18 @@ function Footer() {
           <HumanlyWordmark size="sm" />
         </Link>
         <div className="flex shrink-0 flex-wrap justify-end gap-5 text-xs font-medium text-muted-foreground">
-          <Link href="/privacy" className="hover:text-foreground">Privacy</Link>
-          <Link href="/terms" className="hover:text-foreground">Terms</Link>
-          <a href={githubHref} target="_blank" rel="noopener noreferrer" className="hover:text-foreground">
+          <Link href="/privacy" className="hover:text-foreground">
+            Privacy
+          </Link>
+          <Link href="/terms" className="hover:text-foreground">
+            Terms
+          </Link>
+          <a
+            href={githubHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-foreground"
+          >
             GitHub
           </a>
         </div>
@@ -698,9 +808,17 @@ function Footer() {
   );
 }
 
-function Eyebrow({ children, className = '' }: { children: ReactNode; className?: string }) {
+function Eyebrow({
+  children,
+  className = '',
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
   return (
-    <div className={`text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground ${className}`}>
+    <div
+      className={`text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground ${className}`}
+    >
       {children}
     </div>
   );
@@ -708,8 +826,20 @@ function Eyebrow({ children, className = '' }: { children: ReactNode; className?
 
 function Arrow() {
   return (
-    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-      <path d="M3 7h8M7 3l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 14 14"
+      fill="none"
+      aria-hidden="true"
+    >
+      <path
+        d="M3 7h8M7 3l4 4-4 4"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
@@ -724,9 +854,488 @@ function PlusIcon() {
 
 function CertBadge() {
   return (
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden="true">
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.4"
+      aria-hidden="true"
+    >
       <circle cx="8" cy="6" r="4.5" />
       <path d="M5 9.5 L4 14 L8 12 L12 14 L11 9.5" />
+    </svg>
+  );
+}
+
+function StepIllo0() {
+  return (
+    <svg width="200" height="160" viewBox="0 0 200 160" aria-hidden="true">
+      <rect
+        x="14"
+        y="14"
+        width="172"
+        height="132"
+        rx="8"
+        fill="#fff"
+        stroke={ink}
+        strokeWidth="1.2"
+      />
+      <text
+        x="26"
+        y="32"
+        fontFamily="var(--font-humanly-sans)"
+        fontSize="8"
+        fontWeight="700"
+        fill={ink}
+      >
+        Document Configuration
+      </text>
+      <line
+        x1="14"
+        y1="40"
+        x2="186"
+        y2="40"
+        stroke={hairline}
+        strokeWidth="0.8"
+      />
+      <text
+        x="26"
+        y="56"
+        fontFamily="var(--font-humanly-sans)"
+        fontSize="6"
+        fill={muted}
+      >
+        AI
+      </text>
+      <rect x="70" y="50" width="48" height="10" rx="2" fill={ink} />
+      <text
+        x="94"
+        y="57"
+        textAnchor="middle"
+        fontFamily="var(--font-humanly-sans)"
+        fontSize="6"
+        fontWeight="700"
+        fill="#fff"
+      >
+        Assist only
+      </text>
+      <rect x="121" y="50" width="20" height="10" rx="2" fill={bg2} />
+      <text
+        x="131"
+        y="57"
+        textAnchor="middle"
+        fontFamily="var(--font-humanly-sans)"
+        fontSize="6"
+        fontWeight="700"
+        fill={muted}
+      >
+        Off
+      </text>
+      <rect x="144" y="50" width="34" height="10" rx="2" fill={bg2} />
+      <text
+        x="161"
+        y="57"
+        textAnchor="middle"
+        fontFamily="var(--font-humanly-sans)"
+        fontSize="6"
+        fontWeight="700"
+        fill={muted}
+      >
+        Full chat
+      </text>
+      <text
+        x="26"
+        y="76"
+        fontFamily="var(--font-humanly-sans)"
+        fontSize="6"
+        fill={muted}
+      >
+        Paste
+      </text>
+      <rect x="80" y="70" width="34" height="10" rx="2" fill={bg2} />
+      <text
+        x="97"
+        y="77"
+        textAnchor="middle"
+        fontFamily="var(--font-humanly-sans)"
+        fontSize="6"
+        fontWeight="700"
+        fill={muted}
+      >
+        Allowed
+      </text>
+      <rect x="116" y="70" width="32" height="10" rx="2" fill={ink} />
+      <text
+        x="132"
+        y="77"
+        textAnchor="middle"
+        fontFamily="var(--font-humanly-sans)"
+        fontSize="6"
+        fontWeight="700"
+        fill="#fff"
+      >
+        Blocked
+      </text>
+      <text
+        x="26"
+        y="96"
+        fontFamily="var(--font-humanly-sans)"
+        fontSize="6"
+        fill={muted}
+      >
+        Cap
+      </text>
+      <rect
+        x="80"
+        y="90"
+        width="92"
+        height="10"
+        rx="2"
+        fill="none"
+        stroke={hairline}
+      />
+      <text
+        x="86"
+        y="97"
+        fontFamily="var(--font-humanly-sans)"
+        fontSize="6"
+        fontWeight="700"
+        fill={ink}
+      >
+        10,000 chars
+      </text>
+      <text
+        x="26"
+        y="116"
+        fontFamily="var(--font-humanly-sans)"
+        fontSize="6"
+        fill={muted}
+      >
+        Time
+      </text>
+      <rect
+        x="80"
+        y="110"
+        width="60"
+        height="10"
+        rx="2"
+        fill="none"
+        stroke={hairline}
+      />
+      <text
+        x="86"
+        y="117"
+        fontFamily="var(--font-humanly-sans)"
+        fontSize="6"
+        fontWeight="700"
+        fill={ink}
+      >
+        45 min
+      </text>
+      <rect x="120" y="128" width="52" height="12" rx="3" fill={ink} />
+      <text
+        x="146"
+        y="136"
+        textAnchor="middle"
+        fontFamily="var(--font-humanly-sans)"
+        fontSize="7"
+        fontWeight="700"
+        fill="#fff"
+      >
+        Start →
+      </text>
+    </svg>
+  );
+}
+
+function StepIllo1() {
+  return (
+    <svg width="200" height="160" viewBox="0 0 200 160" aria-hidden="true">
+      <rect
+        x="14"
+        y="14"
+        width="172"
+        height="132"
+        rx="8"
+        fill="#fff"
+        stroke={ink}
+        strokeWidth="1.2"
+      />
+      <line
+        x1="14"
+        y1="38"
+        x2="186"
+        y2="38"
+        stroke={hairline}
+        strokeWidth="1"
+      />
+      <circle cx="26" cy="26" r="2.5" fill={muted} />
+      <circle cx="34" cy="26" r="2.5" fill={muted} />
+      <circle cx="42" cy="26" r="2.5" fill={muted} />
+      <rect x="26" y="54" width="100" height="6" rx="1" fill={ink} />
+      <rect
+        x="26"
+        y="72"
+        width="148"
+        height="3"
+        rx="1"
+        fill={muted}
+        opacity="0.5"
+      />
+      <rect
+        x="26"
+        y="82"
+        width="118"
+        height="3"
+        rx="1"
+        fill={muted}
+        opacity="0.5"
+      />
+      <rect
+        x="26"
+        y="92"
+        width="136"
+        height="3"
+        rx="1"
+        fill={muted}
+        opacity="0.5"
+      />
+      <rect
+        x="26"
+        y="102"
+        width="76"
+        height="3"
+        rx="1"
+        fill={muted}
+        opacity="0.5"
+      />
+      <circle cx="166" cy="127" r="4" fill={good} />
+    </svg>
+  );
+}
+
+function StepIllo2() {
+  const rows: Array<[string, string, string, string, string, number]> = [
+    [
+      '12:41:48',
+      'input',
+      'var(--hly-green-tint)',
+      'var(--hly-green-strong)',
+      '796',
+      50,
+    ],
+    ['12:41:48', 'focus', '#dadfd9', '#56655a', '796', 70],
+    [
+      '12:41:31',
+      '✦ Simplify',
+      'var(--hly-ai-bg)',
+      'var(--hly-ai-text)',
+      'AI',
+      90,
+    ],
+    [
+      '12:41:16',
+      'delete',
+      'var(--hly-surface-2)',
+      'var(--hly-neutral-text)',
+      '44',
+      110,
+    ],
+    [
+      '12:41:21',
+      'select',
+      'var(--hly-surface-2)',
+      'var(--hly-neutral-text)',
+      '0',
+      130,
+    ],
+  ];
+
+  return (
+    <svg width="200" height="160" viewBox="0 0 200 160" aria-hidden="true">
+      <rect
+        x="14"
+        y="14"
+        width="172"
+        height="132"
+        rx="8"
+        fill="#fff"
+        stroke={ink}
+        strokeWidth="1.2"
+      />
+      <line
+        x1="14"
+        y1="34"
+        x2="186"
+        y2="34"
+        stroke={hairline}
+        strokeWidth="1"
+      />
+      <text
+        x="24"
+        y="28"
+        fontFamily="var(--font-humanly-sans)"
+        fontSize="6"
+        fill={muted}
+      >
+        TIME
+      </text>
+      <text
+        x="60"
+        y="28"
+        fontFamily="var(--font-humanly-sans)"
+        fontSize="6"
+        fill={muted}
+      >
+        KIND
+      </text>
+      <text
+        x="172"
+        y="28"
+        textAnchor="end"
+        fontFamily="var(--font-humanly-sans)"
+        fontSize="6"
+        fill={muted}
+      >
+        CHARS
+      </text>
+      {rows.map(([time, kind, rowBg, fg, chars, y]) => (
+        <g key={`${time}-${kind}`}>
+          <text
+            x="24"
+            y={Number(y)}
+            fontFamily="var(--font-humanly-sans)"
+            fontSize="6"
+            fill={muted}
+          >
+            {time}
+          </text>
+          <rect
+            x="58"
+            y={Number(y) - 6}
+            width={kind === '✦ Simplify' ? 44 : 34}
+            height="9"
+            rx="2"
+            fill={rowBg}
+          />
+          <text
+            x={kind === '✦ Simplify' ? 80 : 75}
+            y={Number(y) + 0.5}
+            textAnchor="middle"
+            fontFamily="var(--font-humanly-sans)"
+            fontSize="6"
+            fontWeight="700"
+            fill={fg}
+          >
+            {kind}
+          </text>
+          <text
+            x="172"
+            y={Number(y)}
+            textAnchor="end"
+            fontFamily="var(--font-humanly-sans)"
+            fontSize="6"
+            fill={kind === '✦ Simplify' ? muted : ink}
+          >
+            {chars}
+          </text>
+          {Number(y) < 130 && (
+            <line
+              x1="20"
+              y1={Number(y) + 8}
+              x2="180"
+              y2={Number(y) + 8}
+              stroke={hairline}
+              strokeWidth="0.5"
+              strokeDasharray="2 2"
+            />
+          )}
+        </g>
+      ))}
+    </svg>
+  );
+}
+
+function StepIllo3() {
+  return (
+    <svg width="200" height="160" viewBox="0 0 200 160" aria-hidden="true">
+      <rect
+        x="14"
+        y="14"
+        width="172"
+        height="132"
+        rx="8"
+        fill="#fff"
+        stroke={ink}
+        strokeWidth="1.2"
+      />
+      <text
+        x="100"
+        y="38"
+        textAnchor="middle"
+        fontFamily="var(--font-humanly-sans)"
+        fontSize="7"
+        fill={ink}
+        letterSpacing="2"
+      >
+        CERTIFICATE
+      </text>
+      <line
+        x1="42"
+        y1="54"
+        x2="158"
+        y2="54"
+        stroke={ink}
+        strokeWidth="1.6"
+        strokeLinecap="round"
+      />
+      <line
+        x1="50"
+        y1="70"
+        x2="150"
+        y2="70"
+        stroke={muted}
+        strokeWidth="1.2"
+        strokeLinecap="round"
+        opacity="0.65"
+      />
+      <line
+        x1="42"
+        y1="88"
+        x2="158"
+        y2="88"
+        stroke={hairline}
+        strokeWidth="1"
+      />
+      <g transform="translate(54 112)">
+        <text fontFamily="var(--font-humanly-sans)" fontSize="6" fill={muted}>
+          SIGNED
+        </text>
+        <path
+          d="M2 13 L6 17 L15 6"
+          fill="none"
+          stroke={ink}
+          strokeWidth="1.6"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </g>
+      <g
+        transform="translate(142 120)"
+        stroke={ink}
+        fill="none"
+        strokeWidth="1"
+      >
+        <circle r="13" />
+        <circle r="9.5" strokeDasharray="1 2" />
+        <path
+          d="M-4.5 -4 V4 M4.5 -4 V4 M-4.5 0 H4.5"
+          strokeWidth="1.2"
+          strokeLinecap="round"
+        />
+      </g>
     </svg>
   );
 }
@@ -734,15 +1343,36 @@ function CertBadge() {
 function ProblemIllo1() {
   return (
     <svg width="200" height="120" viewBox="0 0 200 120" aria-hidden="true">
-      <rect x="20" y="22" width="100" height="76" rx="4" fill="none" stroke={ink} strokeWidth="1.5" />
+      <rect
+        x="20"
+        y="22"
+        width="100"
+        height="76"
+        rx="4"
+        fill="none"
+        stroke={ink}
+        strokeWidth="1.5"
+      />
       <rect x="32" y="36" width="60" height="4" fill={ink} />
       <rect x="32" y="46" width="76" height="4" fill={ink} opacity="0.5" />
       <rect x="32" y="56" width="50" height="4" fill={ink} opacity="0.5" />
       <rect x="32" y="66" width="68" height="4" fill={ink} opacity="0.5" />
       <rect x="32" y="76" width="40" height="4" fill={ink} opacity="0.5" />
       <g transform="translate(130, 30)">
-        <path d="M0 30 L60 30 M30 0 L30 60" stroke="#a07868" strokeWidth="3" strokeLinecap="round" transform="rotate(45 30 30)" />
-        <path d="M0 30 L60 30 M30 0 L30 60" stroke="#a07868" strokeWidth="3" strokeLinecap="round" transform="rotate(-45 30 30)" />
+        <path
+          d="M0 30 L60 30 M30 0 L30 60"
+          stroke="#a07868"
+          strokeWidth="3"
+          strokeLinecap="round"
+          transform="rotate(45 30 30)"
+        />
+        <path
+          d="M0 30 L60 30 M30 0 L30 60"
+          stroke="#a07868"
+          strokeWidth="3"
+          strokeLinecap="round"
+          transform="rotate(-45 30 30)"
+        />
       </g>
     </svg>
   );
@@ -757,7 +1387,10 @@ function ProblemIllo2() {
         <circle cx="160" cy="50" r="6" />
         <circle cx="70" cy="80" r="6" />
         <circle cx="140" cy="90" r="6" />
-        <path strokeDasharray="2 3" d="M46 40 L94 35 M106 35 L154 50 M40 46 L70 74 M76 80 L134 90 M160 56 L140 84" />
+        <path
+          strokeDasharray="2 3"
+          d="M46 40 L94 35 M106 35 L154 50 M40 46 L70 74 M76 80 L134 90 M160 56 L140 84"
+        />
       </g>
       {[
         [40, 44],
@@ -766,7 +1399,17 @@ function ProblemIllo2() {
         [70, 84],
         [140, 94],
       ].map(([x, y]) => (
-        <text key={`${x}-${y}`} x={x} y={y} fontFamily="var(--font-humanly-sans)" fontSize="6" textAnchor="middle" fill={ink}>?</text>
+        <text
+          key={`${x}-${y}`}
+          x={x}
+          y={y}
+          fontFamily="var(--font-humanly-sans)"
+          fontSize="6"
+          textAnchor="middle"
+          fill={ink}
+        >
+          ?
+        </text>
       ))}
     </svg>
   );
@@ -777,7 +1420,10 @@ function ProblemIllo3() {
     <svg width="200" height="120" viewBox="0 0 200 120" aria-hidden="true">
       <g fill="none" stroke={ink} strokeWidth="1.4" strokeLinecap="round">
         <path d="M20 60 C40 30, 60 90, 80 60 S 120 30, 140 60 S 180 90, 195 60" />
-        <path d="M20 60 C40 90, 60 30, 80 60 S 120 90, 140 60 S 180 30, 195 60" opacity="0.4" />
+        <path
+          d="M20 60 C40 90, 60 30, 80 60 S 120 90, 140 60 S 180 30, 195 60"
+          opacity="0.4"
+        />
       </g>
     </svg>
   );
@@ -792,7 +1438,13 @@ function TrustIllo1() {
       </g>
       <g stroke={ink} strokeWidth="0.8" strokeDasharray="1.5 2" opacity="0.45">
         {[40, 60, 80, 100, 120, 140].map((x) => (
-          <line key={x} x1={x} y1={x === 60 || x === 100 || x === 120 ? 42 : x === 80 ? 50 : 48} x2={x} y2="80" />
+          <line
+            key={x}
+            x1={x}
+            y1={x === 60 || x === 100 || x === 120 ? 42 : x === 80 ? 50 : 48}
+            x2={x}
+            y2="80"
+          />
         ))}
       </g>
       <line x1="24" y1="84" x2="172" y2="84" stroke={ink} strokeWidth="1" />
@@ -801,7 +1453,15 @@ function TrustIllo1() {
           <circle key={x} cx={x} cy="84" r="2" />
         ))}
       </g>
-      <text x="172" y="86" fontFamily="var(--font-humanly-sans)" fontSize="6" fill={muted}>→t</text>
+      <text
+        x="172"
+        y="86"
+        fontFamily="var(--font-humanly-sans)"
+        fontSize="6"
+        fill={muted}
+      >
+        →t
+      </text>
     </svg>
   );
 }
@@ -809,7 +1469,16 @@ function TrustIllo1() {
 function TrustIllo2() {
   return (
     <svg width="200" height="120" viewBox="0 0 200 120" aria-hidden="true">
-      <rect x="20" y="22" width="62" height="76" rx="3" fill="none" stroke={ink} strokeWidth="1.4" />
+      <rect
+        x="20"
+        y="22"
+        width="62"
+        height="76"
+        rx="3"
+        fill="none"
+        stroke={ink}
+        strokeWidth="1.4"
+      />
       <rect x="30" y="36" width="42" height="3" fill={ink} />
       <g fill={ink} opacity="0.5">
         <rect x="30" y="46" width="46" height="3" />
@@ -817,12 +1486,33 @@ function TrustIllo2() {
         <rect x="30" y="66" width="44" height="3" />
         <rect x="30" y="76" width="32" height="3" />
       </g>
-      <line x1="86" y1="60" x2="118" y2="60" stroke={ink} strokeWidth="1.2" strokeDasharray="2.5 3" />
+      <line
+        x1="86"
+        y1="60"
+        x2="118"
+        y2="60"
+        stroke={ink}
+        strokeWidth="1.2"
+        strokeDasharray="2.5 3"
+      />
       <g fill="none" stroke={ink} strokeWidth="1.4">
         <circle cx="146" cy="60" r="26" />
-        <circle cx="146" cy="60" r="20" strokeWidth="1" strokeDasharray="1.6 2.2" />
+        <circle
+          cx="146"
+          cy="60"
+          r="20"
+          strokeWidth="1"
+          strokeDasharray="1.6 2.2"
+        />
       </g>
-      <path d="M134 60 L143 70 L160 50" fill="none" stroke={ink} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path
+        d="M134 60 L143 70 L160 50"
+        fill="none"
+        stroke={ink}
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
@@ -830,12 +1520,28 @@ function TrustIllo2() {
 function TrustIllo3() {
   return (
     <svg width="200" height="140" viewBox="0 0 200 140" aria-hidden="true">
-      <g fill="none" stroke={ink} strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round">
+      <g
+        fill="none"
+        stroke={ink}
+        strokeWidth="1.6"
+        strokeLinejoin="round"
+        strokeLinecap="round"
+      >
         <path d="M52 44 L120 56 L120 128 L52 120 Z" />
         <path d="M52 44 L82 22 L150 32 L120 56 Z" />
         <path d="M120 56 L150 32 L150 104 L120 128 Z" />
       </g>
-      <text x="86" y="100" fontFamily="var(--font-humanly-sans)" fontSize="36" fontWeight="700" textAnchor="middle" fill={ink}>?</text>
+      <text
+        x="86"
+        y="100"
+        fontFamily="var(--font-humanly-sans)"
+        fontSize="36"
+        fontWeight="700"
+        textAnchor="middle"
+        fill={ink}
+      >
+        ?
+      </text>
     </svg>
   );
 }
@@ -843,19 +1549,48 @@ function TrustIllo3() {
 function UseIllo1() {
   return (
     <svg width="200" height="120" viewBox="0 0 200 120" aria-hidden="true">
-      <rect x="44" y="14" width="104" height="84" rx="3" fill="none" stroke={ink} strokeWidth="1.4" />
+      <rect
+        x="44"
+        y="14"
+        width="104"
+        height="84"
+        rx="3"
+        fill="none"
+        stroke={ink}
+        strokeWidth="1.4"
+      />
       <rect x="56" y="28" width="60" height="3" fill={ink} />
       <g fill={ink} opacity="0.5">
         <rect x="56" y="40" width="78" height="3" />
         <rect x="56" y="50" width="64" height="3" />
         <rect x="56" y="60" width="74" height="3" />
       </g>
-      <path d="M56 80 C66 72, 76 88, 86 78 S104 70, 112 80" fill="none" stroke={ink} strokeWidth="1.4" strokeLinecap="round" />
+      <path
+        d="M56 80 C66 72, 76 88, 86 78 S104 70, 112 80"
+        fill="none"
+        stroke={ink}
+        strokeWidth="1.4"
+        strokeLinecap="round"
+      />
       <g fill="#fafaf6" stroke={ink} strokeWidth="1.4">
         <circle cx="160" cy="92" r="18" />
-        <circle cx="160" cy="92" r="13" strokeWidth="1" strokeDasharray="1.5 2" fill="none" />
+        <circle
+          cx="160"
+          cy="92"
+          r="13"
+          strokeWidth="1"
+          strokeDasharray="1.5 2"
+          fill="none"
+        />
       </g>
-      <path d="M152 92 L158 98 L168 86" fill="none" stroke={ink} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      <path
+        d="M152 92 L158 98 L168 86"
+        fill="none"
+        stroke={ink}
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
@@ -863,20 +1598,77 @@ function UseIllo1() {
 function UseIllo2() {
   return (
     <svg width="200" height="120" viewBox="0 0 200 120" aria-hidden="true">
-      <rect x="38" y="12" width="124" height="96" rx="4" fill="none" stroke={ink} strokeWidth="1.4" />
-      <line x1="38" y1="28" x2="162" y2="28" stroke={hairline} strokeWidth="1" />
-      <text x="46" y="24" fontFamily="var(--font-humanly-sans)" fontSize="6" fill={muted}>RULES</text>
+      <rect
+        x="38"
+        y="12"
+        width="124"
+        height="96"
+        rx="4"
+        fill="none"
+        stroke={ink}
+        strokeWidth="1.4"
+      />
+      <line
+        x1="38"
+        y1="28"
+        x2="162"
+        y2="28"
+        stroke={hairline}
+        strokeWidth="1"
+      />
+      <text
+        x="46"
+        y="24"
+        fontFamily="var(--font-humanly-sans)"
+        fontSize="6"
+        fill={muted}
+      >
+        RULES
+      </text>
       <circle cx="156" cy="22" r="1.6" fill={ink} />
 
-      <text x="46" y="48" fontFamily="var(--font-humanly-sans)" fontSize="7" fill={muted}>AI</text>
+      <text
+        x="46"
+        y="48"
+        fontFamily="var(--font-humanly-sans)"
+        fontSize="7"
+        fill={muted}
+      >
+        AI
+      </text>
       <rect x="118" y="42" width="34" height="11" rx="5.5" fill={ink} />
       <circle cx="146" cy="47.5" r="3.6" fill="#fff" />
 
-      <text x="46" y="70" fontFamily="var(--font-humanly-sans)" fontSize="7" fill={muted}>PASTE</text>
-      <rect x="118" y="64" width="34" height="11" rx="5.5" fill="none" stroke={ink} strokeWidth="1.2" />
+      <text
+        x="46"
+        y="70"
+        fontFamily="var(--font-humanly-sans)"
+        fontSize="7"
+        fill={muted}
+      >
+        PASTE
+      </text>
+      <rect
+        x="118"
+        y="64"
+        width="34"
+        height="11"
+        rx="5.5"
+        fill="none"
+        stroke={ink}
+        strokeWidth="1.2"
+      />
       <circle cx="124" cy="69.5" r="3.6" fill={ink} />
 
-      <text x="46" y="92" fontFamily="var(--font-humanly-sans)" fontSize="7" fill={muted}>TIME</text>
+      <text
+        x="46"
+        y="92"
+        fontFamily="var(--font-humanly-sans)"
+        fontSize="7"
+        fill={muted}
+      >
+        TIME
+      </text>
       <rect x="118" y="86" width="34" height="11" rx="5.5" fill={ink} />
       <circle cx="146" cy="91.5" r="3.6" fill="#fff" />
     </svg>
@@ -897,113 +1689,39 @@ function UseIllo3() {
           <circle key={x} cx={x} cy="84" r="1.6" />
         ))}
       </g>
-      <circle cx="100" cy="46" r="28" fill="#fafaf6" stroke={ink} strokeWidth="1.8" />
-      <line x1="120" y1="64" x2="138" y2="84" stroke={ink} strokeWidth="2.4" strokeLinecap="round" />
+      <circle
+        cx="100"
+        cy="46"
+        r="28"
+        fill="#fafaf6"
+        stroke={ink}
+        strokeWidth="1.8"
+      />
+      <line
+        x1="120"
+        y1="64"
+        x2="138"
+        y2="84"
+        stroke={ink}
+        strokeWidth="2.4"
+        strokeLinecap="round"
+      />
       <line x1="82" y1="46" x2="118" y2="46" stroke={ink} strokeWidth="1" />
       <g fill={ink}>
         <circle cx="88" cy="46" r="2.4" />
         <circle cx="100" cy="46" r="2.4" />
         <circle cx="112" cy="46" r="2.4" />
       </g>
-      <text x="100" y="36" fontFamily="var(--font-humanly-sans)" fontSize="5" textAnchor="middle" fill={muted}>
+      <text
+        x="100"
+        y="36"
+        fontFamily="var(--font-humanly-sans)"
+        fontSize="5"
+        textAnchor="middle"
+        fill={muted}
+      >
         paste · ai · type
       </text>
-    </svg>
-  );
-}
-
-function StepIllo0() {
-  return (
-    <svg width="200" height="160" viewBox="0 0 200 160" aria-hidden="true">
-      <rect x="14" y="14" width="172" height="132" rx="8" fill="#fff" stroke={ink} strokeWidth="1.2" />
-      <text x="26" y="32" fontFamily="var(--font-humanly-sans)" fontSize="8" fontWeight="700" fill={ink}>Document Configuration</text>
-      <line x1="14" y1="40" x2="186" y2="40" stroke={hairline} strokeWidth="0.8" />
-      <text x="26" y="56" fontFamily="var(--font-humanly-sans)" fontSize="6" fill={muted}>AI</text>
-      <rect x="70" y="50" width="48" height="10" rx="2" fill={ink} />
-      <text x="94" y="57" textAnchor="middle" fontFamily="var(--font-humanly-sans)" fontSize="6" fontWeight="700" fill="#fff">Assist only</text>
-      <rect x="121" y="50" width="20" height="10" rx="2" fill={bg2} />
-      <text x="131" y="57" textAnchor="middle" fontFamily="var(--font-humanly-sans)" fontSize="6" fontWeight="700" fill={muted}>Off</text>
-      <rect x="144" y="50" width="34" height="10" rx="2" fill={bg2} />
-      <text x="161" y="57" textAnchor="middle" fontFamily="var(--font-humanly-sans)" fontSize="6" fontWeight="700" fill={muted}>Full chat</text>
-      <text x="26" y="76" fontFamily="var(--font-humanly-sans)" fontSize="6" fill={muted}>Paste</text>
-      <rect x="80" y="70" width="34" height="10" rx="2" fill={bg2} />
-      <text x="97" y="77" textAnchor="middle" fontFamily="var(--font-humanly-sans)" fontSize="6" fontWeight="700" fill={muted}>Allowed</text>
-      <rect x="116" y="70" width="32" height="10" rx="2" fill={ink} />
-      <text x="132" y="77" textAnchor="middle" fontFamily="var(--font-humanly-sans)" fontSize="6" fontWeight="700" fill="#fff">Blocked</text>
-      <text x="26" y="96" fontFamily="var(--font-humanly-sans)" fontSize="6" fill={muted}>Cap</text>
-      <rect x="80" y="90" width="92" height="10" rx="2" fill="none" stroke={hairline} />
-      <text x="86" y="97" fontFamily="var(--font-humanly-sans)" fontSize="6" fontWeight="700" fill={ink}>10,000 chars</text>
-      <text x="26" y="116" fontFamily="var(--font-humanly-sans)" fontSize="6" fill={muted}>Time</text>
-      <rect x="80" y="110" width="60" height="10" rx="2" fill="none" stroke={hairline} />
-      <text x="86" y="117" fontFamily="var(--font-humanly-sans)" fontSize="6" fontWeight="700" fill={ink}>45 min</text>
-      <rect x="120" y="128" width="52" height="12" rx="3" fill={ink} />
-      <text x="146" y="136" textAnchor="middle" fontFamily="var(--font-humanly-sans)" fontSize="7" fontWeight="700" fill="#fff">Start →</text>
-    </svg>
-  );
-}
-
-function StepIllo1() {
-  return (
-    <svg width="200" height="160" viewBox="0 0 200 160" aria-hidden="true">
-      <rect x="14" y="14" width="172" height="132" rx="8" fill="#fff" stroke={ink} strokeWidth="1.2" />
-      <line x1="14" y1="38" x2="186" y2="38" stroke={hairline} strokeWidth="1" />
-      <circle cx="26" cy="26" r="2.5" fill={muted} /><circle cx="34" cy="26" r="2.5" fill={muted} /><circle cx="42" cy="26" r="2.5" fill={muted} />
-      <rect x="26" y="54" width="100" height="6" rx="1" fill={ink} />
-      <rect x="26" y="72" width="148" height="3" rx="1" fill={muted} opacity="0.5" />
-      <rect x="26" y="82" width="118" height="3" rx="1" fill={muted} opacity="0.5" />
-      <rect x="26" y="92" width="136" height="3" rx="1" fill={muted} opacity="0.5" />
-      <rect x="26" y="102" width="76" height="3" rx="1" fill={muted} opacity="0.5" />
-      <circle cx="166" cy="127" r="4" fill={good} />
-    </svg>
-  );
-}
-
-function StepIllo2() {
-  const rows: Array<[string, string, string, string, string, number]> = [
-    ['12:41:48', 'input', 'var(--hly-green-tint)', 'var(--hly-green-strong)', '796', 50],
-    ['12:41:48', 'focus', '#dadfd9', '#56655a', '796', 70],
-    ['12:41:31', '✦ Simplify', 'var(--hly-ai-bg)', 'var(--hly-ai-text)', 'AI', 90],
-    ['12:41:16', 'delete', 'var(--hly-surface-2)', 'var(--hly-neutral-text)', '44', 110],
-    ['12:41:21', 'select', 'var(--hly-surface-2)', 'var(--hly-neutral-text)', '0', 130],
-  ];
-
-  return (
-    <svg width="200" height="160" viewBox="0 0 200 160" aria-hidden="true">
-      <rect x="14" y="14" width="172" height="132" rx="8" fill="#fff" stroke={ink} strokeWidth="1.2" />
-      <line x1="14" y1="34" x2="186" y2="34" stroke={hairline} strokeWidth="1" />
-      <text x="24" y="28" fontFamily="var(--font-humanly-sans)" fontSize="6" fill={muted}>TIME</text>
-      <text x="60" y="28" fontFamily="var(--font-humanly-sans)" fontSize="6" fill={muted}>KIND</text>
-      <text x="172" y="28" textAnchor="end" fontFamily="var(--font-humanly-sans)" fontSize="6" fill={muted}>CHARS</text>
-      {rows.map(([time, kind, rowBg, fg, chars, y]) => (
-        <g key={`${time}-${kind}`}>
-          <text x="24" y={Number(y)} fontFamily="var(--font-humanly-sans)" fontSize="6" fill={muted}>{time}</text>
-          <rect x="58" y={Number(y) - 6} width={kind === '✦ Simplify' ? 44 : 34} height="9" rx="2" fill={rowBg} />
-          <text x={kind === '✦ Simplify' ? 80 : 75} y={Number(y) + 0.5} textAnchor="middle" fontFamily="var(--font-humanly-sans)" fontSize="6" fontWeight="700" fill={fg}>{kind}</text>
-          <text x="172" y={Number(y)} textAnchor="end" fontFamily="var(--font-humanly-sans)" fontSize="6" fill={kind === '✦ Simplify' ? muted : ink}>{chars}</text>
-          {Number(y) < 130 && <line x1="20" y1={Number(y) + 8} x2="180" y2={Number(y) + 8} stroke={hairline} strokeWidth="0.5" strokeDasharray="2 2" />}
-        </g>
-      ))}
-    </svg>
-  );
-}
-
-function StepIllo3() {
-  return (
-    <svg width="200" height="160" viewBox="0 0 200 160" aria-hidden="true">
-      <rect x="14" y="14" width="172" height="132" rx="8" fill="#fff" stroke={ink} strokeWidth="1.2" />
-      <text x="100" y="38" textAnchor="middle" fontFamily="var(--font-humanly-sans)" fontSize="7" fill={ink} letterSpacing="2">CERTIFICATE</text>
-      <line x1="42" y1="54" x2="158" y2="54" stroke={ink} strokeWidth="1.6" strokeLinecap="round" />
-      <line x1="50" y1="70" x2="150" y2="70" stroke={muted} strokeWidth="1.2" strokeLinecap="round" opacity="0.65" />
-      <line x1="42" y1="88" x2="158" y2="88" stroke={hairline} strokeWidth="1" />
-      <g transform="translate(54 112)">
-        <text fontFamily="var(--font-humanly-sans)" fontSize="6" fill={muted}>SIGNED</text>
-        <path d="M2 13 L6 17 L15 6" fill="none" stroke={ink} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-      </g>
-      <g transform="translate(142 120)" stroke={ink} fill="none" strokeWidth="1">
-        <circle r="13" />
-        <circle r="9.5" strokeDasharray="1 2" />
-        <path d="M-4.5 -4 V4 M4.5 -4 V4 M-4.5 0 H4.5" strokeWidth="1.2" strokeLinecap="round" />
-      </g>
     </svg>
   );
 }

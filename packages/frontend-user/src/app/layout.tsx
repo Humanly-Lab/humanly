@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
-import { Courier_Prime, Inter } from 'next/font/google';
+import { Courier_Prime } from 'next/font/google';
+import localFont from 'next/font/local';
 import Script from 'next/script';
 import { BRAND, getBrandText } from '@humanly/shared';
 import './globals.css';
@@ -8,9 +9,31 @@ import { PolyfillProvider } from '@/components/polyfill-provider';
 
 const GOOGLE_ANALYTICS_MEASUREMENT_ID = 'G-3NKG61B682';
 
-const inter = Inter({
-  subsets: ['latin'],
+const cursorGothic = localFont({
+  src: [
+    {
+      path: '../../public/fonts/cursor-gothic/CursorGothic-Regular.woff2',
+      weight: '400',
+      style: 'normal',
+    },
+    {
+      path: '../../public/fonts/cursor-gothic/CursorGothic-Italic.woff2',
+      weight: '400',
+      style: 'italic',
+    },
+    {
+      path: '../../public/fonts/cursor-gothic/CursorGothic-Bold.woff2',
+      weight: '700',
+      style: 'normal',
+    },
+    {
+      path: '../../public/fonts/cursor-gothic/CursorGothic-BoldItalic.woff2',
+      weight: '700',
+      style: 'italic',
+    },
+  ],
   variable: '--font-humanly-sans',
+  display: 'swap',
 });
 
 const courierPrime = Courier_Prime({
@@ -23,8 +46,13 @@ export const metadata: Metadata = {
   metadataBase: new URL('http://localhost:3002'),
 
   title: getBrandText().pageTitles.user,
-  description: 'Verify and certify human-written content through behavioral keystroke tracking...',
-  keywords: ['human authorship', 'authorship verification', 'keystroke tracking'],
+  description:
+    'Verify and certify human-written content through behavioral keystroke tracking...',
+  keywords: [
+    'human authorship',
+    'authorship verification',
+    'keystroke tracking',
+  ],
   authors: [{ name: `${BRAND.name} Team` }],
   icons: {
     icon: [
@@ -49,7 +77,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.variable} ${courierPrime.variable}`}>
+      <body className={`${cursorGothic.variable} ${courierPrime.variable}`}>
         <Script
           src={`https://www.googletagmanager.com/gtag/js?id=${GOOGLE_ANALYTICS_MEASUREMENT_ID}`}
           strategy="afterInteractive"

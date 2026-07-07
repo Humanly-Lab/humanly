@@ -1158,7 +1158,7 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
                     </div>
                   </div>
 
-                  <div className="rounded-md border border-border/80 bg-muted/20 p-4 xl:self-start">
+                  <div className="rounded-md border border-border/70 p-4 xl:self-start">
                     <div className="flex items-center justify-between gap-4">
                       <div className="min-w-0">
                         <FormLabel htmlFor="settings-allow-guest-submissions" className="text-sm font-medium">
@@ -1248,7 +1248,7 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
                   </div>
 
                   {aiAccess === 'off' ? (
-                    <div className="rounded-md border border-border/70 bg-muted/25 p-3 text-sm text-muted-foreground">
+                    <div className="rounded-md border border-border/70 p-3 text-sm text-muted-foreground">
                       AI assistant access is disabled for enrolled users.
                     </div>
                   ) : (

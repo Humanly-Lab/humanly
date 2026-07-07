@@ -83,7 +83,7 @@ export function OAuthButtons({
           <Button
             type="button"
             variant="outline"
-            className="h-11 rounded-full border-border/80 bg-white/80 px-3 font-bold hover:bg-muted/60"
+            className="h-11 border-border/80 bg-white/80 px-3 font-bold hover:bg-muted/60"
             onClick={() => startLogin('google')}
             disabled={loadingProvider !== null}
           >
@@ -100,7 +100,7 @@ export function OAuthButtons({
           <Button
             type="button"
             variant="outline"
-            className="h-11 rounded-full border-border/80 bg-white/80 px-3 font-bold hover:bg-muted/60"
+            className="h-11 border-border/80 bg-white/80 px-3 font-bold hover:bg-muted/60"
             onClick={() => startLogin('github')}
             disabled={loadingProvider !== null}
           >

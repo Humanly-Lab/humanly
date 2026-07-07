@@ -14,14 +14,6 @@ import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import {
   Form,
   FormControl,
   FormField,
@@ -31,6 +23,7 @@ import {
 } from '@/components/ui/form';
 import { OAuthButtons } from '@/components/auth/oauth-buttons';
 import { AuthenticatedRedirect } from '@/components/auth/authenticated-redirect';
+import { AuthCard } from '@/components/auth/auth-card';
 
 // Form validation schema
 const registerSchema = z
@@ -59,9 +52,10 @@ const registerSchema = z
 
 type RegisterFormValues = z.infer<typeof registerSchema>;
 
-const getSafeNextPath = (value: string | null) => (
-  value && value.startsWith('/') && !value.startsWith('//') ? value : '/documents'
-);
+const getSafeNextPath = (value: string | null) =>
+  value && value.startsWith('/') && !value.startsWith('//')
+    ? value
+    : '/documents';
 
 // Password strength indicator
 function getPasswordStrength(password: string): {
@@ -87,7 +81,12 @@ function getPasswordStrength(password: string): {
   const normalizedStrength = Math.min(Math.floor(strength / 2), 3);
 
   const labels = ['', 'Weak', 'Medium', 'Strong'];
-  const colors = ['', 'bg-destructive/70', 'bg-[#d6bba8]', 'bg-[var(--hly-brand)]'];
+  const colors = [
+    '',
+    'bg-destructive/70',
+    'bg-[#d6bba8]',
+    'bg-[var(--hly-brand)]',
+  ];
 
   return {
     strength: normalizedStrength,
@@ -120,14 +119,14 @@ export default function RegisterPage() {
   const watchPassword = form.watch('password');
   const passwordStrength = getPasswordStrength(watchPassword);
   const safeNext = getSafeNextPath(searchParams.get('next'));
-  const loginHref = safeNext === '/documents'
-    ? '/login'
-    : `/login?next=${encodeURIComponent(safeNext)}`;
-  const verifyEmailHref = (email: string) => (
+  const loginHref =
+    safeNext === '/documents'
+      ? '/login'
+      : `/login?next=${encodeURIComponent(safeNext)}`;
+  const verifyEmailHref = (email: string) =>
     safeNext === '/documents'
       ? `/verify-email?email=${encodeURIComponent(email)}`
-      : `/verify-email?email=${encodeURIComponent(email)}&next=${encodeURIComponent(safeNext)}`
-  );
+      : `/verify-email?email=${encodeURIComponent(email)}&next=${encodeURIComponent(safeNext)}`;
 
   async function onSubmit(values: RegisterFormValues) {
     try {
@@ -158,233 +157,227 @@ export default function RegisterPage() {
 
   if (registrationSuccess) {
     return (
-      <Card className="border-border bg-white shadow-none humanly-panel-shadow">
-        <CardHeader>
-          <CardTitle className="text-center text-2xl font-bold tracking-normal">
-            Registration Successful!
-          </CardTitle>
-          <CardDescription className="text-center">
-            Write with AI. Prove your process.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
+      <AuthCard
+        title="Registration Successful!"
+        description="Write with AI. Prove your process."
+      >
+        <div className="space-y-4">
           <Alert variant="success">
             <CheckCircle2 className="h-4 w-4" />
             <AlertTitle>Check your email</AlertTitle>
             <AlertDescription>
-              We have sent a 6-digit verification code to your email.
-              Please enter the code on the next page to verify your account.
+              We have sent a 6-digit verification code to your email. Please
+              enter the code on the next page to verify your account.
             </AlertDescription>
           </Alert>
           <p className="text-sm text-center text-muted-foreground">
             Redirecting you to enter your verification code...
           </p>
-        </CardContent>
-      </Card>
+        </div>
+      </AuthCard>
     );
   }
 
   return (
-    <Card className="border-border bg-white shadow-none humanly-panel-shadow">
-      <AuthenticatedRedirect to={safeNext} />
-      <CardHeader className="space-y-2 pb-2 text-center">
-        <CardTitle className="text-2xl font-bold tracking-normal">
-          Create an account
-        </CardTitle>
-        <CardDescription className="mx-auto max-w-sm text-sm leading-5">
-          Create your account. Basic info is completed when you first enter your workspace.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <OAuthButtons
-          next={safeNext}
-          className="mb-5"
-          separatorPosition="after"
-          separatorLabel="or use email"
-        />
-        <Form {...form}>
-          <form method="post" onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            {error && (
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertTitle>Error</AlertTitle>
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-
-            <FormField
-              control={form.control}
-              name="email"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Email</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="email"
-                      placeholder="name@example.com"
-                      className="h-11 rounded-lg"
-                      {...field}
-                      disabled={isLoading}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="password"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Password</FormLabel>
-                  <FormControl>
-                    <div className="relative">
-                      <Input
-                        type={showPassword ? 'text' : 'password'}
-                        placeholder="Enter your password"
-                        className="h-11 rounded-lg pr-10"
-                        {...field}
-                        disabled={isLoading}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                        disabled={isLoading}
-                      >
-                        {showPassword ? (
-                          <EyeOff className="h-4 w-4" />
-                        ) : (
-                          <Eye className="h-4 w-4" />
-                        )}
-                      </button>
-                    </div>
-                  </FormControl>
-                  {watchPassword && (
-                    <div className="space-y-2">
-                      <div className="flex gap-1 h-1">
-                        {[1, 2, 3].map((level) => (
-                          <div
-                            key={level}
-                            className={`flex-1 rounded-full transition-colors ${
-                              level <= passwordStrength.strength
-                                ? passwordStrength.color
-                                : 'bg-muted'
-                            }`}
-                          />
-                        ))}
-                      </div>
-                      {passwordStrength.label && (
-                        <p className="text-xs text-muted-foreground">
-                          Password strength: {passwordStrength.label}
-                        </p>
-                      )}
-                    </div>
-                  )}
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="confirmPassword"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Confirm Password</FormLabel>
-                  <FormControl>
-                    <div className="relative">
-                      <Input
-                        type={showConfirmPassword ? 'text' : 'password'}
-                        placeholder="Confirm your password"
-                        className="h-11 rounded-lg pr-10"
-                        {...field}
-                        disabled={isLoading}
-                      />
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setShowConfirmPassword(!showConfirmPassword)
-                        }
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                        disabled={isLoading}
-                      >
-                        {showConfirmPassword ? (
-                          <EyeOff className="h-4 w-4" />
-                        ) : (
-                          <Eye className="h-4 w-4" />
-                        )}
-                      </button>
-                    </div>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="acceptTerms"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                  <FormControl>
-                    <Checkbox
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                      disabled={isLoading}
-                    />
-                  </FormControl>
-                  <div className="space-y-1 leading-none">
-                    <FormLabel className="text-sm font-normal">
-                      I agree to the{' '}
-                      <Link
-                        href="/terms"
-                        className="text-primary hover:underline"
-                        target="_blank"
-                      >
-                        Terms of Service
-                      </Link>{' '}
-                      and{' '}
-                      <Link
-                        href="/privacy"
-                        className="text-primary hover:underline"
-                        target="_blank"
-                      >
-                        Privacy Policy
-                      </Link>
-                    </FormLabel>
-                    <FormMessage />
-                  </div>
-                </FormItem>
-              )}
-            />
-
-            <Button
-              type="submit"
-              className="h-11 w-full rounded-full font-bold"
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Creating account...
-                </>
-              ) : (
-                'Create account'
-              )}
-            </Button>
-          </form>
-        </Form>
-      </CardContent>
-      <CardFooter className="flex flex-col space-y-4">
+    <AuthCard
+      title="Create an account"
+      footer={
         <div className="text-sm text-center text-muted-foreground">
           Already have an account?{' '}
-          <Link href={loginHref} className="text-primary hover:underline">
+          <Link
+            href={loginHref}
+            className="font-medium text-foreground hover:underline"
+          >
             Sign in
           </Link>
         </div>
-      </CardFooter>
-    </Card>
+      }
+    >
+      <AuthenticatedRedirect to={safeNext} />
+      <OAuthButtons
+        next={safeNext}
+        className="mb-5"
+        separatorPosition="after"
+        separatorLabel="or use email"
+      />
+      <Form {...form}>
+        <form
+          method="post"
+          onSubmit={form.handleSubmit(onSubmit)}
+          className="space-y-4"
+        >
+          {error && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Error</AlertTitle>
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+
+          <FormField
+            control={form.control}
+            name="email"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Email</FormLabel>
+                <FormControl>
+                  <Input
+                    type="email"
+                    placeholder="name@example.com"
+                    className="h-11 rounded-lg"
+                    {...field}
+                    disabled={isLoading}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="password"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Password</FormLabel>
+                <FormControl>
+                  <div className="relative">
+                    <Input
+                      type={showPassword ? 'text' : 'password'}
+                      placeholder="Enter your password"
+                      className="h-11 rounded-lg pr-10"
+                      {...field}
+                      disabled={isLoading}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                      disabled={isLoading}
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
+                </FormControl>
+                {watchPassword && (
+                  <div className="space-y-2">
+                    <div className="flex gap-1 h-1">
+                      {[1, 2, 3].map((level) => (
+                        <div
+                          key={level}
+                          className={`flex-1 rounded-full transition-colors ${
+                            level <= passwordStrength.strength
+                              ? passwordStrength.color
+                              : 'bg-muted'
+                          }`}
+                        />
+                      ))}
+                    </div>
+                    {passwordStrength.label && (
+                      <p className="text-xs text-muted-foreground">
+                        Password strength: {passwordStrength.label}
+                      </p>
+                    )}
+                  </div>
+                )}
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="confirmPassword"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Confirm Password</FormLabel>
+                <FormControl>
+                  <div className="relative">
+                    <Input
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      placeholder="Confirm your password"
+                      className="h-11 rounded-lg pr-10"
+                      {...field}
+                      disabled={isLoading}
+                    />
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setShowConfirmPassword(!showConfirmPassword)
+                      }
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                      disabled={isLoading}
+                    >
+                      {showConfirmPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="acceptTerms"
+            render={({ field }) => (
+              <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                <FormControl>
+                  <Checkbox
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                    disabled={isLoading}
+                  />
+                </FormControl>
+                <div className="space-y-1 leading-none">
+                  <FormLabel className="text-sm font-normal">
+                    I agree to the{' '}
+                    <Link
+                      href="/terms"
+                      className="text-primary hover:underline"
+                      target="_blank"
+                    >
+                      Terms of Service
+                    </Link>{' '}
+                    and{' '}
+                    <Link
+                      href="/privacy"
+                      className="text-primary hover:underline"
+                      target="_blank"
+                    >
+                      Privacy Policy
+                    </Link>
+                  </FormLabel>
+                  <FormMessage />
+                </div>
+              </FormItem>
+            )}
+          />
+
+          <Button
+            type="submit"
+            className="h-11 w-full font-bold"
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Creating account...
+              </>
+            ) : (
+              'Create account'
+            )}
+          </Button>
+        </form>
+      </Form>
+    </AuthCard>
   );
 }

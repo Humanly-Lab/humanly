@@ -3,13 +3,26 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { AlertCircle, FileText, Loader2, LogIn, RefreshCw, UserRound } from 'lucide-react';
+import {
+  AlertCircle,
+  FileText,
+  Loader2,
+  LogIn,
+  RefreshCw,
+  UserRound,
+} from 'lucide-react';
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import api, { activateDocumentScopedAccessToken, TokenManager } from '@/lib/api-client';
+import api, {
+  activateDocumentScopedAccessToken,
+  TokenManager,
+} from '@/lib/api-client';
 import { useAuthStore, type User } from '@/stores/auth-store';
-import { getUserDisplayLabel, isGuestUserEmail } from '@/components/navigation/user-display';
+import {
+  getUserDisplayLabel,
+  isGuestUserEmail,
+} from '@/components/navigation/user-display';
 
 type PublicTaskStartMode = 'guest' | 'signed-in';
 type PublicTaskAvailabilityStatus = 'scheduled' | 'open' | 'ended';
@@ -48,12 +61,14 @@ interface PublicTaskStartResponse {
 
 const getPublicSessionId = (token: string) => {
   const storageKey = `humanly_public_task_session_${token}`;
-  const existing = typeof window !== 'undefined' ? localStorage.getItem(storageKey) : null;
+  const existing =
+    typeof window !== 'undefined' ? localStorage.getItem(storageKey) : null;
   if (existing) return existing;
 
-  const nextId = typeof crypto !== 'undefined' && 'randomUUID' in crypto
-    ? crypto.randomUUID()
-    : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const nextId =
+    typeof crypto !== 'undefined' && 'randomUUID' in crypto
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
   if (typeof window !== 'undefined') {
     localStorage.setItem(storageKey, nextId);
@@ -70,7 +85,8 @@ const getSafeSharePath = (token: string) => {
   return `/tasks/public/${encodeURIComponent(token)}`;
 };
 
-const PUBLIC_TASK_TIMEOUT_MESSAGE = 'This task is taking longer than expected to open. Please try again.';
+const PUBLIC_TASK_TIMEOUT_MESSAGE =
+  'This task is taking longer than expected to open. Please try again.';
 
 const getPublicTaskErrorMessage = (error: unknown) => {
   const message = error instanceof Error ? error.message : '';
@@ -87,7 +103,9 @@ export default function PublicTaskDocumentStartPage() {
   const { checkAuth, adoptAuthenticatedSession } = useAuthStore();
   const token = String(params.token || '');
   const hasStartedRef = useRef(false);
-  const [task, setTask] = useState<PublicTaskResponse['data']['task'] | null>(null);
+  const [task, setTask] = useState<PublicTaskResponse['data']['task'] | null>(
+    null
+  );
   const [signedInUser, setSignedInUser] = useState<User | null>(null);
   const [isLoadingTask, setIsLoadingTask] = useState(true);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
@@ -124,7 +142,9 @@ export default function PublicTaskDocumentStartPage() {
       setIsCheckingAuth(true);
       await checkAuth({ forceRefresh: true });
       const latestUser = useAuthStore.getState().user;
-      setSignedInUser(latestUser && !isGuestUserEmail(latestUser.email) ? latestUser : null);
+      setSignedInUser(
+        latestUser && !isGuestUserEmail(latestUser.email) ? latestUser : null
+      );
     } catch {
       setSignedInUser(null);
     } finally {
@@ -132,65 +152,80 @@ export default function PublicTaskDocumentStartPage() {
     }
   }, [checkAuth]);
 
-  const startDocument = useCallback(async (mode: PublicTaskStartMode) => {
-    if (!token) return;
-    if (!isTaskOpen) {
-      setError(
-        availabilityStatus === 'scheduled'
-          ? 'This task is not open for submissions yet.'
-          : 'The submission deadline has passed.'
-      );
-      return;
-    }
-    if (mode === 'guest' && !allowGuestSubmissions) {
-      setError('Guest submissions are not enabled for this task link.');
-      return;
-    }
-    if (mode === 'signed-in' && !signedInUser) {
-      router.replace(loginHref);
-      return;
-    }
-
-    try {
-      setError(null);
-      setIsStarting(true);
-      const sessionId = getPublicSessionId(token);
-      const response = await api.post<PublicTaskStartResponse>(
-        `/tasks/public/${encodeURIComponent(token)}/start`,
-        { sessionId, mode },
-        { skipAuthRedirect: true }
-      );
-
-      const documentId = response.data.document.id;
-      const existingAccessToken = TokenManager.getAccessToken();
-      if (mode === 'guest' && response.data.accessToken) {
-        if (existingAccessToken && existingAccessToken !== response.data.accessToken) {
-          TokenManager.setPublicDocumentPreviousAccessToken(documentId, existingAccessToken);
-        }
-        TokenManager.setPublicDocumentAccessToken(documentId, response.data.accessToken);
-        if (response.data.user) {
-          adoptAuthenticatedSession(response.data.user, response.data.accessToken);
-        } else {
-          TokenManager.setAccessToken(response.data.accessToken);
-        }
-        activateDocumentScopedAccessToken(documentId);
+  const startDocument = useCallback(
+    async (mode: PublicTaskStartMode) => {
+      if (!token) return;
+      if (!isTaskOpen) {
+        setError(
+          availabilityStatus === 'scheduled'
+            ? 'This task is not open for submissions yet.'
+            : 'The submission deadline has passed.'
+        );
+        return;
       }
-      router.replace(`/documents/${documentId}`);
-    } catch (err) {
-      hasStartedRef.current = false;
-      setError(getPublicTaskErrorMessage(err));
-      setIsStarting(false);
-    }
-  }, [
-    adoptAuthenticatedSession,
-    allowGuestSubmissions,
-    availabilityStatus,
-    isTaskOpen,
-    loginHref,
-    router,
-    signedInUser,
-    token,
-  ]);
+      if (mode === 'guest' && !allowGuestSubmissions) {
+        setError('Guest submissions are not enabled for this task link.');
+        return;
+      }
+      if (mode === 'signed-in' && !signedInUser) {
+        router.replace(loginHref);
+        return;
+      }
+
+      try {
+        setError(null);
+        setIsStarting(true);
+        const sessionId = getPublicSessionId(token);
+        const response = await api.post<PublicTaskStartResponse>(
+          `/tasks/public/${encodeURIComponent(token)}/start`,
+          { sessionId, mode },
+          { skipAuthRedirect: true }
+        );
+
+        const documentId = response.data.document.id;
+        const existingAccessToken = TokenManager.getAccessToken();
+        if (mode === 'guest' && response.data.accessToken) {
+          if (
+            existingAccessToken &&
+            existingAccessToken !== response.data.accessToken
+          ) {
+            TokenManager.setPublicDocumentPreviousAccessToken(
+              documentId,
+              existingAccessToken
+            );
+          }
+          TokenManager.setPublicDocumentAccessToken(
+            documentId,
+            response.data.accessToken
+          );
+          if (response.data.user) {
+            adoptAuthenticatedSession(
+              response.data.user,
+              response.data.accessToken
+            );
+          } else {
+            TokenManager.setAccessToken(response.data.accessToken);
+          }
+          activateDocumentScopedAccessToken(documentId);
+        }
+        router.replace(`/documents/${documentId}`);
+      } catch (err) {
+        hasStartedRef.current = false;
+        setError(getPublicTaskErrorMessage(err));
+        setIsStarting(false);
+      }
+    },
+    [
+      adoptAuthenticatedSession,
+      allowGuestSubmissions,
+      availabilityStatus,
+      isTaskOpen,
+      loginHref,
+      router,
+      signedInUser,
+      token,
+    ]
+  );
 
   useEffect(() => {
     void loadTask();
@@ -201,7 +236,14 @@ export default function PublicTaskDocumentStartPage() {
   }, [checkSignedInStatus]);
 
   useEffect(() => {
-    if (!task || isCheckingAuth || isLoadingTask || hasStartedRef.current || !isTaskOpen) return;
+    if (
+      !task ||
+      isCheckingAuth ||
+      isLoadingTask ||
+      hasStartedRef.current ||
+      !isTaskOpen
+    )
+      return;
     if (allowGuestSubmissions) return;
 
     if (!signedInUser) {
@@ -230,7 +272,12 @@ export default function PublicTaskDocumentStartPage() {
   };
 
   const isInitializing = isLoadingTask || isCheckingAuth;
-  const isRedirectingToAuth = task && isTaskOpen && !allowGuestSubmissions && !signedInUser && !isInitializing;
+  const isRedirectingToAuth =
+    task &&
+    isTaskOpen &&
+    !allowGuestSubmissions &&
+    !signedInUser &&
+    !isInitializing;
   const heading = error
     ? 'Task link unavailable'
     : isStarting || isRedirectingToAuth
@@ -244,7 +291,7 @@ export default function PublicTaskDocumentStartPage() {
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-md bg-primary text-primary-foreground">
             <FileText className="h-6 w-6" />
           </div>
-          <h1 className="text-2xl font-semibold tracking-normal">{heading}</h1>
+          <h1 className="text-2xl font-medium">{heading}</h1>
           {!error && (isInitializing || isStarting || isRedirectingToAuth) && (
             <p className="mt-2 text-sm text-muted-foreground">
               {isRedirectingToAuth
@@ -288,7 +335,9 @@ export default function PublicTaskDocumentStartPage() {
                     : 'The submission deadline has passed.'}
               </p>
               {task.description ? (
-                <p className="mt-2 text-sm text-foreground">{task.description}</p>
+                <p className="mt-2 text-sm text-foreground">
+                  {task.description}
+                </p>
               ) : null}
             </div>
 
@@ -314,7 +363,11 @@ export default function PublicTaskDocumentStartPage() {
                         Sign in
                       </Link>
                     </Button>
-                    <Button asChild variant="outline" className="h-12 rounded-md">
+                    <Button
+                      asChild
+                      variant="outline"
+                      className="h-12 rounded-md"
+                    >
                       <Link href={registerHref}>
                         <UserRound className="mr-2 h-4 w-4" />
                         Create account
@@ -342,7 +395,9 @@ export default function PublicTaskDocumentStartPage() {
               <Alert>
                 <AlertCircle className="h-4 w-4" />
                 <AlertTitle>
-                  {availabilityStatus === 'scheduled' ? 'Task not open yet' : 'Task ended'}
+                  {availabilityStatus === 'scheduled'
+                    ? 'Task not open yet'
+                    : 'Task ended'}
                 </AlertTitle>
                 <AlertDescription>
                   {availabilityStatus === 'scheduled'

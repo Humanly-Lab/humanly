@@ -41,7 +41,8 @@ function usePublicCertificateToken(certificateId: string) {
   const previousAccessTokenRef = useRef<string | null | undefined>(undefined);
 
   useLayoutEffect(() => {
-    const publicCertificateAccessToken = TokenManager.getPublicCertificateAccessToken(certificateId);
+    const publicCertificateAccessToken =
+      TokenManager.getPublicCertificateAccessToken(certificateId);
     if (!publicCertificateAccessToken) return undefined;
 
     const currentAccessToken = TokenManager.getAccessToken();
@@ -87,15 +88,28 @@ export default function CertificateDetailPage() {
     updateAccessCode,
     updateDisplayOptions,
   } = useCertificate(certificateId, { skip: isDemoCertificateView });
-  const demoCertificate = isDemoCertificateView ? getDemoCertificate(certificateId) : null;
-  const certificate = isDemoCertificateView ? demoCertificate?.certificate || null : fetchedCertificate;
+  const demoCertificate = isDemoCertificateView
+    ? getDemoCertificate(certificateId)
+    : null;
+  const certificate = isDemoCertificateView
+    ? demoCertificate?.certificate || null
+    : fetchedCertificate;
   const aiStats = isDemoCertificateView ? null : fetchedAiStats;
   const seal = isDemoCertificateView ? demoCertificate?.seal : fetchedSeal;
-  const sealStatus = isDemoCertificateView ? demoCertificate?.sealStatus : fetchedSealStatus;
-  const integrityMessage = isDemoCertificateView ? demoCertificate?.integrityMessage : fetchedIntegrityMessage;
+  const sealStatus = isDemoCertificateView
+    ? demoCertificate?.sealStatus
+    : fetchedSealStatus;
+  const integrityMessage = isDemoCertificateView
+    ? demoCertificate?.integrityMessage
+    : fetchedIntegrityMessage;
   const isLoading = isDemoCertificateView ? false : isFetchedCertificateLoading;
-  const isLoadingAiStats = isDemoCertificateView ? false : isFetchedAiStatsLoading;
-  const error = isDemoCertificateView && !demoCertificate ? 'Demo certificate not found' : fetchedError;
+  const isLoadingAiStats = isDemoCertificateView
+    ? false
+    : isFetchedAiStatsLoading;
+  const error =
+    isDemoCertificateView && !demoCertificate
+      ? 'Demo certificate not found'
+      : fetchedError;
   const [qrCodeDataURL, setQrCodeDataURL] = useState<string>('');
   const [copied, setCopied] = useState(false);
   const [isEditingAccessCode, setIsEditingAccessCode] = useState(false);
@@ -105,9 +119,10 @@ export default function CertificateDetailPage() {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [verificationUrl, setVerificationUrl] = useState('');
   const showOwnerDetails = !isDemoCertificateView && !certificate?.submissionId;
-  const isGuestCertificateView = isGuestUserEmail(user?.email)
-    || Boolean(TokenManager.getPublicCertificateAccessToken(certificateId))
-    || isDemoCertificateView;
+  const isGuestCertificateView =
+    isGuestUserEmail(user?.email) ||
+    Boolean(TokenManager.getPublicCertificateAccessToken(certificateId)) ||
+    isDemoCertificateView;
 
   const generateAccessCode = () => {
     const fallbackCode = () => Math.floor(Math.random() * 10000);
@@ -168,7 +183,9 @@ export default function CertificateDetailPage() {
 
   const handleShareVerificationLink = async () => {
     if (certificate) {
-      const verifyUrl = verificationUrl || `${window.location.origin}/verify/${certificate.verificationToken}`;
+      const verifyUrl =
+        verificationUrl ||
+        `${window.location.origin}/verify/${certificate.verificationToken}`;
       const didCopy = await copyTextToClipboard(verifyUrl);
       if (didCopy) {
         toast({
@@ -247,7 +264,7 @@ export default function CertificateDetailPage() {
       await updateAccessCode(editedAccessCode);
       toast({
         title: 'Success',
-        description: certificate?.isProtected 
+        description: certificate?.isProtected
           ? 'Access code updated successfully'
           : 'Access code set successfully',
       });
@@ -288,7 +305,10 @@ export default function CertificateDetailPage() {
     setEditedAccessCode('');
   };
 
-  const handleToggleDisplayOption = async (option: 'fullText' | 'editHistory', value: boolean) => {
+  const handleToggleDisplayOption = async (
+    option: 'fullText' | 'editHistory',
+    value: boolean
+  ) => {
     try {
       setIsUpdatingDisplay(true);
       if (option === 'fullText') {
@@ -360,15 +380,24 @@ export default function CertificateDetailPage() {
 
         <div className="flex flex-wrap gap-2">
           <Button
-            onClick={() => router.push(`/logs/${certificate.documentId}?returnTo=certificate&certificateId=${certificate.id}${isDemoCertificateView ? '&demo=1' : ''}`)}
+            onClick={() =>
+              router.push(
+                `/logs/${certificate.documentId}?returnTo=certificate&certificateId=${certificate.id}${isDemoCertificateView ? '&demo=1' : ''}`
+              )
+            }
             variant="outline"
             size="sm"
-            className="min-w-0"
+            className="min-w-0 border-[#9E756B] bg-[#9E756B] text-white hover:border-[#8F685F] hover:bg-[#8F685F] hover:text-white"
           >
             <FileText className="mr-2 h-4 w-4" />
             View Logs
           </Button>
-          <Button onClick={handleShareVerificationLink} variant="outline" size="sm" className="min-w-0">
+          <Button
+            onClick={handleShareVerificationLink}
+            variant="outline"
+            size="sm"
+            className="min-w-0"
+          >
             <Share2 className="mr-2 h-4 w-4" />
             Share
           </Button>
@@ -380,7 +409,9 @@ export default function CertificateDetailPage() {
           certificate={certificate}
           aiStats={aiStats}
           isLoadingAiStats={isLoadingAiStats}
-          replayToken={isDemoCertificateView ? undefined : certificate.verificationToken}
+          replayToken={
+            isDemoCertificateView ? undefined : certificate.verificationToken
+          }
           replayAccessCode={certificate.accessCode || undefined}
           seal={seal}
           sealStatus={sealStatus}
@@ -395,232 +426,278 @@ export default function CertificateDetailPage() {
                 <button className="flex w-full items-center justify-between px-5 py-4 text-left">
                   <div>
                     <p className="font-medium">More details</p>
-                    <p className="text-sm text-muted-foreground">Certificate sharing, access, display, and identifiers.</p>
+                    <p className="text-sm text-muted-foreground">
+                      Certificate sharing, access, display, and identifiers.
+                    </p>
                   </div>
-                  <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform ${detailsOpen ? 'rotate-180' : ''}`} />
+                  <ChevronDown
+                    className={`h-5 w-5 text-muted-foreground transition-transform ${detailsOpen ? 'rotate-180' : ''}`}
+                  />
                 </button>
               </CollapsibleTrigger>
               <CollapsibleContent>
                 <Separator />
                 <CardContent className="grid gap-5 p-5 !pt-6 lg:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
-                <div className="grid gap-4 rounded-lg border border-border/70 bg-muted/20 p-4 lg:grid-cols-[minmax(190px,0.8fr)_minmax(280px,1.2fr)]">
-                  <div className="space-y-3">
-                    <div>
-                      <h3 className="text-sm font-medium">Share Certificate</h3>
-                      <p className="text-xs text-muted-foreground">Share or scan this certificate link.</p>
+                  <div className="grid gap-4 rounded-lg border border-border/70 p-4 lg:grid-cols-[minmax(190px,0.8fr)_minmax(280px,1.2fr)]">
+                    <div className="space-y-3">
+                      <div>
+                        <h3 className="text-sm font-medium">
+                          Share Certificate
+                        </h3>
+                        <p className="text-xs text-muted-foreground">
+                          Share or scan this certificate link.
+                        </p>
+                      </div>
+                      <div className="flex flex-col items-center">
+                        {qrCodeDataURL ? (
+                          <img
+                            src={qrCodeDataURL}
+                            alt="Certificate QR Code"
+                            className="h-36 w-36 bg-white"
+                          />
+                        ) : (
+                          <div className="h-36 w-36 animate-pulse rounded bg-muted" />
+                        )}
+                        <Button
+                          onClick={handleShareVerificationLink}
+                          variant="outline"
+                          size="sm"
+                          className="mt-3 w-full max-w-56 bg-background"
+                        >
+                          <Share2 className="mr-2 h-4 w-4" />
+                          Copy Certificate Link
+                        </Button>
+                        {verificationUrl ? (
+                          <div className="mt-2 w-full max-w-56 rounded-md border border-border/70 bg-background px-2 py-1.5 text-center text-[11px] text-muted-foreground">
+                            <span className="select-all break-all">
+                              {verificationUrl}
+                            </span>
+                          </div>
+                        ) : null}
+                      </div>
                     </div>
-                    <div className="flex flex-col items-center">
-                      {qrCodeDataURL ? (
-                        <img
-                          src={qrCodeDataURL}
-                          alt="Certificate QR Code"
-                          className="h-36 w-36 bg-white"
-                        />
-                      ) : (
-                        <div className="h-36 w-36 animate-pulse rounded bg-muted" />
-                      )}
+
+                    <div className="space-y-8">
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Lock
+                            className={`h-4 w-4 ${certificate.isProtected ? 'text-[#b9774f]' : 'text-muted-foreground'}`}
+                          />
+                          <h3 className="text-sm font-medium">
+                            Access Protection
+                          </h3>
+                        </div>
+
+                        {!isEditingAccessCode ? (
+                          <>
+                            {certificate.isProtected &&
+                            certificate.accessCode ? (
+                              <div className="flex items-center gap-1">
+                                <div className="min-w-0 flex-1 truncate rounded-lg border border-border/60 bg-background p-2 text-xs">
+                                  {certificate.accessCode}
+                                </div>
+                                <Button
+                                  onClick={() =>
+                                    handleCopyAccessCode(
+                                      certificate.accessCode!
+                                    )
+                                  }
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-8 w-8 p-0"
+                                  aria-label="Copy access code"
+                                >
+                                  <Copy className="h-3 w-3" />
+                                </Button>
+                                <Button
+                                  onClick={handleStartEdit}
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-8 w-8 p-0"
+                                  aria-label="Edit access code"
+                                >
+                                  <Edit2 className="h-3 w-3" />
+                                </Button>
+                                <Button
+                                  onClick={handleRemoveAccessCode}
+                                  variant="ghost"
+                                  size="sm"
+                                  disabled={isUpdatingAccessCode}
+                                  className="h-8 w-8 p-0"
+                                  aria-label="Remove access code"
+                                >
+                                  <Trash2 className="h-3 w-3 text-destructive" />
+                                </Button>
+                              </div>
+                            ) : (
+                              <Button
+                                onClick={handleGenerateAccessCode}
+                                variant="outline"
+                                size="sm"
+                                className="w-full"
+                                disabled={isUpdatingAccessCode}
+                              >
+                                <RefreshCw className="mr-2 h-3 w-3" />
+                                Generate 4-digit Code
+                              </Button>
+                            )}
+                          </>
+                        ) : (
+                          <div className="flex items-center gap-1">
+                            <Input
+                              type="text"
+                              inputMode="numeric"
+                              maxLength={4}
+                              placeholder="4-digit code"
+                              value={editedAccessCode}
+                              onChange={(e) =>
+                                handleEditedAccessCodeChange(e.target.value)
+                              }
+                              disabled={isUpdatingAccessCode}
+                              className="h-8 flex-1 text-xs"
+                              autoFocus
+                            />
+                            <Button
+                              onClick={handleRegenerateEditedAccessCode}
+                              size="sm"
+                              variant="outline"
+                              disabled={isUpdatingAccessCode}
+                              className="h-8 w-8 p-0"
+                              aria-label="Generate new access code"
+                            >
+                              <RefreshCw className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              onClick={() =>
+                                handleCopyAccessCode(editedAccessCode)
+                              }
+                              size="sm"
+                              variant="outline"
+                              disabled={
+                                isUpdatingAccessCode ||
+                                editedAccessCode.trim().length !== 4
+                              }
+                              className="h-8 w-8 p-0"
+                              aria-label="Copy access code"
+                            >
+                              <Copy className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              onClick={handleSaveAccessCode}
+                              size="sm"
+                              disabled={
+                                isUpdatingAccessCode ||
+                                !/^\d{4}$/.test(editedAccessCode)
+                              }
+                              className="h-8 w-8 p-0"
+                              aria-label="Save access code"
+                            >
+                              <Check className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              onClick={handleCancelEdit}
+                              size="sm"
+                              variant="outline"
+                              disabled={isUpdatingAccessCode}
+                              className="h-8 w-8 p-0"
+                              aria-label="Cancel access code edit"
+                            >
+                              <X className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+
+                      <Separator />
+
+                      <div className="space-y-2.5">
+                        <div className="flex items-center gap-2">
+                          <Settings className="h-4 w-4 text-muted-foreground" />
+                          <h3 className="text-sm font-medium">
+                            Public Display
+                          </h3>
+                        </div>
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between gap-3">
+                            <Label
+                              htmlFor="includeFullText"
+                              className="cursor-pointer text-xs"
+                            >
+                              Show full text
+                            </Label>
+                            <Switch
+                              id="includeFullText"
+                              checked={certificate.includeFullText}
+                              onCheckedChange={(checked) =>
+                                handleToggleDisplayOption('fullText', checked)
+                              }
+                              disabled={isUpdatingDisplay}
+                            />
+                          </div>
+                          <div className="flex items-center justify-between gap-3">
+                            <Label
+                              htmlFor="includeEditHistory"
+                              className="cursor-pointer text-xs"
+                            >
+                              Show edit history
+                            </Label>
+                            <Switch
+                              id="includeEditHistory"
+                              checked={certificate.includeEditHistory}
+                              onCheckedChange={(checked) =>
+                                handleToggleDisplayOption(
+                                  'editHistory',
+                                  checked
+                                )
+                              }
+                              disabled={isUpdatingDisplay}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 rounded-lg border border-border/70 p-4 text-xs">
+                    <div>
+                      <h3 className="text-sm font-medium">Identifiers</h3>
+                      <p className="text-xs text-muted-foreground">
+                        Technical identifiers for audit and support.
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Certificate ID</p>
+                      <p className="truncate">{certificate.id}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Document ID</p>
+                      <p className="truncate">{certificate.documentId}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Certificate Token</p>
+                      <div className="mt-1 max-h-20 overflow-y-auto rounded-lg border border-border/60 bg-background p-2 text-[10px] break-all">
+                        {certificate.verificationToken}
+                      </div>
                       <Button
-                        onClick={handleShareVerificationLink}
+                        onClick={handleCopyVerificationToken}
                         variant="outline"
                         size="sm"
-                        className="mt-3 w-full max-w-56 bg-background"
+                        className="mt-4 w-full"
                       >
-                        <Share2 className="mr-2 h-4 w-4" />
-                        Copy Certificate Link
+                        {copied ? (
+                          <>
+                            <Check className="mr-2 h-4 w-4" />
+                            Copied
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="mr-2 h-4 w-4" />
+                            Copy Token
+                          </>
+                        )}
                       </Button>
-                      {verificationUrl ? (
-                        <div className="mt-2 w-full max-w-56 rounded-md border border-border/70 bg-background px-2 py-1.5 text-center text-[11px] text-muted-foreground">
-                          <span className="select-all break-all">{verificationUrl}</span>
-                        </div>
-                      ) : null}
                     </div>
                   </div>
-
-                  <div className="space-y-8">
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <Lock className={`h-4 w-4 ${certificate.isProtected ? 'text-[#b9774f]' : 'text-muted-foreground'}`} />
-                        <h3 className="text-sm font-medium">Access Protection</h3>
-                      </div>
-
-                      {!isEditingAccessCode ? (
-                        <>
-                          {certificate.isProtected && certificate.accessCode ? (
-                            <div className="flex items-center gap-1">
-                              <div className="min-w-0 flex-1 truncate rounded-lg border border-border/60 bg-background p-2 text-xs">
-                                {certificate.accessCode}
-                              </div>
-                              <Button
-                                onClick={() => handleCopyAccessCode(certificate.accessCode!)}
-                                variant="ghost"
-                                size="sm"
-                                className="h-8 w-8 p-0"
-                                aria-label="Copy access code"
-                              >
-                                <Copy className="h-3 w-3" />
-                              </Button>
-                              <Button
-                                onClick={handleStartEdit}
-                                variant="ghost"
-                                size="sm"
-                                className="h-8 w-8 p-0"
-                                aria-label="Edit access code"
-                              >
-                                <Edit2 className="h-3 w-3" />
-                              </Button>
-                              <Button
-                                onClick={handleRemoveAccessCode}
-                                variant="ghost"
-                                size="sm"
-                                disabled={isUpdatingAccessCode}
-                                className="h-8 w-8 p-0"
-                                aria-label="Remove access code"
-                              >
-                                <Trash2 className="h-3 w-3 text-destructive" />
-                              </Button>
-                            </div>
-                          ) : (
-                            <Button
-                              onClick={handleGenerateAccessCode}
-                              variant="outline"
-                              size="sm"
-                              className="w-full"
-                              disabled={isUpdatingAccessCode}
-                            >
-                              <RefreshCw className="mr-2 h-3 w-3" />
-                              Generate 4-digit Code
-                            </Button>
-                          )}
-                        </>
-                      ) : (
-                        <div className="flex items-center gap-1">
-                          <Input
-                            type="text"
-                            inputMode="numeric"
-                            maxLength={4}
-                            placeholder="4-digit code"
-                            value={editedAccessCode}
-                            onChange={(e) => handleEditedAccessCodeChange(e.target.value)}
-                            disabled={isUpdatingAccessCode}
-                            className="h-8 flex-1 text-xs"
-                            autoFocus
-                          />
-                          <Button
-                            onClick={handleRegenerateEditedAccessCode}
-                            size="sm"
-                            variant="outline"
-                            disabled={isUpdatingAccessCode}
-                            className="h-8 w-8 p-0"
-                            aria-label="Generate new access code"
-                          >
-                            <RefreshCw className="h-3 w-3" />
-                          </Button>
-                          <Button
-                            onClick={() => handleCopyAccessCode(editedAccessCode)}
-                            size="sm"
-                            variant="outline"
-                            disabled={isUpdatingAccessCode || editedAccessCode.trim().length !== 4}
-                            className="h-8 w-8 p-0"
-                            aria-label="Copy access code"
-                          >
-                            <Copy className="h-3 w-3" />
-                          </Button>
-                          <Button
-                            onClick={handleSaveAccessCode}
-                            size="sm"
-                            disabled={isUpdatingAccessCode || !/^\d{4}$/.test(editedAccessCode)}
-                            className="h-8 w-8 p-0"
-                            aria-label="Save access code"
-                          >
-                            <Check className="h-3 w-3" />
-                          </Button>
-                          <Button
-                            onClick={handleCancelEdit}
-                            size="sm"
-                            variant="outline"
-                            disabled={isUpdatingAccessCode}
-                            className="h-8 w-8 p-0"
-                            aria-label="Cancel access code edit"
-                          >
-                            <X className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-
-                    <Separator />
-
-                    <div className="space-y-2.5">
-                      <div className="flex items-center gap-2">
-                        <Settings className="h-4 w-4 text-muted-foreground" />
-                        <h3 className="text-sm font-medium">Public Display</h3>
-                      </div>
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between gap-3">
-                          <Label htmlFor="includeFullText" className="cursor-pointer text-xs">
-                            Show full text
-                          </Label>
-                          <Switch
-                            id="includeFullText"
-                            checked={certificate.includeFullText}
-                            onCheckedChange={(checked) => handleToggleDisplayOption('fullText', checked)}
-                            disabled={isUpdatingDisplay}
-                          />
-                        </div>
-                        <div className="flex items-center justify-between gap-3">
-                          <Label htmlFor="includeEditHistory" className="cursor-pointer text-xs">
-                            Show edit history
-                          </Label>
-                          <Switch
-                            id="includeEditHistory"
-                            checked={certificate.includeEditHistory}
-                            onCheckedChange={(checked) => handleToggleDisplayOption('editHistory', checked)}
-                            disabled={isUpdatingDisplay}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-3 rounded-lg border border-border/70 bg-muted/20 p-4 text-xs">
-                  <div>
-                    <h3 className="text-sm font-medium">Identifiers</h3>
-                    <p className="text-xs text-muted-foreground">Technical identifiers for audit and support.</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Certificate ID</p>
-                    <p className="truncate">{certificate.id}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Document ID</p>
-                    <p className="truncate">{certificate.documentId}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Certificate Token</p>
-                    <div className="mt-1 max-h-20 overflow-y-auto rounded-lg border border-border/60 bg-background p-2 text-[10px] break-all">
-                      {certificate.verificationToken}
-                    </div>
-                    <Button
-                      onClick={handleCopyVerificationToken}
-                      variant="outline"
-                      size="sm"
-                      className="mt-4 w-full"
-                    >
-                      {copied ? (
-                        <>
-                          <Check className="mr-2 h-4 w-4" />
-                          Copied
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="mr-2 h-4 w-4" />
-                          Copy Token
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </div>
                 </CardContent>
               </CollapsibleContent>
             </Card>

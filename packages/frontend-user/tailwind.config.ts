@@ -10,6 +10,21 @@ const config = {
   ],
   prefix: '',
   theme: {
+    fontFamily: {
+      sans: [
+        'var(--font-humanly-sans)',
+        'ui-sans-serif',
+        'system-ui',
+        'sans-serif',
+      ],
+      serif: [
+        'var(--font-humanly-serif)',
+        'ui-sans-serif',
+        'system-ui',
+        'sans-serif',
+      ],
+      mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
+    },
     container: {
       center: true,
       padding: '2rem',

@@ -18,14 +18,7 @@ import {
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import {
   Form,
   FormControl,
@@ -122,31 +115,48 @@ import {
 } from '@humanly/shared';
 
 // Zod schema for form validation
-const taskFormSchema = z.object({
-  name: z
-    .string()
-    .min(3, 'Task name must be at least 3 characters')
-    .max(TASK_NAME_MAX_LENGTH, `Task name must not exceed ${TASK_NAME_MAX_LENGTH} characters`),
-  description: z
-    .string()
-    .max(TASK_DESCRIPTION_MAX_LENGTH, `Description must not exceed ${TASK_DESCRIPTION_MAX_LENGTH} characters`)
-    .optional()
-    .or(z.literal('')),
-  taskInstruction: z
-    .string()
-    .max(TASK_INSTRUCTION_MAX_LENGTH, `Task Instruction must not exceed ${TASK_INSTRUCTION_MAX_LENGTH} characters`)
-    .optional()
-    .or(z.literal('')),
-  aiUsageLimit: z.coerce.number().int().min(1, 'AI usage limit must be at least 1'),
-  startDate: z.string().optional(),
-  endDate: z.string().optional(),
-}).refine((data) => {
-  if (!data.startDate || !data.endDate) return true;
-  return new Date(data.endDate) > new Date(data.startDate);
-}, {
-  message: 'Task end date must be after start date',
-  path: ['endDate'],
-});
+const taskFormSchema = z
+  .object({
+    name: z
+      .string()
+      .min(3, 'Task name must be at least 3 characters')
+      .max(
+        TASK_NAME_MAX_LENGTH,
+        `Task name must not exceed ${TASK_NAME_MAX_LENGTH} characters`
+      ),
+    description: z
+      .string()
+      .max(
+        TASK_DESCRIPTION_MAX_LENGTH,
+        `Description must not exceed ${TASK_DESCRIPTION_MAX_LENGTH} characters`
+      )
+      .optional()
+      .or(z.literal('')),
+    taskInstruction: z
+      .string()
+      .max(
+        TASK_INSTRUCTION_MAX_LENGTH,
+        `Task Instruction must not exceed ${TASK_INSTRUCTION_MAX_LENGTH} characters`
+      )
+      .optional()
+      .or(z.literal('')),
+    aiUsageLimit: z.coerce
+      .number()
+      .int()
+      .min(1, 'AI usage limit must be at least 1'),
+    startDate: z.string().optional(),
+    endDate: z.string().optional(),
+  })
+  .refine(
+    (data) => {
+      if (!data.startDate || !data.endDate) return true;
+      return new Date(data.endDate) > new Date(data.startDate);
+    },
+    {
+      message: 'Task end date must be after start date',
+      path: ['endDate'],
+    }
+  );
 
 type TaskFormValues = z.infer<typeof taskFormSchema>;
 
@@ -157,23 +167,25 @@ const CLAUDE_BASE_URL = 'https://api.anthropic.com/v1';
 const IMPORT_ENVIRONMENT_VALUE = 'import_environment';
 const DEFAULT_TASK_WINDOW_DAYS = 14;
 const UNLIMITED_TASK_WINDOW_YEARS = 100;
-const AI_API_KEY_HELP_TEXT = 'An AI API key is a unique secret credential, usually a long string of letters and numbers, that Humanly uses to connect this task to your selected AI provider. It is never shown to enrolled users or included in exported environment configs.';
-const SHORTCUT_TOKENS_HELP_TEXT = 'Shortcut tokens limit how much text AI quick actions can generate, such as fixing grammar, improving writing, simplifying text, or making writing more formal. Higher values allow longer AI output but may use more tokens.';
-const CHAT_TOKENS_HELP_TEXT = 'Chat tokens limit how much text the AI Assistant can generate in a chat response. Higher values allow more complete answers but may increase usage per message.';
-const AI_GUARD_POLICY_HELP_TEXT = "AI Guard policy controls the boundary of AI assistance during writing. When enabled, it helps reject requests that do not follow the task's AI usage rules.";
-const DETECTOR_HELP_TEXT = 'Anomaly Pattern uses deterministic event rules such as typing bursts, untracked text sources, workspace exits, policy refusals, and blocked copy-paste attempts. Humanly Typing Detector uses a model over writing behavior and may be inconclusive or unavailable if there is not enough usable typing data.';
+const AI_API_KEY_HELP_TEXT =
+  'An AI API key is a unique secret credential, usually a long string of letters and numbers, that Humanly uses to connect this task to your selected AI provider. It is never shown to enrolled users or included in exported environment configs.';
+const SHORTCUT_TOKENS_HELP_TEXT =
+  'Shortcut tokens limit how much text AI quick actions can generate, such as fixing grammar, improving writing, simplifying text, or making writing more formal. Higher values allow longer AI output but may use more tokens.';
+const CHAT_TOKENS_HELP_TEXT =
+  'Chat tokens limit how much text the AI Assistant can generate in a chat response. Higher values allow more complete answers but may increase usage per message.';
+const AI_GUARD_POLICY_HELP_TEXT =
+  "AI Guard policy controls the boundary of AI assistance during writing. When enabled, it helps reject requests that do not follow the task's AI usage rules.";
+const DETECTOR_HELP_TEXT =
+  'Anomaly Pattern uses deterministic event rules such as typing bursts, untracked text sources, workspace exits, policy refusals, and blocked copy-paste attempts. Humanly Typing Detector uses a model over writing behavior and may be inconclusive or unavailable if there is not enough usable typing data.';
 
-const isLocalStartDateTooFarInPast = (value?: string): boolean => (
-  !!value && isTaskStartDateTooFarInPast(localDateTimeInputToISOString(value))
-);
+const isLocalStartDateTooFarInPast = (value?: string): boolean =>
+  !!value && isTaskStartDateTooFarInPast(localDateTimeInputToISOString(value));
 
-const fallbackWritingModels = () => (
-  WRITING_AI_MODELS.filter((model) => model !== 'Custom models')
-);
+const fallbackWritingModels = () =>
+  WRITING_AI_MODELS.filter((model) => model !== 'Custom models');
 
-const modelBelongsToOptions = (model: string, options: string[]) => (
-  !!model && options.includes(model)
-);
+const modelBelongsToOptions = (model: string, options: string[]) =>
+  !!model && options.includes(model);
 
 const KNOWN_AI_PROVIDER_BASE_URLS: Record<string, string> = {
   'api.together.xyz': DEFAULT_AI_BASE_URL,
@@ -202,7 +214,9 @@ const getAiProviderForBaseUrl = (baseUrl: string): WritingAiProvider => {
   return 'custom';
 };
 
-const getAiProviderConfigForBaseUrl = (baseUrl: string): WritingAiProviderConfig | undefined => {
+const getAiProviderConfigForBaseUrl = (
+  baseUrl: string
+): WritingAiProviderConfig | undefined => {
   const normalizedBaseUrl = baseUrl.trim();
   if (!normalizedBaseUrl) return undefined;
   return {
@@ -211,23 +225,27 @@ const getAiProviderConfigForBaseUrl = (baseUrl: string): WritingAiProviderConfig
   };
 };
 
-const getAiProviderConfigForModel = (model: string): WritingAiProviderConfig | undefined => {
+const getAiProviderConfigForModel = (
+  model: string
+): WritingAiProviderConfig | undefined => {
   const normalizedModel = model.trim();
   if (!normalizedModel) return undefined;
 
-  const match = Object.entries(MODEL_WHITELIST).find(([, descriptors]) => (
+  const match = Object.entries(MODEL_WHITELIST).find(([, descriptors]) =>
     descriptors.some((descriptor) => descriptor.id === normalizedModel)
-  ));
+  );
   if (!match) return undefined;
 
   const [host] = match;
-  return getAiProviderConfigForBaseUrl(KNOWN_AI_PROVIDER_BASE_URLS[host] || `https://${host}/v1`);
+  return getAiProviderConfigForBaseUrl(
+    KNOWN_AI_PROVIDER_BASE_URLS[host] || `https://${host}/v1`
+  );
 };
 
 const resolveAiProviderConfig = (
   model: string,
   baseUrl: string,
-  existingProvider?: WritingAiProviderConfig,
+  existingProvider?: WritingAiProviderConfig
 ): WritingAiProviderConfig | undefined => {
   const normalizedBaseUrl = baseUrl.trim();
   if (normalizedBaseUrl && getWhitelist(normalizedBaseUrl)?.includes(model)) {
@@ -235,13 +253,16 @@ const resolveAiProviderConfig = (
   }
 
   return (
-    getAiProviderConfigForModel(model)
-    || (existingProvider?.baseUrl ? existingProvider : undefined)
-    || getAiProviderConfigForBaseUrl(normalizedBaseUrl || DEFAULT_AI_BASE_URL)
+    getAiProviderConfigForModel(model) ||
+    (existingProvider?.baseUrl ? existingProvider : undefined) ||
+    getAiProviderConfigForBaseUrl(normalizedBaseUrl || DEFAULT_AI_BASE_URL)
   );
 };
 
-type EnvironmentSelection = 'default_writing' | 'custom' | typeof IMPORT_ENVIRONMENT_VALUE;
+type EnvironmentSelection =
+  | 'default_writing'
+  | 'custom'
+  | typeof IMPORT_ENVIRONMENT_VALUE;
 type EnvironmentSummaryItem = {
   label: string;
   value: string;
@@ -272,7 +293,7 @@ function DetectorSettingsBox({
   };
 
   return (
-    <div className="space-y-3 rounded-md border bg-background p-3">
+    <div className="grid gap-3 rounded-md border bg-background p-3 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.35fr)] lg:items-center">
       <div className="flex items-start justify-between gap-3">
         <div>
           <FormLabel>Anomaly behavior review</FormLabel>
@@ -280,7 +301,9 @@ function DetectorSettingsBox({
             Choose which detector results are generated for this certificate.
           </p>
         </div>
-        <AdminEnvironmentHelp title="Detector types">{DETECTOR_HELP_TEXT}</AdminEnvironmentHelp>
+        <AdminEnvironmentHelp title="Detector types">
+          {DETECTOR_HELP_TEXT}
+        </AdminEnvironmentHelp>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
@@ -288,13 +311,16 @@ function DetectorSettingsBox({
           <span>
             <span className="font-medium">Anomaly Pattern</span>
             <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
-              Deterministic review signals from typing bursts, untracked text sources, workspace exits, policy refusals, and blocked copy-paste attempts.
+              Deterministic signals from typing bursts, untracked sources,
+              workspace exits, refusals, and blocked paste attempts.
             </span>
           </span>
           <Checkbox
             checked={detectors.anomalyPattern.enabled}
             disabled={disabled}
-            onCheckedChange={(checked) => setDetectorEnabled('anomalyPattern', checked === true)}
+            onCheckedChange={(checked) =>
+              setDetectorEnabled('anomalyPattern', checked === true)
+            }
           />
         </label>
 
@@ -302,13 +328,15 @@ function DetectorSettingsBox({
           <span>
             <span className="font-medium">Humanly Typing Detector</span>
             <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
-              Model-based typing analysis that estimates whether the trajectory looks human-written.
+              Model-based typing analysis over the writing trajectory.
             </span>
           </span>
           <Checkbox
             checked={detectors.humanTyping.enabled}
             disabled={disabled}
-            onCheckedChange={(checked) => setDetectorEnabled('humanTyping', checked === true)}
+            onCheckedChange={(checked) =>
+              setDetectorEnabled('humanTyping', checked === true)
+            }
           />
         </label>
       </div>
@@ -316,25 +344,41 @@ function DetectorSettingsBox({
   );
 }
 
-const getAdminEnvironmentConfig = (preset: WritingEnvironmentPreset = 'default_writing'): WritingEnvironmentConfig => ({
+const getAdminEnvironmentConfig = (
+  preset: WritingEnvironmentPreset = 'default_writing'
+): WritingEnvironmentConfig => ({
   ...WRITING_ENVIRONMENT_PRESETS[preset],
   taskType: 'admin_assigned',
   preset,
-  copyPastePolicy: normalizeCopyPastePolicy(WRITING_ENVIRONMENT_PRESETS[preset].copyPastePolicy),
-  detectors: normalizeWritingDetectorConfig(WRITING_ENVIRONMENT_PRESETS[preset].detectors),
-  resourceAccess: normalizeResourceAccessPolicy(WRITING_ENVIRONMENT_PRESETS[preset].resourceAccess),
-  aiAccess: preset === 'default_writing' ? 'off' : normalizeWritingAiAccess(WRITING_ENVIRONMENT_PRESETS[preset].aiAccess),
-  allowedModels: preset === 'default_writing' ? [] : WRITING_ENVIRONMENT_PRESETS[preset].allowedModels,
-  customModels: preset === 'default_writing' ? [] : WRITING_ENVIRONMENT_PRESETS[preset].customModels,
+  copyPastePolicy: normalizeCopyPastePolicy(
+    WRITING_ENVIRONMENT_PRESETS[preset].copyPastePolicy
+  ),
+  detectors: normalizeWritingDetectorConfig(
+    WRITING_ENVIRONMENT_PRESETS[preset].detectors
+  ),
+  resourceAccess: normalizeResourceAccessPolicy(
+    WRITING_ENVIRONMENT_PRESETS[preset].resourceAccess
+  ),
+  aiAccess:
+    preset === 'default_writing'
+      ? 'off'
+      : normalizeWritingAiAccess(WRITING_ENVIRONMENT_PRESETS[preset].aiAccess),
+  allowedModels:
+    preset === 'default_writing'
+      ? []
+      : WRITING_ENVIRONMENT_PRESETS[preset].allowedModels,
+  customModels:
+    preset === 'default_writing'
+      ? []
+      : WRITING_ENVIRONMENT_PRESETS[preset].customModels,
   aiUsageLimit: {
     mode: 'max_requests',
     maxRequests: 100,
   },
 });
 
-const getTimeLimitMinutesValue = (seconds?: number): string => (
-  String(Math.max(1, Math.round((seconds || 3600) / 60)))
-);
+const getTimeLimitMinutesValue = (seconds?: number): string =>
+  String(Math.max(1, Math.round((seconds || 3600) / 60)));
 
 const parseTimeLimitMinutes = (value: string, fallback = 1): number => {
   const parsed = Number(value);
@@ -368,8 +412,13 @@ const parseMaxAttempts = (value: string, fallback = 2): number => {
   return Math.max(2, Math.min(20, Math.floor(parsed)));
 };
 
-const normalizeImportedEnvironmentConfig = (value: unknown): WritingEnvironmentConfig => {
-  const imported = validateWritingEnvironmentImportTemplate(value, 'admin_assigned');
+const normalizeImportedEnvironmentConfig = (
+  value: unknown
+): WritingEnvironmentConfig => {
+  const imported = validateWritingEnvironmentImportTemplate(
+    value,
+    'admin_assigned'
+  );
   const aiAccess: WritingAiAccess = normalizeWritingAiAccess(imported.aiAccess);
   const copyPastePolicy = normalizeCopyPastePolicy(imported.copyPastePolicy);
   const resourceAccess = normalizeResourceAccessPolicy(imported.resourceAccess);
@@ -394,7 +443,9 @@ const normalizeImportedEnvironmentConfig = (value: unknown): WritingEnvironmentC
 };
 
 const getDefaultTaskWindowValues = (startDate = new Date()) => {
-  const endDate = new Date(startDate.getTime() + DEFAULT_TASK_WINDOW_DAYS * 24 * 60 * 60 * 1000);
+  const endDate = new Date(
+    startDate.getTime() + DEFAULT_TASK_WINDOW_DAYS * 24 * 60 * 60 * 1000
+  );
 
   return {
     startDate: toLocalDateTimeInputValue(startDate),
@@ -404,9 +455,12 @@ const getDefaultTaskWindowValues = (startDate = new Date()) => {
 
 const formatTaskWindowDate = (value?: string) => formatDateTime(value);
 
-const formatSummaryNumber = (value: number): string => value.toLocaleString('en-US');
+const formatSummaryNumber = (value: number): string =>
+  value.toLocaleString('en-US');
 
-const formatAdminCharacterBounds = (config: WritingEnvironmentConfig): string => {
+const formatAdminCharacterBounds = (
+  config: WritingEnvironmentConfig
+): string => {
   const { minCharacters, maxCharacters } = config.submission;
   if (minCharacters && maxCharacters) {
     return `${formatSummaryNumber(minCharacters)} - ${formatSummaryNumber(maxCharacters)} chars`;
@@ -471,7 +525,10 @@ const buildAdminEnvironmentSummary = ({
     {
       label: 'AI access',
       value: formatWritingAiAccess(normalizedAiAccess),
-      detail: normalizedAiAccess === 'off' ? 'Assistant disabled' : `Model: ${model || 'Not selected'}`,
+      detail:
+        normalizedAiAccess === 'off'
+          ? 'Assistant disabled'
+          : `Model: ${model || 'Not selected'}`,
     },
     {
       label: 'Task window',
@@ -489,19 +546,22 @@ const buildAdminEnvironmentSummary = ({
     },
     {
       label: 'Writing rules',
-      value: normalizeCopyPastePolicy(config.copyPastePolicy) === 'blocked'
-        ? 'Copy-paste blocked'
-        : 'Copy-paste allowed',
+      value:
+        normalizeCopyPastePolicy(config.copyPastePolicy) === 'blocked'
+          ? 'Copy-paste blocked'
+          : 'Copy-paste allowed',
       detail: formatAdminCharacterBounds(config),
     },
     {
       label: 'Instruction PDF access',
-      value: normalizeResourceAccessPolicy(config.resourceAccess) === 'view-only'
-        ? 'View only'
-        : 'View and download',
-      detail: normalizeResourceAccessPolicy(config.resourceAccess) === 'view-only'
-        ? 'Writers can view instruction PDFs in the workspace.'
-        : 'Writers can view and download instruction PDFs.',
+      value:
+        normalizeResourceAccessPolicy(config.resourceAccess) === 'view-only'
+          ? 'View only'
+          : 'View and download',
+      detail:
+        normalizeResourceAccessPolicy(config.resourceAccess) === 'view-only'
+          ? 'Writers can view instruction PDFs in the workspace.'
+          : 'Writers can view and download instruction PDFs.',
     },
     {
       label: 'AI limit',
@@ -529,9 +589,10 @@ const buildAdminEnvironmentSummary = ({
     items.splice(1, 0, {
       label: 'AI Guard policy',
       value: aiPolicy.mode === 'guard' ? 'Guard' : 'Off',
-      detail: aiPolicy.mode === 'guard'
-        ? 'Custom rejection rule active'
-        : 'No chat constitution',
+      detail:
+        aiPolicy.mode === 'guard'
+          ? 'Custom rejection rule active'
+          : 'No chat constitution',
     });
   }
 
@@ -543,7 +604,9 @@ export default function NewTaskPage() {
   const { toast } = useToast();
   const [error, setError] = useState<string | null>(null);
   const [instructionFiles, setInstructionFiles] = useState<File[]>([]);
-  const [instructionPdfPreviewUrl, setInstructionPdfPreviewUrl] = useState<string | undefined>(undefined);
+  const [instructionPdfPreviewUrl, setInstructionPdfPreviewUrl] = useState<
+    string | undefined
+  >(undefined);
   const [aiAccess, setAiAccessState] = useState<WritingAiAccess>('off');
   const [aiBaseUrl, setAiBaseUrl] = useState(DEFAULT_AI_BASE_URL);
   const [aiApiKey, setAiApiKey] = useState('');
@@ -551,19 +614,26 @@ export default function NewTaskPage() {
   const [hasExistingAiKey, setHasExistingAiKey] = useState(false);
   const [maskedAiKey, setMaskedAiKey] = useState('');
   const [isTestingAiConnection, setIsTestingAiConnection] = useState(false);
-  const [aiConnectionResult, setAiConnectionResult] = useState<WritingAiConnectionTestResult | null>(null);
+  const [aiConnectionResult, setAiConnectionResult] =
+    useState<WritingAiConnectionTestResult | null>(null);
   const [testedAiModels, setTestedAiModels] = useState<string[]>([]);
   const [environmentDialogOpen, setEnvironmentDialogOpen] = useState(false);
   const [timeLimitEnabled, setTimeLimitEnabled] = useState(true);
   const [timeWindowDialogOpen, setTimeWindowDialogOpen] = useState(false);
-  const [writingTimeLimitMinutesInput, setWritingTimeLimitMinutesInput] = useState('60');
+  const [writingTimeLimitMinutesInput, setWritingTimeLimitMinutesInput] =
+    useState('60');
   const [allowGuestSubmissions, setAllowGuestSubmissions] = useState(true);
   const [timeWindowTouched, setTimeWindowTouched] = useState(false);
-  const [environmentSelection, setEnvironmentSelection] = useState<EnvironmentSelection>('default_writing');
-  const [environmentConfig, setEnvironmentConfig] = useState<WritingEnvironmentConfig>(
-    getAdminEnvironmentConfig('default_writing')
+  const [environmentSelection, setEnvironmentSelection] =
+    useState<EnvironmentSelection>('default_writing');
+  const [environmentConfig, setEnvironmentConfig] =
+    useState<WritingEnvironmentConfig>(
+      getAdminEnvironmentConfig('default_writing')
+    );
+  const initialDefaultTaskWindow = useMemo(
+    () => getDefaultTaskWindowValues(),
+    []
   );
-  const initialDefaultTaskWindow = useMemo(() => getDefaultTaskWindowValues(), []);
 
   const clearAiConnectionState = () => {
     setAiConnectionResult(null);
@@ -630,7 +700,10 @@ export default function NewTaskPage() {
 
     const loadAiSettings = async () => {
       try {
-        const response = await api.get<{ success: boolean; data: UserAISettings | null }>('/api/v1/ai/settings');
+        const response = await api.get<{
+          success: boolean;
+          data: UserAISettings | null;
+        }>('/api/v1/ai/settings');
         const settings = response.data;
 
         if (cancelled) return;
@@ -648,7 +721,8 @@ export default function NewTaskPage() {
         setEnvironmentConfig((current) => ({
           ...current,
           aiTokenBudget: {
-            shortcutMaxTokens: settings.shortcutMaxTokens || AI_SHORTCUT_MAX_TOKENS_DEFAULT,
+            shortcutMaxTokens:
+              settings.shortcutMaxTokens || AI_SHORTCUT_MAX_TOKENS_DEFAULT,
             chatMaxTokens: settings.chatMaxTokens || AI_CHAT_MAX_TOKENS_DEFAULT,
           },
         }));
@@ -717,11 +791,15 @@ export default function NewTaskPage() {
   const selectedAiModel = aiModel.trim();
   const shortcutTokensEnabled = isWritingAiPolishEnabled(aiAccess);
   const chatTokensEnabled = isWritingAiChatEnabled(aiAccess);
-  const selectedAiProvider = AI_PROVIDER_OPTIONS.some((option) => option.value === aiBaseUrl)
+  const selectedAiProvider = AI_PROVIDER_OPTIONS.some(
+    (option) => option.value === aiBaseUrl
+  )
     ? aiBaseUrl
     : DEFAULT_AI_BASE_URL;
 
-  const markCustom = (updater: (current: WritingEnvironmentConfig) => WritingEnvironmentConfig) => {
+  const markCustom = (
+    updater: (current: WritingEnvironmentConfig) => WritingEnvironmentConfig
+  ) => {
     setEnvironmentSelection('custom');
     setEnvironmentConfig((current) => ({
       ...updater(current),
@@ -754,14 +832,18 @@ export default function NewTaskPage() {
     setAiModel(firstAllowedModel);
   };
 
-  const applyEnvironmentPreset = (preset: Extract<EnvironmentSelection, WritingEnvironmentPreset>) => {
+  const applyEnvironmentPreset = (
+    preset: Extract<EnvironmentSelection, WritingEnvironmentPreset>
+  ) => {
     const config = getAdminEnvironmentConfig(preset);
     setEnvironmentSelection(preset);
     setEnvironmentConfig(config);
     setAiAccessState(config.aiAccess);
     syncAiModelFromEnvironment(config);
     clearAiConnectionState();
-    setWritingTimeLimitMinutesInput(getTimeLimitMinutesValue(config.time.timeLimitSeconds));
+    setWritingTimeLimitMinutesInput(
+      getTimeLimitMinutesValue(config.time.timeLimitSeconds)
+    );
     form.setValue('aiUsageLimit', config.aiUsageLimit.maxRequests || 100);
     if (preset === 'default_writing') {
       setTimeLimitEnabled(true);
@@ -780,12 +862,17 @@ export default function NewTaskPage() {
     setEnvironmentDialogOpen(value === 'custom');
   };
 
-  const handleEnvironmentImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleEnvironmentImport = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
     try {
-      const parsed = parseEnvironmentConfigContent(file.name, await file.text());
+      const parsed = parseEnvironmentConfigContent(
+        file.name,
+        await file.text()
+      );
       const config = normalizeImportedEnvironmentConfig(parsed);
       if (config.aiProvider?.baseUrl) {
         setAiBaseUrl(config.aiProvider.baseUrl);
@@ -795,7 +882,9 @@ export default function NewTaskPage() {
       setAiAccessState(config.aiAccess);
       syncAiModelFromEnvironment(config);
       clearAiConnectionState();
-      setWritingTimeLimitMinutesInput(getTimeLimitMinutesValue(config.time.timeLimitSeconds));
+      setWritingTimeLimitMinutesInput(
+        getTimeLimitMinutesValue(config.time.timeLimitSeconds)
+      );
       form.setValue('aiUsageLimit', config.aiUsageLimit.maxRequests || 100);
       setEnvironmentDialogOpen(false);
       toast({
@@ -805,7 +894,8 @@ export default function NewTaskPage() {
     } catch (err: any) {
       toast({
         title: 'Invalid environment file',
-        description: err.message || 'Unable to import the environment configuration file.',
+        description:
+          err.message || 'Unable to import the environment configuration file.',
         variant: 'destructive',
       });
     } finally {
@@ -813,12 +903,17 @@ export default function NewTaskPage() {
     }
   };
 
-  const setAiTokenBudget = (patch: NonNullable<WritingEnvironmentConfig['aiTokenBudget']>) => {
+  const setAiTokenBudget = (
+    patch: NonNullable<WritingEnvironmentConfig['aiTokenBudget']>
+  ) => {
     markCustom((current) => ({
       ...current,
       aiTokenBudget: {
-        shortcutMaxTokens: current.aiTokenBudget?.shortcutMaxTokens || AI_SHORTCUT_MAX_TOKENS_DEFAULT,
-        chatMaxTokens: current.aiTokenBudget?.chatMaxTokens || AI_CHAT_MAX_TOKENS_DEFAULT,
+        shortcutMaxTokens:
+          current.aiTokenBudget?.shortcutMaxTokens ||
+          AI_SHORTCUT_MAX_TOKENS_DEFAULT,
+        chatMaxTokens:
+          current.aiTokenBudget?.chatMaxTokens || AI_CHAT_MAX_TOKENS_DEFAULT,
         ...patch,
       },
     }));
@@ -827,12 +922,14 @@ export default function NewTaskPage() {
   const setAiPolicyMode = (mode: WritingAiPolicyMode) => {
     markCustom((current) => ({
       ...current,
-      aiPolicy: mode === 'guard'
-        ? {
-            mode: 'guard',
-            rejectionRule: normalizeWritingAiPolicy(current.aiPolicy).rejectionRule || '',
-          }
-        : { mode: 'off' },
+      aiPolicy:
+        mode === 'guard'
+          ? {
+              mode: 'guard',
+              rejectionRule:
+                normalizeWritingAiPolicy(current.aiPolicy).rejectionRule || '',
+            }
+          : { mode: 'off' },
     }));
   };
 
@@ -890,7 +987,8 @@ export default function NewTaskPage() {
           mode: 'restart_allowed',
           maxAttempts: parseMaxAttempts(
             value,
-            normalizeWritingAttemptPolicy(current.submission.attemptPolicy).maxAttempts || 2
+            normalizeWritingAttemptPolicy(current.submission.attemptPolicy)
+              .maxAttempts || 2
           ),
         }),
       },
@@ -960,18 +1058,22 @@ export default function NewTaskPage() {
       : aiModelOptions[0] || 'gpt-5.4-mini';
 
     setAiAccessState(nextAccess);
-    if (nextAccess !== 'off' && !modelBelongsToOptions(aiModel, aiModelOptions)) {
+    if (
+      nextAccess !== 'off' &&
+      !modelBelongsToOptions(aiModel, aiModelOptions)
+    ) {
       setAiModel(defaultModel);
     }
 
     markCustom((current) => ({
       ...current,
       aiAccess: nextAccess,
-      allowedModels: nextAccess === 'off'
-        ? []
-        : current.allowedModels.length
-          ? current.allowedModels
-          : [defaultModel],
+      allowedModels:
+        nextAccess === 'off'
+          ? []
+          : current.allowedModels.length
+            ? current.allowedModels
+            : [defaultModel],
       customModels: nextAccess === 'off' ? [] : current.customModels,
       aiPolicy: isWritingAiChatEnabled(nextAccess)
         ? normalizeWritingAiPolicy(current.aiPolicy)
@@ -1015,10 +1117,11 @@ export default function NewTaskPage() {
         defaultBaseUrl: DEFAULT_AI_BASE_URL,
         model: selectedAiModel,
       });
-      const result = await api.post<{ success: boolean; message?: string; models?: string[] }>(
-        '/api/v1/ai/settings/test',
-        request
-      );
+      const result = await api.post<{
+        success: boolean;
+        message?: string;
+        models?: string[];
+      }>('/api/v1/ai/settings/test', request);
       const connectionResult = normalizeWritingAiConnectionTestResult(result);
 
       setAiConnectionResult(connectionResult);
@@ -1036,7 +1139,10 @@ export default function NewTaskPage() {
 
         setTestedAiModels(nextModels);
 
-        if (nextModels.length > 0 && (!aiModel || !nextModels.includes(aiModel))) {
+        if (
+          nextModels.length > 0 &&
+          (!aiModel || !nextModels.includes(aiModel))
+        ) {
           setAiModel(nextModels[0]);
           setEnvironmentAiModel(nextModels[0]);
         }
@@ -1062,12 +1168,13 @@ export default function NewTaskPage() {
     try {
       setError(null);
 
-      const submittedData = timeLimitEnabled && !timeWindowTouched
-        ? {
-            ...data,
-            ...setDefaultTaskWindow(),
-          }
-        : data;
+      const submittedData =
+        timeLimitEnabled && !timeWindowTouched
+          ? {
+              ...data,
+              ...setDefaultTaskWindow(),
+            }
+          : data;
 
       if (!validateStartDateWithinCreateWindow(submittedData.startDate)) {
         throw new Error(TASK_START_DATE_PAST_ERROR_MESSAGE);
@@ -1075,7 +1182,9 @@ export default function NewTaskPage() {
 
       if (aiAccess !== 'off') {
         if (!aiApiKey.trim() && !hasExistingAiKey) {
-          throw new Error('Enter an AI API key before creating an AI-enabled task.');
+          throw new Error(
+            'Enter an AI API key before creating an AI-enabled task.'
+          );
         }
 
         if (!selectedAiModel) {
@@ -1085,7 +1194,9 @@ export default function NewTaskPage() {
         if (aiConnectionResult?.success !== true) {
           const success = await testAiConnection();
           if (!success) {
-            throw new Error('Test AI connection before creating an AI-enabled task.');
+            throw new Error(
+              'Test AI connection before creating an AI-enabled task.'
+            );
           }
         }
 
@@ -1093,42 +1204,65 @@ export default function NewTaskPage() {
           apiKey: aiApiKey.trim() || WRITING_AI_EXISTING_KEY_SENTINEL,
           baseUrl: aiBaseUrl.trim() || DEFAULT_AI_BASE_URL,
           model: selectedAiModel,
-          shortcutMaxTokens: environmentConfig.aiTokenBudget?.shortcutMaxTokens || AI_SHORTCUT_MAX_TOKENS_DEFAULT,
-          chatMaxTokens: environmentConfig.aiTokenBudget?.chatMaxTokens || AI_CHAT_MAX_TOKENS_DEFAULT,
+          shortcutMaxTokens:
+            environmentConfig.aiTokenBudget?.shortcutMaxTokens ||
+            AI_SHORTCUT_MAX_TOKENS_DEFAULT,
+          chatMaxTokens:
+            environmentConfig.aiTokenBudget?.chatMaxTokens ||
+            AI_CHAT_MAX_TOKENS_DEFAULT,
         });
       }
 
       const effectiveAiPolicy = isWritingAiChatEnabled(aiAccess)
         ? normalizeWritingAiPolicy(environmentConfig.aiPolicy)
         : { mode: 'off' as const };
-      if (effectiveAiPolicy.mode === 'guard' && !effectiveAiPolicy.rejectionRule?.trim()) {
-        throw new Error('Enter an AI Guard policy rejection rule or turn AI Guard policy off.');
+      if (
+        effectiveAiPolicy.mode === 'guard' &&
+        !effectiveAiPolicy.rejectionRule?.trim()
+      ) {
+        throw new Error(
+          'Enter an AI Guard policy rejection rule or turn AI Guard policy off.'
+        );
       }
 
       const allowedModels = aiAccess === 'off' ? [] : [selectedAiModel];
-      const resolvedAiProvider = aiAccess === 'off'
-        ? undefined
-        : resolveAiProviderConfig(selectedAiModel, aiBaseUrl, environmentConfig.aiProvider);
-      if (timeLimitEnabled && (!submittedData.startDate || !submittedData.endDate)) {
+      const resolvedAiProvider =
+        aiAccess === 'off'
+          ? undefined
+          : resolveAiProviderConfig(
+              selectedAiModel,
+              aiBaseUrl,
+              environmentConfig.aiProvider
+            );
+      if (
+        timeLimitEnabled &&
+        (!submittedData.startDate || !submittedData.endDate)
+      ) {
         throw new Error('Select both start and end time when Time is on.');
       }
 
       const fallbackStart = new Date();
       const fallbackEnd = new Date(fallbackStart);
-      fallbackEnd.setFullYear(fallbackEnd.getFullYear() + UNLIMITED_TASK_WINDOW_YEARS);
+      fallbackEnd.setFullYear(
+        fallbackEnd.getFullYear() + UNLIMITED_TASK_WINDOW_YEARS
+      );
 
-      const startTime = timeLimitEnabled && submittedData.startDate
-        ? localDateTimeInputToISOString(submittedData.startDate)
-        : fallbackStart.toISOString();
-      const endTime = timeLimitEnabled && submittedData.endDate
-        ? localDateTimeInputToISOString(submittedData.endDate)
-        : fallbackEnd.toISOString();
+      const startTime =
+        timeLimitEnabled && submittedData.startDate
+          ? localDateTimeInputToISOString(submittedData.startDate)
+          : fallbackStart.toISOString();
+      const endTime =
+        timeLimitEnabled && submittedData.endDate
+          ? localDateTimeInputToISOString(submittedData.endDate)
+          : fallbackEnd.toISOString();
       const configStartTime = timeLimitEnabled ? startTime : undefined;
       const configEndTime = timeLimitEnabled ? endTime : undefined;
       const writingTimeLimitSeconds = environmentConfig.time.timeLimitSeconds
         ? parseTimeLimitMinutes(
             writingTimeLimitMinutesInput,
-            Number(getTimeLimitMinutesValue(environmentConfig.time.timeLimitSeconds))
+            Number(
+              getTimeLimitMinutesValue(environmentConfig.time.timeLimitSeconds)
+            )
           ) * 60
         : undefined;
 
@@ -1168,21 +1302,28 @@ export default function NewTaskPage() {
           },
           submission: {
             ...environmentConfig.submission,
-            attemptPolicy: normalizeWritingAttemptPolicy(environmentConfig.submission.attemptPolicy),
+            attemptPolicy: normalizeWritingAttemptPolicy(
+              environmentConfig.submission.attemptPolicy
+            ),
           },
           traceability: {
             ...environmentConfig.traceability,
             trackAiUsage: aiAccess !== 'off',
-            trackCopyPaste: normalizeCopyPastePolicy(environmentConfig.copyPastePolicy) === 'allowed',
+            trackCopyPaste:
+              normalizeCopyPastePolicy(environmentConfig.copyPastePolicy) ===
+              'allowed',
           },
-          detectors: normalizeWritingDetectorConfig(environmentConfig.detectors),
-          resourceAccess: normalizeResourceAccessPolicy(environmentConfig.resourceAccess),
+          detectors: normalizeWritingDetectorConfig(
+            environmentConfig.detectors
+          ),
+          resourceAccess: normalizeResourceAccessPolicy(
+            environmentConfig.resourceAccess
+          ),
         },
       };
 
-      const requestBody = instructionFiles.length > 0
-        ? new FormData()
-        : payload;
+      const requestBody =
+        instructionFiles.length > 0 ? new FormData() : payload;
 
       if (requestBody instanceof FormData) {
         requestBody.append('payload', JSON.stringify(payload));
@@ -1207,7 +1348,8 @@ export default function NewTaskPage() {
       // Redirect to the new task's page
       router.push(`/tasks/${response.data.id}`);
     } catch (err: any) {
-      const errorMessage = err?.message || 'Failed to create task. Please try again.';
+      const errorMessage =
+        err?.message || 'Failed to create task. Please try again.';
       setError(errorMessage);
 
       toast({
@@ -1222,7 +1364,9 @@ export default function NewTaskPage() {
     router.push('/tasks');
   };
 
-  const handleInstructionFilesChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInstructionFilesChange = (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
     const files = Array.from(event.target.files || []);
     if (!files.length) return;
 
@@ -1261,7 +1405,8 @@ export default function NewTaskPage() {
     setInstructionFiles(files);
   };
 
-  const isImportingEnvironment = environmentSelection === IMPORT_ENVIRONMENT_VALUE;
+  const isImportingEnvironment =
+    environmentSelection === IMPORT_ENVIRONMENT_VALUE;
   const showCustomEnvironmentSummary = environmentSelection === 'custom';
   const effectiveAiUsageLimit = Number(watchedAiUsageLimit) || 100;
   const effectiveEnvironmentConfig: WritingEnvironmentConfig = {
@@ -1283,11 +1428,12 @@ export default function NewTaskPage() {
     ...effectiveEnvironmentConfig,
     taskType: 'admin_assigned',
     aiAccess,
-    allowedModels: aiAccess === 'off'
-      ? []
-      : selectedAiModel
-        ? [selectedAiModel]
-        : effectiveEnvironmentConfig.allowedModels,
+    allowedModels:
+      aiAccess === 'off'
+        ? []
+        : selectedAiModel
+          ? [selectedAiModel]
+          : effectiveEnvironmentConfig.allowedModels,
     instructions: {
       ...effectiveEnvironmentConfig.instructions,
       hasInstructionPdf: instructionFiles.length > 0,
@@ -1300,24 +1446,33 @@ export default function NewTaskPage() {
     },
     submission: {
       ...effectiveEnvironmentConfig.submission,
-      attemptPolicy: normalizeWritingAttemptPolicy(effectiveEnvironmentConfig.submission.attemptPolicy),
+      attemptPolicy: normalizeWritingAttemptPolicy(
+        effectiveEnvironmentConfig.submission.attemptPolicy
+      ),
     },
     traceability: {
       ...effectiveEnvironmentConfig.traceability,
       trackAiUsage: aiAccess !== 'off',
-      trackCopyPaste: normalizeCopyPastePolicy(effectiveEnvironmentConfig.copyPastePolicy) === 'allowed',
+      trackCopyPaste:
+        normalizeCopyPastePolicy(effectiveEnvironmentConfig.copyPastePolicy) ===
+        'allowed',
     },
-    detectors: normalizeWritingDetectorConfig(effectiveEnvironmentConfig.detectors),
+    detectors: normalizeWritingDetectorConfig(
+      effectiveEnvironmentConfig.detectors
+    ),
   };
   const getWorkspacePreviewPayload = (): WorkspaceSetupPreviewPayload => ({
     allowGuestSubmissions,
     config: workspacePreviewConfig,
     description: watchedTaskDescription || '',
-    hasPdf: instructionFiles.length > 0 || !!environmentConfig.instructions.hasInstructionPdf,
+    hasPdf:
+      instructionFiles.length > 0 ||
+      !!environmentConfig.instructions.hasInstructionPdf,
     mode: 'admin',
-    pdfLabel: instructionFiles.length > 1
-      ? `${instructionFiles.length} instruction PDFs`
-      : instructionFiles[0]?.name || 'Instruction PDF',
+    pdfLabel:
+      instructionFiles.length > 1
+        ? `${instructionFiles.length} instruction PDFs`
+        : instructionFiles[0]?.name || 'Instruction PDF',
     pdfPreviewUrl: instructionPdfPreviewUrl,
     selectedAiModel,
     taskWindow: {
@@ -1346,8 +1501,14 @@ export default function NewTaskPage() {
     const targetOrigin = new URL(frontendUserUrl).origin;
 
     previewWindow.postMessage(message, targetOrigin);
-    window.setTimeout(() => previewWindow.postMessage(message, targetOrigin), 250);
-    window.setTimeout(() => previewWindow.postMessage(message, targetOrigin), 1000);
+    window.setTimeout(
+      () => previewWindow.postMessage(message, targetOrigin),
+      250
+    );
+    window.setTimeout(
+      () => previewWindow.postMessage(message, targetOrigin),
+      1000
+    );
   };
   const customEnvironmentControls = (
     <div className="grid gap-4 xl:grid-cols-2">
@@ -1358,7 +1519,10 @@ export default function NewTaskPage() {
         />
 
         <div className="grid gap-2">
-          <Select value={aiAccess} onValueChange={(value) => setAiAccess(value as WritingAiAccess)}>
+          <Select
+            value={aiAccess}
+            onValueChange={(value) => setAiAccess(value as WritingAiAccess)}
+          >
             <SelectTrigger aria-label="AI access">
               <SelectValue placeholder="AI access" />
             </SelectTrigger>
@@ -1390,7 +1554,11 @@ export default function NewTaskPage() {
                   setAiApiKey(event.target.value);
                   clearAiConnectionState();
                 }}
-                placeholder={hasExistingAiKey ? `Current: ${maskedAiKey || 'saved key'}` : 'Enter API key'}
+                placeholder={
+                  hasExistingAiKey
+                    ? `Current: ${maskedAiKey || 'saved key'}`
+                    : 'Enter API key'
+                }
               />
               {hasExistingAiKey && !aiApiKey && (
                 <p className="text-xs text-muted-foreground">
@@ -1403,7 +1571,11 @@ export default function NewTaskPage() {
               type="button"
               variant="outline"
               onClick={handleTestAiConnection}
-              disabled={isSubmitting || isTestingAiConnection || (!aiApiKey.trim() && !hasExistingAiKey)}
+              disabled={
+                isSubmitting ||
+                isTestingAiConnection ||
+                (!aiApiKey.trim() && !hasExistingAiKey)
+              }
             >
               {isTestingAiConnection ? (
                 <>
@@ -1422,7 +1594,13 @@ export default function NewTaskPage() {
                 ) : (
                   <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
                 )}
-                <p className={aiConnectionResult.success ? 'text-emerald-700' : 'text-destructive'}>
+                <p
+                  className={
+                    aiConnectionResult.success
+                      ? 'text-emerald-700'
+                      : 'text-destructive'
+                  }
+                >
                   {aiConnectionResult.message}
                 </p>
               </div>
@@ -1482,7 +1660,9 @@ export default function NewTaskPage() {
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="grid gap-2">
                 <div className="flex items-center gap-1.5">
-                  <FormLabel htmlFor="ai-shortcut-max-tokens">Shortcut Tokens</FormLabel>
+                  <FormLabel htmlFor="ai-shortcut-max-tokens">
+                    Shortcut Tokens
+                  </FormLabel>
                   <AdminEnvironmentHelp title="Shortcut Tokens">
                     {SHORTCUT_TOKENS_HELP_TEXT}
                   </AdminEnvironmentHelp>
@@ -1492,12 +1672,25 @@ export default function NewTaskPage() {
                   type="number"
                   min={AI_MAX_TOKENS_MIN}
                   max={AI_MAX_TOKENS_MAX}
-                  value={shortcutTokensEnabled ? environmentConfig.aiTokenBudget?.shortcutMaxTokens || AI_SHORTCUT_MAX_TOKENS_DEFAULT : ''}
-                  placeholder={shortcutTokensEnabled ? undefined : 'Not available in this mode'}
+                  value={
+                    shortcutTokensEnabled
+                      ? environmentConfig.aiTokenBudget?.shortcutMaxTokens ||
+                        AI_SHORTCUT_MAX_TOKENS_DEFAULT
+                      : ''
+                  }
+                  placeholder={
+                    shortcutTokensEnabled
+                      ? undefined
+                      : 'Not available in this mode'
+                  }
                   disabled={isSubmitting || !shortcutTokensEnabled}
-                  onChange={(event) => setAiTokenBudget({
-                    shortcutMaxTokens: Number(event.target.value) || AI_SHORTCUT_MAX_TOKENS_DEFAULT,
-                  })}
+                  onChange={(event) =>
+                    setAiTokenBudget({
+                      shortcutMaxTokens:
+                        Number(event.target.value) ||
+                        AI_SHORTCUT_MAX_TOKENS_DEFAULT,
+                    })
+                  }
                 />
                 {!shortcutTokensEnabled && (
                   <FormDescription>
@@ -1508,7 +1701,9 @@ export default function NewTaskPage() {
 
               <div className="grid gap-2">
                 <div className="flex items-center gap-1.5">
-                  <FormLabel htmlFor="ai-chat-max-tokens">Chat Tokens</FormLabel>
+                  <FormLabel htmlFor="ai-chat-max-tokens">
+                    Chat Tokens
+                  </FormLabel>
                   <AdminEnvironmentHelp title="Chat Tokens">
                     {CHAT_TOKENS_HELP_TEXT}
                   </AdminEnvironmentHelp>
@@ -1518,12 +1713,23 @@ export default function NewTaskPage() {
                   type="number"
                   min={AI_MAX_TOKENS_MIN}
                   max={AI_MAX_TOKENS_MAX}
-                  value={chatTokensEnabled ? environmentConfig.aiTokenBudget?.chatMaxTokens || AI_CHAT_MAX_TOKENS_DEFAULT : ''}
-                  placeholder={chatTokensEnabled ? undefined : 'Not available in this mode'}
+                  value={
+                    chatTokensEnabled
+                      ? environmentConfig.aiTokenBudget?.chatMaxTokens ||
+                        AI_CHAT_MAX_TOKENS_DEFAULT
+                      : ''
+                  }
+                  placeholder={
+                    chatTokensEnabled ? undefined : 'Not available in this mode'
+                  }
                   disabled={isSubmitting || !chatTokensEnabled}
-                  onChange={(event) => setAiTokenBudget({
-                    chatMaxTokens: Number(event.target.value) || AI_CHAT_MAX_TOKENS_DEFAULT,
-                  })}
+                  onChange={(event) =>
+                    setAiTokenBudget({
+                      chatMaxTokens:
+                        Number(event.target.value) ||
+                        AI_CHAT_MAX_TOKENS_DEFAULT,
+                    })
+                  }
                 />
                 {!chatTokensEnabled && (
                   <FormDescription>
@@ -1543,8 +1749,12 @@ export default function NewTaskPage() {
                     </AdminEnvironmentHelp>
                   </div>
                   <Select
-                    value={normalizeWritingAiPolicy(environmentConfig.aiPolicy).mode}
-                    onValueChange={(value) => setAiPolicyMode(value as WritingAiPolicyMode)}
+                    value={
+                      normalizeWritingAiPolicy(environmentConfig.aiPolicy).mode
+                    }
+                    onValueChange={(value) =>
+                      setAiPolicyMode(value as WritingAiPolicyMode)
+                    }
                   >
                     <SelectTrigger aria-label="AI Guard policy">
                       <SelectValue placeholder="AI Guard policy" />
@@ -1559,14 +1769,21 @@ export default function NewTaskPage() {
                   </Select>
                 </div>
 
-                {normalizeWritingAiPolicy(environmentConfig.aiPolicy).mode === 'guard' && (
+                {normalizeWritingAiPolicy(environmentConfig.aiPolicy).mode ===
+                  'guard' && (
                   <div className="grid gap-2">
-                    <FormLabel htmlFor="ai-policy-rejection-rule">Rejection Rule</FormLabel>
+                    <FormLabel htmlFor="ai-policy-rejection-rule">
+                      Rejection Rule
+                    </FormLabel>
                     <Textarea
                       id="ai-policy-rejection-rule"
                       aria-label="AI rejection rule"
-                      value={getWritingAiPolicyRejectionRuleInputValue(environmentConfig.aiPolicy)}
-                      onChange={(event) => setAiPolicyRejectionRule(event.target.value)}
+                      value={getWritingAiPolicyRejectionRuleInputValue(
+                        environmentConfig.aiPolicy
+                      )}
+                      onChange={(event) =>
+                        setAiPolicyRejectionRule(event.target.value)
+                      }
                       placeholder="Example: Refuse to produce evaluative claims; only help with grammar, wording, or understanding references."
                       className="min-h-24"
                     />
@@ -1616,9 +1833,11 @@ export default function NewTaskPage() {
           <FormLabel>Copy & Paste</FormLabel>
           <Select
             value={normalizeCopyPastePolicy(environmentConfig.copyPastePolicy)}
-            onValueChange={(value) => updateEnvironment({
-              copyPastePolicy: normalizeCopyPastePolicy(value),
-            })}
+            onValueChange={(value) =>
+              updateEnvironment({
+                copyPastePolicy: normalizeCopyPastePolicy(value),
+              })
+            }
           >
             <SelectTrigger>
               <SelectValue placeholder="Copy-paste policy" />
@@ -1633,10 +1852,14 @@ export default function NewTaskPage() {
         <div className="grid gap-2">
           <FormLabel>Instruction PDF Access</FormLabel>
           <Select
-            value={normalizeResourceAccessPolicy(environmentConfig.resourceAccess)}
-            onValueChange={(value) => updateEnvironment({
-              resourceAccess: normalizeResourceAccessPolicy(value),
-            })}
+            value={normalizeResourceAccessPolicy(
+              environmentConfig.resourceAccess
+            )}
+            onValueChange={(value) =>
+              updateEnvironment({
+                resourceAccess: normalizeResourceAccessPolicy(value),
+              })
+            }
           >
             <SelectTrigger>
               <SelectValue placeholder="Instruction PDF access" />
@@ -1647,41 +1870,51 @@ export default function NewTaskPage() {
             </SelectContent>
           </Select>
           <FormDescription>
-            View-only instruction PDFs load through short-lived workspace access and hide file-saving affordances.
+            View-only instruction PDFs load through short-lived workspace access
+            and hide file-saving affordances.
           </FormDescription>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="grid gap-2">
-            <FormLabel htmlFor="minimum-characters">Minimum Submission Characters</FormLabel>
+            <FormLabel htmlFor="minimum-characters">
+              Minimum Submission Characters
+            </FormLabel>
             <Input
               id="minimum-characters"
               type="number"
               min={1}
               max={SUBMISSION_MIN_CHARACTERS_MAX}
               value={environmentConfig.submission.minCharacters ?? ''}
-              onChange={(event) => setSubmissionMinimumCharacters(event.target.value)}
+              onChange={(event) =>
+                setSubmissionMinimumCharacters(event.target.value)
+              }
               placeholder="No minimum"
               disabled={isSubmitting}
             />
           </div>
 
           <div className="grid gap-2">
-            <FormLabel htmlFor="maximum-characters">Maximum Submission Characters</FormLabel>
+            <FormLabel htmlFor="maximum-characters">
+              Maximum Submission Characters
+            </FormLabel>
             <Input
               id="maximum-characters"
               type="number"
               min={1}
               max={SUBMISSION_MAX_CHARACTERS_MAX}
               value={environmentConfig.submission.maxCharacters ?? ''}
-              onChange={(event) => setSubmissionMaximumCharacters(event.target.value)}
+              onChange={(event) =>
+                setSubmissionMaximumCharacters(event.target.value)
+              }
               placeholder="No maximum"
               disabled={isSubmitting}
             />
           </div>
 
           <FormDescription className="sm:col-span-2">
-            These limits apply to the final submitted document, not copy-paste length.
+            These limits apply to the final submitted document, not copy-paste
+            length.
           </FormDescription>
         </div>
 
@@ -1689,33 +1922,52 @@ export default function NewTaskPage() {
           <div className="grid gap-2">
             <FormLabel>Task Attempts</FormLabel>
             <Select
-              value={normalizeWritingAttemptPolicy(environmentConfig.submission.attemptPolicy).mode}
-              onValueChange={(value) => setAttemptPolicyMode(value as WritingAttemptPolicyMode)}
+              value={
+                normalizeWritingAttemptPolicy(
+                  environmentConfig.submission.attemptPolicy
+                ).mode
+              }
+              onValueChange={(value) =>
+                setAttemptPolicyMode(value as WritingAttemptPolicyMode)
+              }
             >
               <SelectTrigger>
                 <SelectValue placeholder="Task attempt policy" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="single">Single durable attempt</SelectItem>
-                <SelectItem value="restart_allowed">Allow writers to restart</SelectItem>
+                <SelectItem value="restart_allowed">
+                  Allow writers to restart
+                </SelectItem>
               </SelectContent>
             </Select>
             <FormDescription>
-              Single attempt restores the same submission if a writer removes and rejoins the task.
+              Single attempt restores the same submission if a writer removes
+              and rejoins the task.
             </FormDescription>
           </div>
 
-          {normalizeWritingAttemptPolicy(environmentConfig.submission.attemptPolicy).mode === 'restart_allowed' ? (
+          {normalizeWritingAttemptPolicy(
+            environmentConfig.submission.attemptPolicy
+          ).mode === 'restart_allowed' ? (
             <div className="grid gap-2 sm:max-w-xs">
-              <FormLabel htmlFor="maximum-task-attempts">Maximum Attempts</FormLabel>
+              <FormLabel htmlFor="maximum-task-attempts">
+                Maximum Attempts
+              </FormLabel>
               <Input
                 id="maximum-task-attempts"
                 type="number"
                 min={2}
                 max={20}
-                value={normalizeWritingAttemptPolicy(environmentConfig.submission.attemptPolicy).maxAttempts || 2}
+                value={
+                  normalizeWritingAttemptPolicy(
+                    environmentConfig.submission.attemptPolicy
+                  ).maxAttempts || 2
+                }
                 disabled={isSubmitting}
-                onChange={(event) => setAttemptPolicyMaxAttempts(event.target.value)}
+                onChange={(event) =>
+                  setAttemptPolicyMaxAttempts(event.target.value)
+                }
               />
               <FormDescription>
                 Previous attempts and certificates stay saved.
@@ -1724,18 +1976,6 @@ export default function NewTaskPage() {
           ) : null}
         </div>
       </div>
-
-      <DetectorSettingsBox
-        config={environmentConfig}
-        disabled={isSubmitting}
-        onChange={(nextConfig) => {
-          setEnvironmentConfig((current) => ({
-            ...current,
-            ...nextConfig,
-            preset: 'custom',
-          }));
-        }}
-      />
 
       <div className="space-y-4 rounded-md border p-4">
         <SectionHeading
@@ -1797,7 +2037,10 @@ export default function NewTaskPage() {
                 </Button>
               </div>
             </div>
-            <Dialog open={timeWindowDialogOpen} onOpenChange={setTimeWindowDialogOpen}>
+            <Dialog
+              open={timeWindowDialogOpen}
+              onOpenChange={setTimeWindowDialogOpen}
+            >
               <DialogContent className="w-[calc(100vw-2rem)] max-w-2xl">
                 <DialogHeader>
                   <DialogTitle>Task Time Window</DialogTitle>
@@ -1813,7 +2056,8 @@ export default function NewTaskPage() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>
-                          Task Start Date <span className="text-destructive">*</span>
+                          Task Start Date{' '}
+                          <span className="text-destructive">*</span>
                         </FormLabel>
                         <FormControl>
                           <Input
@@ -1826,7 +2070,9 @@ export default function NewTaskPage() {
                             }}
                             onBlur={(event) => {
                               field.onBlur();
-                              validateStartDateWithinCreateWindow(event.target.value);
+                              validateStartDateWithinCreateWindow(
+                                event.target.value
+                              );
                             }}
                           />
                         </FormControl>
@@ -1844,7 +2090,8 @@ export default function NewTaskPage() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>
-                          Task End Date <span className="text-destructive">*</span>
+                          Task End Date{' '}
+                          <span className="text-destructive">*</span>
                         </FormLabel>
                         <FormControl>
                           <Input
@@ -1858,7 +2105,8 @@ export default function NewTaskPage() {
                           />
                         </FormControl>
                         <FormDescription>
-                          Defaults to two weeks after the start time. Shown in your local timezone: {localTimeZoneLabel}.
+                          Defaults to two weeks after the start time. Shown in
+                          your local timezone: {localTimeZoneLabel}.
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
@@ -1867,8 +2115,8 @@ export default function NewTaskPage() {
                 </div>
 
                 <p className="rounded-md bg-muted/40 p-3 text-xs text-muted-foreground">
-                  Students see the same absolute window converted into their own local time.
-                  Your current timezone is {localTimeZoneLabel}.
+                  Students see the same absolute window converted into their own
+                  local time. Your current timezone is {localTimeZoneLabel}.
                 </p>
 
                 <DialogFooter>
@@ -1894,8 +2142,14 @@ export default function NewTaskPage() {
           <div className="grid gap-2">
             <FormLabel>Timer</FormLabel>
             <Select
-              value={environmentConfig.time.timeLimitSeconds ? 'time_limited' : 'unlimited'}
-              onValueChange={(value) => setWritingSessionTimerEnabled(value === 'time_limited')}
+              value={
+                environmentConfig.time.timeLimitSeconds
+                  ? 'time_limited'
+                  : 'unlimited'
+              }
+              onValueChange={(value) =>
+                setWritingSessionTimerEnabled(value === 'time_limited')
+              }
             >
               <SelectTrigger aria-label="Writing session timer">
                 <SelectValue placeholder="Writing session timer" />
@@ -1909,75 +2163,84 @@ export default function NewTaskPage() {
 
           {environmentConfig.time.timeLimitSeconds && (
             <div className="grid gap-2">
-              <FormLabel htmlFor="writing-time-limit-minutes">Time Limit (minutes)</FormLabel>
+              <FormLabel htmlFor="writing-time-limit-minutes">
+                Time Limit (minutes)
+              </FormLabel>
               <Input
                 id="writing-time-limit-minutes"
                 type="number"
                 min={1}
                 value={writingTimeLimitMinutesInput}
                 disabled={isSubmitting}
-                onChange={(event) => setWritingSessionTimerMinutes(event.target.value)}
+                onChange={(event) =>
+                  setWritingSessionTimerMinutes(event.target.value)
+                }
                 onBlur={commitWritingSessionTimerMinutes}
               />
               <FormDescription>
-                The editor shows a countdown and blocks submission when the timer reaches zero.
+                The editor shows a countdown and blocks submission when the
+                timer reaches zero.
               </FormDescription>
             </div>
           )}
         </div>
       </div>
+
+      <div className="xl:col-span-2">
+        <DetectorSettingsBox
+          config={environmentConfig}
+          disabled={isSubmitting}
+          onChange={(nextConfig) => {
+            setEnvironmentConfig((current) => ({
+              ...current,
+              ...nextConfig,
+              preset: 'custom',
+            }));
+          }}
+        />
+      </div>
     </div>
   );
 
   return (
-    <div className="mx-auto w-full max-w-6xl py-2">
-      <div className="mb-6">
-        <Button variant="ghost" className="mb-4 px-0 hover:bg-transparent" onClick={() => router.push('/tasks')}>
+    <div className="humanly-page">
+      <div className="mb-4">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="mb-3 -ml-2 h-auto px-2 py-1 text-muted-foreground hover:bg-transparent hover:text-foreground"
+          onClick={() => router.push('/tasks')}
+        >
           <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Tasks
+          Back to Dashboard
         </Button>
-        <h1 className="text-3xl font-bold tracking-normal">New Task</h1>
-        <p className="mt-2 text-muted-foreground">
-          Create a publisher-managed writing task and configure its writing environment.
-        </p>
+        <div className="flex items-end justify-between gap-4">
+          <h1 className="min-w-0 text-3xl font-medium sm:text-4xl">New Task</h1>
+          <Button
+            type="button"
+            variant="outline"
+            className="shrink-0 gap-2 border-[#9E756B] bg-[#9E756B] text-white hover:border-[#8F685F] hover:bg-[#8F685F] hover:text-white"
+            onClick={openWorkspacePreview}
+            disabled={isSubmitting}
+          >
+            <Eye className="h-4 w-4" />
+            Preview
+          </Button>
+        </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <div className="flex items-start justify-between gap-4">
-            <div className="min-w-0">
-              <CardTitle>Task Configuration</CardTitle>
-              <CardDescription>
-                Set up the task details, instruction files, timing, and environment before enrollment starts.
-              </CardDescription>
-            </div>
-            <Button
-              type="button"
-              variant="outline"
-              className="shrink-0 gap-2"
-              onClick={openWorkspacePreview}
-              disabled={isSubmitting}
-            >
-              <Eye className="h-4 w-4" />
-              Preview
-            </Button>
-          </div>
-        </CardHeader>
-
+      <Card className="overflow-hidden">
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)}>
-            <CardContent className="grid gap-6 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.25fr)] xl:items-start">
+            <CardContent className="grid gap-8 p-4 sm:p-5 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.2fr)] xl:items-stretch xl:gap-0">
               {error && (
                 <Alert variant="destructive" className="xl:col-span-2">
                   <AlertDescription>{error}</AlertDescription>
                 </Alert>
               )}
 
-              <section className="space-y-4">
-                <SectionHeading
-                  title="Basic Information"
-                  description="Name the task and attach optional PDF instructions for enrolled users."
-                />
+              <section className="h-full space-y-4 py-1 xl:pr-8">
+                <SectionHeading title="Basic Information" />
 
                 <FormField
                   control={form.control}
@@ -2016,7 +2279,8 @@ export default function NewTaskPage() {
                         />
                       </FormControl>
                       <FormDescription>
-                        Up to {TASK_DESCRIPTION_MAX_LENGTH.toLocaleString()} characters.
+                        Up to {TASK_DESCRIPTION_MAX_LENGTH.toLocaleString()}{' '}
+                        characters.
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -2031,7 +2295,7 @@ export default function NewTaskPage() {
                       <FormLabel>Task Instruction</FormLabel>
                       <FormControl>
                         <Textarea
-                          placeholder="Optional instructions writers should review before they start..."
+                          placeholder="Instructions shown to the writer before writing starts..."
                           className="resize-none"
                           {...field}
                           maxLength={TASK_INSTRUCTION_MAX_LENGTH}
@@ -2039,20 +2303,22 @@ export default function NewTaskPage() {
                         />
                       </FormControl>
                       <FormDescription>
-                        Shown above the writing rules in the writer Instructions dialog. Markdown formatting is supported.
+                        Shown above the writing rules in the writer Instructions
+                        dialog. Markdown formatting is supported.
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
 
-                <div className="rounded-lg border border-dashed border-border/80 bg-muted/20 p-4">
+                <div className="rounded-lg border border-dashed border-border p-3">
                   <div className="flex items-center gap-2 text-sm font-medium">
-                    <Upload className="h-4 w-4 text-muted-foreground" />
+                    <Upload className="h-4 w-4 text-accent" />
                     Files
                   </div>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Upload up to {TASK_INSTRUCTION_PDF_MAX_FILES} PDF instruction files for this task.
+                    Upload up to {TASK_INSTRUCTION_PDF_MAX_FILES} PDF
+                    instruction files for this task.
                   </p>
                   <Input
                     type="file"
@@ -2065,10 +2331,16 @@ export default function NewTaskPage() {
                   {instructionFiles.length > 0 && (
                     <div className="mt-3 space-y-2">
                       {instructionFiles.map((file) => (
-                        <div key={`${file.name}-${file.size}`} className="flex items-center gap-3 rounded-lg border border-border/70 bg-muted/40 p-3">
-                          <FileText className="h-5 w-5 shrink-0 text-muted-foreground" />
+                        <div
+                          key={`${file.name}-${file.size}`}
+                          className="flex items-center gap-3 rounded-lg border border-border/70 bg-background p-3"
+                        >
+                          <FileText className="h-5 w-5 shrink-0 text-accent" />
                           <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-medium" title={file.name}>
+                            <p
+                              className="truncate text-sm font-medium"
+                              title={file.name}
+                            >
                               {file.name}
                             </p>
                             <p className="text-xs text-muted-foreground">
@@ -2079,7 +2351,11 @@ export default function NewTaskPage() {
                             type="button"
                             variant="ghost"
                             size="icon"
-                            onClick={() => setInstructionFiles((current) => current.filter((item) => item !== file))}
+                            onClick={() =>
+                              setInstructionFiles((current) =>
+                                current.filter((item) => item !== file)
+                              )
+                            }
                             disabled={isSubmitting}
                           >
                             <X className="h-4 w-4" />
@@ -2089,38 +2365,42 @@ export default function NewTaskPage() {
                     </div>
                   )}
                 </div>
-
               </section>
 
-              <div className="space-y-5 rounded-md border p-4">
-                <SectionHeading
-                  title="Environment"
-                  description="Choose a default, customize task controls, or import a JSON or YAML environment."
-                />
+              <div className="h-full space-y-4 py-1 xl:border-l xl:border-border/60 xl:pl-8">
+                <SectionHeading title="Environment" />
 
                 <div className="grid gap-2">
                   <FormLabel>Environment</FormLabel>
-                  <Select value={environmentSelection} onValueChange={(value) => handleEnvironmentSelectionChange(value as EnvironmentSelection)}>
+                  <Select
+                    value={environmentSelection}
+                    onValueChange={(value) =>
+                      handleEnvironmentSelectionChange(
+                        value as EnvironmentSelection
+                      )
+                    }
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Select environment" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="default_writing">Default Environment</SelectItem>
+                      <SelectItem value="default_writing">
+                        Default Environment
+                      </SelectItem>
                       <SelectItem value="custom">Custom</SelectItem>
-                      <SelectItem value={IMPORT_ENVIRONMENT_VALUE}>Import Environment</SelectItem>
+                      <SelectItem value={IMPORT_ENVIRONMENT_VALUE}>
+                        Import Environment
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
                 {environmentSelection === IMPORT_ENVIRONMENT_VALUE && (
-                  <div className="rounded-md border border-dashed p-4">
+                  <div className="rounded-lg border border-dashed border-border p-3">
                     <div className="flex items-center gap-2 text-sm font-medium">
-                      <Upload className="h-4 w-4 text-muted-foreground" />
+                      <Upload className="h-4 w-4 text-accent" />
                       Import Environment Configuration
                     </div>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      Upload a JSON or YAML file that matches the writing environment configuration shape.
-                    </p>
                     <Input
                       type="file"
                       accept={ENVIRONMENT_CONFIG_ACCEPT}
@@ -2132,53 +2412,37 @@ export default function NewTaskPage() {
                 )}
 
                 {!showCustomEnvironmentSummary && !isImportingEnvironment && (
-                  <div className="rounded-lg border border-border/70 bg-muted/35 p-3">
-                    <div className="flex items-start gap-3">
-                      <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-[var(--hly-brand)]" />
-                      <div>
-                        <p className="font-medium">Default Environment</p>
-                        <p className="text-sm text-muted-foreground">
-                          A standard task setup with authorship tracking, no AI assistant, and a two-week writing window.
-                        </p>
-                      </div>
+                  <div className="pt-1">
+                    <div className="flex items-center gap-3">
+                      <CheckCircle className="h-4 w-4 shrink-0 text-[var(--hly-green-text)]" />
+                      <p className="font-medium">Default Environment</p>
                     </div>
 
-                    <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                      <div className="rounded-lg border border-border/60 bg-background p-2.5">
-                        <p className="humanly-eyebrow">AI</p>
-                        <p className="mt-1 text-sm font-medium">Off</p>
-                      </div>
-                      <div className="rounded-lg border border-border/60 bg-background p-2.5">
-                        <p className="humanly-eyebrow">Writing</p>
-                        <p className="mt-1 text-sm font-medium">Copy & paste allowed</p>
-                      </div>
-                      <div className="rounded-lg border border-border/60 bg-background p-2.5">
-                        <p className="humanly-eyebrow">Time</p>
-                        <p className="mt-1 text-sm font-medium">Two-week window</p>
-                      </div>
-                      <div className="rounded-lg border border-border/60 bg-background p-2.5">
-                        <p className="humanly-eyebrow">Detectors</p>
-                        <p className="mt-1 text-sm font-medium">Both on</p>
-                      </div>
-                    </div>
-
-                    <p className="mt-3 text-sm text-muted-foreground">
-                      Choose Custom to configure AI access, copy-paste rules, detector policy, or task timing.
-                    </p>
+                    <dl className="mt-4 border-t border-border/70">
+                      {[
+                        ['AI assistant', 'Off'],
+                        ['Copy & paste', 'Allowed'],
+                        ['Time', 'Two-week window'],
+                        ['Detectors', 'Both on'],
+                      ].map(([label, value]) => (
+                        <div
+                          key={label}
+                          className="flex items-baseline justify-between border-b border-border/70 py-2.5 text-sm"
+                        >
+                          <dt className="text-muted-foreground">{label}</dt>
+                          <dd className="font-medium">{value}</dd>
+                        </div>
+                      ))}
+                    </dl>
                   </div>
                 )}
 
                 {showCustomEnvironmentSummary && (
-                  <div className="rounded-lg border border-border/70 bg-muted/35 p-3">
+                  <div className="pt-1">
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                      <div className="flex min-w-0 items-start gap-3">
-                        <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-[var(--hly-brand)]" />
-                        <div>
-                          <p className="font-medium">Custom Environment</p>
-                          <p className="text-sm text-muted-foreground">
-                            Configure AI, copy-paste, task window, and session timer in a separate dialog.
-                          </p>
-                        </div>
+                      <div className="flex min-w-0 items-center gap-3">
+                        <CheckCircle className="h-4 w-4 shrink-0 text-[var(--hly-green-text)]" />
+                        <p className="font-medium">Custom Environment</p>
                       </div>
 
                       <Button
@@ -2191,43 +2455,46 @@ export default function NewTaskPage() {
                       </Button>
                     </div>
 
-                    <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    <dl className="mt-4 border-t border-border/70">
                       {customEnvironmentSummaryItems.map((item) => (
-                        <div key={item.label} className="rounded-lg border border-border/60 bg-background p-2.5">
-                          <p className="humanly-eyebrow">{item.label}</p>
-                          <p className="mt-1 text-sm font-medium">{item.value}</p>
-                          {item.detail && (
-                            <p className="mt-1 text-xs text-muted-foreground">{item.detail}</p>
-                          )}
+                        <div
+                          key={item.label}
+                          className="flex items-baseline justify-between gap-4 border-b border-border/70 py-2.5 text-sm"
+                        >
+                          <dt className="shrink-0 text-muted-foreground">
+                            {item.label}
+                          </dt>
+                          <dd className="min-w-0 text-right font-medium">
+                            {item.value}
+                          </dd>
                         </div>
                       ))}
-                    </div>
+                    </dl>
                   </div>
                 )}
-              </div>
 
-              <div className="rounded-lg border border-border/80 bg-muted/20 p-4">
-                <div className="flex items-center justify-between gap-4">
-                  <div className="min-w-0">
-                    <FormLabel htmlFor="allow-guest-submissions" className="text-sm font-medium">
+                <div className="border-t border-border/70 pt-4">
+                  <div className="flex items-center justify-between gap-4">
+                    <FormLabel
+                      htmlFor="allow-guest-submissions"
+                      className="text-sm font-medium"
+                    >
                       Allow guest submissions from public link
                     </FormLabel>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      When off, visitors must sign in or create an account before writing from the share link.
-                    </p>
+                    <Checkbox
+                      id="allow-guest-submissions"
+                      checked={allowGuestSubmissions}
+                      onCheckedChange={(checked) =>
+                        setAllowGuestSubmissions(checked === true)
+                      }
+                      disabled={isSubmitting}
+                    />
                   </div>
-                  <Checkbox
-                    id="allow-guest-submissions"
-                    checked={allowGuestSubmissions}
-                    onCheckedChange={(checked) => setAllowGuestSubmissions(checked === true)}
-                    disabled={isSubmitting}
-                  />
                 </div>
               </div>
-
             </CardContent>
 
-            <CardFooter className="flex justify-end gap-3 border-t border-border/70 pt-4">
+            <CardFooter className="flex justify-end gap-3 border-t border-border/70 px-4 pb-4 pt-4 sm:px-5 sm:pb-4 sm:pt-4">
               <Button
                 type="button"
                 variant="outline"
@@ -2245,12 +2512,16 @@ export default function NewTaskPage() {
             </CardFooter>
           </form>
 
-          <Dialog open={environmentDialogOpen} onOpenChange={setEnvironmentDialogOpen}>
+          <Dialog
+            open={environmentDialogOpen}
+            onOpenChange={setEnvironmentDialogOpen}
+          >
             <DialogContent className="max-h-[85vh] w-[calc(100vw-2rem)] max-w-5xl overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Custom Environment</DialogTitle>
                 <DialogDescription>
-                  Configure AI access, task availability, writing session timing, and submission rules before creating this task.
+                  Configure AI access, task availability, writing session
+                  timing, and submission rules before creating this task.
                 </DialogDescription>
               </DialogHeader>
 

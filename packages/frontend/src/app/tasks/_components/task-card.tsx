@@ -21,7 +21,14 @@ import {
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -39,7 +46,8 @@ import {
   type TaskWindowStatus,
 } from './task-dashboard-lifecycle';
 
-export const TASK_LIST_GRID_CLASS = 'md:grid-cols-[minmax(0,1.4fr)_8.5rem_10rem_11rem_15rem]';
+export const TASK_LIST_GRID_CLASS =
+  'md:grid-cols-[minmax(0,1.4fr)_8.5rem_10rem_11rem_15rem]';
 
 interface TaskCardProps {
   task: TaskDashboardItem;
@@ -56,13 +64,17 @@ interface TaskCardProps {
   onEditSetting: (task: TaskDashboardItem) => void;
   onDelete: (task: TaskDashboardItem) => void;
   onActiveStateChange: (task: TaskDashboardItem, nextIsActive: boolean) => void;
-  onLifecycleAction: (task: TaskDashboardItem, action: 'launch' | 'pause' | 'resume') => void;
+  onLifecycleAction: (
+    task: TaskDashboardItem,
+    action: 'launch' | 'pause' | 'resume'
+  ) => void;
   onCopyShareLink: (task: TaskDashboardItem) => void;
   onCopyInviteCode: (task: TaskDashboardItem) => void;
   onDuplicate: (task: TaskDashboardItem) => void;
 }
 
-const getCompletionCount = (task: TaskDashboardItem) => task.submissionCount ?? 0;
+const getCompletionCount = (task: TaskDashboardItem) =>
+  task.submissionCount ?? 0;
 
 const formatCompletionCount = (task: TaskDashboardItem) => {
   const count = getCompletionCount(task);
@@ -71,8 +83,10 @@ const formatCompletionCount = (task: TaskDashboardItem) => {
 
 const statusToneClass: Record<TaskWindowStatus['tone'], string> = {
   muted: 'border-border/80 bg-muted/45 text-muted-foreground',
-  success: 'border-[var(--hly-green-border)] bg-[var(--hly-green-bg)] text-[var(--hly-green-text)]',
-  warning: 'border-[var(--hly-amber-border)] bg-[var(--hly-amber-bg)] text-[var(--hly-amber-text)]',
+  success:
+    'border-[var(--hly-green-border)] bg-[var(--hly-green-bg)] text-[var(--hly-green-text)]',
+  warning:
+    'border-[var(--hly-amber-border)] bg-[var(--hly-amber-bg)] text-[var(--hly-amber-text)]',
 };
 
 export function TaskCard({
@@ -168,15 +182,14 @@ export function TaskCard({
   const LifecycleIcon = lifecycleAction.icon;
 
   const renderOptionsMenu = (layout: 'card' | 'list') => (
-    <DropdownMenu
-      open={isOptionsOpen}
-      onOpenChange={onOptionsOpenChange}
-    >
+    <DropdownMenu open={isOptionsOpen} onOpenChange={onOptionsOpenChange}>
       <DropdownMenuTrigger asChild>
         <Button
           variant="outline"
           size="sm"
-          className={layout === 'card' ? 'min-w-[120px]' : 'min-w-[112px] shrink-0'}
+          className={
+            layout === 'card' ? 'min-w-[120px]' : 'min-w-[112px] shrink-0'
+          }
           onPointerDown={(event) => {
             event.preventDefault();
             event.stopPropagation();
@@ -230,7 +243,9 @@ export function TaskCard({
           ) : (
             <Archive className="mr-2 h-4 w-4" />
           )}
-          {isChangingActiveState ? activeStateAction.pendingLabel : activeStateAction.label}
+          {isChangingActiveState
+            ? activeStateAction.pendingLabel
+            : activeStateAction.label}
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem
@@ -262,10 +277,19 @@ export function TaskCard({
       </Button>
       <Button
         type="button"
-        variant={task.lifecycleStatus === 'active' && taskWindowStatus.effectiveStatus !== 'ended' ? 'outline' : 'secondary'}
+        variant={
+          task.lifecycleStatus === 'active' &&
+          taskWindowStatus.effectiveStatus !== 'ended'
+            ? 'outline'
+            : 'secondary'
+        }
         size="sm"
         className="min-w-[112px]"
-        disabled={!lifecycleAction.action || isChangingLifecycleState || activeTab === 'archived'}
+        disabled={
+          !lifecycleAction.action ||
+          isChangingLifecycleState ||
+          activeTab === 'archived'
+        }
         onClick={() => {
           if (lifecycleAction.action) {
             onLifecycleAction(task, lifecycleAction.action);
@@ -277,7 +301,9 @@ export function TaskCard({
         ) : (
           <LifecycleIcon className="mr-2 h-4 w-4" />
         )}
-        {isChangingLifecycleState ? lifecycleAction.pendingLabel : lifecycleAction.label}
+        {isChangingLifecycleState
+          ? lifecycleAction.pendingLabel
+          : lifecycleAction.label}
       </Button>
       {renderOptionsMenu('card')}
     </>
@@ -296,14 +322,18 @@ export function TaskCard({
         >
           <div className="min-w-0">
             <div className="flex min-w-0 items-start justify-between gap-3 md:block">
-              <h3 className="min-w-0 truncate text-base font-semibold text-foreground" title={task.name}>
+              <h3
+                className="min-w-0 truncate text-base font-medium text-foreground"
+                title={task.name}
+              >
                 {task.name}
               </h3>
-              <div className="md:hidden">
-                {renderStatusBadge()}
-              </div>
+              <div className="md:hidden">{renderStatusBadge()}</div>
             </div>
-            <p className="mt-1 line-clamp-2 break-words [overflow-wrap:anywhere] text-sm text-muted-foreground" title={task.description || undefined}>
+            <p
+              className="mt-1 line-clamp-2 break-words [overflow-wrap:anywhere] text-sm text-muted-foreground"
+              title={task.description || undefined}
+            >
               {task.description || 'No description provided.'}
             </p>
             <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground md:hidden">
@@ -312,9 +342,7 @@ export function TaskCard({
             </div>
           </div>
 
-          <div className="hidden md:block">
-            {renderStatusBadge()}
-          </div>
+          <div className="hidden md:block">{renderStatusBadge()}</div>
           <div className="hidden text-sm text-muted-foreground md:block">
             {formatCompletionCount(task)}
           </div>
@@ -324,10 +352,19 @@ export function TaskCard({
           <div className="flex items-center justify-end gap-2">
             <Button
               type="button"
-              variant={task.lifecycleStatus === 'active' && taskWindowStatus.effectiveStatus !== 'ended' ? 'outline' : 'secondary'}
+              variant={
+                task.lifecycleStatus === 'active' &&
+                taskWindowStatus.effectiveStatus !== 'ended'
+                  ? 'outline'
+                  : 'secondary'
+              }
               size="sm"
               className="min-w-[96px]"
-              disabled={!lifecycleAction.action || isChangingLifecycleState || activeTab === 'archived'}
+              disabled={
+                !lifecycleAction.action ||
+                isChangingLifecycleState ||
+                activeTab === 'archived'
+              }
               onClick={(event) => {
                 event.stopPropagation();
                 if (lifecycleAction.action) {
@@ -340,7 +377,9 @@ export function TaskCard({
               ) : (
                 <LifecycleIcon className="mr-2 h-4 w-4" />
               )}
-              {isChangingLifecycleState ? lifecycleAction.pendingLabel : lifecycleAction.label}
+              {isChangingLifecycleState
+                ? lifecycleAction.pendingLabel
+                : lifecycleAction.label}
             </Button>
             {renderOptionsMenu('list')}
           </div>

@@ -144,9 +144,9 @@ CREATE TRIGGER update_projects_updated_at
 -- TimescaleDB policies
 -- ============================================================================
 
--- Compression policy: compress data older than 7 days
--- This significantly reduces storage requirements for old event data
-SELECT add_compression_policy('events', INTERVAL '7 days');
+-- Compression is intentionally not enabled in the initial schema because later
+-- migrations alter this hypertable. Operators can add a compression policy after
+-- the full schema has been applied.
 
 -- Retention policy: drop data older than 1 year
 -- Adjust this based on your data retention requirements
@@ -176,7 +176,7 @@ SELECT add_continuous_aggregate_policy('events_hourly',
 
 -- Daily session statistics per project
 CREATE MATERIALIZED VIEW IF NOT EXISTS session_daily_stats
-WITH (timescaledb.continuous) AS
+AS
 SELECT
     time_bucket('1 day', session_start) AS day,
     project_id,
@@ -187,12 +187,6 @@ SELECT
 FROM sessions
 GROUP BY day, project_id
 WITH NO DATA;
-
--- Refresh policy for session stats
-SELECT add_continuous_aggregate_policy('session_daily_stats',
-    start_offset => INTERVAL '3 days',
-    end_offset => INTERVAL '1 day',
-    schedule_interval => INTERVAL '1 day');
 
 -- ============================================================================
 -- Seed data for development (optional)

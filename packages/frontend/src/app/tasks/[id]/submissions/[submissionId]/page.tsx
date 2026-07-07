@@ -1,6 +1,14 @@
 'use client';
 
-import { Fragment, useCallback, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
+import {
+  Fragment,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import {
   AlertCircle,
@@ -107,18 +115,48 @@ const ALL_TEXT_TOGGLE_LABELS = {
   hide: 'Hide all text',
 } as const;
 
-function getFullTextToggleLabel(isExpanded: boolean, scope: 'full' | 'all' = 'full') {
-  const labels = scope === 'all' ? ALL_TEXT_TOGGLE_LABELS : FULL_TEXT_TOGGLE_LABELS;
+function getFullTextToggleLabel(
+  isExpanded: boolean,
+  scope: 'full' | 'all' = 'full'
+) {
+  const labels =
+    scope === 'all' ? ALL_TEXT_TOGGLE_LABELS : FULL_TEXT_TOGGLE_LABELS;
   return isExpanded ? labels.hide : labels.view;
 }
 
-const TIMELINE_COLORS: Partial<Record<DocumentEventTimelineItem['kind'], CSSProperties>> = {
-  typing_burst: { backgroundColor: 'var(--hly-blue-bg)', borderColor: 'var(--hly-blue-border)', color: 'var(--hly-blue-text)' },
-  line_break: { backgroundColor: 'var(--hly-green-bg)', borderColor: 'var(--hly-green-border)', color: 'var(--hly-green-text)' },
-  ai_insert: { backgroundColor: 'var(--hly-purple-bg)', borderColor: 'var(--hly-purple-border)', color: 'var(--hly-purple-text)' },
-  replace: { backgroundColor: 'var(--hly-blue-bg)', borderColor: 'var(--hly-blue-border)', color: 'var(--hly-blue-text)' },
-  paste: { backgroundColor: 'var(--hly-surface)', borderColor: 'var(--hly-amber-border)', color: 'var(--hly-neutral-text)' },
-  delete: { backgroundColor: 'var(--hly-red-bg)', borderColor: 'var(--hly-red-border)', color: 'var(--hly-red-text)' },
+const TIMELINE_COLORS: Partial<
+  Record<DocumentEventTimelineItem['kind'], CSSProperties>
+> = {
+  typing_burst: {
+    backgroundColor: 'var(--hly-blue-bg)',
+    borderColor: 'var(--hly-blue-border)',
+    color: 'var(--hly-blue-text)',
+  },
+  line_break: {
+    backgroundColor: 'var(--hly-green-bg)',
+    borderColor: 'var(--hly-green-border)',
+    color: 'var(--hly-green-text)',
+  },
+  ai_insert: {
+    backgroundColor: 'var(--hly-purple-bg)',
+    borderColor: 'var(--hly-purple-border)',
+    color: 'var(--hly-purple-text)',
+  },
+  replace: {
+    backgroundColor: 'var(--hly-blue-bg)',
+    borderColor: 'var(--hly-blue-border)',
+    color: 'var(--hly-blue-text)',
+  },
+  paste: {
+    backgroundColor: 'var(--hly-surface)',
+    borderColor: 'var(--hly-amber-border)',
+    color: 'var(--hly-neutral-text)',
+  },
+  delete: {
+    backgroundColor: 'var(--hly-red-bg)',
+    borderColor: 'var(--hly-red-border)',
+    color: 'var(--hly-red-text)',
+  },
 };
 const DEFAULT_TIMELINE_COLOR: CSSProperties = {
   backgroundColor: 'var(--hly-surface)',
@@ -197,11 +235,15 @@ const SYNTHETIC_LOG_ANOMALY_CODES = new Set<string>([
 
 const FLAG_BADGE_STYLES: Record<WritingAnomalyFlag['severity'], string> = {
   info: 'border-[var(--hly-blue-border)] bg-[var(--hly-blue-bg)] text-[var(--hly-blue-text)]',
-  warning: 'border-[var(--hly-amber-border)] bg-[var(--hly-surface)] text-[var(--hly-neutral-text)]',
-  critical: 'border-[var(--hly-red-border)] bg-[var(--hly-red-bg)] text-[var(--hly-red-text)]',
+  warning:
+    'border-[var(--hly-amber-border)] bg-[var(--hly-surface)] text-[var(--hly-neutral-text)]',
+  critical:
+    'border-[var(--hly-red-border)] bg-[var(--hly-red-bg)] text-[var(--hly-red-text)]',
 };
 
-const TIMELINE_ICONS: Partial<Record<DocumentEventTimelineItem['kind'], JSX.Element>> = {
+const TIMELINE_ICONS: Partial<
+  Record<DocumentEventTimelineItem['kind'], JSX.Element>
+> = {
   typing_burst: <Type className="h-3 w-3" />,
   line_break: <CornerDownLeft className="h-3 w-3" />,
   ai_insert: <Sparkles className="h-3 w-3" />,
@@ -211,11 +253,20 @@ const TIMELINE_ICONS: Partial<Record<DocumentEventTimelineItem['kind'], JSX.Elem
 };
 
 const getRawEventColor = (eventType: string): CSSProperties => {
-  if (eventType === 'ai_policy_refusal' || eventType === 'blocked_copy_paste_attempt') {
+  if (
+    eventType === 'ai_policy_refusal' ||
+    eventType === 'blocked_copy_paste_attempt'
+  ) {
     return ANOMALY_BADGE_COLOR;
   }
-  if (eventType === 'paste') return TIMELINE_COLORS.paste || DEFAULT_TIMELINE_COLOR;
-  if (eventType === 'copy' || eventType === 'cut' || eventType === 'select' || eventType === 'selection') {
+  if (eventType === 'paste')
+    return TIMELINE_COLORS.paste || DEFAULT_TIMELINE_COLOR;
+  if (
+    eventType === 'copy' ||
+    eventType === 'cut' ||
+    eventType === 'select' ||
+    eventType === 'selection'
+  ) {
     return SELECTION_BADGE_COLOR;
   }
   if (
@@ -226,9 +277,15 @@ const getRawEventColor = (eventType: string): CSSProperties => {
   ) {
     return TIMELINE_COLORS.line_break || DEFAULT_TIMELINE_COLOR;
   }
-  if (eventType === 'delete') return TIMELINE_COLORS.delete || DEFAULT_TIMELINE_COLOR;
-  if (eventType.startsWith('ai_')) return TIMELINE_COLORS.ai_insert || DEFAULT_TIMELINE_COLOR;
-  if (eventType === 'keydown' || eventType === 'keyup' || eventType === 'input') {
+  if (eventType === 'delete')
+    return TIMELINE_COLORS.delete || DEFAULT_TIMELINE_COLOR;
+  if (eventType.startsWith('ai_'))
+    return TIMELINE_COLORS.ai_insert || DEFAULT_TIMELINE_COLOR;
+  if (
+    eventType === 'keydown' ||
+    eventType === 'keyup' ||
+    eventType === 'input'
+  ) {
     return TIMELINE_COLORS.typing_burst || DEFAULT_TIMELINE_COLOR;
   }
 
@@ -274,7 +331,11 @@ type AnomalyDisplayItem = {
   flag: WritingAnomalyFlag;
 };
 
-type TimelineDisplayItem = HistoryItem | FoldPointItem | RawEventDisplayItem | AnomalyDisplayItem;
+type TimelineDisplayItem =
+  | HistoryItem
+  | FoldPointItem
+  | RawEventDisplayItem
+  | AnomalyDisplayItem;
 
 type RawEventDisplayOverride = {
   code: 'rapid_text_accumulation';
@@ -349,7 +410,11 @@ const calculateTextDeltaMetrics = (events: DocumentEvent[]) => {
 
     if (event.eventType === 'paste') {
       pastedCharacters += difference;
-    } else if (event.eventType === 'keydown' || event.eventType === 'keyup' || event.eventType === 'input') {
+    } else if (
+      event.eventType === 'keydown' ||
+      event.eventType === 'keyup' ||
+      event.eventType === 'input'
+    ) {
       typedCharacters += difference;
     }
   }
@@ -365,30 +430,33 @@ const buildActivityTimeline = (events: DocumentEvent[]) => {
     return groups;
   }, {});
 
-  return Object.entries(buckets).map(([time, eventCount]) => ({ time, eventCount }));
+  return Object.entries(buckets).map(([time, eventCount]) => ({
+    time,
+    eventCount,
+  }));
 };
 
-const formatTimelineTime = (value: string | Date) => (
+const formatTimelineTime = (value: string | Date) =>
   new Intl.DateTimeFormat(undefined, {
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit',
     hour12: false,
-  }).format(new Date(value))
-);
+  }).format(new Date(value));
 
-const formatRawEventTime = (value: string | Date) => (
+const formatRawEventTime = (value: string | Date) =>
   new Intl.DateTimeFormat(undefined, {
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit',
     fractionalSecondDigits: 3,
     hour12: false,
-  }).format(new Date(value))
-);
+  }).format(new Date(value));
 
 function getSelectionText(log: AIInteractionLog) {
-  return log.modifications?.[0]?.before || log.contextSnapshot?.selection?.text || '';
+  return (
+    log.modifications?.[0]?.before || log.contextSnapshot?.selection?.text || ''
+  );
 }
 
 function getSuggestedText(log: AIInteractionLog) {
@@ -397,14 +465,24 @@ function getSuggestedText(log: AIInteractionLog) {
 
 function normalizeVisibleText(text?: string) {
   if (!text) return '';
-  return text.replace(/\r\n/g, '\n').replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
+  return text
+    .replace(/\r\n/g, '\n')
+    .replace(/\n/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
-function formatSnippet(text?: string, fallback = 'No text detail', maxLength = 160) {
+function formatSnippet(
+  text?: string,
+  fallback = 'No text detail',
+  maxLength = 160
+) {
   if (!text) return fallback;
   const singleLine = normalizeVisibleText(text);
   if (!singleLine) return fallback;
-  return singleLine.length > maxLength ? `${singleLine.slice(0, maxLength)}...` : singleLine;
+  return singleLine.length > maxLength
+    ? `${singleLine.slice(0, maxLength)}...`
+    : singleLine;
 }
 
 function normalizeForComparison(text?: string) {
@@ -484,7 +562,10 @@ function getTextPreviewParts(text?: string, maxTextCharacters = 160) {
       nextLineBreakIndex = normalized.length;
     }
 
-    const segment = normalized.slice(index, nextLineBreakIndex).replace(/\s+/g, ' ').trim();
+    const segment = normalized
+      .slice(index, nextLineBreakIndex)
+      .replace(/\s+/g, ' ')
+      .trim();
     if (segment) {
       if (remainingTextCharacters <= 0) {
         truncated = true;
@@ -512,9 +593,15 @@ function getTextPreviewParts(text?: string, maxTextCharacters = 160) {
 
 function expandTextPreviewParts(parts: TextPreviewPart[]) {
   return parts.flatMap((part): TextPreviewPart[] => {
-    if (part.kind !== 'lineBreak' || part.count < LINE_BREAK_COLLAPSE_THRESHOLD) {
+    if (
+      part.kind !== 'lineBreak' ||
+      part.count < LINE_BREAK_COLLAPSE_THRESHOLD
+    ) {
       if (part.kind === 'lineBreak') {
-        return Array.from({ length: part.count }, () => ({ kind: 'lineBreak', count: 1 }));
+        return Array.from({ length: part.count }, () => ({
+          kind: 'lineBreak',
+          count: 1,
+        }));
       }
       return [part];
     }
@@ -531,10 +618,18 @@ function LineBreakToken({ count }: { count: number }) {
   );
 }
 
-function renderTextPreview(text?: string, fallback = 'No text detail', maxTextCharacters = 160): ReactNode {
+function renderTextPreview(
+  text?: string,
+  fallback = 'No text detail',
+  maxTextCharacters = 160
+): ReactNode {
   if (!text) return fallback;
   if (!/[\r\n]/.test(text)) {
-    return <span className="italic">&quot;{formatSnippet(text, fallback, maxTextCharacters)}&quot;</span>;
+    return (
+      <span className="italic">
+        &quot;{formatSnippet(text, fallback, maxTextCharacters)}&quot;
+      </span>
+    );
   }
 
   const { parts } = getTextPreviewParts(text, maxTextCharacters);
@@ -546,11 +641,15 @@ function renderTextPreview(text?: string, fallback = 'No text detail', maxTextCh
     <span className="inline-flex min-w-0 max-w-full items-center gap-1 overflow-hidden align-middle">
       {displayParts.map((part, index) => (
         <Fragment key={`${part.kind}-${index}`}>
-          {index > 0 && <span className="shrink-0 text-muted-foreground/70">+</span>}
+          {index > 0 && (
+            <span className="shrink-0 text-muted-foreground/70">+</span>
+          )}
           {part.kind === 'lineBreak' ? (
             <LineBreakToken count={part.count} />
           ) : (
-            <span className="min-w-0 truncate italic">&quot;{part.text}&quot;</span>
+            <span className="min-w-0 truncate italic">
+              &quot;{part.text}&quot;
+            </span>
           )}
         </Fragment>
       ))}
@@ -563,7 +662,10 @@ function getReplacedText(item: DocumentEventTimelineItem) {
   return typeof replacedText === 'string' ? replacedText : '';
 }
 
-function getRawEventMetadataText(event: DocumentEventTimelineRawEvent, key: string) {
+function getRawEventMetadataText(
+  event: DocumentEventTimelineRawEvent,
+  key: string
+) {
   const value = event.metadata?.[key];
   return typeof value === 'string' ? value : '';
 }
@@ -577,16 +679,25 @@ function isBlockedCopyPasteAttempt(event: DocumentEventTimelineRawEvent) {
 }
 
 function isAnomalyRawEvent(event: DocumentEventTimelineRawEvent) {
-  return Boolean((event as DisplayRawEvent).displayAnomaly) || isPolicyRefusalEvent(event) || isBlockedCopyPasteAttempt(event);
+  return (
+    Boolean((event as DisplayRawEvent).displayAnomaly) ||
+    isPolicyRefusalEvent(event) ||
+    isBlockedCopyPasteAttempt(event)
+  );
 }
 
 function isFormattingRawEvent(event: DocumentEventTimelineRawEvent) {
-  return FORMAT_EVENT_TYPES.has(event.eventType) || event.eventType.startsWith('format_');
+  return (
+    FORMAT_EVENT_TYPES.has(event.eventType) ||
+    event.eventType.startsWith('format_')
+  );
 }
 
 function isMinorRawEvent(event: DocumentEventTimelineRawEvent) {
   if (isAnomalyRawEvent(event)) return false;
-  return MINOR_RAW_EVENT_TYPES.has(event.eventType) || isFormattingRawEvent(event);
+  return (
+    MINOR_RAW_EVENT_TYPES.has(event.eventType) || isFormattingRawEvent(event)
+  );
 }
 
 function isSelectionRawEvent(event: DocumentEventTimelineRawEvent) {
@@ -612,10 +723,16 @@ function humanizeCode(value: string) {
 }
 
 function getAnomalyTagLabel(code: string) {
-  if (code === 'chat_refusal' || code === 'ai_policy_refusal') return 'chat refusal';
-  if (code === 'blocked_copy_paste_attempt' || code === 'paste_policy_violation') return 'blocked copy-paste';
+  if (code === 'chat_refusal' || code === 'ai_policy_refusal')
+    return 'chat refusal';
+  if (
+    code === 'blocked_copy_paste_attempt' ||
+    code === 'paste_policy_violation'
+  )
+    return 'blocked copy-paste';
   if (code === 'rapid_text_accumulation') return 'rapid text accumulation';
-  if (code === 'untracked_text_source' || code === 'text_influx_without_input') return 'untracked text source';
+  if (code === 'untracked_text_source' || code === 'text_influx_without_input')
+    return 'untracked text source';
   if (
     code === 'rapid_tab_switching' ||
     code === 'repeated_workspace_switching' ||
@@ -623,7 +740,10 @@ function getAnomalyTagLabel(code: string) {
   ) {
     return 'frequent workspace exits';
   }
-  if (code === 'long_or_repeated_away_from_workspace' || code === 'away_from_workspace') {
+  if (
+    code === 'long_or_repeated_away_from_workspace' ||
+    code === 'away_from_workspace'
+  ) {
     return 'away from workspace';
   }
   return humanizeCode(code);
@@ -685,12 +805,17 @@ function getFormattingDetail(eventType: string) {
     'clear-formatting': 'Formatting cleared',
   };
 
-  return details[normalizedEventType] || `${humanizeCode(normalizedEventType)} changed`;
+  return (
+    details[normalizedEventType] ||
+    `${humanizeCode(normalizedEventType)} changed`
+  );
 }
 
 function getBlockedCopyPasteAction(event: DocumentEventTimelineRawEvent) {
   const action = event.metadata?.action;
-  return action === 'copy' || action === 'cut' || action === 'paste' ? action : 'copy-paste';
+  return action === 'copy' || action === 'cut' || action === 'paste'
+    ? action
+    : 'copy-paste';
 }
 
 function getPolicyRefusalLogId(event: DocumentEventTimelineRawEvent) {
@@ -718,7 +843,10 @@ function getCopiedText(event: DocumentEventTimelineRawEvent) {
 }
 
 function canExpandCopiedText(copiedText: string) {
-  return isMultilineText(copiedText) || normalizeVisibleText(copiedText).length > LONG_TEXT_PREVIEW_THRESHOLD;
+  return (
+    isMultilineText(copiedText) ||
+    normalizeVisibleText(copiedText).length > LONG_TEXT_PREVIEW_THRESHOLD
+  );
 }
 
 function getMultilineCopiedTextSummary(text: string) {
@@ -731,9 +859,12 @@ function getMultilineCopiedTextSummary(text: string) {
 
 function renderCopiedTextDetail(copiedText: string) {
   if (!copiedText) return 'Copied text';
-  if (isMultilineText(copiedText)) return getMultilineCopiedTextSummary(copiedText);
+  if (isMultilineText(copiedText))
+    return getMultilineCopiedTextSummary(copiedText);
 
-  return <>{renderTextPreview(copiedText, '', LONG_TEXT_PREVIEW_THRESHOLD)} copied</>;
+  return (
+    <>{renderTextPreview(copiedText, '', LONG_TEXT_PREVIEW_THRESHOLD)} copied</>
+  );
 }
 
 function getFlagEvidenceString(flag: WritingAnomalyFlag, key: string) {
@@ -771,7 +902,8 @@ function getSyntheticAnomalyCount(flag: WritingAnomalyFlag) {
       getFlagEvidenceNumber(flag, 'exitCount') ??
       getFlagEvidenceNumber(flag, 'switchCount');
     const duration = getFlagEvidenceString(flag, 'windowDuration');
-    if (exitCount != null && duration) return `${exitCount} exits · ${duration}`;
+    if (exitCount != null && duration)
+      return `${exitCount} exits · ${duration}`;
     if (exitCount != null) return `${exitCount} exits`;
   }
 
@@ -797,18 +929,27 @@ function isSameTimestamp(a?: string | Date, b?: string | Date) {
   return Number.isFinite(aTime) && Number.isFinite(bTime) && aTime === bTime;
 }
 
-function matchesRapidTextFlag(event: DocumentEventTimelineRawEvent, flag: WritingAnomalyFlag) {
+function matchesRapidTextFlag(
+  event: DocumentEventTimelineRawEvent,
+  flag: WritingAnomalyFlag
+) {
   if (flag.code !== 'rapid_text_accumulation') return false;
 
   const untrackedEventType = getFlagEvidenceString(flag, 'untrackedEventType');
   const untrackedTimestamp = getFlagEvidenceString(flag, 'untrackedTimestamp');
   if (untrackedEventType && untrackedTimestamp) {
-    return event.eventType === untrackedEventType && isSameTimestamp(event.timestamp, untrackedTimestamp);
+    return (
+      event.eventType === untrackedEventType &&
+      isSameTimestamp(event.timestamp, untrackedTimestamp)
+    );
   }
 
   const focusTimestamp = getFlagEvidenceString(flag, 'focusTimestamp');
   if (focusTimestamp) {
-    return event.eventType === 'focus' && isSameTimestamp(event.timestamp, focusTimestamp);
+    return (
+      event.eventType === 'focus' &&
+      isSameTimestamp(event.timestamp, focusTimestamp)
+    );
   }
 
   return false;
@@ -818,27 +959,36 @@ function annotateRawEventForAnomaly(
   event: DocumentEventTimelineRawEvent,
   anomalyFlags: WritingAnomalyFlag[]
 ): DisplayRawEvent {
-  const rapidTextFlag = anomalyFlags.find((flag) => matchesRapidTextFlag(event, flag));
+  const rapidTextFlag = anomalyFlags.find((flag) =>
+    matchesRapidTextFlag(event, flag)
+  );
   if (!rapidTextFlag) return event;
 
   const addedCharacters = getRapidTextCount(rapidTextFlag);
-  const count = addedCharacters == null
-    ? '—'
-    : `${addedCharacters.toLocaleString()} char${addedCharacters === 1 ? '' : 's'}`;
+  const count =
+    addedCharacters == null
+      ? '—'
+      : `${addedCharacters.toLocaleString()} char${addedCharacters === 1 ? '' : 's'}`;
 
   return {
     ...event,
     displayAnomaly: {
       code: 'rapid_text_accumulation',
-      detail: rapidTextFlag.description || 'A large amount of text appeared within a short time window.',
+      detail:
+        rapidTextFlag.description ||
+        'A large amount of text appeared within a short time window.',
       count,
     },
   };
 }
 
-function getRawEventFullText(event: DocumentEventTimelineRawEvent, aiLogsById?: Map<string, AIInteractionLog>) {
+function getRawEventFullText(
+  event: DocumentEventTimelineRawEvent,
+  aiLogsById?: Map<string, AIInteractionLog>
+) {
   if (event.eventType === 'copy') return getCopiedText(event);
-  if (isPolicyRefusalEvent(event)) return getPolicyRefusalQuestion(event, aiLogsById);
+  if (isPolicyRefusalEvent(event))
+    return getPolicyRefusalQuestion(event, aiLogsById);
   if (event.eventType === 'cut' || isSelectionRawEvent(event)) {
     return getSelectedRawEventText(event);
   }
@@ -857,11 +1007,18 @@ function isMultilineText(text?: string) {
   return Boolean(text && /[\r\n]/.test(text));
 }
 
-function renderReplacePreview(item: DocumentEventTimelineItem, maxTextCharacters = 80) {
+function renderReplacePreview(
+  item: DocumentEventTimelineItem,
+  maxTextCharacters = 80
+) {
   return (
     <span className="inline-flex min-w-0 max-w-full items-center gap-2 overflow-hidden align-middle">
       <span className="min-w-0 truncate">
-        {renderTextPreview(getReplacedText(item), 'Previous text', maxTextCharacters)}
+        {renderTextPreview(
+          getReplacedText(item),
+          'Previous text',
+          maxTextCharacters
+        )}
       </span>
       <span className="shrink-0 text-muted-foreground">→</span>
       <span className="min-w-0 truncate">
@@ -910,7 +1067,11 @@ function renderTimelineDetail(item: DocumentEventTimelineItem) {
 
   if (item.kind === 'delete') {
     if (item.metadata?.deleteScope === 'all_text') return 'Deleted all text';
-    return item.text ? <>Deleted {renderTextPreview(item.text, '')}</> : 'Text deleted';
+    return item.text ? (
+      <>Deleted {renderTextPreview(item.text, '')}</>
+    ) : (
+      'Text deleted'
+    );
   }
 
   return formatSnippet(item.text, item.label);
@@ -964,12 +1125,18 @@ function canExpandTimelineText(item: DocumentEventTimelineItem) {
     return (
       isMultilineText(getReplacedText(item)) ||
       isMultilineText(item.text) ||
-      normalizeVisibleText(getReplacedText(item)).length > LONG_TEXT_PREVIEW_THRESHOLD ||
+      normalizeVisibleText(getReplacedText(item)).length >
+        LONG_TEXT_PREVIEW_THRESHOLD ||
       normalizeVisibleText(item.text).length > LONG_TEXT_PREVIEW_THRESHOLD
     );
   }
 
-  if (item.kind !== 'paste' && item.kind !== 'delete' && item.kind !== 'ai_insert') return false;
+  if (
+    item.kind !== 'paste' &&
+    item.kind !== 'delete' &&
+    item.kind !== 'ai_insert'
+  )
+    return false;
   return normalizeVisibleText(item.text).length > LONG_TEXT_PREVIEW_THRESHOLD;
 }
 
@@ -981,7 +1148,8 @@ function getTimelineTextPreview(item: DocumentEventTimelineItem) {
     return renderReplacePreview(item, LONG_TEXT_PREVIEW_THRESHOLD);
   }
   if (item.kind === 'delete' && !item.text) return 'Text deleted';
-  if (item.kind === 'delete' && item.metadata?.deleteScope === 'all_text') return 'Deleted all text';
+  if (item.kind === 'delete' && item.metadata?.deleteScope === 'all_text')
+    return 'Deleted all text';
   return renderTextPreview(item.text, '', LONG_TEXT_PREVIEW_THRESHOLD);
 }
 
@@ -989,7 +1157,8 @@ function getFullTextHeader(item: DocumentEventTimelineItem) {
   if (item.kind === 'replace') return 'Replacement';
   if (item.kind === 'ai_insert') return 'AI inserted text';
   if (item.kind === 'paste') return 'Pasted text';
-  if (item.kind === 'delete' && item.metadata?.deleteScope === 'all_text') return 'Deleted all text';
+  if (item.kind === 'delete' && item.metadata?.deleteScope === 'all_text')
+    return 'Deleted all text';
   if (item.kind === 'delete') return 'Deleted text';
   return 'Full text';
 }
@@ -1053,19 +1222,29 @@ function renderRawDetail(
 
   if (event.eventType === 'cut') {
     const selectedText = getSelectedRawEventText(event);
-    return selectedText ? <>Cut {renderTextPreview(selectedText, '')}</> : 'Cut selected text';
+    return selectedText ? (
+      <>Cut {renderTextPreview(selectedText, '')}</>
+    ) : (
+      'Cut selected text'
+    );
   }
 
   if (event.eventType === 'ai_query_sent') {
     const query = getRawEventMetadataText(event, 'query');
-    return query ? <>Asked {renderTextPreview(query, 'AI question')}</> : 'Asked AI';
+    return query ? (
+      <>Asked {renderTextPreview(query, 'AI question')}</>
+    ) : (
+      'Asked AI'
+    );
   }
   if (event.eventType === 'ai_response_received') return null;
   if (event.eventType === 'ai_panel_open') return null;
   if (event.eventType === 'ai_panel_close') return null;
 
-  if (event.eventType === 'page_hidden') return 'The writing workspace was no longer visible';
-  if (event.eventType === 'page_visible') return getPageVisibleDetail(event.metadata);
+  if (event.eventType === 'page_hidden')
+    return 'The writing workspace was no longer visible';
+  if (event.eventType === 'page_visible')
+    return getPageVisibleDetail(event.metadata);
   if (event.eventType === 'focus') return 'Editor focused';
   if (event.eventType === 'blur') return 'Editor lost focus';
   if (isSelectionRawEvent(event)) {
@@ -1073,7 +1252,8 @@ function renderRawDetail(
     const selectedLineCount = countTextLines(selectedText);
     const selectedCharCount = selectedText.length;
     const shouldSummarizeSelection =
-      selectedLineCount > 1 || normalizeVisibleText(selectedText).length > LONG_TEXT_PREVIEW_THRESHOLD;
+      selectedLineCount > 1 ||
+      normalizeVisibleText(selectedText).length > LONG_TEXT_PREVIEW_THRESHOLD;
 
     if (!selectedText) return 'Selection changed';
     if (shouldSummarizeSelection) {
@@ -1096,11 +1276,15 @@ function renderRawDetail(
     const actionType = getRawEventMetadataText(event, 'actionType');
     const originalText = getRawEventMetadataText(event, 'originalText');
     return originalText
-      ? renderTextPreview(originalText, `${getRawEventDisplayType(event)} applied to selected text`)
+      ? renderTextPreview(
+          originalText,
+          `${getRawEventDisplayType(event)} applied to selected text`
+        )
       : `${actionType ? getAIActionLabel(actionType) : 'AI quick action'} applied`;
   }
 
-  if (event.eventType === 'ai_insert_from_chat') return 'Inserted chat response at cursor';
+  if (event.eventType === 'ai_insert_from_chat')
+    return 'Inserted chat response at cursor';
 
   if (event.eventType === 'delete' && event.insertedText) {
     return <>Replaced with {renderTextPreview(event.insertedText, '')}</>;
@@ -1119,7 +1303,9 @@ function renderRawDetail(
 
 function getRawEventDisplayType(event: DocumentEventTimelineRawEvent) {
   if ((event as DisplayRawEvent).displayAnomaly) {
-    return getAnomalyTagLabel((event as DisplayRawEvent).displayAnomaly?.code || event.eventType);
+    return getAnomalyTagLabel(
+      (event as DisplayRawEvent).displayAnomaly?.code || event.eventType
+    );
   }
   if (isPolicyRefusalEvent(event)) return 'chat refusal';
   if (isBlockedCopyPasteAttempt(event)) return 'blocked copy-paste';
@@ -1140,7 +1326,8 @@ function getRawEventDisplayType(event: DocumentEventTimelineRawEvent) {
   if (isSelectionRawEvent(event)) return 'Selected';
   if (event.eventType === 'focus') return 'Focused';
   if (event.eventType === 'blur') return 'Unfocused';
-  if (event.eventType === 'input' || event.eventType === 'keydown') return 'Typed';
+  if (event.eventType === 'input' || event.eventType === 'keydown')
+    return 'Typed';
   if (event.eventType === 'delete') return 'Delete';
   return humanizeCode(event.eventType);
 }
@@ -1151,23 +1338,33 @@ function getRawEventActivityLabel(event: DocumentEventTimelineRawEvent) {
 
 function getRawEventActivityIcon(event: DocumentEventTimelineRawEvent) {
   if (isAnomalyRawEvent(event)) return <AlertCircle className="h-3 w-3" />;
-  if (event.eventType === 'copy' || event.eventType === 'cut') return <Copy className="h-3 w-3" />;
+  if (event.eventType === 'copy' || event.eventType === 'cut')
+    return <Copy className="h-3 w-3" />;
   if (isSelectionRawEvent(event)) return <MousePointer2 className="h-3 w-3" />;
-  if (event.eventType === 'blur' || event.eventType === 'page_hidden') return <EyeOff className="h-3 w-3" />;
+  if (event.eventType === 'blur' || event.eventType === 'page_hidden')
+    return <EyeOff className="h-3 w-3" />;
   if (event.eventType === 'focus') return <Type className="h-3 w-3" />;
-  if (event.eventType.startsWith('ai_')) return <Sparkles className="h-3 w-3" />;
+  if (event.eventType.startsWith('ai_'))
+    return <Sparkles className="h-3 w-3" />;
   if (event.eventType === 'delete') return <Trash2 className="h-3 w-3" />;
   return null;
 }
 
-function getRawEventActivityStyle(event: DocumentEventTimelineRawEvent): CSSProperties | undefined {
+function getRawEventActivityStyle(
+  event: DocumentEventTimelineRawEvent
+): CSSProperties | undefined {
   if (isAnomalyRawEvent(event)) return ANOMALY_BADGE_COLOR;
-  if (event.eventType === 'copy' || event.eventType === 'cut' || isSelectionRawEvent(event)) {
+  if (
+    event.eventType === 'copy' ||
+    event.eventType === 'cut' ||
+    isSelectionRawEvent(event)
+  ) {
     return SELECTION_BADGE_COLOR;
   }
   if (event.eventType.startsWith('ai_')) return AI_LOG_BADGE_COLOR;
   if (isFormattingRawEvent(event)) return DEFAULT_TIMELINE_COLOR;
-  if (event.eventType === 'focus' || event.eventType === 'blur') return TIMELINE_COLORS.line_break;
+  if (event.eventType === 'focus' || event.eventType === 'blur')
+    return TIMELINE_COLORS.line_break;
   return undefined;
 }
 
@@ -1179,29 +1376,42 @@ function getRawEventCount(event: DocumentEventTimelineRawEvent) {
   if (isBlockedCopyPasteAttempt(event)) return '1 attempt';
   if (event.eventType === 'copy') {
     const copiedText = getCopiedText(event);
-    return copiedText ? `${copiedText.length.toLocaleString()} char${copiedText.length === 1 ? '' : 's'}` : '—';
+    return copiedText
+      ? `${copiedText.length.toLocaleString()} char${copiedText.length === 1 ? '' : 's'}`
+      : '—';
   }
   if (event.eventType === 'cut' || isSelectionRawEvent(event)) {
     const selectedLength = getSelectedRawEventText(event).length;
-    return selectedLength > 0 ? `${selectedLength} char${selectedLength === 1 ? '' : 's'}` : '—';
+    return selectedLength > 0
+      ? `${selectedLength} char${selectedLength === 1 ? '' : 's'}`
+      : '—';
   }
   return event.cursorPosition == null ? '—' : `Cursor ${event.cursorPosition}`;
 }
 
 function getRawEventDetailTag(event: DocumentEventTimelineRawEvent) {
   if ((event as DisplayRawEvent).displayAnomaly) {
-    return getAnomalyTagLabel((event as DisplayRawEvent).displayAnomaly?.code || event.eventType);
+    return getAnomalyTagLabel(
+      (event as DisplayRawEvent).displayAnomaly?.code || event.eventType
+    );
   }
 
   if (isPolicyRefusalEvent(event)) return 'chat refusal';
   if (isBlockedCopyPasteAttempt(event)) return 'blocked copy-paste';
-  if (isFormattingRawEvent(event)) return getFormattingTagLabel(event.eventType);
+  if (isFormattingRawEvent(event))
+    return getFormattingTagLabel(event.eventType);
   return null;
 }
 
-function canExpandRawEvent(event: DocumentEventTimelineRawEvent, aiLogsById?: Map<string, AIInteractionLog>) {
+function canExpandRawEvent(
+  event: DocumentEventTimelineRawEvent,
+  aiLogsById?: Map<string, AIInteractionLog>
+) {
   if (isPolicyRefusalEvent(event)) {
-    return normalizeVisibleText(getPolicyRefusalQuestion(event, aiLogsById)).length > LONG_TEXT_PREVIEW_THRESHOLD;
+    return (
+      normalizeVisibleText(getPolicyRefusalQuestion(event, aiLogsById)).length >
+      LONG_TEXT_PREVIEW_THRESHOLD
+    );
   }
 
   if (event.eventType === 'copy') {
@@ -1209,7 +1419,10 @@ function canExpandRawEvent(event: DocumentEventTimelineRawEvent, aiLogsById?: Ma
   }
 
   if (event.eventType === 'cut' || isSelectionRawEvent(event)) {
-    return normalizeVisibleText(getSelectedRawEventText(event)).length > LONG_TEXT_PREVIEW_THRESHOLD;
+    return (
+      normalizeVisibleText(getSelectedRawEventText(event)).length >
+      LONG_TEXT_PREVIEW_THRESHOLD
+    );
   }
 
   return false;
@@ -1234,7 +1447,10 @@ function getHiddenRawEventCategory(event: DocumentEventTimelineRawEvent) {
     return 'AI system';
   }
 
-  if (eventType === 'keydown' && (event.keyCode === 'Enter' || event.keyChar === 'Enter')) {
+  if (
+    eventType === 'keydown' &&
+    (event.keyCode === 'Enter' || event.keyChar === 'Enter')
+  ) {
     return 'line break';
   }
 
@@ -1269,8 +1485,10 @@ function makeRawEventsFoldPoint(rawEvents: DisplayRawEvent[]): FoldPointItem {
     kind: 'fold',
     id: `fold-minor-${newest?.id || 'empty'}-${oldest?.id || 'empty'}`,
     timestamp: newest?.timestamp || new Date().toISOString(),
-    startTimestamp: oldest?.timestamp || newest?.timestamp || new Date().toISOString(),
-    endTimestamp: newest?.timestamp || oldest?.timestamp || new Date().toISOString(),
+    startTimestamp:
+      oldest?.timestamp || newest?.timestamp || new Date().toISOString(),
+    endTimestamp:
+      newest?.timestamp || oldest?.timestamp || new Date().toISOString(),
     items: [],
     rawEvents: sortedRawEvents,
     rawEventCount: sortedRawEvents.length,
@@ -1321,7 +1539,11 @@ function RawEventTableRow({
             {detailTag && (
               <span
                 className="inline-flex shrink-0 items-center rounded border px-2 py-0.5 font-medium"
-                style={isAnomalyRawEvent(event) ? ANOMALY_BADGE_COLOR : getRawEventColor(event.eventType)}
+                style={
+                  isAnomalyRawEvent(event)
+                    ? ANOMALY_BADGE_COLOR
+                    : getRawEventColor(event.eventType)
+                }
               >
                 {detailTag}
               </span>
@@ -1372,7 +1594,9 @@ export default function TaskSubmissionAnalyticsPage() {
 
   const [submission, setSubmission] = useState<Submission | null>(null);
   const [events, setEvents] = useState<DocumentEvent[]>([]);
-  const [timelineItems, setTimelineItems] = useState<DocumentEventTimelineItem[]>([]);
+  const [timelineItems, setTimelineItems] = useState<
+    DocumentEventTimelineItem[]
+  >([]);
   const [aiLogs, setAiLogs] = useState<AIInteractionLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -1397,8 +1621,14 @@ export default function TaskSubmissionAnalyticsPage() {
 
       setSubmission(response.data.submission);
       setEvents(response.data.events || []);
-      setTimelineItems(Array.isArray(response.data.timeline?.items) ? response.data.timeline.items : []);
-      setAiLogs(Array.isArray(response.data.aiLogs) ? response.data.aiLogs : []);
+      setTimelineItems(
+        Array.isArray(response.data.timeline?.items)
+          ? response.data.timeline.items
+          : []
+      );
+      setAiLogs(
+        Array.isArray(response.data.aiLogs) ? response.data.aiLogs : []
+      );
     } catch (err) {
       const apiError = err as ApiError;
       setError(apiError.message || 'Failed to load submission analytics');
@@ -1417,28 +1647,54 @@ export default function TaskSubmissionAnalyticsPage() {
     }
   }, [fetchSubmissionEvents, submissionId, taskId]);
 
-  const sortedEvents = useMemo(() => [...events].sort((a, b) => eventTime(a) - eventTime(b)), [events]);
-  const textMetrics = useMemo(() => calculateTextDeltaMetrics(sortedEvents), [sortedEvents]);
-  const activityTimeline = useMemo(() => buildActivityTimeline(sortedEvents), [sortedEvents]);
-  const eventCounts = sortedEvents.reduce<Record<string, number>>((counts, event) => {
-    counts[event.eventType] = (counts[event.eventType] || 0) + 1;
-    return counts;
-  }, {});
+  const sortedEvents = useMemo(
+    () => [...events].sort((a, b) => eventTime(a) - eventTime(b)),
+    [events]
+  );
+  const textMetrics = useMemo(
+    () => calculateTextDeltaMetrics(sortedEvents),
+    [sortedEvents]
+  );
+  const activityTimeline = useMemo(
+    () => buildActivityTimeline(sortedEvents),
+    [sortedEvents]
+  );
+  const eventCounts = sortedEvents.reduce<Record<string, number>>(
+    (counts, event) => {
+      counts[event.eventType] = (counts[event.eventType] || 0) + 1;
+      return counts;
+    },
+    {}
+  );
   const composition = EVENT_GROUPS.map((group) => {
-    const count = group.eventTypes.reduce((sum, eventType) => sum + (eventCounts[eventType] || 0), 0);
-    const percentage = sortedEvents.length > 0 ? (count / sortedEvents.length) * 100 : 0;
+    const count = group.eventTypes.reduce(
+      (sum, eventType) => sum + (eventCounts[eventType] || 0),
+      0
+    );
+    const percentage =
+      sortedEvents.length > 0 ? (count / sortedEvents.length) * 100 : 0;
     return { ...group, count, percentage };
   });
   const firstEventAt = sortedEvents[0] ? eventTime(sortedEvents[0]) : null;
-  const lastEventAt = sortedEvents[sortedEvents.length - 1] ? eventTime(sortedEvents[sortedEvents.length - 1]) : null;
-  const editingDurationSeconds = firstEventAt && lastEventAt
-    ? Math.max(0, Math.round((lastEventAt - firstEventAt) / 1000))
-    : 0;
-  const authoredCharacters = textMetrics.typedCharacters + textMetrics.pastedCharacters;
-  const pasteShare = authoredCharacters > 0
-    ? (textMetrics.pastedCharacters / authoredCharacters) * 100
-    : 0;
-  const pasteActivity = pasteShare >= 25 ? 'Paste activity high' : pasteShare >= 10 ? 'Paste activity moderate' : 'Paste activity low';
+  const lastEventAt = sortedEvents[sortedEvents.length - 1]
+    ? eventTime(sortedEvents[sortedEvents.length - 1])
+    : null;
+  const editingDurationSeconds =
+    firstEventAt && lastEventAt
+      ? Math.max(0, Math.round((lastEventAt - firstEventAt) / 1000))
+      : 0;
+  const authoredCharacters =
+    textMetrics.typedCharacters + textMetrics.pastedCharacters;
+  const pasteShare =
+    authoredCharacters > 0
+      ? (textMetrics.pastedCharacters / authoredCharacters) * 100
+      : 0;
+  const pasteActivity =
+    pasteShare >= 25
+      ? 'Paste activity high'
+      : pasteShare >= 10
+        ? 'Paste activity moderate'
+        : 'Paste activity low';
   const insightText = `${pasteActivity} · Activity captured before submit · ${submission?.status === 'active' ? 'Latest submission' : 'Historical submission'}`;
   const reviewSignals = useMemo(
     () => getReviewSignals(submission?.anomalyFlags),
@@ -1450,7 +1706,12 @@ export default function TaskSubmissionAnalyticsPage() {
       const selectionText = getSelectionText(log);
       const suggestedText = getSuggestedText(log);
 
-      if (!log.modificationsApplied && log.status === 'success' && selectionText && suggestedText) {
+      if (
+        !log.modificationsApplied &&
+        log.status === 'success' &&
+        selectionText &&
+        suggestedText
+      ) {
         const hasMirrorActionLog = aiLogs.some((candidate) => {
           if (candidate.id === log.id) return false;
 
@@ -1474,7 +1735,9 @@ export default function TaskSubmissionAnalyticsPage() {
 
   const timelineDisplayItems = useMemo<TimelineDisplayItem[]>(() => {
     const visibleAILogIds = new Set(visibleAILogs.map((log) => log.id));
-    const anomalyFlags = Array.isArray(submission?.anomalyFlags) ? submission.anomalyFlags : [];
+    const anomalyFlags = Array.isArray(submission?.anomalyFlags)
+      ? submission.anomalyFlags
+      : [];
 
     type TimelineSourceItem =
       | {
@@ -1504,17 +1767,22 @@ export default function TaskSubmissionAnalyticsPage() {
 
     const sourceItems: TimelineSourceItem[] = [
       ...visibleTimelineItems.flatMap((item): TimelineSourceItem[] => {
-        if (WRITING_TIMELINE_KINDS.has(item.kind) || isPageVisibilityTimelineItem(item)) {
-          return [{
-            kind: 'primary' as const,
-            timestamp: item.timestamp,
-            item: {
-              kind: 'timeline' as const,
-              id: item.id,
+        if (
+          WRITING_TIMELINE_KINDS.has(item.kind) ||
+          isPageVisibilityTimelineItem(item)
+        ) {
+          return [
+            {
+              kind: 'primary' as const,
               timestamp: item.timestamp,
-              item,
+              item: {
+                kind: 'timeline' as const,
+                id: item.id,
+                timestamp: item.timestamp,
+                item,
+              },
             },
-          }];
+          ];
         }
 
         const rawEvents = item.rawEvents
@@ -1524,8 +1792,13 @@ export default function TaskSubmissionAnalyticsPage() {
             return !(typeof logId === 'string' && visibleAILogIds.has(logId));
           })
           .map((event) => annotateRawEventForAnomaly(event, anomalyFlags))
-          .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-        const promotedRawEvents = rawEvents.filter((event) => !isMinorRawEvent(event));
+          .sort(
+            (a, b) =>
+              new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+          );
+        const promotedRawEvents = rawEvents.filter(
+          (event) => !isMinorRawEvent(event)
+        );
         const minorRawEvents = rawEvents.filter(isMinorRawEvent);
 
         return [
@@ -1535,11 +1808,13 @@ export default function TaskSubmissionAnalyticsPage() {
             event,
           })),
           ...(minorRawEvents.length > 0
-            ? [{
-                kind: 'minor' as const,
-                timestamp: minorRawEvents[0].timestamp,
-                events: minorRawEvents,
-              }]
+            ? [
+                {
+                  kind: 'minor' as const,
+                  timestamp: minorRawEvents[0].timestamp,
+                  events: minorRawEvents,
+                },
+              ]
             : []),
         ];
       }),
@@ -1555,14 +1830,15 @@ export default function TaskSubmissionAnalyticsPage() {
           },
         };
       }),
-      ...anomalyFlags
-        .filter(shouldRenderSyntheticAnomalyFlag)
-        .map((flag) => ({
-          kind: 'anomaly' as const,
-          timestamp: getSyntheticAnomalyTimestamp(flag),
-          flag,
-        })),
-    ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      ...anomalyFlags.filter(shouldRenderSyntheticAnomalyFlag).map((flag) => ({
+        kind: 'anomaly' as const,
+        timestamp: getSyntheticAnomalyTimestamp(flag),
+        flag,
+      })),
+    ].sort(
+      (a, b) =>
+        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+    );
 
     const displayItems: TimelineDisplayItem[] = [];
     let hiddenBuffer: DisplayRawEvent[] = [];
@@ -1656,12 +1932,20 @@ export default function TaskSubmissionAnalyticsPage() {
             className="-ml-2 mb-2"
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
-            {cameFromAnalytics ? 'Back to Analytics' : cameFromSubmission ? 'Back to Submission' : 'Back'}
+            {cameFromAnalytics
+              ? 'Back to Analytics'
+              : cameFromSubmission
+                ? 'Back to Submission'
+                : 'Back'}
           </Button>
-          <h1 className="text-3xl font-bold tracking-tight">Submission Analytics</h1>
+          <h1 className="text-3xl font-medium">Submission Analytics</h1>
           {submission && (
             <p className="mt-2 text-muted-foreground">
-              {[submission.userEmail, submission.documentTitle || 'Untitled submission', `Submitted ${formatDateTime(submission.submittedAt)}`]
+              {[
+                submission.userEmail,
+                submission.documentTitle || 'Untitled submission',
+                `Submitted ${formatDateTime(submission.submittedAt)}`,
+              ]
                 .filter(Boolean)
                 .join(' · ')}
             </p>
@@ -1669,7 +1953,11 @@ export default function TaskSubmissionAnalyticsPage() {
         </div>
         {submission?.certificateVerificationToken && (
           <Button asChild variant="outline">
-            <a href={buildCertificateVerifyUrl(submission.certificateVerificationToken)}>
+            <a
+              href={buildCertificateVerifyUrl(
+                submission.certificateVerificationToken
+              )}
+            >
               Open Certificate
             </a>
           </Button>
@@ -1693,9 +1981,11 @@ export default function TaskSubmissionAnalyticsPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {reviewSignals.length === 0 && !(submission.aiPolicyRefusalCount || 0) ? (
+            {reviewSignals.length === 0 &&
+            !(submission.aiPolicyRefusalCount || 0) ? (
               <p className="text-sm text-muted-foreground">
-                No advisory review signals were detected for this submission certificate.
+                No advisory review signals were detected for this submission
+                certificate.
               </p>
             ) : (
               <div className="flex flex-wrap gap-2">
@@ -1710,7 +2000,9 @@ export default function TaskSubmissionAnalyticsPage() {
                   </Badge>
                 ))}
                 {(submission.aiPolicyRefusalCount || 0) > 0 &&
-                  !reviewSignals.some((flag) => flag.code === 'chat_refusal') && (
+                  !reviewSignals.some(
+                    (flag) => flag.code === 'chat_refusal'
+                  ) && (
                     <Badge
                       variant="outline"
                       className="border-[var(--hly-red-border)] bg-[var(--hly-red-bg)] text-[var(--hly-red-text)]"
@@ -1726,40 +2018,62 @@ export default function TaskSubmissionAnalyticsPage() {
       )}
 
       {!error && submission && (
-        <DetectorCard taskId={taskId} submissionId={submissionId} detectorName="detector" />
+        <DetectorCard
+          taskId={taskId}
+          submissionId={submissionId}
+          detectorName="detector"
+        />
       )}
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Events before submit</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Events before submit
+            </CardTitle>
             <FileText className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            {isLoading ? <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /> : (
-              <div className="text-2xl font-semibold">{sortedEvents.length.toLocaleString()}</div>
+            {isLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+            ) : (
+              <div className="text-2xl font-semibold">
+                {sortedEvents.length.toLocaleString()}
+              </div>
             )}
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Editing duration</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Editing duration
+            </CardTitle>
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            {isLoading ? <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /> : (
-              <div className="text-2xl font-semibold">{formatDuration(editingDurationSeconds)}</div>
+            {isLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+            ) : (
+              <div className="text-2xl font-semibold">
+                {formatDuration(editingDurationSeconds)}
+              </div>
             )}
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Typed characters</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Typed characters
+            </CardTitle>
             <Keyboard className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            {isLoading ? <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /> : (
-              <div className="text-2xl font-semibold">{textMetrics.typedCharacters.toLocaleString()}</div>
+            {isLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+            ) : (
+              <div className="text-2xl font-semibold">
+                {textMetrics.typedCharacters.toLocaleString()}
+              </div>
             )}
           </CardContent>
         </Card>
@@ -1769,8 +2083,12 @@ export default function TaskSubmissionAnalyticsPage() {
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            {isLoading ? <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /> : (
-              <div className="text-2xl font-semibold">{formatPercent(pasteShare)}</div>
+            {isLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+            ) : (
+              <div className="text-2xl font-semibold">
+                {formatPercent(pasteShare)}
+              </div>
             )}
           </CardContent>
         </Card>
@@ -1794,20 +2112,40 @@ export default function TaskSubmissionAnalyticsPage() {
               <ResponsiveContainer width="100%" height={280}>
                 <AreaChart data={activityTimeline}>
                   <defs>
-                    <linearGradient id="submissionActivity" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor={ANALYTICS_CHART_COLORS.activityFill} stopOpacity={0.14} />
-                      <stop offset="95%" stopColor={ANALYTICS_CHART_COLORS.activityFill} stopOpacity={0} />
+                    <linearGradient
+                      id="submissionActivity"
+                      x1="0"
+                      y1="0"
+                      x2="0"
+                      y2="1"
+                    >
+                      <stop
+                        offset="5%"
+                        stopColor={ANALYTICS_CHART_COLORS.activityFill}
+                        stopOpacity={0.14}
+                      />
+                      <stop
+                        offset="95%"
+                        stopColor={ANALYTICS_CHART_COLORS.activityFill}
+                        stopOpacity={0}
+                      />
                     </linearGradient>
                   </defs>
                   <XAxis
                     dataKey="time"
-                    tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
+                    tick={{
+                      fill: 'hsl(var(--muted-foreground))',
+                      fontSize: 12,
+                    }}
                     tickLine={false}
                     axisLine={false}
                   />
                   <YAxis
                     width={36}
-                    tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
+                    tick={{
+                      fill: 'hsl(var(--muted-foreground))',
+                      fontSize: 12,
+                    }}
                     tickLine={false}
                     axisLine={false}
                   />
@@ -1851,7 +2189,9 @@ export default function TaskSubmissionAnalyticsPage() {
                 <div key={item.label} className="space-y-2">
                   <div className="flex items-center justify-between text-sm">
                     <span className="font-medium">{item.label}</span>
-                    <span className="text-muted-foreground">{formatPercent(item.percentage)}</span>
+                    <span className="text-muted-foreground">
+                      {formatPercent(item.percentage)}
+                    </span>
                   </div>
                   <div className="h-2 rounded-full bg-muted">
                     <div
@@ -1876,7 +2216,12 @@ export default function TaskSubmissionAnalyticsPage() {
             <div>
               <CardTitle>Event Log</CardTitle>
             </div>
-            <Button variant="outline" size="sm" onClick={fetchSubmissionEvents} disabled={isLoading}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={fetchSubmissionEvents}
+              disabled={isLoading}
+            >
               {isLoading ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
@@ -1893,7 +2238,9 @@ export default function TaskSubmissionAnalyticsPage() {
             </div>
           ) : timelineDisplayItems.length === 0 ? (
             <div className="flex h-[220px] items-center justify-center rounded-md border border-dashed">
-              <p className="text-sm text-muted-foreground">No events recorded before this submission.</p>
+              <p className="text-sm text-muted-foreground">
+                No events recorded before this submission.
+              </p>
             </div>
           ) : (
             <div className="overflow-hidden rounded-md border bg-background">
@@ -1944,8 +2291,12 @@ export default function TaskSubmissionAnalyticsPage() {
                                 </button>
                                 {summary && (
                                   <span className="min-w-0 truncate">
-                                    {historyItem.rawEventCount.toLocaleString()} grouped event
-                                    {historyItem.rawEventCount === 1 ? '' : 's'} · {summary}
+                                    {historyItem.rawEventCount.toLocaleString()}{' '}
+                                    grouped event
+                                    {historyItem.rawEventCount === 1
+                                      ? ''
+                                      : 's'}{' '}
+                                    · {summary}
                                   </span>
                                 )}
                               </div>
@@ -1962,7 +2313,9 @@ export default function TaskSubmissionAnalyticsPage() {
                                 event={event}
                                 aiLogsById={aiLogsById}
                                 isExpanded={expandedIds.has(event.id)}
-                                onToggleExpanded={() => toggleExpanded(event.id)}
+                                onToggleExpanded={() =>
+                                  toggleExpanded(event.id)
+                                }
                               />
                             ))}
                         </Fragment>
@@ -1976,7 +2329,9 @@ export default function TaskSubmissionAnalyticsPage() {
                           event={historyItem.event}
                           aiLogsById={aiLogsById}
                           isExpanded={expandedIds.has(historyItem.id)}
-                          onToggleExpanded={() => toggleExpanded(historyItem.id)}
+                          onToggleExpanded={() =>
+                            toggleExpanded(historyItem.id)
+                          }
                         />
                       );
                     }
@@ -2020,13 +2375,20 @@ export default function TaskSubmissionAnalyticsPage() {
 
                     if (historyItem.kind === 'timeline') {
                       const item = historyItem.item;
-                      const colorStyle = TIMELINE_COLORS[item.kind] || DEFAULT_TIMELINE_COLOR;
+                      const colorStyle =
+                        TIMELINE_COLORS[item.kind] || DEFAULT_TIMELINE_COLOR;
                       const icon = TIMELINE_ICONS[item.kind] || null;
                       const canExpandText = canExpandTimelineText(item);
                       const isExpanded = expandedIds.has(item.id);
                       const fullTextScope =
-                        item.kind === 'delete' && item.metadata?.deleteScope === 'all_text' ? 'all' : 'full';
-                      const expandButtonLabel = getFullTextToggleLabel(isExpanded, fullTextScope);
+                        item.kind === 'delete' &&
+                        item.metadata?.deleteScope === 'all_text'
+                          ? 'all'
+                          : 'full';
+                      const expandButtonLabel = getFullTextToggleLabel(
+                        isExpanded,
+                        fullTextScope
+                      );
 
                       return (
                         <Fragment key={item.id}>
@@ -2059,7 +2421,9 @@ export default function TaskSubmissionAnalyticsPage() {
                                   </button>
                                 </div>
                               ) : (
-                                <span className="block truncate">{renderTimelineDetail(item)}</span>
+                                <span className="block truncate">
+                                  {renderTimelineDetail(item)}
+                                </span>
                               )}
                             </td>
                             <td className="px-4 py-3 text-xs text-muted-foreground">
@@ -2124,18 +2488,23 @@ export default function TaskSubmissionAnalyticsPage() {
                     return (
                       <Fragment key={log.id}>
                         <tr
-                          className={canExpand ? 'cursor-pointer hover:bg-muted/30' : 'hover:bg-muted/30'}
-                          onClick={canExpand ? () => toggleExpanded(log.id) : undefined}
+                          className={
+                            canExpand
+                              ? 'cursor-pointer hover:bg-muted/30'
+                              : 'hover:bg-muted/30'
+                          }
+                          onClick={
+                            canExpand ? () => toggleExpanded(log.id) : undefined
+                          }
                         >
                           <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">
                             <div className="flex items-center gap-2">
-                              {canExpand && (
-                                isExpanded ? (
+                              {canExpand &&
+                                (isExpanded ? (
                                   <ChevronDown className="h-3 w-3" />
                                 ) : (
                                   <ChevronRight className="h-3 w-3" />
-                                )
-                              )}
+                                ))}
                               {formatTimelineTime(log.timestamp)}
                             </div>
                           </td>
@@ -2150,7 +2519,10 @@ export default function TaskSubmissionAnalyticsPage() {
                           </td>
                           <td className="max-w-[760px] px-4 py-3 text-sm text-foreground">
                             <span className="block truncate">
-                              {renderTextPreview(detailBeforeText || log.query, 'AI interaction')}
+                              {renderTextPreview(
+                                detailBeforeText || log.query,
+                                'AI interaction'
+                              )}
                             </span>
                           </td>
                           <td className="px-4 py-3 text-xs text-muted-foreground">
@@ -2171,7 +2543,9 @@ export default function TaskSubmissionAnalyticsPage() {
                                 </div>
                                 <div>
                                   <p className="mb-1 text-xs font-medium text-muted-foreground">
-                                    {isChatLog ? 'AI response' : 'AI modified text'}
+                                    {isChatLog
+                                      ? 'AI response'
+                                      : 'AI modified text'}
                                   </p>
                                   <div className="rounded border bg-background p-3 text-sm whitespace-pre-wrap">
                                     {afterText || '-'}

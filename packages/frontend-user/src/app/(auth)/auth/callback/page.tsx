@@ -26,7 +26,8 @@ export default function OAuthCallbackPage() {
     const oauthError = params.get('error');
     const accessToken = params.get('accessToken');
     const next = params.get('next') || '/documents';
-    const safeNext = next.startsWith('/') && !next.startsWith('//') ? next : '/documents';
+    const safeNext =
+      next.startsWith('/') && !next.startsWith('//') ? next : '/documents';
 
     if (oauthError) {
       setError(oauthError);
@@ -45,16 +46,16 @@ export default function OAuthCallbackPage() {
       })
       .catch(() => {
         TokenManager.clearTokens();
-        setError('OAuth login succeeded, but Humanly could not load the account.');
+        setError(
+          'OAuth login succeeded, but Humanly could not load the account.'
+        );
       });
   }, [fetchUser, router]);
 
   return (
     <Card className="border-border bg-white shadow-none humanly-panel-shadow">
       <CardHeader className="text-center">
-        <CardTitle className="text-2xl font-bold tracking-normal">
-          Signing you in
-        </CardTitle>
+        <CardTitle className="text-2xl font-medium">Signing you in</CardTitle>
         <CardDescription>
           Humanly is finishing the secure provider handoff.
         </CardDescription>
@@ -67,7 +68,7 @@ export default function OAuthCallbackPage() {
               <AlertTitle>Login failed</AlertTitle>
               <AlertDescription>{error}</AlertDescription>
             </Alert>
-            <Button asChild className="h-11 w-full rounded-full font-bold">
+            <Button asChild className="h-11 w-full font-bold">
               <Link href="/login">Back to sign in</Link>
             </Button>
           </div>

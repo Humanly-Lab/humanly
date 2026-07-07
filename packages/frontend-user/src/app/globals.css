@@ -4,103 +4,106 @@
 
 @layer base {
   :root {
-    --background: 75 26% 96%;
-    --foreground: 225 10% 11%;
+    /* Atelier theme: paper-white ground, warm ink, morandi rose accent. */
+    --background: 45 29% 97%; /* #FAF9F6 paper white */
+    --foreground: 42 17% 12%; /* #232019 warm ink */
     --card: 0 0% 100%;
-    --card-foreground: 225 10% 11%;
+    --card-foreground: 42 17% 12%;
     --popover: 0 0% 100%;
-    --popover-foreground: 225 10% 11%;
-    --primary: 225 10% 11%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 72 21% 91%;
-    --secondary-foreground: 225 10% 11%;
-    --muted: 72 21% 91%;
-    --muted-foreground: 220 4% 45%;
-    --accent: 216 21% 45%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 84.2% 60.2%;
+    --popover-foreground: 42 17% 12%;
+    --primary: 42 17% 12%;
+    --primary-foreground: 44 35% 94%;
+    --secondary: 45 22% 93%;
+    --secondary-foreground: 42 17% 12%;
+    --muted: 45 22% 93%;
+    --muted-foreground: 41 7% 45%;
+    --accent: 12 22% 60%; /* #B08D84 morandi rose */
+    --accent-foreground: 20 33% 97%;
+    --destructive: 8 52% 55%;
     --destructive-foreground: 0 0% 98%;
-    --border: 70 13% 84%;
-    --input: 70 13% 84%;
-    --ring: 225 10% 11%;
+    --border: 42 19% 87%;
+    --input: 42 19% 87%;
+    --ring: 12 22% 60%;
     --radius: 0.5rem;
 
-    /* Humanly semantic palette (#900). One duotone family per product meaning:
-       green = typed/success/verified, amber = paste/legacy, red = blocked/alert,
-       blue = AI-chat/info, purple = selection/AI-stat, plus brand + neutrals.
+    /* Humanly semantic palette (#900), Atelier edition. Warm morandi only,
+       no cool blues. One duotone family per product meaning:
+       green (olive) = typed/success/verified, amber (ochre) = paste/legacy,
+       red (dusty) = blocked/alert, blue slots now hold mauve = AI-chat/info,
+       purple (mauve) = selection/AI-stat, brand = morandi rose, plus neutrals.
        Consume via tailwind `hly-*` colors or `var(--hly-*)` in style objects.
        Keep this block in sync with packages/frontend/src/app/globals.css. */
-    --hly-brand: #6f8a78;
-    --hly-brand-hover: #607869;
-    --hly-green-text: #58715f;
-    --hly-green-strong: #4a655a;
-    --hly-green-bg: #eef3ed;
-    --hly-green-bg-soft: #f3f7f1;
-    --hly-green-tint: #dde6df;
-    --hly-green-icon: #dfe8dc;
-    --hly-green-border: #c8d4c8;
-    --hly-amber-text: #8a7446;
-    --hly-amber-bg: #fbf6e8;
-    --hly-amber-badge: #f8eed3;
-    --hly-amber-icon: #f1e4c5;
-    --hly-amber-border: #d7c8a8;
-    --hly-paste-text: #8a5a3c;
-    --hly-paste-bg: #f2e0d3;
-    --hly-red-text: #6f5d61;
-    --hly-red-bg: #f2edee;
-    --hly-red-border: #d6c5c7;
-    --hly-blue-text: #576777;
-    --hly-blue-bg: #eef1f4;
-    --hly-blue-border: #c8d1dc;
-    --hly-ai-text: #3a4a64;
-    --hly-ai-bg: #dee4ee;
-    --hly-info: #5b6f8c;
-    --hly-purple-text: #655d70;
-    --hly-purple-bg: #f0edf2;
-    --hly-purple-border: #d0c8d7;
-    --hly-stat-typed: #8ea8c2;
-    --hly-stat-pasted: #cfa17a;
-    --hly-stat-ai: #b5acc7;
-    --hly-neutral-text: #65655f;
-    --hly-neutral: #a0a2a7;
-    --hly-surface: #ebede4;
-    --hly-surface-2: #e5e5e2;
-    --hly-ink: #1a1c20;
-    --hly-ink-muted: #6e7176;
-    --hly-hairline: rgba(20, 22, 26, 0.1);
+    --hly-brand: #b08d84;
+    --hly-brand-hover: #96736b;
+    --hly-green-text: #6e7459;
+    --hly-green-strong: #5c624a;
+    --hly-green-bg: #f0f1ea;
+    --hly-green-bg-soft: #f5f6f0;
+    --hly-green-tint: #e2e5d6;
+    --hly-green-icon: #e7e9dc;
+    --hly-green-border: #c9ceb5;
+    --hly-amber-text: #93794c;
+    --hly-amber-bg: #f6f1e5;
+    --hly-amber-badge: #f0e7d0;
+    --hly-amber-icon: #e9dbb9;
+    --hly-amber-border: #d3c299;
+    --hly-paste-text: #8f6b4a;
+    --hly-paste-bg: #f0e2d2;
+    --hly-red-text: #8c6660;
+    --hly-red-bg: #f4ecea;
+    --hly-red-border: #dcc6c1;
+    --hly-blue-text: #8a7280;
+    --hly-blue-bg: #f3edf0;
+    --hly-blue-border: #d9c9d2;
+    --hly-ai-text: #74596a;
+    --hly-ai-bg: #ede2e9;
+    --hly-info: #9a8390;
+    --hly-purple-text: #7e6c7a;
+    --hly-purple-bg: #f2edf1;
+    --hly-purple-border: #d6c8d3;
+    --hly-stat-typed: #9ca983;
+    --hly-stat-pasted: #c7a47c;
+    --hly-stat-ai: #b49baf;
+    --hly-neutral-text: #77716a;
+    --hly-neutral: #a29c93;
+    --hly-surface: #f1eee7;
+    --hly-surface-2: #eae6de;
+    --hly-ink: #232019;
+    --hly-ink-muted: #7a756a;
+    --hly-hairline: rgba(35, 32, 25, 0.1);
   }
 
   .dark {
-    --background: 0 0% 9%;
-    --foreground: 0 0% 98%;
-    --card: 0 0% 9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 0 0% 9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 0 0% 9%;
-    --secondary: 0 0% 15%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 0 0% 15%;
-    --muted-foreground: 0 0% 65%;
-    --accent: 0 0% 15%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
+    --background: 40 9% 8%;
+    --foreground: 43 20% 93%;
+    --card: 40 9% 8%;
+    --card-foreground: 43 20% 93%;
+    --popover: 40 9% 8%;
+    --popover-foreground: 43 20% 93%;
+    --primary: 43 20% 93%;
+    --primary-foreground: 40 9% 10%;
+    --secondary: 40 7% 15%;
+    --secondary-foreground: 43 20% 93%;
+    --muted: 40 7% 15%;
+    --muted-foreground: 42 8% 64%;
+    --accent: 12 22% 66%;
+    --accent-foreground: 40 9% 10%;
+    --destructive: 8 45% 38%;
     --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 15%;
-    --input: 0 0% 15%;
-    --ring: 0 0% 98%;
+    --border: 40 7% 16%;
+    --input: 40 7% 16%;
+    --ring: 12 22% 66%;
 
     /* Humanly semantic palette, dark variants: bgs darken, texts lighten. */
-    --hly-brand: #7fa08b;
-    --hly-brand-hover: #8fb09b;
-    --hly-green-text: #a4c0ad;
-    --hly-green-strong: #b3cdbc;
-    --hly-green-bg: #1e2620;
-    --hly-green-bg-soft: #1a211c;
-    --hly-green-tint: #263029;
-    --hly-green-icon: #2c3830;
-    --hly-green-border: #3c4a40;
+    --hly-brand: #c39b90;
+    --hly-brand-hover: #d2aca1;
+    --hly-green-text: #b7bea0;
+    --hly-green-strong: #c6ccb1;
+    --hly-green-bg: #23251c;
+    --hly-green-bg-soft: #1f211a;
+    --hly-green-tint: #2c2f22;
+    --hly-green-icon: #343827;
+    --hly-green-border: #474d33;
     --hly-amber-text: #cdb98a;
     --hly-amber-bg: #262115;
     --hly-amber-badge: #2e2818;
@@ -108,28 +111,28 @@
     --hly-amber-border: #4e442c;
     --hly-paste-text: #d0a382;
     --hly-paste-bg: #2c2118;
-    --hly-red-text: #c7adb3;
-    --hly-red-bg: #271f21;
-    --hly-red-border: #4a3a3e;
-    --hly-blue-text: #a9b8c9;
-    --hly-blue-bg: #1d2127;
-    --hly-blue-border: #3a4453;
-    --hly-ai-text: #a9bad6;
-    --hly-ai-bg: #202634;
-    --hly-info: #94a9c4;
-    --hly-purple-text: #b8adc4;
-    --hly-purple-bg: #221f26;
-    --hly-purple-border: #453d50;
-    --hly-stat-typed: #8ea8c2;
+    --hly-red-text: #c7ada8;
+    --hly-red-bg: #271f1e;
+    --hly-red-border: #4a3a38;
+    --hly-blue-text: #c2aeba;
+    --hly-blue-bg: #262028;
+    --hly-blue-border: #4a3e4a;
+    --hly-ai-text: #cfb4c6;
+    --hly-ai-bg: #2b2229;
+    --hly-info: #b295a6;
+    --hly-purple-text: #c0aebe;
+    --hly-purple-bg: #251f24;
+    --hly-purple-border: #4a3d48;
+    --hly-stat-typed: #a9b58c;
     --hly-stat-pasted: #cfa17a;
-    --hly-stat-ai: #b5acc7;
-    --hly-neutral-text: #a8a89f;
-    --hly-neutral: #83858a;
-    --hly-surface: #23241f;
-    --hly-surface-2: #2a2b26;
-    --hly-ink: #f2f2ef;
-    --hly-ink-muted: #a2a5aa;
-    --hly-hairline: rgba(235, 237, 228, 0.12);
+    --hly-stat-ai: #c0a3b6;
+    --hly-neutral-text: #a8a49b;
+    --hly-neutral: #8a8680;
+    --hly-surface: #24211b;
+    --hly-surface-2: #2b2822;
+    --hly-ink: #f2f0eb;
+    --hly-ink-muted: #a5a19a;
+    --hly-hairline: rgba(237, 233, 224, 0.12);
   }
 }
 
@@ -139,7 +142,15 @@
   }
   body {
     @apply bg-background text-foreground;
-    font-family: var(--font-humanly-sans), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --font-humanly-serif: var(--font-humanly-sans);
+    font-family:
+      var(--font-humanly-sans),
+      ui-sans-serif,
+      system-ui,
+      -apple-system,
+      BlinkMacSystemFont,
+      'Segoe UI',
+      sans-serif;
     letter-spacing: 0;
     -webkit-font-smoothing: antialiased;
   }
@@ -163,7 +174,7 @@
   }
 
   .humanly-eyebrow {
-    @apply text-xs font-medium uppercase tracking-normal text-muted-foreground;
+    @apply text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground;
   }
 
   .humanly-field {
@@ -175,17 +186,16 @@
   }
 
   .humanly-landing-btn {
-    @apply inline-flex items-center gap-2.5 rounded-full bg-primary px-5 py-3 text-sm font-medium text-primary-foreground transition-transform hover:-translate-y-0.5;
+    @apply inline-flex items-center gap-2.5 rounded-md bg-primary px-5 py-3 text-sm font-medium text-primary-foreground transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_6px_18px_rgba(35,32,25,0.18)];
   }
 
   .humanly-landing-btn-ghost {
-    @apply inline-flex items-center gap-2 rounded-full border border-border bg-transparent px-[18px] py-3 text-sm font-medium text-foreground transition-colors hover:bg-white/60;
+    @apply inline-flex items-center gap-2 rounded-md border border-border bg-transparent px-[18px] py-3 text-sm font-medium text-foreground transition-colors hover:bg-white/60;
   }
 
   .humanly-hover-pop {
     @apply transition-[transform,box-shadow,border-color] duration-200 ease-out hover:-translate-y-1.5 hover:scale-[1.012] hover:border-foreground/20 motion-reduce:transition-none motion-reduce:hover:translate-y-0 motion-reduce:hover:scale-100;
   }
-
 }
 
 @layer utilities {

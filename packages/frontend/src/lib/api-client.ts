@@ -1,12 +1,20 @@
 import axios, { AxiosError, AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 
-const API_URL =
+const RAW_API_URL =
   process.env.NEXT_PUBLIC_API_URL ??
   (process.env.NODE_ENV === 'production' ? '' : 'http://localhost:3001');
 
-export function getApiUrl(path: string): string {
+const API_URL = RAW_API_URL.replace(/\/api\/v1\/?$/, '');
+
+const apiPath = (path: string): string => {
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
-  return `${API_URL}${normalizedPath}`;
+  return normalizedPath.startsWith('/api/v1/')
+    ? normalizedPath
+    : `/api/v1${normalizedPath}`;
+};
+
+export function getApiUrl(path: string): string {
+  return `${API_URL}${apiPath(path)}`;
 }
 
 /**
@@ -122,7 +130,7 @@ const createApiClient = (): AxiosInstance => {
         try {
           // Try to refresh the token (refresh token sent via httpOnly cookie)
           const response = await axios.post(
-            `${API_URL}/api/v1/auth/refresh`,
+            getApiUrl('/auth/refresh'),
             {}, // Empty body - refresh token is in cookie
             { withCredentials: true } // Include cookies
           );

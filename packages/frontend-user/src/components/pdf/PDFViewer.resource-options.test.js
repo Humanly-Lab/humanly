@@ -157,11 +157,11 @@ test('personal document workspace preview sends its payload to the opened previe
   assert.match(newDocumentPageSource, /previewWindow\.postMessage\(message, window\.location\.origin\)/);
   assert.match(
     newDocumentPageSource,
-    /window\.setTimeout\(\(\) => previewWindow\.postMessage\(message, window\.location\.origin\), 250\)/
+    /window\.setTimeout\(\s*\(\) => previewWindow\.postMessage\(message, window\.location\.origin\),\s*250\s*\)/s
   );
   assert.match(
     newDocumentPageSource,
-    /window\.setTimeout\(\(\) => previewWindow\.postMessage\(message, window\.location\.origin\), 1000\)/
+    /window\.setTimeout\(\s*\(\) => previewWindow\.postMessage\(message, window\.location\.origin\),\s*1000\s*\)/s
   );
   assert.doesNotMatch(newDocumentPageSource, /noopener|noreferrer/);
 });

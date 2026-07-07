@@ -20,7 +20,7 @@ export function AdminEnvironmentSectionHeading({
   description,
   title,
 }: {
-  description: string;
+  description?: string;
   title: string;
 }) {
   return (
@@ -28,7 +28,9 @@ export function AdminEnvironmentSectionHeading({
       <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
         {title}
       </h3>
-      <p className="text-sm text-muted-foreground">{description}</p>
+      {description && (
+        <p className="text-sm text-muted-foreground">{description}</p>
+      )}
     </div>
   );
 }
@@ -45,7 +47,7 @@ export function AdminEnvironmentSummary({
       {items.map((item) => (
         <div
           key={item.label}
-          className="rounded-lg border border-border/70 bg-muted/25 p-3"
+          className="rounded-lg border border-border/70 p-3"
         >
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
             {item.label}
@@ -72,7 +74,12 @@ export function AdminEnvironmentDialogSection({
   title: string;
 }) {
   return (
-    <section className={cn('space-y-4 rounded-lg border border-border/70 bg-card p-4', className)}>
+    <section
+      className={cn(
+        'space-y-4 rounded-lg border border-border/70 bg-card p-4',
+        className
+      )}
+    >
       <AdminEnvironmentSectionHeading title={title} description={description} />
       {children}
     </section>
@@ -92,7 +99,7 @@ export function AdminEnvironmentHelp({
         <button
           type="button"
           aria-label={`Explain ${title}`}
-          className="inline-flex h-4 w-4 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          className="inline-flex h-4 w-4 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         >
           <HelpCircle className="h-3.5 w-3.5" aria-hidden="true" />
         </button>

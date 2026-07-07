@@ -13,9 +13,9 @@ const sizeClasses = {
 };
 
 const markClasses = {
-  sm: 'h-7 w-7',
-  md: 'h-11 w-11',
-  lg: 'h-14 w-14 sm:h-16 sm:w-16',
+  sm: 'h-5 w-5',
+  md: 'h-9 w-9',
+  lg: 'h-12 w-12 sm:h-14 sm:w-14',
 };
 
 const cursorClasses = {

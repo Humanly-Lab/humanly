@@ -233,7 +233,7 @@ export function TaskRulesDialog({
         </div>
 
         <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+          <Button type="button" onClick={() => onOpenChange(false)}>
             Confirm
           </Button>
         </DialogFooter>

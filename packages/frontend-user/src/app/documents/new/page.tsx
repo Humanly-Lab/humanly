@@ -1,6 +1,14 @@
 'use client';
 
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import {
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   ArrowLeft,
@@ -58,14 +66,7 @@ import {
 
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import {
   Dialog,
   DialogContent,
@@ -102,13 +103,20 @@ import {
 
 const DEFAULT_AI_BASE_URL = TOGETHER_AI_BASE_URL;
 const IMPORT_ENVIRONMENT_VALUE = 'import_environment';
-const AI_API_KEY_HELP_TEXT = 'An AI API key is a unique secret credential, usually a long string of letters and numbers, that Humanly uses to connect this task to your selected AI provider. It is never shown to enrolled users or included in exported environment configs.';
-const SHORTCUT_TOKENS_HELP_TEXT = 'Shortcut tokens limit how much text AI quick actions can generate, such as fixing grammar, improving writing, simplifying text, or making writing more formal. Higher values allow longer AI output but may use more tokens.';
-const CHAT_TOKENS_HELP_TEXT = 'Chat tokens limit how much text the AI Assistant can generate in a chat response. Higher values allow more complete answers but may increase usage per message.';
-const AI_GUARD_POLICY_HELP_TEXT = "AI Guard policy controls the boundary of AI assistance during writing. When enabled, it helps reject requests that do not follow the task's AI usage rules.";
-const DETECTOR_HELP_TEXT = 'Anomaly Pattern uses deterministic event rules such as typing bursts, untracked text sources, workspace exits, policy refusals, and blocked copy-paste attempts. Humanly Typing Detector uses a model over writing behavior and may be inconclusive or unavailable if there is not enough usable typing data.';
+const AI_API_KEY_HELP_TEXT =
+  'An AI API key is a unique secret credential, usually a long string of letters and numbers, that Humanly uses to connect this task to your selected AI provider. It is never shown to enrolled users or included in exported environment configs.';
+const SHORTCUT_TOKENS_HELP_TEXT =
+  'Shortcut tokens limit how much text AI quick actions can generate, such as fixing grammar, improving writing, simplifying text, or making writing more formal. Higher values allow longer AI output but may use more tokens.';
+const CHAT_TOKENS_HELP_TEXT =
+  'Chat tokens limit how much text the AI Assistant can generate in a chat response. Higher values allow more complete answers but may increase usage per message.';
+const AI_GUARD_POLICY_HELP_TEXT =
+  "AI Guard policy controls the boundary of AI assistance during writing. When enabled, it helps reject requests that do not follow the task's AI usage rules.";
+const DETECTOR_HELP_TEXT =
+  'Anomaly Pattern uses deterministic event rules such as typing bursts, untracked text sources, workspace exits, policy refusals, and blocked copy-paste attempts. Humanly Typing Detector uses a model over writing behavior and may be inconclusive or unavailable if there is not enough usable typing data.';
 
-type EnvironmentSelection = WritingEnvironmentPreset | typeof IMPORT_ENVIRONMENT_VALUE;
+type EnvironmentSelection =
+  | WritingEnvironmentPreset
+  | typeof IMPORT_ENVIRONMENT_VALUE;
 type EnvironmentSummaryItem = {
   label: string;
   value: string;
@@ -119,12 +127,14 @@ function SectionHeading({
   description,
 }: {
   title: string;
-  description: string;
+  description?: string;
 }) {
   return (
     <div className="space-y-1">
       <p className="humanly-eyebrow">{title}</p>
-      <p className="text-sm text-muted-foreground">{description}</p>
+      {description && (
+        <p className="text-sm text-muted-foreground">{description}</p>
+      )}
     </div>
   );
 }
@@ -142,7 +152,7 @@ function EnvironmentHelp({
         <button
           type="button"
           aria-label={`Explain ${title}`}
-          className="inline-flex h-4 w-4 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          className="inline-flex h-4 w-4 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         >
           <HelpCircle className="h-3.5 w-3.5" aria-hidden="true" />
         </button>
@@ -187,7 +197,9 @@ function DetectorSettingsBox({
             Choose which detector results are generated for this certificate.
           </p>
         </div>
-        <EnvironmentHelp title="Detector types">{DETECTOR_HELP_TEXT}</EnvironmentHelp>
+        <EnvironmentHelp title="Detector types">
+          {DETECTOR_HELP_TEXT}
+        </EnvironmentHelp>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
@@ -195,13 +207,16 @@ function DetectorSettingsBox({
           <span>
             <span className="font-medium">Anomaly Pattern</span>
             <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
-              Deterministic review signals from typing bursts, untracked text sources, workspace exits, policy refusals, and blocked copy-paste attempts.
+              Deterministic signals from typing bursts, untracked sources,
+              workspace exits, refusals, and blocked paste attempts.
             </span>
           </span>
           <Checkbox
             checked={detectors.anomalyPattern.enabled}
             disabled={disabled}
-            onCheckedChange={(checked) => setDetectorEnabled('anomalyPattern', checked === true)}
+            onCheckedChange={(checked) =>
+              setDetectorEnabled('anomalyPattern', checked === true)
+            }
           />
         </label>
 
@@ -209,13 +224,15 @@ function DetectorSettingsBox({
           <span>
             <span className="font-medium">Humanly Typing Detector</span>
             <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
-              Model-based typing analysis that estimates whether the trajectory looks human-written.
+              Model-based typing analysis over the writing trajectory.
             </span>
           </span>
           <Checkbox
             checked={detectors.humanTyping.enabled}
             disabled={disabled}
-            onCheckedChange={(checked) => setDetectorEnabled('humanTyping', checked === true)}
+            onCheckedChange={(checked) =>
+              setDetectorEnabled('humanTyping', checked === true)
+            }
           />
         </label>
       </div>
@@ -223,18 +240,27 @@ function DetectorSettingsBox({
   );
 }
 
-const getPresetConfig = (preset: WritingEnvironmentPreset): WritingEnvironmentConfig => ({
+const getPresetConfig = (
+  preset: WritingEnvironmentPreset
+): WritingEnvironmentConfig => ({
   ...WRITING_ENVIRONMENT_PRESETS[preset],
   taskType: 'personal',
-  aiAccess: normalizeWritingAiAccess(WRITING_ENVIRONMENT_PRESETS[preset].aiAccess),
-  detectors: normalizeWritingDetectorConfig(WRITING_ENVIRONMENT_PRESETS[preset].detectors),
-  resourceAccess: normalizeResourceAccessPolicy(WRITING_ENVIRONMENT_PRESETS[preset].resourceAccess),
-  copyPastePolicy: normalizeCopyPastePolicy(WRITING_ENVIRONMENT_PRESETS[preset].copyPastePolicy),
+  aiAccess: normalizeWritingAiAccess(
+    WRITING_ENVIRONMENT_PRESETS[preset].aiAccess
+  ),
+  detectors: normalizeWritingDetectorConfig(
+    WRITING_ENVIRONMENT_PRESETS[preset].detectors
+  ),
+  resourceAccess: normalizeResourceAccessPolicy(
+    WRITING_ENVIRONMENT_PRESETS[preset].resourceAccess
+  ),
+  copyPastePolicy: normalizeCopyPastePolicy(
+    WRITING_ENVIRONMENT_PRESETS[preset].copyPastePolicy
+  ),
 });
 
-const getTimeLimitMinutesValue = (seconds?: number): string => (
-  String(Math.max(1, Math.round((seconds || 3600) / 60)))
-);
+const getTimeLimitMinutesValue = (seconds?: number): string =>
+  String(Math.max(1, Math.round((seconds || 3600) / 60)));
 
 const parseTimeLimitMinutes = (value: string, fallback = 1): number => {
   const parsed = Number(value);
@@ -252,7 +278,9 @@ const parseOptionalMaxCharacters = (value: string): number | undefined => {
   return Math.min(Math.floor(parsed), SUBMISSION_MAX_CHARACTERS_MAX);
 };
 
-const getAiProviderConfigForBaseUrl = (baseUrl: string): WritingAiProviderConfig | undefined => {
+const getAiProviderConfigForBaseUrl = (
+  baseUrl: string
+): WritingAiProviderConfig | undefined => {
   const normalizedBaseUrl = baseUrl.trim();
   if (!normalizedBaseUrl) return undefined;
   return {
@@ -261,7 +289,9 @@ const getAiProviderConfigForBaseUrl = (baseUrl: string): WritingAiProviderConfig
   };
 };
 
-const normalizeImportedEnvironmentConfig = (value: unknown): WritingEnvironmentConfig => {
+const normalizeImportedEnvironmentConfig = (
+  value: unknown
+): WritingEnvironmentConfig => {
   const imported = validateWritingEnvironmentImportTemplate(value, 'personal');
   const aiAccess: WritingAiAccess = normalizeWritingAiAccess(imported.aiAccess);
   const copyPastePolicy = normalizeCopyPastePolicy(imported.copyPastePolicy);
@@ -290,36 +320,43 @@ const normalizeImportedEnvironmentConfig = (value: unknown): WritingEnvironmentC
   };
 };
 
-const formatSummaryNumber = (value: number): string => value.toLocaleString('en-US');
+const formatSummaryNumber = (value: number): string =>
+  value.toLocaleString('en-US');
 
-const formatSummaryTokenValue = (value?: number): string => (
-  `${formatSummaryNumber(value || AI_SHORTCUT_MAX_TOKENS_DEFAULT)} tokens`
-);
+const formatSummaryTokenValue = (value?: number): string =>
+  `${formatSummaryNumber(value || AI_SHORTCUT_MAX_TOKENS_DEFAULT)} tokens`;
 
-const formatPersonalCharacterCap = (config: WritingEnvironmentConfig): string => (
+const formatPersonalCharacterCap = (
+  config: WritingEnvironmentConfig
+): string =>
   config.submission.maxCharacters
     ? `Max ${formatSummaryNumber(config.submission.maxCharacters)}`
-    : 'No maximum'
-);
+    : 'No maximum';
 
-const formatPersonalTimeLimit = (config: WritingEnvironmentConfig): string => (
+const formatPersonalTimeLimit = (config: WritingEnvironmentConfig): string =>
   config.aiUsageLimit.mode === 'time_restricted' && config.time.timeLimitSeconds
     ? `${getTimeLimitMinutesValue(config.time.timeLimitSeconds)} min`
-    : 'No limit'
-);
+    : 'No limit';
 
-const formatPersonalAiTokenBudget = (config: WritingEnvironmentConfig): string => {
+const formatPersonalAiTokenBudget = (
+  config: WritingEnvironmentConfig
+): string => {
   const aiAccess = normalizeWritingAiAccess(config.aiAccess);
-  const shortcutTokens = config.aiTokenBudget?.shortcutMaxTokens || AI_SHORTCUT_MAX_TOKENS_DEFAULT;
-  const chatTokens = config.aiTokenBudget?.chatMaxTokens || AI_CHAT_MAX_TOKENS_DEFAULT;
+  const shortcutTokens =
+    config.aiTokenBudget?.shortcutMaxTokens || AI_SHORTCUT_MAX_TOKENS_DEFAULT;
+  const chatTokens =
+    config.aiTokenBudget?.chatMaxTokens || AI_CHAT_MAX_TOKENS_DEFAULT;
 
   if (aiAccess === 'off') return 'Not used';
-  if (aiAccess === 'polish') return `Polish ${formatSummaryTokenValue(shortcutTokens)}`;
+  if (aiAccess === 'polish')
+    return `Polish ${formatSummaryTokenValue(shortcutTokens)}`;
   if (aiAccess === 'chat') return `Chat ${formatSummaryTokenValue(chatTokens)}`;
   return `Polish ${formatSummaryTokenValue(shortcutTokens)} / chat ${formatSummaryTokenValue(chatTokens)}`;
 };
 
-const formatPersonalTraceability = (config: WritingEnvironmentConfig): string => {
+const formatPersonalTraceability = (
+  config: WritingEnvironmentConfig
+): string => {
   const enabled = [
     config.traceability.trackTyping ? 'Typing' : null,
     config.traceability.trackCopyPaste ? 'Clipboard' : null,
@@ -341,23 +378,31 @@ const buildPersonalEnvironmentSummary = (
     {
       label: 'AI access',
       value: formatWritingAiAccess(aiAccess),
-      detail: aiAccess === 'off' ? 'Assistant disabled' : `Model: ${model || 'Not selected'}`,
+      detail:
+        aiAccess === 'off'
+          ? 'Assistant disabled'
+          : `Model: ${model || 'Not selected'}`,
     },
     {
       label: 'Copy / paste',
-      value: normalizeCopyPastePolicy(config.copyPastePolicy) === 'blocked'
-        ? 'Copy-paste blocked'
-        : 'Copy-paste allowed',
-      detail: config.traceability.trackCopyPaste ? 'Clipboard events tracked' : 'Clipboard tracking off',
+      value:
+        normalizeCopyPastePolicy(config.copyPastePolicy) === 'blocked'
+          ? 'Copy-paste blocked'
+          : 'Copy-paste allowed',
+      detail: config.traceability.trackCopyPaste
+        ? 'Clipboard events tracked'
+        : 'Clipboard tracking off',
     },
     {
       label: 'Resource access',
-      value: normalizeResourceAccessPolicy(config.resourceAccess) === 'view-only'
-        ? 'View-only'
-        : 'Downloadable',
-      detail: normalizeResourceAccessPolicy(config.resourceAccess) === 'view-only'
-        ? 'PDF opens through short-lived viewer access'
-        : 'PDF keeps standard file access',
+      value:
+        normalizeResourceAccessPolicy(config.resourceAccess) === 'view-only'
+          ? 'View-only'
+          : 'Downloadable',
+      detail:
+        normalizeResourceAccessPolicy(config.resourceAccess) === 'view-only'
+          ? 'PDF opens through short-lived viewer access'
+          : 'PDF keeps standard file access',
     },
     {
       label: 'Time limit',
@@ -390,9 +435,10 @@ const buildPersonalEnvironmentSummary = (
     items.splice(1, 0, {
       label: 'AI Guard policy',
       value: aiPolicy.mode === 'guard' ? 'Guard' : 'Off',
-      detail: aiPolicy.mode === 'guard'
-        ? 'Custom rejection rule active'
-        : 'No chat constitution',
+      detail:
+        aiPolicy.mode === 'guard'
+          ? 'Custom rejection rule active'
+          : 'No chat constitution',
     });
   }
 
@@ -430,10 +476,14 @@ function NewDocumentPageContent() {
   const [description, setDescription] = useState('');
   const [taskInstruction, setTaskInstruction] = useState('');
   const [pdfFile, setPdfFile] = useState<File | null>(null);
-  const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | undefined>(undefined);
+  const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | undefined>(
+    undefined
+  );
   const [isCreating, setIsCreating] = useState(false);
-  const [environmentSelection, setEnvironmentSelection] = useState<EnvironmentSelection>('default_writing');
-  const [environmentConfig, setEnvironmentConfig] = useState<WritingEnvironmentConfig>(getPresetConfig('default_writing'));
+  const [environmentSelection, setEnvironmentSelection] =
+    useState<EnvironmentSelection>('default_writing');
+  const [environmentConfig, setEnvironmentConfig] =
+    useState<WritingEnvironmentConfig>(getPresetConfig('default_writing'));
   const [aiBaseUrl, setAiBaseUrl] = useState(DEFAULT_AI_BASE_URL);
   const [aiApiKey, setAiApiKey] = useState('');
   const [aiModel, setAiModel] = useState('');
@@ -441,7 +491,8 @@ function NewDocumentPageContent() {
   const [maskedAiKey, setMaskedAiKey] = useState('');
   const [testedAiModels, setTestedAiModels] = useState<string[]>([]);
   const [isTestingAiConnection, setIsTestingAiConnection] = useState(false);
-  const [aiConnectionResult, setAiConnectionResult] = useState<WritingAiConnectionTestResult | null>(null);
+  const [aiConnectionResult, setAiConnectionResult] =
+    useState<WritingAiConnectionTestResult | null>(null);
   const [timeLimitMinutesInput, setTimeLimitMinutesInput] = useState('60');
   const [environmentDialogOpen, setEnvironmentDialogOpen] = useState(false);
   const [isValidatingEnvironment, setIsValidatingEnvironment] = useState(false);
@@ -487,7 +538,8 @@ function NewDocumentPageContent() {
         setEnvironmentConfig((current) => ({
           ...current,
           aiTokenBudget: {
-            shortcutMaxTokens: settings.shortcutMaxTokens || AI_SHORTCUT_MAX_TOKENS_DEFAULT,
+            shortcutMaxTokens:
+              settings.shortcutMaxTokens || AI_SHORTCUT_MAX_TOKENS_DEFAULT,
             chatMaxTokens: settings.chatMaxTokens || AI_CHAT_MAX_TOKENS_DEFAULT,
           },
         }));
@@ -507,7 +559,11 @@ function NewDocumentPageContent() {
   }, [isDemoMode]);
 
   useEffect(() => {
-    if (!pdfFile || typeof URL === 'undefined' || typeof URL.createObjectURL !== 'function') {
+    if (
+      !pdfFile ||
+      typeof URL === 'undefined' ||
+      typeof URL.createObjectURL !== 'function'
+    ) {
       setPdfPreviewUrl(undefined);
       return undefined;
     }
@@ -537,17 +593,26 @@ function NewDocumentPageContent() {
   }, [aiBaseUrl, aiModel, testedAiModels]);
 
   const selectedAiModel = aiModel.trim();
-  const shortcutTokensEnabled = isWritingAiPolishEnabled(environmentConfig.aiAccess);
+  const shortcutTokensEnabled = isWritingAiPolishEnabled(
+    environmentConfig.aiAccess
+  );
   const chatTokensEnabled = isWritingAiChatEnabled(environmentConfig.aiAccess);
-  const timeMode = environmentConfig.aiUsageLimit.mode === 'time_restricted' ? 'time_restricted' : 'unlimited';
+  const timeMode =
+    environmentConfig.aiUsageLimit.mode === 'time_restricted'
+      ? 'time_restricted'
+      : 'unlimited';
 
   useEffect(() => {
     if (timeMode === 'time_restricted') {
-      setTimeLimitMinutesInput(getTimeLimitMinutesValue(environmentConfig.time.timeLimitSeconds));
+      setTimeLimitMinutesInput(
+        getTimeLimitMinutesValue(environmentConfig.time.timeLimitSeconds)
+      );
     }
   }, [timeMode, environmentConfig.time.timeLimitSeconds]);
 
-  const markCustom = (updater: (current: WritingEnvironmentConfig) => WritingEnvironmentConfig) => {
+  const markCustom = (
+    updater: (current: WritingEnvironmentConfig) => WritingEnvironmentConfig
+  ) => {
     setEnvironmentSelection('custom');
     setEnvironmentConfig((current) => ({
       ...updater(current),
@@ -586,14 +651,19 @@ function NewDocumentPageContent() {
     setEnvironmentDialogOpen(value === 'custom');
   };
 
-  const handleEnvironmentImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleEnvironmentImport = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
     const format = getEnvironmentConfigFileFormat(file.name);
 
     try {
-      const parsed = parseEnvironmentConfigContent(file.name, await file.text());
+      const parsed = parseEnvironmentConfigContent(
+        file.name,
+        await file.text()
+      );
       const config = normalizeImportedEnvironmentConfig(parsed);
       if (config.aiProvider?.baseUrl) {
         setAiBaseUrl(config.aiProvider.baseUrl);
@@ -609,7 +679,8 @@ function NewDocumentPageContent() {
     } catch (err: any) {
       toast({
         title: 'Invalid environment file',
-        description: err.message || 'Unable to import the environment configuration file.',
+        description:
+          err.message || 'Unable to import the environment configuration file.',
         variant: 'destructive',
       });
     } finally {
@@ -640,12 +711,17 @@ function NewDocumentPageContent() {
     }
   };
 
-  const setAiTokenBudget = (patch: NonNullable<WritingEnvironmentConfig['aiTokenBudget']>) => {
+  const setAiTokenBudget = (
+    patch: NonNullable<WritingEnvironmentConfig['aiTokenBudget']>
+  ) => {
     markCustom((current) => ({
       ...current,
       aiTokenBudget: {
-        shortcutMaxTokens: current.aiTokenBudget?.shortcutMaxTokens || AI_SHORTCUT_MAX_TOKENS_DEFAULT,
-        chatMaxTokens: current.aiTokenBudget?.chatMaxTokens || AI_CHAT_MAX_TOKENS_DEFAULT,
+        shortcutMaxTokens:
+          current.aiTokenBudget?.shortcutMaxTokens ||
+          AI_SHORTCUT_MAX_TOKENS_DEFAULT,
+        chatMaxTokens:
+          current.aiTokenBudget?.chatMaxTokens || AI_CHAT_MAX_TOKENS_DEFAULT,
         ...patch,
       },
     }));
@@ -654,12 +730,14 @@ function NewDocumentPageContent() {
   const setAiPolicyMode = (mode: WritingAiPolicyMode) => {
     markCustom((current) => ({
       ...current,
-      aiPolicy: mode === 'guard'
-        ? {
-            mode: 'guard',
-            rejectionRule: normalizeWritingAiPolicy(current.aiPolicy).rejectionRule || '',
-          }
-        : { mode: 'off' },
+      aiPolicy:
+        mode === 'guard'
+          ? {
+              mode: 'guard',
+              rejectionRule:
+                normalizeWritingAiPolicy(current.aiPolicy).rejectionRule || '',
+            }
+          : { mode: 'off' },
     }));
   };
 
@@ -695,11 +773,12 @@ function NewDocumentPageContent() {
     markCustom((current) => ({
       ...current,
       aiAccess,
-      allowedModels: aiAccess === 'off'
-        ? []
-        : current.allowedModels.length
-          ? current.allowedModels
-          : [defaultModel],
+      allowedModels:
+        aiAccess === 'off'
+          ? []
+          : current.allowedModels.length
+            ? current.allowedModels
+            : [defaultModel],
       customModels: aiAccess === 'off' ? [] : current.customModels,
       aiPolicy: isWritingAiChatEnabled(aiAccess)
         ? normalizeWritingAiPolicy(current.aiPolicy)
@@ -716,12 +795,20 @@ function NewDocumentPageContent() {
     if (!file) return;
 
     if (file.type !== 'application/pdf') {
-      toast({ title: 'Error', description: 'Please select a PDF file', variant: 'destructive' });
+      toast({
+        title: 'Error',
+        description: 'Please select a PDF file',
+        variant: 'destructive',
+      });
       return;
     }
 
     if (file.size > 50 * 1024 * 1024) {
-      toast({ title: 'Error', description: 'PDF must be smaller than 50MB', variant: 'destructive' });
+      toast({
+        title: 'Error',
+        description: 'PDF must be smaller than 50MB',
+        variant: 'destructive',
+      });
       return;
     }
 
@@ -811,7 +898,10 @@ function NewDocumentPageContent() {
 
       setTestedAiModels(nextModels);
 
-      if (nextModels.length > 0 && (!aiModel || !nextModels.includes(aiModel))) {
+      if (
+        nextModels.length > 0 &&
+        (!aiModel || !nextModels.includes(aiModel))
+      ) {
         setAiModel(nextModels[0]);
         setEnvironmentAiModel(nextModels[0]);
       }
@@ -873,8 +963,8 @@ function NewDocumentPageContent() {
     }
 
     if (
-      environmentConfig.aiAccess !== 'off'
-      && !allowEnvironmentDialogCloseRef.current
+      environmentConfig.aiAccess !== 'off' &&
+      !allowEnvironmentDialogCloseRef.current
     ) {
       setAiAccess('off');
     }
@@ -898,8 +988,12 @@ function NewDocumentPageContent() {
       let configToCreate: WritingEnvironmentConfig = {
         ...environmentConfig,
         taskType: 'personal',
-        copyPastePolicy: normalizeCopyPastePolicy(environmentConfig.copyPastePolicy),
-        resourceAccess: normalizeResourceAccessPolicy(environmentConfig.resourceAccess),
+        copyPastePolicy: normalizeCopyPastePolicy(
+          environmentConfig.copyPastePolicy
+        ),
+        resourceAccess: normalizeResourceAccessPolicy(
+          environmentConfig.resourceAccess
+        ),
         instructions: {
           ...environmentConfig.instructions,
           hasInstructionPdf: !!pdfFile,
@@ -907,7 +1001,9 @@ function NewDocumentPageContent() {
         },
         traceability: {
           ...environmentConfig.traceability,
-          trackCopyPaste: normalizeCopyPastePolicy(environmentConfig.copyPastePolicy) === 'allowed',
+          trackCopyPaste:
+            normalizeCopyPastePolicy(environmentConfig.copyPastePolicy) ===
+            'allowed',
         },
         detectors: normalizeWritingDetectorConfig(environmentConfig.detectors),
         submission: {
@@ -935,9 +1031,9 @@ function NewDocumentPageContent() {
       };
 
       if (
-        isWritingAiChatEnabled(configToCreate.aiAccess)
-        && configToCreate.aiPolicy?.mode === 'guard'
-        && !configToCreate.aiPolicy.rejectionRule?.trim()
+        isWritingAiChatEnabled(configToCreate.aiAccess) &&
+        configToCreate.aiPolicy?.mode === 'guard' &&
+        !configToCreate.aiPolicy.rejectionRule?.trim()
       ) {
         toast({
           title: 'AI Guard policy rule required',
@@ -951,7 +1047,8 @@ function NewDocumentPageContent() {
         if (!aiApiKey.trim() && !hasExistingAiKey) {
           toast({
             title: 'AI key required',
-            description: 'Enter an AI API key before creating an AI-enabled document.',
+            description:
+              'Enter an AI API key before creating an AI-enabled document.',
             variant: 'destructive',
           });
           return;
@@ -960,7 +1057,8 @@ function NewDocumentPageContent() {
         if (!selectedAiModel) {
           toast({
             title: 'AI model required',
-            description: 'Select or enter the AI model for this writing environment.',
+            description:
+              'Select or enter the AI model for this writing environment.',
             variant: 'destructive',
           });
           return;
@@ -970,7 +1068,8 @@ function NewDocumentPageContent() {
         if (!baseUrlToSave) {
           toast({
             title: 'AI provider required',
-            description: 'Select a provider or enter a custom base URL before creating an AI-enabled document.',
+            description:
+              'Select a provider or enter a custom base URL before creating an AI-enabled document.',
             variant: 'destructive',
           });
           return;
@@ -980,8 +1079,12 @@ function NewDocumentPageContent() {
           apiKey: aiApiKey.trim() || WRITING_AI_EXISTING_KEY_SENTINEL,
           baseUrl: baseUrlToSave,
           model: selectedAiModel,
-          shortcutMaxTokens: configToCreate.aiTokenBudget?.shortcutMaxTokens || AI_SHORTCUT_MAX_TOKENS_DEFAULT,
-          chatMaxTokens: configToCreate.aiTokenBudget?.chatMaxTokens || AI_CHAT_MAX_TOKENS_DEFAULT,
+          shortcutMaxTokens:
+            configToCreate.aiTokenBudget?.shortcutMaxTokens ||
+            AI_SHORTCUT_MAX_TOKENS_DEFAULT,
+          chatMaxTokens:
+            configToCreate.aiTokenBudget?.chatMaxTokens ||
+            AI_CHAT_MAX_TOKENS_DEFAULT,
         });
 
         configToCreate = {
@@ -1020,7 +1123,9 @@ function NewDocumentPageContent() {
         title: 'Success',
         description: isDemoMode
           ? 'Demo document created locally in this browser session'
-          : pdfFile ? 'Document created with linked PDF' : 'Document created successfully',
+          : pdfFile
+            ? 'Document created with linked PDF'
+            : 'Document created successfully',
       });
       router.push(`/documents/${document.id}${isDemoMode ? '?demo=1' : ''}`);
     } catch (err: any) {
@@ -1050,26 +1155,34 @@ function NewDocumentPageContent() {
     router,
   ]);
 
-  const isImportingEnvironment = environmentSelection === IMPORT_ENVIRONMENT_VALUE;
+  const isImportingEnvironment =
+    environmentSelection === IMPORT_ENVIRONMENT_VALUE;
   const showCustomEnvironmentSummary = environmentSelection === 'custom';
-  const customEnvironmentSummaryItems = buildPersonalEnvironmentSummary(environmentConfig, selectedAiModel);
+  const customEnvironmentSummaryItems = buildPersonalEnvironmentSummary(
+    environmentConfig,
+    selectedAiModel
+  );
   const workspacePreviewConfig: WritingEnvironmentConfig = {
     ...environmentConfig,
     taskType: 'personal',
-    allowedModels: environmentConfig.aiAccess === 'off'
-      ? []
-      : selectedAiModel
-        ? [selectedAiModel]
-        : environmentConfig.allowedModels,
+    allowedModels:
+      environmentConfig.aiAccess === 'off'
+        ? []
+        : selectedAiModel
+          ? [selectedAiModel]
+          : environmentConfig.allowedModels,
     instructions: {
       ...environmentConfig.instructions,
-      hasInstructionPdf: !!pdfFile || !!environmentConfig.instructions.hasInstructionPdf,
+      hasInstructionPdf:
+        !!pdfFile || !!environmentConfig.instructions.hasInstructionPdf,
       taskInstruction: taskInstruction.trim(),
     },
     traceability: {
       ...environmentConfig.traceability,
       trackAiUsage: environmentConfig.aiAccess !== 'off',
-      trackCopyPaste: normalizeCopyPastePolicy(environmentConfig.copyPastePolicy) === 'allowed',
+      trackCopyPaste:
+        normalizeCopyPastePolicy(environmentConfig.copyPastePolicy) ===
+        'allowed',
     },
     detectors: normalizeWritingDetectorConfig(environmentConfig.detectors),
   };
@@ -1101,8 +1214,14 @@ function NewDocumentPageContent() {
     };
 
     previewWindow.postMessage(message, window.location.origin);
-    window.setTimeout(() => previewWindow.postMessage(message, window.location.origin), 250);
-    window.setTimeout(() => previewWindow.postMessage(message, window.location.origin), 1000);
+    window.setTimeout(
+      () => previewWindow.postMessage(message, window.location.origin),
+      250
+    );
+    window.setTimeout(
+      () => previewWindow.postMessage(message, window.location.origin),
+      1000
+    );
   };
 
   const customEnvironmentControls = (
@@ -1115,7 +1234,10 @@ function NewDocumentPageContent() {
 
         <div className="humanly-field">
           <Label>AI</Label>
-          <Select value={environmentConfig.aiAccess} onValueChange={(value) => setAiAccess(value as WritingAiAccess)}>
+          <Select
+            value={environmentConfig.aiAccess}
+            onValueChange={(value) => setAiAccess(value as WritingAiAccess)}
+          >
             <SelectTrigger aria-label="AI access">
               <SelectValue placeholder="AI access" />
             </SelectTrigger>
@@ -1146,7 +1268,11 @@ function NewDocumentPageContent() {
                   setAiApiKey(event.target.value);
                   clearAiConnectionState();
                 }}
-                placeholder={hasExistingAiKey ? `Current: ${maskedAiKey || 'saved key'}` : 'Enter API key'}
+                placeholder={
+                  hasExistingAiKey
+                    ? `Current: ${maskedAiKey || 'saved key'}`
+                    : 'Enter API key'
+                }
                 disabled={isCreating}
               />
               {hasExistingAiKey && !aiApiKey && (
@@ -1160,7 +1286,12 @@ function NewDocumentPageContent() {
               type="button"
               variant="outline"
               onClick={handleTestAiConnection}
-              disabled={isCreating || isValidatingEnvironment || isTestingAiConnection || (!aiApiKey.trim() && !hasExistingAiKey)}
+              disabled={
+                isCreating ||
+                isValidatingEnvironment ||
+                isTestingAiConnection ||
+                (!aiApiKey.trim() && !hasExistingAiKey)
+              }
             >
               {isTestingAiConnection ? (
                 <>
@@ -1179,7 +1310,13 @@ function NewDocumentPageContent() {
                 ) : (
                   <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
                 )}
-                <p className={aiConnectionResult.success ? 'text-emerald-700' : 'text-destructive'}>
+                <p
+                  className={
+                    aiConnectionResult.success
+                      ? 'text-emerald-700'
+                      : 'text-destructive'
+                  }
+                >
                   {aiConnectionResult.message}
                 </p>
               </div>
@@ -1214,7 +1351,9 @@ function NewDocumentPageContent() {
                 <Select
                   value={getProviderValueForBaseUrl(aiBaseUrl)}
                   onValueChange={(value) => {
-                    const provider = AI_PROVIDER_OPTIONS.find(option => option.value === value);
+                    const provider = AI_PROVIDER_OPTIONS.find(
+                      (option) => option.value === value
+                    );
                     updateAiBaseUrl(provider?.baseUrl ?? '', true);
                   }}
                   disabled={isCreating}
@@ -1231,13 +1370,14 @@ function NewDocumentPageContent() {
                   </SelectContent>
                 </Select>
               </div>
-
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="humanly-field">
                 <div className="flex items-center gap-1.5">
-                  <Label htmlFor="ai-shortcut-max-tokens">Shortcut Tokens</Label>
+                  <Label htmlFor="ai-shortcut-max-tokens">
+                    Shortcut Tokens
+                  </Label>
                   <EnvironmentHelp title="Shortcut Tokens">
                     {SHORTCUT_TOKENS_HELP_TEXT}
                   </EnvironmentHelp>
@@ -1247,11 +1387,24 @@ function NewDocumentPageContent() {
                   type="number"
                   min={AI_MAX_TOKENS_MIN}
                   max={AI_MAX_TOKENS_MAX}
-                  value={shortcutTokensEnabled ? environmentConfig.aiTokenBudget?.shortcutMaxTokens || AI_SHORTCUT_MAX_TOKENS_DEFAULT : ''}
-                  placeholder={shortcutTokensEnabled ? undefined : 'Not available in this mode'}
-                  onChange={(event) => setAiTokenBudget({
-                    shortcutMaxTokens: Number(event.target.value) || AI_SHORTCUT_MAX_TOKENS_DEFAULT,
-                  })}
+                  value={
+                    shortcutTokensEnabled
+                      ? environmentConfig.aiTokenBudget?.shortcutMaxTokens ||
+                        AI_SHORTCUT_MAX_TOKENS_DEFAULT
+                      : ''
+                  }
+                  placeholder={
+                    shortcutTokensEnabled
+                      ? undefined
+                      : 'Not available in this mode'
+                  }
+                  onChange={(event) =>
+                    setAiTokenBudget({
+                      shortcutMaxTokens:
+                        Number(event.target.value) ||
+                        AI_SHORTCUT_MAX_TOKENS_DEFAULT,
+                    })
+                  }
                   disabled={isCreating || !shortcutTokensEnabled}
                 />
                 {!shortcutTokensEnabled && (
@@ -1273,11 +1426,22 @@ function NewDocumentPageContent() {
                   type="number"
                   min={AI_MAX_TOKENS_MIN}
                   max={AI_MAX_TOKENS_MAX}
-                  value={chatTokensEnabled ? environmentConfig.aiTokenBudget?.chatMaxTokens || AI_CHAT_MAX_TOKENS_DEFAULT : ''}
-                  placeholder={chatTokensEnabled ? undefined : 'Not available in this mode'}
-                  onChange={(event) => setAiTokenBudget({
-                    chatMaxTokens: Number(event.target.value) || AI_CHAT_MAX_TOKENS_DEFAULT,
-                  })}
+                  value={
+                    chatTokensEnabled
+                      ? environmentConfig.aiTokenBudget?.chatMaxTokens ||
+                        AI_CHAT_MAX_TOKENS_DEFAULT
+                      : ''
+                  }
+                  placeholder={
+                    chatTokensEnabled ? undefined : 'Not available in this mode'
+                  }
+                  onChange={(event) =>
+                    setAiTokenBudget({
+                      chatMaxTokens:
+                        Number(event.target.value) ||
+                        AI_CHAT_MAX_TOKENS_DEFAULT,
+                    })
+                  }
                   disabled={isCreating || !chatTokensEnabled}
                 />
                 {!chatTokensEnabled && (
@@ -1298,8 +1462,12 @@ function NewDocumentPageContent() {
                     </EnvironmentHelp>
                   </div>
                   <Select
-                    value={normalizeWritingAiPolicy(environmentConfig.aiPolicy).mode}
-                    onValueChange={(value) => setAiPolicyMode(value as WritingAiPolicyMode)}
+                    value={
+                      normalizeWritingAiPolicy(environmentConfig.aiPolicy).mode
+                    }
+                    onValueChange={(value) =>
+                      setAiPolicyMode(value as WritingAiPolicyMode)
+                    }
                   >
                     <SelectTrigger aria-label="AI Guard policy">
                       <SelectValue placeholder="AI Guard policy" />
@@ -1314,14 +1482,21 @@ function NewDocumentPageContent() {
                   </Select>
                 </div>
 
-                {normalizeWritingAiPolicy(environmentConfig.aiPolicy).mode === 'guard' && (
+                {normalizeWritingAiPolicy(environmentConfig.aiPolicy).mode ===
+                  'guard' && (
                   <div className="humanly-field">
-                    <Label htmlFor="ai-policy-rejection-rule">Rejection Rule</Label>
+                    <Label htmlFor="ai-policy-rejection-rule">
+                      Rejection Rule
+                    </Label>
                     <Textarea
                       id="ai-policy-rejection-rule"
                       aria-label="AI rejection rule"
-                      value={getWritingAiPolicyRejectionRuleInputValue(environmentConfig.aiPolicy)}
-                      onChange={(event) => setAiPolicyRejectionRule(event.target.value)}
+                      value={getWritingAiPolicyRejectionRuleInputValue(
+                        environmentConfig.aiPolicy
+                      )}
+                      onChange={(event) =>
+                        setAiPolicyRejectionRule(event.target.value)
+                      }
                       placeholder="Example: Refuse to produce evaluative claims; only help with grammar, wording, or understanding references."
                       className="min-h-24"
                     />
@@ -1366,7 +1541,9 @@ function NewDocumentPageContent() {
         <div className="humanly-field">
           <Label>PDF Resource Access</Label>
           <Select
-            value={normalizeResourceAccessPolicy(environmentConfig.resourceAccess)}
+            value={normalizeResourceAccessPolicy(
+              environmentConfig.resourceAccess
+            )}
             onValueChange={(value) => {
               markCustom((current) => ({
                 ...current,
@@ -1383,7 +1560,8 @@ function NewDocumentPageContent() {
             </SelectContent>
           </Select>
           <p className="text-xs text-muted-foreground">
-            View-only PDFs load through short-lived viewer access and hide file-saving affordances.
+            View-only PDFs load through short-lived viewer access and hide
+            file-saving affordances.
           </p>
         </div>
 
@@ -1396,101 +1574,117 @@ function NewDocumentPageContent() {
               min={1}
               max={SUBMISSION_MAX_CHARACTERS_MAX}
               value={environmentConfig.submission.maxCharacters ?? ''}
-              onChange={(event) => setSubmissionMaximumCharacters(event.target.value)}
+              onChange={(event) =>
+                setSubmissionMaximumCharacters(event.target.value)
+              }
               placeholder="No maximum"
               disabled={isCreating}
             />
           </div>
 
           <p className="text-xs text-muted-foreground">
-            Optional cap for personal writing. Leave blank for no maximum length.
+            Optional cap for personal writing. Leave blank for no maximum
+            length.
           </p>
         </div>
       </div>
 
-      <DetectorSettingsBox
-        config={environmentConfig}
-        disabled={isCreating}
-        onChange={(nextConfig) => {
-          markCustom(() => nextConfig);
-        }}
-      />
+      <div className="space-y-4">
+        <div className="space-y-4 rounded-md border p-4">
+          <SectionHeading
+            title="Time Limitation"
+            description="Set whether the writing session should have a time limit."
+          />
 
-      <div className="space-y-4 rounded-md border p-4">
-        <SectionHeading
-          title="Time Limitation"
-          description="Set whether the writing session should have a time limit."
-        />
+          <div className="humanly-field">
+            <Label>Time</Label>
+            <Select
+              value={timeMode}
+              onValueChange={(value) => {
+                markCustom((current) => ({
+                  ...current,
+                  aiUsageLimit: {
+                    ...current.aiUsageLimit,
+                    mode:
+                      value === 'time_restricted'
+                        ? 'time_restricted'
+                        : 'unlimited',
+                  },
+                  time: {
+                    ...current.time,
+                    timeLimitSeconds:
+                      value === 'time_restricted'
+                        ? current.time.timeLimitSeconds || 3600
+                        : undefined,
+                  },
+                }));
+                if (value === 'time_restricted') {
+                  setTimeLimitMinutesInput(
+                    getTimeLimitMinutesValue(
+                      environmentConfig.time.timeLimitSeconds
+                    )
+                  );
+                }
+              }}
+            >
+              <SelectTrigger aria-label="Time policy">
+                <SelectValue placeholder="Time policy" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="unlimited">No limitations</SelectItem>
+                <SelectItem value="time_restricted">Time limited</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
-        <div className="humanly-field">
-          <Label>Time</Label>
-          <Select
-            value={timeMode}
-            onValueChange={(value) => {
-              markCustom((current) => ({
-                ...current,
-                aiUsageLimit: {
-                  ...current.aiUsageLimit,
-                  mode: value === 'time_restricted' ? 'time_restricted' : 'unlimited',
-                },
-                time: {
-                  ...current.time,
-                  timeLimitSeconds: value === 'time_restricted'
-                    ? current.time.timeLimitSeconds || 3600
-                    : undefined,
-                },
-              }));
-              if (value === 'time_restricted') {
-                setTimeLimitMinutesInput(getTimeLimitMinutesValue(environmentConfig.time.timeLimitSeconds));
-              }
-            }}
-          >
-            <SelectTrigger aria-label="Time policy">
-              <SelectValue placeholder="Time policy" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="unlimited">No limitations</SelectItem>
-              <SelectItem value="time_restricted">Time limited</SelectItem>
-            </SelectContent>
-          </Select>
+          {timeMode === 'time_restricted' && (
+            <div className="humanly-field">
+              <Label htmlFor="time-limit-minutes">Time Limit (minutes)</Label>
+              <Input
+                id="time-limit-minutes"
+                type="number"
+                min={1}
+                value={timeLimitMinutesInput}
+                disabled={isCreating}
+                onChange={(event) => {
+                  const nextValue = event.target.value;
+                  setTimeLimitMinutesInput(nextValue);
+                  if (!nextValue) return;
+                  const minutes = parseTimeLimitMinutes(nextValue, 1);
+                  markCustom((current) => ({
+                    ...current,
+                    time: {
+                      ...current.time,
+                      timeLimitSeconds: minutes * 60,
+                    },
+                  }));
+                }}
+                onBlur={() => {
+                  const minutes = parseTimeLimitMinutes(
+                    timeLimitMinutesInput,
+                    1
+                  );
+                  setTimeLimitMinutesInput(String(minutes));
+                  markCustom((current) => ({
+                    ...current,
+                    time: {
+                      ...current.time,
+                      timeLimitSeconds: minutes * 60,
+                    },
+                  }));
+                }}
+              />
+            </div>
+          )}
         </div>
 
-        {timeMode === 'time_restricted' && (
-          <div className="humanly-field">
-            <Label htmlFor="time-limit-minutes">Time Limit (minutes)</Label>
-            <Input
-              id="time-limit-minutes"
-              type="number"
-              min={1}
-              value={timeLimitMinutesInput}
-              disabled={isCreating}
-              onChange={(event) => {
-                const nextValue = event.target.value;
-                setTimeLimitMinutesInput(nextValue);
-                if (!nextValue) return;
-                const minutes = parseTimeLimitMinutes(nextValue, 1);
-                markCustom((current) => ({
-                  ...current,
-                  time: {
-                    ...current.time,
-                    timeLimitSeconds: minutes * 60,
-                  },
-                }));
-              }}
-              onBlur={() => {
-                const minutes = parseTimeLimitMinutes(timeLimitMinutesInput, 1);
-                setTimeLimitMinutesInput(String(minutes));
-                markCustom((current) => ({
-                  ...current,
-                  time: {
-                    ...current.time,
-                    timeLimitSeconds: minutes * 60,
-                  },
-                }));
-              }}
-            />
-          </div>
-        )}
+        <DetectorSettingsBox
+          config={environmentConfig}
+          disabled={isCreating}
+          onChange={(nextConfig) => {
+            markCustom(() => nextConfig);
+          }}
+        />
       </div>
     </div>
   );
@@ -1505,42 +1699,29 @@ function NewDocumentPageContent() {
           onClick={() => router.push(isDemoMode ? '/' : '/documents')}
         >
           <ArrowLeft className="mr-2 h-4 w-4" />
-          {isDemoMode ? 'Back to Home' : 'Back to Workspace'}
+          {isDemoMode ? 'Back to Home' : 'Back to Dashboard'}
         </Button>
-        <p className="humanly-eyebrow">Personal writing</p>
-        <h1 className="mt-2 text-2xl font-semibold tracking-normal sm:text-3xl">Create Writing</h1>
-        <p className="mt-2 max-w-2xl text-sm text-muted-foreground sm:text-base">
-          Create a personal writing document and configure its writing environment.
-        </p>
+        <div className="flex items-end justify-between gap-4">
+          <h1 className="min-w-0 text-3xl font-medium sm:text-4xl">
+            Create Writing
+          </h1>
+          <Button
+            type="button"
+            variant="outline"
+            className="shrink-0 gap-2 border-[#9E756B] bg-[#9E756B] text-white hover:border-[#8F685F] hover:bg-[#8F685F] hover:text-white"
+            onClick={openWorkspacePreview}
+            disabled={isCreating}
+          >
+            <Eye className="h-4 w-4" />
+            Preview
+          </Button>
+        </div>
       </div>
 
       <Card className="overflow-hidden">
-        <CardHeader className="p-4 sm:p-5">
-          <div className="flex items-start justify-between gap-4">
-            <div className="min-w-0">
-              <CardTitle>Task Setup</CardTitle>
-              <CardDescription>
-                Set up the task details, AI access, and writing controls before you start.
-              </CardDescription>
-            </div>
-            <Button
-              type="button"
-              variant="outline"
-              className="shrink-0 gap-2"
-              onClick={openWorkspacePreview}
-              disabled={isCreating}
-            >
-              <Eye className="h-4 w-4" />
-              Preview
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent className="grid gap-4 px-4 pb-4 pt-0 sm:px-5 sm:pb-5 sm:pt-0 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.2fr)] xl:items-stretch">
-          <section className="h-full space-y-3 rounded-lg border border-border/70 bg-background p-3">
-            <SectionHeading
-              title="Basic Information"
-              description="Name the document and attach an optional source PDF for side-by-side writing."
-            />
+        <CardContent className="grid gap-8 p-4 sm:p-5 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.2fr)] xl:items-stretch xl:gap-0">
+          <section className="h-full space-y-4 py-1 xl:pr-8">
+            <SectionHeading title="Basic Information" />
 
             <div className="humanly-field">
               <Label htmlFor="document-title">Document Name</Label>
@@ -1570,23 +1751,17 @@ function NewDocumentPageContent() {
                 id="document-instruction"
                 value={taskInstruction}
                 onChange={(event) => setTaskInstruction(event.target.value)}
-                placeholder="Optional instructions to review before writing starts..."
+                placeholder="Instructions shown to the writer before writing starts..."
                 maxLength={TASK_INSTRUCTION_MAX_LENGTH}
                 disabled={isCreating}
               />
-              <p className="text-xs text-muted-foreground">
-                Shown above the writing rules in the Instructions dialog. Markdown formatting is supported.
-              </p>
             </div>
 
-            <div className="rounded-lg border border-dashed border-border/80 bg-muted/25 p-3">
+            <div className="rounded-lg border border-dashed border-border p-3">
               <div className="flex items-center gap-2 text-sm font-medium">
                 <Upload className="h-4 w-4 text-accent" />
                 PDF
               </div>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Optional PDF source file for side-by-side writing. This can only be added during document creation.
-              </p>
               <Input
                 ref={fileInputRef}
                 type="file"
@@ -1599,7 +1774,10 @@ function NewDocumentPageContent() {
                 <div className="mt-3 flex items-center gap-3 rounded-lg border border-border/70 bg-background p-3">
                   <FileText className="h-5 w-5 shrink-0 text-accent" />
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium" title={pdfFile.name}>
+                    <p
+                      className="truncate text-sm font-medium"
+                      title={pdfFile.name}
+                    >
                       {pdfFile.name}
                     </p>
                     <p className="text-xs text-muted-foreground">
@@ -1623,35 +1801,40 @@ function NewDocumentPageContent() {
             </div>
           </section>
 
-          <div className="h-full space-y-4 rounded-lg border border-border/70 bg-background p-3">
-            <SectionHeading
-              title="Environment"
-              description="Choose a default, customize the modules below, or import a JSON or YAML configuration."
-            />
+          <div className="h-full space-y-4 py-1 xl:border-l xl:border-border/60 xl:pl-8">
+            <SectionHeading title="Environment" />
 
             <div className="humanly-field">
               <Label>Environment</Label>
-              <Select value={environmentSelection} onValueChange={(value) => handleEnvironmentSelectionChange(value as EnvironmentSelection)}>
+              <Select
+                value={environmentSelection}
+                onValueChange={(value) =>
+                  handleEnvironmentSelectionChange(
+                    value as EnvironmentSelection
+                  )
+                }
+              >
                 <SelectTrigger aria-label="Environment">
                   <SelectValue placeholder="Select environment" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="default_writing">Default Environment</SelectItem>
+                  <SelectItem value="default_writing">
+                    Default Environment
+                  </SelectItem>
                   <SelectItem value="custom">Custom</SelectItem>
-                  <SelectItem value={IMPORT_ENVIRONMENT_VALUE}>Import Environment</SelectItem>
+                  <SelectItem value={IMPORT_ENVIRONMENT_VALUE}>
+                    Import Environment
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             {isImportingEnvironment && (
-              <div className="rounded-lg border border-dashed border-border/80 bg-muted/25 p-3">
+              <div className="rounded-lg border border-dashed border-border p-3">
                 <div className="flex items-center gap-2 text-sm font-medium">
                   <Upload className="h-4 w-4 text-accent" />
                   Import Configuration
                 </div>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Upload a JSON or YAML file that matches the writing environment configuration shape.
-                </p>
                 <Input
                   type="file"
                   accept={ENVIRONMENT_CONFIG_ACCEPT}
@@ -1663,53 +1846,37 @@ function NewDocumentPageContent() {
             )}
 
             {!showCustomEnvironmentSummary && !isImportingEnvironment && (
-              <div className="rounded-lg border border-border/70 bg-muted/35 p-3">
-                <div className="flex items-start gap-3">
-                  <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-[var(--hly-brand)]" />
-                  <div>
-                    <p className="font-medium">Default Environment</p>
-                    <p className="text-sm text-muted-foreground">
-                      A simple personal writing setup with authorship tracking enabled and no AI assistant configured.
-                    </p>
-                  </div>
+              <div className="pt-1">
+                <div className="flex items-center gap-3">
+                  <CheckCircle className="h-4 w-4 shrink-0 text-[var(--hly-green-text)]" />
+                  <p className="font-medium">Default Environment</p>
                 </div>
 
-                <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                  <div className="rounded-lg border border-border/60 bg-background p-2.5">
-                    <p className="humanly-eyebrow">AI</p>
-                    <p className="mt-1 text-sm font-medium">Off</p>
-                  </div>
-                  <div className="rounded-lg border border-border/60 bg-background p-2.5">
-                    <p className="humanly-eyebrow">Writing</p>
-                    <p className="mt-1 text-sm font-medium">Copy & paste allowed</p>
-                  </div>
-                  <div className="rounded-lg border border-border/60 bg-background p-2.5">
-                    <p className="humanly-eyebrow">Time</p>
-                    <p className="mt-1 text-sm font-medium">No limit</p>
-                  </div>
-                  <div className="rounded-lg border border-border/60 bg-background p-2.5">
-                    <p className="humanly-eyebrow">Detectors</p>
-                    <p className="mt-1 text-sm font-medium">Both on</p>
-                  </div>
-                </div>
-
-                <p className="mt-3 text-sm text-muted-foreground">
-                  Choose Custom to configure AI access, copy-paste rules, detector policy, or a time limit.
-                </p>
+                <dl className="mt-4 border-t border-border/70">
+                  {[
+                    ['AI assistant', 'Off'],
+                    ['Copy & paste', 'Allowed'],
+                    ['Time limit', 'None'],
+                    ['Detectors', 'Both on'],
+                  ].map(([label, value]) => (
+                    <div
+                      key={label}
+                      className="flex items-baseline justify-between border-b border-border/70 py-2.5 text-sm"
+                    >
+                      <dt className="text-muted-foreground">{label}</dt>
+                      <dd className="font-medium">{value}</dd>
+                    </div>
+                  ))}
+                </dl>
               </div>
             )}
 
             {showCustomEnvironmentSummary && (
-              <div className="rounded-lg border border-border/70 bg-muted/35 p-3">
+              <div className="pt-1">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="flex min-w-0 items-start gap-3">
-                    <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-[var(--hly-brand)]" />
-                    <div>
-                      <p className="font-medium">Custom Environment</p>
-                      <p className="text-sm text-muted-foreground">
-                        Configure AI, copy-paste, character cap, and time limit in a separate dialog.
-                      </p>
-                    </div>
+                  <div className="flex min-w-0 items-center gap-3">
+                    <CheckCircle className="h-4 w-4 shrink-0 text-[var(--hly-green-text)]" />
+                    <p className="font-medium">Custom Environment</p>
                   </div>
 
                   <Button
@@ -1725,24 +1892,31 @@ function NewDocumentPageContent() {
                   </Button>
                 </div>
 
-                <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                <dl className="mt-4 border-t border-border/70">
                   {customEnvironmentSummaryItems.map((item) => (
-                    <div key={item.label} className="rounded-lg border border-border/60 bg-background p-2.5">
-                      <p className="humanly-eyebrow">{item.label}</p>
-                      <p className="mt-1 text-sm font-medium">{item.value}</p>
-                      {item.detail && (
-                        <p className="mt-1 text-xs text-muted-foreground">{item.detail}</p>
-                      )}
+                    <div
+                      key={item.label}
+                      className="flex items-baseline justify-between gap-4 border-b border-border/70 py-2.5 text-sm"
+                    >
+                      <dt className="shrink-0 text-muted-foreground">
+                        {item.label}
+                      </dt>
+                      <dd className="min-w-0 text-right">
+                        <span className="font-medium">{item.value}</span>
+                      </dd>
                     </div>
                   ))}
-                </div>
+                </dl>
               </div>
             )}
           </div>
-
         </CardContent>
-        <CardFooter className="mt-4 flex justify-end gap-3 border-t border-border/70 bg-muted/20 px-5 pb-5 pt-7 sm:pt-7">
-          <Button variant="outline" onClick={() => router.push(isDemoMode ? '/' : '/documents')} disabled={isCreating}>
+        <CardFooter className="flex justify-end gap-3 border-t border-border/70 px-4 pb-4 pt-4 sm:px-5 sm:pb-4 sm:pt-4">
+          <Button
+            variant="outline"
+            onClick={() => router.push(isDemoMode ? '/' : '/documents')}
+            disabled={isCreating}
+          >
             Cancel
           </Button>
           <Button onClick={handleCreateDocument} disabled={isCreating}>
@@ -1752,12 +1926,16 @@ function NewDocumentPageContent() {
         </CardFooter>
       </Card>
 
-      <Dialog open={environmentDialogOpen} onOpenChange={handleEnvironmentDialogOpenChange}>
+      <Dialog
+        open={environmentDialogOpen}
+        onOpenChange={handleEnvironmentDialogOpenChange}
+      >
         <DialogContent className="max-h-[85vh] w-[calc(100vw-2rem)] max-w-5xl overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Custom Environment</DialogTitle>
             <DialogDescription>
-              Configure AI access, writing rules, character cap, and time limit before creating this document.
+              Configure AI access, writing rules, character cap, and time limit
+              before creating this document.
             </DialogDescription>
           </DialogHeader>
 
@@ -1767,9 +1945,13 @@ function NewDocumentPageContent() {
             <Button
               type="button"
               onClick={handleCustomEnvironmentDone}
-              disabled={isCreating || isValidatingEnvironment || isTestingAiConnection}
+              disabled={
+                isCreating || isValidatingEnvironment || isTestingAiConnection
+              }
             >
-              {isValidatingEnvironment && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {isValidatingEnvironment && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
               {isValidatingEnvironment ? 'Checking API...' : 'Done'}
             </Button>
           </DialogFooter>

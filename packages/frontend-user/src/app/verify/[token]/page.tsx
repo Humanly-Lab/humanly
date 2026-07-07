@@ -3,11 +3,23 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { FileText, XCircle } from 'lucide-react';
-import type { AIAuthorshipStats, CertificateSeal, CertificateSealStatus } from '@humanly/shared';
+import type {
+  AIAuthorshipStats,
+  CertificateSeal,
+  CertificateSealStatus,
+} from '@humanly/shared';
 import { AccessCodeDialog } from '@/components/certificates/access-code-dialog';
-import { CertificateEvidenceView, type CertificateEvidenceRecord } from '@/components/certificates/certificate-evidence-view';
+import {
+  CertificateEvidenceView,
+  type CertificateEvidenceRecord,
+} from '@/components/certificates/certificate-evidence-view';
 import { Button } from '@/components/ui/button';
-import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { TokenManager } from '@/lib/api-client';
 import { marketingHref } from '@/lib/app-origin';
 
@@ -29,17 +41,22 @@ export default function CertificatePage() {
   const params = useParams();
   const router = useRouter();
   const token = params.token as string;
-  const [certificateResult, setCertificateResult] = useState<PublicCertificateResult | null>(null);
+  const [certificateResult, setCertificateResult] =
+    useState<PublicCertificateResult | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showAccessDialog, setShowAccessDialog] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
   const [accessError, setAccessError] = useState<string | undefined>(undefined);
-  const [unlockedAccessCode, setUnlockedAccessCode] = useState<string | undefined>(undefined);
+  const [unlockedAccessCode, setUnlockedAccessCode] = useState<
+    string | undefined
+  >(undefined);
 
   const apiUrl =
     process.env.NEXT_PUBLIC_API_URL ||
-    (process.env.NODE_ENV === 'production' ? '/api/v1' : 'http://localhost:3001/api/v1');
+    (process.env.NODE_ENV === 'production'
+      ? '/api/v1'
+      : 'http://localhost:3001/api/v1');
 
   useEffect(() => {
     async function loadCertificate() {
@@ -60,7 +77,9 @@ export default function CertificatePage() {
           setCertificateResult(data.data);
         }
       } catch (err: any) {
-        setError(err.message || 'An error occurred while loading the certificate');
+        setError(
+          err.message || 'An error occurred while loading the certificate'
+        );
         console.error('Certificate load error:', err);
       } finally {
         setIsLoading(false);
@@ -91,14 +110,19 @@ export default function CertificatePage() {
         setCertificateResult(data.data);
         setUnlockedAccessCode(accessCode);
         if (data.data?.certificate?.id) {
-          TokenManager.setPublicCertificateAccessToken(data.data.certificate.id, accessCode);
+          TokenManager.setPublicCertificateAccessToken(
+            data.data.certificate.id,
+            accessCode
+          );
         }
         setShowAccessDialog(false);
       } else {
         setAccessError(data.data?.message || 'Invalid access code');
       }
     } catch (err: any) {
-      setAccessError(err.message || 'An error occurred while opening the certificate');
+      setAccessError(
+        err.message || 'An error occurred while opening the certificate'
+      );
     } finally {
       setIsVerifying(false);
     }
@@ -109,7 +133,9 @@ export default function CertificatePage() {
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="text-center">
           <div className="inline-block h-12 w-12 animate-spin rounded-full border-4 border-solid border-primary border-r-transparent" />
-          <p className="mt-4 text-lg text-muted-foreground">Loading certificate...</p>
+          <p className="mt-4 text-lg text-muted-foreground">
+            Loading certificate...
+          </p>
         </div>
       </div>
     );
@@ -147,8 +173,12 @@ export default function CertificatePage() {
   }
 
   const certificate = certificateResult.certificate;
-  const canViewLogs = Boolean(certificate.includeEditHistory && certificate.documentId);
-  const marketingUrl = marketingHref('/', { allowRelativeInNonProduction: false });
+  const canViewLogs = Boolean(
+    certificate.includeEditHistory && certificate.documentId
+  );
+  const marketingUrl = marketingHref('/', {
+    allowRelativeInNonProduction: false,
+  });
 
   const handleViewLogs = () => {
     if (!canViewLogs || !certificate.documentId) return;
@@ -168,7 +198,7 @@ export default function CertificatePage() {
           <div className="flex justify-end">
             <Button
               variant="outline"
-              className="gap-2"
+              className="gap-2 border-[#9E756B] bg-[#9E756B] text-white hover:border-[#8F685F] hover:bg-[#8F685F] hover:text-white"
               onClick={handleViewLogs}
             >
               <FileText className="h-4 w-4" />

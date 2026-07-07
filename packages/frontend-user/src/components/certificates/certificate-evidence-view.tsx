@@ -50,7 +50,13 @@ import {
 } from '@humanly/shared';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -69,22 +75,23 @@ import {
 } from '@/components/ui/popover';
 import { DocumentReplay } from '@/components/certificates/document-replay';
 
-const SECTION_TITLE_CLASS = 'text-lg font-semibold tracking-normal';
+const SECTION_TITLE_CLASS = 'text-lg font-medium tracking-normal';
 const COMPOSITION_COLORS = {
-  typed: '#7B8C9E',
-  pasted: '#B2A189',
-  aiAssisted: '#9E93B5',
+  typed: '#8C9178',
+  pasted: '#B39A6B',
+  aiAssisted: '#A08A96',
 } as const;
 const COMPOSITION_HIGHLIGHT_COLORS = {
-  typed: 'rgba(88, 128, 166, 0.40)',
-  pasted: 'rgba(190, 164, 112, 0.42)',
-  aiAssisted: 'rgba(150, 132, 176, 0.42)',
+  typed: 'rgba(140, 145, 120, 0.42)',
+  pasted: 'rgba(179, 154, 107, 0.42)',
+  aiAssisted: 'rgba(160, 138, 150, 0.42)',
 } as const;
 const FINAL_TEXT_PREVIEW_ROWS = 6;
 const HUMAN_TYPING_HUMAN_COLOR = 'var(--hly-green-text)';
 const HUMAN_TYPING_AGENT_COLOR = 'var(--hly-red-text)';
 const HUMAN_TYPING_BAR_TRACK = '#ece9e3';
-const DETECTOR_HELP_TEXT = 'Anomaly Pattern uses deterministic event rules such as typing bursts, untracked text sources, workspace exits, policy refusals, and blocked copy-paste attempts. Humanly Typing Detector uses a model over writing behavior and may be inconclusive or unavailable if there is not enough usable typing data.';
+const DETECTOR_HELP_TEXT =
+  'Anomaly Pattern uses deterministic event rules such as typing bursts, untracked text sources, workspace exits, policy refusals, and blocked copy-paste attempts. Humanly Typing Detector uses a model over writing behavior and may be inconclusive or unavailable if there is not enough usable typing data.';
 
 export interface CertificateEvidenceRecord {
   id: string;
@@ -132,9 +139,11 @@ function getSealStatusPresentation(status?: CertificateSealStatus) {
   if (status === 'valid') {
     return {
       Icon: ShieldCheck,
-      containerClass: 'border-[var(--hly-green-border)] bg-[var(--hly-green-bg-soft)]',
+      containerClass:
+        'border-[var(--hly-green-border)] bg-[var(--hly-green-bg-soft)]',
       iconClass: 'bg-[var(--hly-green-icon)] text-[var(--hly-green-text)]',
-      badgeClass: 'border-[var(--hly-green-border)] bg-[var(--hly-green-bg)] text-[var(--hly-green-text)]',
+      badgeClass:
+        'border-[var(--hly-green-border)] bg-[var(--hly-green-bg)] text-[var(--hly-green-text)]',
       message: 'Publicly verifiable signature matches this certificate record.',
     };
   }
@@ -142,9 +151,11 @@ function getSealStatusPresentation(status?: CertificateSealStatus) {
   if (status === 'legacy_valid') {
     return {
       Icon: ShieldCheck,
-      containerClass: 'border-[var(--hly-amber-border)] bg-[var(--hly-amber-bg)]',
+      containerClass:
+        'border-[var(--hly-amber-border)] bg-[var(--hly-amber-bg)]',
       iconClass: 'bg-[var(--hly-amber-icon)] text-[var(--hly-amber-text)]',
-      badgeClass: 'border-[var(--hly-amber-border)] bg-[var(--hly-amber-badge)] text-[var(--hly-amber-text)]',
+      badgeClass:
+        'border-[var(--hly-amber-border)] bg-[var(--hly-amber-badge)] text-[var(--hly-amber-text)]',
       message: 'The integrity seal matches this certificate record.',
     };
   }
@@ -173,8 +184,10 @@ function getDemoSealPresentation() {
     Icon: Shield,
     containerClass: 'border-[var(--hly-amber-border)] bg-[var(--hly-amber-bg)]',
     iconClass: 'bg-[var(--hly-amber-icon)] text-[var(--hly-amber-text)]',
-    badgeClass: 'border-[var(--hly-amber-border)] bg-[var(--hly-amber-badge)] text-[var(--hly-amber-text)]',
-    message: 'Demo certificate only. This preview is generated locally for reference and is not publicly verifiable.',
+    badgeClass:
+      'border-[var(--hly-amber-border)] bg-[var(--hly-amber-badge)] text-[var(--hly-amber-text)]',
+    message:
+      'Demo certificate only. This preview is generated locally for reference and is not publicly verifiable.',
   };
 }
 
@@ -188,7 +201,12 @@ function formatCompositionLabel(percentage: number, characters: number) {
   return `${formatPercentage(percentage)} · ${characters.toLocaleString()} chars`;
 }
 
-function createLegacyComposition(certificate: Pick<CertificateEvidenceRecord, 'typedCharacters' | 'pastedCharacters'>): AuthorshipComposition {
+function createLegacyComposition(
+  certificate: Pick<
+    CertificateEvidenceRecord,
+    'typedCharacters' | 'pastedCharacters'
+  >
+): AuthorshipComposition {
   return {
     typedCharacters: certificate.typedCharacters,
     pastedCharacters: certificate.pastedCharacters,
@@ -206,7 +224,11 @@ function createLegacyComposition(certificate: Pick<CertificateEvidenceRecord, 't
 }
 
 function getCompositionTotal(composition: AuthorshipComposition) {
-  return composition.typedCharacters + composition.pastedCharacters + composition.aiAssistedCharacters;
+  return (
+    composition.typedCharacters +
+    composition.pastedCharacters +
+    composition.aiAssistedCharacters
+  );
 }
 
 function getCompositionPercentages(composition: AuthorshipComposition) {
@@ -215,7 +237,8 @@ function getCompositionPercentages(composition: AuthorshipComposition) {
     total,
     typed: total > 0 ? (composition.typedCharacters / total) * 100 : 0,
     pasted: total > 0 ? (composition.pastedCharacters / total) * 100 : 0,
-    aiAssisted: total > 0 ? (composition.aiAssistedCharacters / total) * 100 : 0,
+    aiAssisted:
+      total > 0 ? (composition.aiAssistedCharacters / total) * 100 : 0,
   };
 }
 
@@ -239,7 +262,8 @@ function formatPreset(value?: string | null) {
 function formatUsageLimit(config: WritingEnvironmentConfig) {
   const limit = config.aiUsageLimit;
   if (!limit || limit.mode === 'unlimited') return 'Unlimited';
-  if (limit.mode === 'max_requests') return `${limit.maxRequests ?? 0} requests`;
+  if (limit.mode === 'max_requests')
+    return `${limit.maxRequests ?? 0} requests`;
   if (limit.mode === 'max_tokens') return `${limit.maxTokens ?? 0} tokens`;
   return 'Time restricted';
 }
@@ -272,7 +296,8 @@ function formatWritingTimeLimit(config: WritingEnvironmentConfig) {
 function formatCharacterLimit(config: WritingEnvironmentConfig) {
   const min = config.submission?.minCharacters;
   const max = config.submission?.maxCharacters;
-  if (min && max) return `${min.toLocaleString()} - ${max.toLocaleString()} chars`;
+  if (min && max)
+    return `${min.toLocaleString()} - ${max.toLocaleString()} chars`;
   if (min) return `Min ${min.toLocaleString()} chars`;
   if (max) return `Max ${max.toLocaleString()} chars`;
   return 'No limit';
@@ -306,14 +331,22 @@ function getEnvironmentRows(config?: WritingEnvironmentConfig | null) {
   }
 
   if (isWritingAiPolishEnabled(config.aiAccess)) {
-    rows.push(['Quick-action token limit', formatTokenLimit(config.aiTokenBudget?.shortcutMaxTokens)]);
+    rows.push([
+      'Quick-action token limit',
+      formatTokenLimit(config.aiTokenBudget?.shortcutMaxTokens),
+    ]);
   }
 
   if (isWritingAiChatEnabled(config.aiAccess)) {
-    rows.push(['Agent chat token limit', formatTokenLimit(config.aiTokenBudget?.chatMaxTokens)]);
+    rows.push([
+      'Agent chat token limit',
+      formatTokenLimit(config.aiTokenBudget?.chatMaxTokens),
+    ]);
     rows.push([
       'AI Guard policy',
-      formatWritingAiPolicy(config) === 'Guard' ? 'Guarded by custom rejection rule' : 'Off',
+      formatWritingAiPolicy(config) === 'Guard'
+        ? 'Guarded by custom rejection rule'
+        : 'Off',
     ]);
   }
 
@@ -329,7 +362,9 @@ function getEnvironmentRows(config?: WritingEnvironmentConfig | null) {
   ]);
   rows.push([
     'PDF resource access',
-    normalizeResourceAccessPolicy(config.resourceAccess) === 'view-only' ? 'View-only' : 'Downloadable',
+    normalizeResourceAccessPolicy(config.resourceAccess) === 'view-only'
+      ? 'View-only'
+      : 'Downloadable',
   ]);
 
   if (isAdminAssigned) {
@@ -340,7 +375,9 @@ function getEnvironmentRows(config?: WritingEnvironmentConfig | null) {
 
   if (isAdminAssigned) {
     rows.push(['Character limit', formatCharacterLimit(config)]);
-    const attemptPolicy = normalizeWritingAttemptPolicy(config.submission?.attemptPolicy);
+    const attemptPolicy = normalizeWritingAttemptPolicy(
+      config.submission?.attemptPolicy
+    );
     rows.push([
       'Task Attempts',
       attemptPolicy.mode === 'restart_allowed'
@@ -350,7 +387,9 @@ function getEnvironmentRows(config?: WritingEnvironmentConfig | null) {
   } else {
     rows.push([
       'Maximum characters',
-      config.submission?.maxCharacters ? `${config.submission.maxCharacters.toLocaleString()} chars` : 'No maximum',
+      config.submission?.maxCharacters
+        ? `${config.submission.maxCharacters.toLocaleString()} chars`
+        : 'No maximum',
     ]);
   }
 
@@ -372,7 +411,9 @@ function getFlagSeverityClass(severity: WritingAnomalyFlag['severity']) {
   return 'border-[var(--hly-blue-border)] bg-[var(--hly-blue-bg)] text-[var(--hly-blue-text)]';
 }
 
-function normalizeReviewSignal(flag: WritingAnomalyFlag): WritingAnomalyFlag | null {
+function normalizeReviewSignal(
+  flag: WritingAnomalyFlag
+): WritingAnomalyFlag | null {
   if (
     flag.code === 'clock_skew_anomaly' ||
     flag.code === 'uniform_key_cadence' ||
@@ -381,14 +422,13 @@ function normalizeReviewSignal(flag: WritingAnomalyFlag): WritingAnomalyFlag | n
     return null;
   }
 
-  if (
-    flag.code === 'sustained_high_typing_speed'
-  ) {
+  if (flag.code === 'sustained_high_typing_speed') {
     return {
       ...flag,
       code: 'rapid_text_accumulation',
       label: 'Rapid text accumulation',
-      description: 'A large amount of text appeared within a short time window.',
+      description:
+        'A large amount of text appeared within a short time window.',
       evidence: {
         legacyCode: flag.code,
         ...(flag.evidence || {}),
@@ -401,7 +441,8 @@ function normalizeReviewSignal(flag: WritingAnomalyFlag): WritingAnomalyFlag | n
       ...flag,
       code: 'untracked_text_source',
       label: 'Untracked text source',
-      description: "Text was added through an event source outside Humanly's tracked text-input categories.",
+      description:
+        "Text was added through an event source outside Humanly's tracked text-input categories.",
       evidence: {
         legacyCode: flag.code,
         ...(flag.evidence || {}),
@@ -428,7 +469,8 @@ function normalizeReviewSignal(flag: WritingAnomalyFlag): WritingAnomalyFlag | n
       ...flag,
       code: 'long_or_repeated_away_from_workspace',
       label: 'Long or repeated away-from-workspace time',
-      description: 'The writer left the Humanly writing workspace for a long time or repeatedly during the session.',
+      description:
+        'The writer left the Humanly writing workspace for a long time or repeatedly during the session.',
       evidence: {
         legacyCode: flag.code,
         ...(flag.evidence || {}),
@@ -441,13 +483,16 @@ function normalizeReviewSignal(flag: WritingAnomalyFlag): WritingAnomalyFlag | n
     flag.code === 'repeated_workspace_switching' ||
     flag.code === 'frequent_workspace_exits'
   ) {
-    const isLegacyCode = flag.code === 'rapid_tab_switching' || flag.code === 'repeated_workspace_switching';
+    const isLegacyCode =
+      flag.code === 'rapid_tab_switching' ||
+      flag.code === 'repeated_workspace_switching';
 
     return {
       ...flag,
       code: 'frequent_workspace_exits',
       label: 'Frequent workspace exits',
-      description: 'The writer repeatedly left and returned to the Humanly workspace in a short window.',
+      description:
+        'The writer repeatedly left and returned to the Humanly workspace in a short window.',
       evidence: {
         ...(isLegacyCode ? { legacyCode: flag.code } : {}),
         ...(flag.evidence || {}),
@@ -460,7 +505,8 @@ function normalizeReviewSignal(flag: WritingAnomalyFlag): WritingAnomalyFlag | n
       ...flag,
       code: 'blocked_copy_paste_attempt',
       label: 'Blocked copy-paste attempt',
-      description: 'Copy, cut, or paste was attempted while copy-paste was disabled in the writing environment.',
+      description:
+        'Copy, cut, or paste was attempted while copy-paste was disabled in the writing environment.',
       evidence: {
         legacyCode: flag.code,
         ...(flag.evidence || {}),
@@ -472,14 +518,17 @@ function normalizeReviewSignal(flag: WritingAnomalyFlag): WritingAnomalyFlag | n
     return {
       ...flag,
       code: 'chat_refusal',
-      label: flag.evidence?.refusalCount === 1 ? 'Chat refusal' : 'Chat refusals',
+      label:
+        flag.evidence?.refusalCount === 1 ? 'Chat refusal' : 'Chat refusals',
     };
   }
 
   return flag;
 }
 
-function getReviewSignals(flags?: WritingAnomalyFlag[] | null): WritingAnomalyFlag[] {
+function getReviewSignals(
+  flags?: WritingAnomalyFlag[] | null
+): WritingAnomalyFlag[] {
   return (flags || [])
     .map(normalizeReviewSignal)
     .filter((flag): flag is WritingAnomalyFlag => Boolean(flag));
@@ -490,15 +539,21 @@ function getCertificateDetectorResults(
 ): CertificateDetectorResults {
   if (certificate.detectorResults) return certificate.detectorResults;
 
-  const detectors = normalizeWritingDetectorConfig(certificate.environmentConfig?.detectors);
+  const detectors = normalizeWritingDetectorConfig(
+    certificate.environmentConfig?.detectors
+  );
   const anomalyEnabled = detectors.anomalyPattern.enabled;
   const humanTypingEnabled = detectors.humanTyping.enabled;
-  const anomalyFlags = anomalyEnabled ? (certificate.anomalyFlags || []) : [];
+  const anomalyFlags = anomalyEnabled ? certificate.anomalyFlags || [] : [];
 
   return {
     anomalyPattern: {
       enabled: anomalyEnabled,
-      status: anomalyEnabled ? (anomalyFlags.length > 0 ? 'review' : 'pass') : 'not_enabled',
+      status: anomalyEnabled
+        ? anomalyFlags.length > 0
+          ? 'review'
+          : 'pass'
+        : 'not_enabled',
       flags: anomalyFlags,
       generatedAt: new Date(certificate.generatedAt).toISOString(),
     },
@@ -507,13 +562,18 @@ function getCertificateDetectorResults(
       status: humanTypingEnabled ? 'unknown' : 'not_enabled',
       result: null,
       spec: null,
-      error: humanTypingEnabled ? 'No frozen Humanly Typing Detector result is stored for this certificate.' : null,
+      error: humanTypingEnabled
+        ? 'No frozen Humanly Typing Detector result is stored for this certificate.'
+        : null,
       generatedAt: new Date(certificate.generatedAt).toISOString(),
     },
   };
 }
 
-function formatDetectorFeatureValue(format: DetectorFeatureFormat | undefined, value: number | null): string {
+function formatDetectorFeatureValue(
+  format: DetectorFeatureFormat | undefined,
+  value: number | null
+): string {
   if (value == null || Number.isNaN(value)) return 'Unavailable';
   switch (format) {
     case 'percent':
@@ -532,7 +592,9 @@ function formatDetectorFeatureValue(format: DetectorFeatureFormat | undefined, v
 }
 
 function isTimestampEvidenceKey(key: string) {
-  return key === 'windowStart' || key === 'windowEnd' || /timestamp$/i.test(key);
+  return (
+    key === 'windowStart' || key === 'windowEnd' || /timestamp$/i.test(key)
+  );
 }
 
 function formatEvidenceValue(key: string, value: unknown) {
@@ -544,7 +606,8 @@ function formatEvidenceValue(key: string, value: unknown) {
       { locale: 'en-US' }
     );
   }
-  if (typeof value === 'number') return Number.isInteger(value) ? value.toLocaleString() : value.toFixed(1);
+  if (typeof value === 'number')
+    return Number.isInteger(value) ? value.toLocaleString() : value.toFixed(1);
   return String(value);
 }
 
@@ -570,7 +633,7 @@ function AnomalyPatternPanel({
   const reviewSignals = getReviewSignals(result.flags);
 
   return (
-    <div className="space-y-3 rounded-lg border border-border/70 bg-muted/20 p-4">
+    <div className="space-y-3 rounded-lg border border-border/70 p-4">
       <div>
         <p className="font-medium">Anomaly Pattern</p>
         <p className="mt-1 text-xs text-muted-foreground">
@@ -584,12 +647,16 @@ function AnomalyPatternPanel({
         </p>
       ) : reviewSignals.length === 0 ? (
         <p className="rounded-md border border-border/60 bg-background/70 p-3 text-sm text-muted-foreground">
-          No recorded deterministic review signals were detected before this certificate was generated.
+          No recorded deterministic review signals were detected before this
+          certificate was generated.
         </p>
       ) : (
         <div className="space-y-3">
           {reviewSignals.map((flag, index) => (
-            <div key={`${flag.code}-${index}`} className="rounded-md border border-border/60 bg-background/70 p-3">
+            <div
+              key={`${flag.code}-${index}`}
+              className="rounded-md border border-border/60 bg-background/70 p-3"
+            >
               <div className="flex flex-wrap items-center gap-2">
                 <Badge
                   variant="outline"
@@ -599,15 +666,22 @@ function AnomalyPatternPanel({
                 </Badge>
                 <p className="text-sm font-medium">{flag.label}</p>
               </div>
-              <p className="mt-2 text-sm text-muted-foreground">{flag.description}</p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                {flag.description}
+              </p>
               {getVisibleEvidenceEntries(flag).length > 0 && (
                 <div className="mt-3 grid gap-2 text-xs sm:grid-cols-2">
                   {getVisibleEvidenceEntries(flag).map(([key, value]) => (
-                    <div key={key} className="rounded-md bg-muted/45 px-2 py-1.5">
+                    <div
+                      key={key}
+                      className="rounded-md bg-muted/45 px-2 py-1.5"
+                    >
                       <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
                         {formatEvidenceKey(key)}
                       </p>
-                      <p className="mt-0.5 break-words font-medium">{formatEvidenceValue(key, value)}</p>
+                      <p className="mt-0.5 break-words font-medium">
+                        {formatEvidenceValue(key, value)}
+                      </p>
                     </div>
                   ))}
                 </div>
@@ -633,11 +707,12 @@ function HumanTypingDetectorPanel({
   const negativeLabel = spec?.verdict.negativeLabel ?? 'Likely human';
   const accent = spec?.style?.accent ?? HUMAN_TYPING_AGENT_COLOR;
   const isPositive = prediction?.label === positiveClass;
-  const verdictColor = result.status === 'unknown' || result.status === 'unavailable'
-    ? 'var(--hly-neutral-text)'
-    : isPositive
-      ? accent
-      : HUMAN_TYPING_HUMAN_COLOR;
+  const verdictColor =
+    result.status === 'unknown' || result.status === 'unavailable'
+      ? 'var(--hly-neutral-text)'
+      : isPositive
+        ? accent
+        : HUMAN_TYPING_HUMAN_COLOR;
   const probability = Math.round((prediction?.score ?? 0) * 100);
   const scaleMin = spec?.verdict.scale?.min ?? 'Human';
   const scaleMax = spec?.verdict.scale?.max ?? 'Automated';
@@ -646,22 +721,29 @@ function HumanTypingDetectorPanel({
       ? Math.round(prediction.threshold * 100)
       : null;
   const features = prediction?.features || [];
-  const maxContribution = features.reduce((max, feature) => Math.max(max, Math.abs(feature.contribution)), 0) || 1;
-  const typedRatio = typeof prediction?.typed_ratio === 'number' ? prediction.typed_ratio : null;
+  const maxContribution =
+    features.reduce(
+      (max, feature) => Math.max(max, Math.abs(feature.contribution)),
+      0
+    ) || 1;
+  const typedRatio =
+    typeof prediction?.typed_ratio === 'number' ? prediction.typed_ratio : null;
   const showLowTypedRatioNote = typedRatio !== null && typedRatio < 0.5;
-  const typedRatioLabel = typedRatio !== null ? `${Math.round(typedRatio * 100)}%` : null;
-  const statusLabel = result.status === 'human'
-    ? negativeLabel
-    : result.status === 'agent'
-      ? positiveLabel
-      : result.status === 'not_enabled'
-        ? 'Not enabled'
-        : result.status === 'unavailable'
-          ? 'Unavailable'
-          : 'Inconclusive';
+  const typedRatioLabel =
+    typedRatio !== null ? `${Math.round(typedRatio * 100)}%` : null;
+  const statusLabel =
+    result.status === 'human'
+      ? negativeLabel
+      : result.status === 'agent'
+        ? positiveLabel
+        : result.status === 'not_enabled'
+          ? 'Not enabled'
+          : result.status === 'unavailable'
+            ? 'Unavailable'
+            : 'Inconclusive';
 
   return (
-    <div className="space-y-3 rounded-lg border border-border/70 bg-muted/20 p-4">
+    <div className="space-y-3 rounded-lg border border-border/70 p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <p className="flex items-center gap-2 font-medium">
@@ -695,31 +777,43 @@ function HumanTypingDetectorPanel({
           <div className="max-w-3xl space-y-4">
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
               <span
-                className="inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-semibold"
+                className="inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-medium"
                 style={{
                   color: verdictColor,
-                  backgroundColor: isPositive ? 'var(--hly-red-bg)' : 'var(--hly-green-bg)',
-                  borderColor: isPositive ? 'var(--hly-red-border)' : 'var(--hly-green-border)',
+                  backgroundColor: isPositive
+                    ? 'var(--hly-red-bg)'
+                    : 'var(--hly-green-bg)',
+                  borderColor: isPositive
+                    ? 'var(--hly-red-border)'
+                    : 'var(--hly-green-border)',
                 }}
               >
-                {isPositive ? <TrendingUp className="h-3.5 w-3.5" /> : <TrendingDown className="h-3.5 w-3.5" />}
+                {isPositive ? (
+                  <TrendingUp className="h-3.5 w-3.5" />
+                ) : (
+                  <TrendingDown className="h-3.5 w-3.5" />
+                )}
                 {isPositive ? positiveLabel : negativeLabel}
               </span>
               <div className="flex items-baseline gap-2">
                 <span
-                  className="text-3xl font-bold leading-none tracking-normal tabular-nums"
+                  className="text-3xl font-medium leading-none tabular-nums"
                   style={{ color: verdictColor }}
                 >
                   {probability}%
                 </span>
-                <span className="text-sm text-muted-foreground">probability of {metricNoun}</span>
+                <span className="text-sm text-muted-foreground">
+                  probability of {metricNoun}
+                </span>
               </div>
             </div>
 
             {/* Score on a min→max scale; the color shift is centered on the decision threshold */}
             <div>
               <div className="mb-1.5 flex items-center justify-between text-[10px] font-medium uppercase tracking-wide">
-                <span style={{ color: HUMAN_TYPING_HUMAN_COLOR }}>{scaleMin}</span>
+                <span style={{ color: HUMAN_TYPING_HUMAN_COLOR }}>
+                  {scaleMin}
+                </span>
                 <span style={{ color: accent }}>{scaleMax}</span>
               </div>
               <div
@@ -731,19 +825,27 @@ function HumanTypingDetectorPanel({
                 {thresholdPct != null && (
                   <div
                     className="absolute top-1/2 h-3.5 w-0.5 -translate-x-1/2 -translate-y-1/2 rounded-full"
-                    style={{ left: `${thresholdPct}%`, backgroundColor: 'var(--hly-neutral-text)' }}
+                    style={{
+                      left: `${thresholdPct}%`,
+                      backgroundColor: 'var(--hly-neutral-text)',
+                    }}
                   />
                 )}
                 <div
                   className="absolute top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-background shadow-sm"
-                  style={{ left: `clamp(7px, ${probability}%, calc(100% - 7px))`, backgroundColor: verdictColor }}
+                  style={{
+                    left: `clamp(7px, ${probability}%, calc(100% - 7px))`,
+                    backgroundColor: verdictColor,
+                  }}
                 />
               </div>
               {thresholdPct != null && (
                 <div className="relative mt-1.5 h-3.5 text-[10px] text-muted-foreground">
                   <span
                     className="absolute -translate-x-1/2 whitespace-nowrap"
-                    style={{ left: `clamp(70px, ${thresholdPct}%, calc(100% - 70px))` }}
+                    style={{
+                      left: `clamp(70px, ${thresholdPct}%, calc(100% - 70px))`,
+                    }}
                   >
                     decision threshold · {thresholdPct}%
                   </span>
@@ -759,19 +861,35 @@ function HumanTypingDetectorPanel({
               </p>
               {features.map((feature) => {
                 const meta = spec?.features?.[feature.name];
-                const width = Math.round((Math.abs(feature.contribution) / maxContribution) * 100);
+                const width = Math.round(
+                  (Math.abs(feature.contribution) / maxContribution) * 100
+                );
                 return (
-                  <div key={feature.name} className="border-b border-border/40 py-2 last:border-0">
+                  <div
+                    key={feature.name}
+                    className="border-b border-border/40 py-2 last:border-0"
+                  >
                     <div className="flex items-baseline justify-between gap-3 text-sm">
-                      <span className="text-foreground/80">{meta?.label ?? feature.name}</span>
-                      <span className="font-semibold tabular-nums">
-                        {formatDetectorFeatureValue(meta?.format, feature.value)}
+                      <span className="text-foreground/80">
+                        {meta?.label ?? feature.name}
+                      </span>
+                      <span className="font-medium tabular-nums">
+                        {formatDetectorFeatureValue(
+                          meta?.format,
+                          feature.value
+                        )}
                       </span>
                     </div>
-                    <div className="mt-1.5 h-1.5 overflow-hidden rounded-full" style={{ backgroundColor: HUMAN_TYPING_BAR_TRACK }}>
+                    <div
+                      className="mt-1.5 h-1.5 overflow-hidden rounded-full"
+                      style={{ backgroundColor: HUMAN_TYPING_BAR_TRACK }}
+                    >
                       <div
                         className="h-full rounded-full"
-                        style={{ width: `${width}%`, backgroundColor: verdictColor }}
+                        style={{
+                          width: `${width}%`,
+                          backgroundColor: verdictColor,
+                        }}
                       />
                     </div>
                     {meta?.description && (
@@ -787,14 +905,15 @@ function HumanTypingDetectorPanel({
 
           <p className="flex items-start gap-1.5 border-t border-dashed border-border pt-4 text-xs text-muted-foreground">
             <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-            Advisory only, not a verdict. Based on {(prediction?.n_events ?? 0).toLocaleString()} writing events.
+            Advisory only, not a verdict. Based on{' '}
+            {(prediction?.n_events ?? 0).toLocaleString()} writing events.
           </p>
 
           {showLowTypedRatioNote && (
             <p className="flex items-start gap-1.5 rounded-md border border-[var(--hly-amber-border)] bg-[#f6f2ea] p-3 text-xs text-[var(--hly-neutral-text)]">
               <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-              Only {typedRatioLabel} of the final text came from hand-typed input.
-              Interpret the timing result with that coverage context.
+              Only {typedRatioLabel} of the final text came from hand-typed
+              input. Interpret the timing result with that coverage context.
             </p>
           )}
         </div>
@@ -802,7 +921,10 @@ function HumanTypingDetectorPanel({
         <p className="rounded-md border border-border/60 bg-background/70 p-3 text-sm text-muted-foreground">
           {prediction?.reason === 'no_events'
             ? 'No writing events were available for typing detection.'
-            : result.error || prediction?.detail || prediction?.error || 'The frozen typing detector result is inconclusive.'}
+            : result.error ||
+              prediction?.detail ||
+              prediction?.error ||
+              'The frozen typing detector result is inconclusive.'}
         </p>
       )}
     </div>
@@ -849,11 +971,15 @@ export function CertificateEvidenceView({
   const finalTextVisualizationRef = useRef<HTMLDivElement | null>(null);
   const textImprovementTotal = aiStats?.selectionActions.total || 0;
   const aiChatTotal = aiStats?.aiQuestions.total || 0;
-  const finalTextComposition = certificate.finalTextComposition || createLegacyComposition(certificate);
+  const finalTextComposition =
+    certificate.finalTextComposition || createLegacyComposition(certificate);
   const processInputVolume = certificate.processInputVolume || null;
   const finalTextPercentages = getCompositionPercentages(finalTextComposition);
-  const finalTextSourceSpans = (certificate.finalTextSourceSpans || []).filter((span) => Boolean(span.text));
-  const finalTextSourceCharacterCount = getTextSourceSpanCharacterCount(finalTextSourceSpans);
+  const finalTextSourceSpans = (certificate.finalTextSourceSpans || []).filter(
+    (span) => Boolean(span.text)
+  );
+  const finalTextSourceCharacterCount =
+    getTextSourceSpanCharacterCount(finalTextSourceSpans);
   const hasFinalTextVisualization = finalTextSourceCharacterCount > 0;
   const processInputPercentages = processInputVolume
     ? getCompositionPercentages(processInputVolume)
@@ -865,10 +991,22 @@ export function CertificateEvidenceView({
     ['Payload hash', sealHashPreview || 'Unavailable'],
     ['Algorithm', seal?.algorithm || 'Unavailable'],
     ['Key ID', seal?.keyId || 'Unavailable'],
-    ['Public key fingerprint', seal?.publicKeyFingerprint ? `${seal.publicKeyFingerprint.slice(0, 12)}...${seal.publicKeyFingerprint.slice(-12)}` : 'Unavailable'],
-    ['Signed fields', seal?.signedFields?.length ? seal.signedFields.length.toLocaleString() : 'Unavailable'],
+    [
+      'Public key fingerprint',
+      seal?.publicKeyFingerprint
+        ? `${seal.publicKeyFingerprint.slice(0, 12)}...${seal.publicKeyFingerprint.slice(-12)}`
+        : 'Unavailable',
+    ],
+    [
+      'Signed fields',
+      seal?.signedFields?.length
+        ? seal.signedFields.length.toLocaleString()
+        : 'Unavailable',
+    ],
   ];
-  const sealPresentation = isDemoPreview ? getDemoSealPresentation() : getSealStatusPresentation(sealStatus);
+  const sealPresentation = isDemoPreview
+    ? getDemoSealPresentation()
+    : getSealStatusPresentation(sealStatus);
   const SealStatusIcon = sealPresentation.Icon;
   const showReplay = Boolean(certificate.includeEditHistory && replayToken);
   const environmentRows = getEnvironmentRows(certificate.environmentConfig);
@@ -886,8 +1024,10 @@ export function CertificateEvidenceView({
       const styles = window.getComputedStyle(element);
       const lineHeight = Number.parseFloat(styles.lineHeight) || 28;
       const verticalPadding =
-        (Number.parseFloat(styles.paddingTop) || 0) + (Number.parseFloat(styles.paddingBottom) || 0);
-      const collapsedHeight = lineHeight * FINAL_TEXT_PREVIEW_ROWS + verticalPadding;
+        (Number.parseFloat(styles.paddingTop) || 0) +
+        (Number.parseFloat(styles.paddingBottom) || 0);
+      const collapsedHeight =
+        lineHeight * FINAL_TEXT_PREVIEW_ROWS + verticalPadding;
       setFinalTextCanExpand(element.scrollHeight > collapsedHeight + 1);
     };
 
@@ -910,14 +1050,19 @@ export function CertificateEvidenceView({
                 <Award className="mt-1 h-6 w-6 shrink-0 text-accent" />
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <h1 className="break-words text-2xl font-semibold tracking-normal">{certificate.title}</h1>
+                    <h1 className="break-words text-2xl font-medium">
+                      {certificate.title}
+                    </h1>
                   </div>
                   {certificate.signerName && (
-                    <p className="mt-1 text-sm text-muted-foreground">By: {certificate.signerName}</p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      By: {certificate.signerName}
+                    </p>
                   )}
                   <p className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
                     <Calendar className="h-4 w-4" />
-                    Generated {format(new Date(certificate.generatedAt), 'MMMM dd, yyyy')}
+                    Generated{' '}
+                    {format(new Date(certificate.generatedAt), 'MMMM dd, yyyy')}
                   </p>
                 </div>
               </div>
@@ -931,46 +1076,70 @@ export function CertificateEvidenceView({
           >
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex min-w-0 items-start gap-3">
-                <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${sealPresentation.iconClass}`}>
+                <span
+                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${sealPresentation.iconClass}`}
+                >
                   <SealStatusIcon className="h-5 w-5" />
                 </span>
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-sm font-semibold">Certificate seal</p>
+                    <p className="text-sm font-medium">Certificate seal</p>
                     <Badge
                       variant="outline"
                       className={`px-2 py-0.5 text-xs ${sealPresentation.badgeClass}`}
                     >
-                      {isDemoPreview ? 'Reference only' : getSealStatusLabel(sealStatus)}
+                      {isDemoPreview
+                        ? 'Reference only'
+                        : getSealStatusLabel(sealStatus)}
                     </Badge>
                   </div>
-                  <p className="mt-1 text-sm text-muted-foreground">{sealPresentation.message}</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {sealPresentation.message}
+                  </p>
                   {isDemoPreview && (
                     <p className="mt-1 text-xs text-muted-foreground">
-                      This fake seal only shows where a real Humanly certificate displays public verification.
+                      This fake seal only shows where a real Humanly certificate
+                      displays public verification.
                     </p>
                   )}
                 </div>
               </div>
             </div>
 
-            <Collapsible open={sealDetailsOpen} onOpenChange={setSealDetailsOpen} className="mt-3">
+            <Collapsible
+              open={sealDetailsOpen}
+              onOpenChange={setSealDetailsOpen}
+              className="mt-3"
+            >
               <CollapsibleTrigger asChild>
                 <button
                   type="button"
-                  className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium text-muted-foreground/80 transition hover:bg-background/70 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  aria-label={sealDetailsOpen ? 'Hide certificate seal details' : 'Show certificate seal details'}
+                  className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground/80 transition hover:bg-background/70 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  aria-label={
+                    sealDetailsOpen
+                      ? 'Hide certificate seal details'
+                      : 'Show certificate seal details'
+                  }
                 >
                   {sealDetailsOpen ? 'Less seal details' : 'More seal details'}
-                  <ChevronDown className={`h-3.5 w-3.5 transition-transform ${sealDetailsOpen ? 'rotate-180' : ''}`} />
+                  <ChevronDown
+                    className={`h-3.5 w-3.5 transition-transform ${sealDetailsOpen ? 'rotate-180' : ''}`}
+                  />
                 </button>
               </CollapsibleTrigger>
               <CollapsibleContent className="space-y-2 pt-2 text-xs sm:text-sm">
                 <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
                   {sealEvidenceRows.map(([label, value]) => (
-                    <div key={label} className="rounded-md bg-background/70 px-3 py-2">
-                      <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</p>
-                      <p className="mt-1 break-words font-mono text-[11px] text-foreground">{value}</p>
+                    <div
+                      key={label}
+                      className="rounded-md bg-background/70 px-3 py-2"
+                    >
+                      <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                        {label}
+                      </p>
+                      <p className="mt-1 break-words font-mono text-[11px] text-foreground">
+                        {value}
+                      </p>
                     </div>
                   ))}
                 </div>
@@ -984,8 +1153,9 @@ export function CertificateEvidenceView({
                   <p className="text-muted-foreground">{integrityMessage}</p>
                 )}
                 <p className="text-muted-foreground">
-                  The seal verifies the certificate record shown here, including the signed fields listed above. It does not make
-                  claims about off-platform behavior.
+                  The seal verifies the certificate record shown here, including
+                  the signed fields listed above. It does not make claims about
+                  off-platform behavior.
                 </p>
               </CollapsibleContent>
             </Collapsible>
@@ -995,258 +1165,359 @@ export function CertificateEvidenceView({
 
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className={SECTION_TITLE_CLASS}>Authorship Statistics</CardTitle>
+          <CardTitle className={SECTION_TITLE_CLASS}>
+            Authorship Statistics
+          </CardTitle>
           <CardDescription>
             Final text composition, writing length, and active writing time.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-
-            <div className="rounded-lg border border-border/70 bg-muted/20 p-3">
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <p className="text-sm font-medium">Final text composition</p>
-                <p className="text-xs text-muted-foreground">
-                  {finalTextPercentages.total.toLocaleString()} final-text characters
-                </p>
-              </div>
-              <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-                Typed is final text kept from keyboard input. Pasted is final text kept from clipboard insertion.
-                AI-assisted is final text kept from Humanly AI edits or inserted AI output.
+          <div className="rounded-lg border border-border/70 bg-muted/20 p-3">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm font-medium">Final text composition</p>
+              <p className="text-xs text-muted-foreground">
+                {finalTextPercentages.total.toLocaleString()} final-text
+                characters
               </p>
-              <div className="mt-3 flex h-3 overflow-hidden rounded-full bg-secondary">
-                {finalTextPercentages.typed > 0 && (
-                  <div style={{ width: `${finalTextPercentages.typed}%`, backgroundColor: COMPOSITION_COLORS.typed }} />
-                )}
-                {finalTextPercentages.pasted > 0 && (
-                  <div style={{ width: `${finalTextPercentages.pasted}%`, backgroundColor: COMPOSITION_COLORS.pasted }} />
-                )}
-                {finalTextPercentages.aiAssisted > 0 && (
-                  <div style={{ width: `${finalTextPercentages.aiAssisted}%`, backgroundColor: COMPOSITION_COLORS.aiAssisted }} />
-                )}
-              </div>
-              <div className="mt-3 grid gap-2 text-sm sm:grid-cols-3">
-                <div className="flex items-center gap-2">
-                  <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: COMPOSITION_COLORS.typed }} />
-                  <span className="text-muted-foreground">Typed</span>
-                  <span className="font-medium">
-                    {formatCompositionLabel(finalTextPercentages.typed, finalTextComposition.typedCharacters)}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: COMPOSITION_COLORS.pasted }} />
-                  <span className="text-muted-foreground">Pasted</span>
-                  <span className="font-medium">
-                    {formatCompositionLabel(finalTextPercentages.pasted, finalTextComposition.pastedCharacters)}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: COMPOSITION_COLORS.aiAssisted }} />
-                  <span className="text-muted-foreground">AI-assisted</span>
-                  <span className="font-medium">
-                    {formatCompositionLabel(finalTextPercentages.aiAssisted, finalTextComposition.aiAssistedCharacters)}
-                  </span>
-                </div>
-              </div>
-
-              {hasFinalTextVisualization && (
-                <div className="mt-4 border-t border-border/60 pt-4">
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                    <p className="text-sm font-medium">Final text visualization</p>
-                    <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                      <span className="inline-flex items-center gap-1.5">
-                        <span className="h-3 w-3 rounded-sm border border-border/50" style={{ backgroundColor: COMPOSITION_HIGHLIGHT_COLORS.typed }} />
-                        Typed
-                      </span>
-                      <span className="inline-flex items-center gap-1.5">
-                        <span className="h-3 w-3 rounded-sm border border-border/50" style={{ backgroundColor: COMPOSITION_HIGHLIGHT_COLORS.pasted }} />
-                        Pasted
-                      </span>
-                      <span className="inline-flex items-center gap-1.5">
-                        <span className="h-3 w-3 rounded-sm border border-border/50" style={{ backgroundColor: COMPOSITION_HIGHLIGHT_COLORS.aiAssisted }} />
-                        AI-assisted
-                      </span>
-                    </div>
-                  </div>
-                  <div className="relative mt-3">
-                    <div
-                      ref={finalTextVisualizationRef}
-                      className="whitespace-pre-wrap rounded-md border border-border/50 bg-background/45 p-3 text-sm leading-7 text-foreground"
-                      style={{
-                        maxHeight: finalTextExpanded ? '18rem' : `${FINAL_TEXT_PREVIEW_ROWS * 1.75 + 1.5}rem`,
-                        overflow: finalTextExpanded ? 'auto' : 'hidden',
-                        paddingBottom: finalTextCanExpand && !finalTextExpanded ? '3.25rem' : undefined,
-                      }}
-                    >
-                      {finalTextSourceSpans.map((span, index) => (
-                        <span
-                          key={`${span.source}-${index}`}
-                          className="rounded px-0.5"
-                          style={{
-                            backgroundColor: getSourceSpanColor(span.source),
-                            WebkitBoxDecorationBreak: 'clone',
-                            boxDecorationBreak: 'clone',
-                          }}
-                        >
-                          {span.text}
-                        </span>
-                      ))}
-                    </div>
-                    {finalTextCanExpand && !finalTextExpanded && (
-                      <div className="pointer-events-none absolute inset-x-px bottom-px flex h-24 items-end justify-center rounded-b-md bg-gradient-to-b from-background/0 via-background/80 to-background pb-3 backdrop-blur-[1.5px]">
-                        <button
-                          type="button"
-                          className="pointer-events-auto inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium text-muted-foreground/85 transition hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                          onClick={() => setFinalTextExpanded(true)}
-                        >
-                          See details
-                          <ChevronDown className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                  {finalTextCanExpand && finalTextExpanded && (
-                    <button
-                      type="button"
-                      className="mx-auto mt-2 inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium text-muted-foreground/80 transition hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      onClick={() => setFinalTextExpanded(false)}
-                    >
-                      See less
-                      <ChevronDown className="h-3.5 w-3.5 rotate-180" />
-                    </button>
-                  )}
-                </div>
+            </div>
+            <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+              Typed is final text kept from keyboard input. Pasted is final text
+              kept from clipboard insertion. AI-assisted is final text kept from
+              Humanly AI edits or inserted AI output.
+            </p>
+            <div className="mt-3 flex h-3 overflow-hidden rounded-full bg-secondary">
+              {finalTextPercentages.typed > 0 && (
+                <div
+                  style={{
+                    width: `${finalTextPercentages.typed}%`,
+                    backgroundColor: COMPOSITION_COLORS.typed,
+                  }}
+                />
+              )}
+              {finalTextPercentages.pasted > 0 && (
+                <div
+                  style={{
+                    width: `${finalTextPercentages.pasted}%`,
+                    backgroundColor: COMPOSITION_COLORS.pasted,
+                  }}
+                />
+              )}
+              {finalTextPercentages.aiAssisted > 0 && (
+                <div
+                  style={{
+                    width: `${finalTextPercentages.aiAssisted}%`,
+                    backgroundColor: COMPOSITION_COLORS.aiAssisted,
+                  }}
+                />
               )}
             </div>
+            <div className="mt-3 grid gap-2 text-sm sm:grid-cols-3">
+              <div className="flex items-center gap-2">
+                <span
+                  className="h-2.5 w-2.5 rounded-full"
+                  style={{ backgroundColor: COMPOSITION_COLORS.typed }}
+                />
+                <span className="text-muted-foreground">Typed</span>
+                <span className="font-medium">
+                  {formatCompositionLabel(
+                    finalTextPercentages.typed,
+                    finalTextComposition.typedCharacters
+                  )}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span
+                  className="h-2.5 w-2.5 rounded-full"
+                  style={{ backgroundColor: COMPOSITION_COLORS.pasted }}
+                />
+                <span className="text-muted-foreground">Pasted</span>
+                <span className="font-medium">
+                  {formatCompositionLabel(
+                    finalTextPercentages.pasted,
+                    finalTextComposition.pastedCharacters
+                  )}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span
+                  className="h-2.5 w-2.5 rounded-full"
+                  style={{ backgroundColor: COMPOSITION_COLORS.aiAssisted }}
+                />
+                <span className="text-muted-foreground">AI-assisted</span>
+                <span className="font-medium">
+                  {formatCompositionLabel(
+                    finalTextPercentages.aiAssisted,
+                    finalTextComposition.aiAssistedCharacters
+                  )}
+                </span>
+              </div>
+            </div>
 
-            <Collapsible open={detailsOpen} onOpenChange={setDetailsOpen}>
-              {!detailsOpen && (
+            {hasFinalTextVisualization && (
+              <div className="mt-4 border-t border-border/60 pt-4">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-sm font-medium">
+                    Final text visualization
+                  </p>
+                  <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                    <span className="inline-flex items-center gap-1.5">
+                      <span
+                        className="h-3 w-3 rounded-sm border border-border/50"
+                        style={{
+                          backgroundColor: COMPOSITION_HIGHLIGHT_COLORS.typed,
+                        }}
+                      />
+                      Typed
+                    </span>
+                    <span className="inline-flex items-center gap-1.5">
+                      <span
+                        className="h-3 w-3 rounded-sm border border-border/50"
+                        style={{
+                          backgroundColor: COMPOSITION_HIGHLIGHT_COLORS.pasted,
+                        }}
+                      />
+                      Pasted
+                    </span>
+                    <span className="inline-flex items-center gap-1.5">
+                      <span
+                        className="h-3 w-3 rounded-sm border border-border/50"
+                        style={{
+                          backgroundColor:
+                            COMPOSITION_HIGHLIGHT_COLORS.aiAssisted,
+                        }}
+                      />
+                      AI-assisted
+                    </span>
+                  </div>
+                </div>
+                <div className="relative mt-3">
+                  <div
+                    ref={finalTextVisualizationRef}
+                    className="whitespace-pre-wrap rounded-md border border-border/50 bg-background/45 p-3 text-sm leading-7 text-foreground"
+                    style={{
+                      maxHeight: finalTextExpanded
+                        ? '18rem'
+                        : `${FINAL_TEXT_PREVIEW_ROWS * 1.75 + 1.5}rem`,
+                      overflow: finalTextExpanded ? 'auto' : 'hidden',
+                      paddingBottom:
+                        finalTextCanExpand && !finalTextExpanded
+                          ? '3.25rem'
+                          : undefined,
+                    }}
+                  >
+                    {finalTextSourceSpans.map((span, index) => (
+                      <span
+                        key={`${span.source}-${index}`}
+                        className="rounded px-0.5"
+                        style={{
+                          backgroundColor: getSourceSpanColor(span.source),
+                          WebkitBoxDecorationBreak: 'clone',
+                          boxDecorationBreak: 'clone',
+                        }}
+                      >
+                        {span.text}
+                      </span>
+                    ))}
+                  </div>
+                  {finalTextCanExpand && !finalTextExpanded && (
+                    <div className="pointer-events-none absolute inset-x-px bottom-px flex h-24 items-end justify-center rounded-b-md bg-gradient-to-b from-background/0 via-background/80 to-background pb-3 backdrop-blur-[1.5px]">
+                      <button
+                        type="button"
+                        className="pointer-events-auto inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground/85 transition hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        onClick={() => setFinalTextExpanded(true)}
+                      >
+                        See details
+                        <ChevronDown className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+                {finalTextCanExpand && finalTextExpanded && (
+                  <button
+                    type="button"
+                    className="mx-auto mt-2 inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground/80 transition hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    onClick={() => setFinalTextExpanded(false)}
+                  >
+                    See less
+                    <ChevronDown className="h-3.5 w-3.5 rotate-180" />
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+
+          <Collapsible open={detailsOpen} onOpenChange={setDetailsOpen}>
+            {!detailsOpen && (
+              <CollapsibleTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="Show more authorship details"
+                  className="mx-auto inline-flex items-center gap-1 rounded-md px-2 py-1 text-sm font-medium text-muted-foreground/70 transition hover:bg-muted/30 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  See more
+                  <ChevronDown className="h-4 w-4" />
+                </button>
+              </CollapsibleTrigger>
+            )}
+            <CollapsibleContent className="space-y-4 pt-3">
+              <div className="grid gap-2 sm:grid-cols-2">
+                <div className="rounded-lg border border-border/60 bg-muted/35 p-3">
+                  <div className="flex items-center gap-1">
+                    <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+                    <p className="text-xs text-muted-foreground">Final Text</p>
+                  </div>
+                  <p className="mt-1 text-2xl font-medium">
+                    {finalTextPercentages.total.toLocaleString()}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    characters
+                  </p>
+                </div>
+                <div className="rounded-lg border border-border/60 bg-muted/35 p-3">
+                  <div className="flex items-center gap-1">
+                    <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                    <p className="text-xs text-muted-foreground">
+                      Writing Time
+                    </p>
+                  </div>
+                  <p className="mt-1 text-2xl font-medium">
+                    {formatCompactDuration(certificate.editingTimeSeconds)}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    active writing window
+                  </p>
+                </div>
+              </div>
+
+              {processInputVolume && (
+                <div className="rounded-lg border border-border/60 bg-muted/20 p-3">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-sm font-medium">
+                        Process input volume
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Characters added during the session, including text
+                        later deleted or overwritten.
+                      </p>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {processInputPercentages?.total.toLocaleString()} process
+                      characters
+                    </p>
+                  </div>
+                  <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                    <div className="rounded-lg border border-border/50 bg-background/60 p-3">
+                      <p className="text-xs text-muted-foreground">
+                        Typed during process
+                      </p>
+                      <p className="mt-1 text-xl font-medium">
+                        {processInputVolume.typedCharacters.toLocaleString()}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-border/50 bg-background/60 p-3">
+                      <p className="text-xs text-muted-foreground">
+                        Pasted during process
+                      </p>
+                      <p className="mt-1 text-xl font-medium">
+                        {processInputVolume.pastedCharacters.toLocaleString()}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-border/50 bg-background/60 p-3">
+                      <p className="text-xs text-muted-foreground">
+                        AI-assisted during process
+                      </p>
+                      <p className="mt-1 text-xl font-medium">
+                        {processInputVolume.aiAssistedCharacters.toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {isLoadingAiStats ? (
+                <div className="flex items-center justify-center rounded-lg border border-border/60 bg-muted/25 py-6">
+                  <div className="inline-block h-5 w-5 animate-spin rounded-full border-2 border-solid border-current border-r-transparent" />
+                  <span className="ml-2 text-sm text-muted-foreground">
+                    Loading AI details...
+                  </span>
+                </div>
+              ) : aiStats ? (
+                <div className="grid gap-4 lg:grid-cols-[1fr_220px]">
+                  <div className="space-y-3">
+                    <p className="flex items-center gap-2 text-sm font-medium">
+                      <Wand2 className="h-4 w-4 text-[#b9774f]" />
+                      AI improvement details
+                    </p>
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                      <div className="rounded-lg border border-border/60 bg-muted/35 p-3 text-center">
+                        <p className="text-xs text-muted-foreground">Grammar</p>
+                        <p className="text-xl font-medium">
+                          {aiStats.selectionActions.grammarFixes}
+                        </p>
+                      </div>
+                      <div className="rounded-lg border border-border/60 bg-muted/35 p-3 text-center">
+                        <p className="text-xs text-muted-foreground">Improve</p>
+                        <p className="text-xl font-medium">
+                          {aiStats.selectionActions.improveWriting}
+                        </p>
+                      </div>
+                      <div className="rounded-lg border border-border/60 bg-muted/35 p-3 text-center">
+                        <p className="text-xs text-muted-foreground">
+                          Simplify
+                        </p>
+                        <p className="text-xl font-medium">
+                          {aiStats.selectionActions.simplify}
+                        </p>
+                      </div>
+                      <div className="rounded-lg border border-border/60 bg-muted/35 p-3 text-center">
+                        <p className="text-xs text-muted-foreground">Formal</p>
+                        <p className="text-xl font-medium">
+                          {aiStats.selectionActions.makeFormal}
+                        </p>
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {textImprovementTotal} total ·{' '}
+                      {aiStats.selectionActions.accepted} accepted ·{' '}
+                      {aiStats.selectionActions.rejected} discarded
+                      {textImprovementTotal > 0
+                        ? ` · ${aiStats.selectionActions.acceptanceRate.toFixed(0)}% acceptance`
+                        : ''}
+                    </p>
+                  </div>
+
+                  <div className="rounded-lg border border-border/70 bg-muted/25 p-4">
+                    <p className="flex items-center gap-2 text-sm font-medium">
+                      <MessageSquare className="h-4 w-4 text-[#b9774f]" />
+                      Agent chat details
+                    </p>
+                    <p className="mt-3 text-3xl font-medium">{aiChatTotal}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Chat questions asked in this document.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <p className="rounded-lg border border-border/60 bg-muted/25 py-4 text-center text-sm text-muted-foreground">
+                  No AI statistics available.
+                </p>
+              )}
+              {detailsOpen && (
                 <CollapsibleTrigger asChild>
                   <button
                     type="button"
-                    aria-label="Show more authorship details"
-                    className="mx-auto inline-flex items-center gap-1 rounded-full px-2 py-1 text-sm font-medium text-muted-foreground/70 transition hover:bg-muted/30 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    aria-label="Hide more authorship details"
+                    className="mx-auto inline-flex items-center gap-1 rounded-md px-2 py-1 text-sm font-medium text-muted-foreground/70 transition hover:bg-muted/30 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
-                    See more
-                    <ChevronDown className="h-4 w-4" />
+                    See less
+                    <ChevronDown className="h-4 w-4 rotate-180" />
                   </button>
                 </CollapsibleTrigger>
               )}
-              <CollapsibleContent className="space-y-4 pt-3">
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <div className="rounded-lg border border-border/60 bg-muted/35 p-3">
-                    <div className="flex items-center gap-1">
-                      <FileText className="h-3.5 w-3.5 text-muted-foreground" />
-                      <p className="text-xs text-muted-foreground">Final Text</p>
-                    </div>
-                    <p className="mt-1 text-2xl font-semibold">{finalTextPercentages.total.toLocaleString()}</p>
-                    <p className="mt-1 text-xs text-muted-foreground">characters</p>
-                  </div>
-                  <div className="rounded-lg border border-border/60 bg-muted/35 p-3">
-                    <div className="flex items-center gap-1">
-                      <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-                      <p className="text-xs text-muted-foreground">Writing Time</p>
-                    </div>
-                    <p className="mt-1 text-2xl font-semibold">{formatCompactDuration(certificate.editingTimeSeconds)}</p>
-                    <p className="mt-1 text-xs text-muted-foreground">active writing window</p>
-                  </div>
-                </div>
-
-                {processInputVolume && (
-                  <div className="rounded-lg border border-border/60 bg-muted/20 p-3">
-                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                      <div>
-                        <p className="text-sm font-medium">Process input volume</p>
-                        <p className="text-xs text-muted-foreground">
-                          Characters added during the session, including text later deleted or overwritten.
-                        </p>
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        {processInputPercentages?.total.toLocaleString()} process characters
-                      </p>
-                    </div>
-                    <div className="mt-3 grid gap-2 sm:grid-cols-3">
-                      <div className="rounded-lg border border-border/50 bg-background/60 p-3">
-                        <p className="text-xs text-muted-foreground">Typed during process</p>
-                        <p className="mt-1 text-xl font-semibold">{processInputVolume.typedCharacters.toLocaleString()}</p>
-                      </div>
-                      <div className="rounded-lg border border-border/50 bg-background/60 p-3">
-                        <p className="text-xs text-muted-foreground">Pasted during process</p>
-                        <p className="mt-1 text-xl font-semibold">{processInputVolume.pastedCharacters.toLocaleString()}</p>
-                      </div>
-                      <div className="rounded-lg border border-border/50 bg-background/60 p-3">
-                        <p className="text-xs text-muted-foreground">AI-assisted during process</p>
-                        <p className="mt-1 text-xl font-semibold">{processInputVolume.aiAssistedCharacters.toLocaleString()}</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {isLoadingAiStats ? (
-                  <div className="flex items-center justify-center rounded-lg border border-border/60 bg-muted/25 py-6">
-                    <div className="inline-block h-5 w-5 animate-spin rounded-full border-2 border-solid border-current border-r-transparent" />
-                    <span className="ml-2 text-sm text-muted-foreground">Loading AI details...</span>
-                  </div>
-                ) : aiStats ? (
-                  <div className="grid gap-4 lg:grid-cols-[1fr_220px]">
-                    <div className="space-y-3">
-                      <p className="flex items-center gap-2 text-sm font-medium">
-                        <Wand2 className="h-4 w-4 text-[#b9774f]" />
-                        AI improvement details
-                      </p>
-                      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                        <div className="rounded-lg border border-border/60 bg-muted/35 p-3 text-center">
-                          <p className="text-xs text-muted-foreground">Grammar</p>
-                          <p className="text-xl font-semibold">{aiStats.selectionActions.grammarFixes}</p>
-                        </div>
-                        <div className="rounded-lg border border-border/60 bg-muted/35 p-3 text-center">
-                          <p className="text-xs text-muted-foreground">Improve</p>
-                          <p className="text-xl font-semibold">{aiStats.selectionActions.improveWriting}</p>
-                        </div>
-                        <div className="rounded-lg border border-border/60 bg-muted/35 p-3 text-center">
-                          <p className="text-xs text-muted-foreground">Simplify</p>
-                          <p className="text-xl font-semibold">{aiStats.selectionActions.simplify}</p>
-                        </div>
-                        <div className="rounded-lg border border-border/60 bg-muted/35 p-3 text-center">
-                          <p className="text-xs text-muted-foreground">Formal</p>
-                          <p className="text-xl font-semibold">{aiStats.selectionActions.makeFormal}</p>
-                        </div>
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        {textImprovementTotal} total · {aiStats.selectionActions.accepted} accepted · {aiStats.selectionActions.rejected} discarded
-                        {textImprovementTotal > 0 ? ` · ${aiStats.selectionActions.acceptanceRate.toFixed(0)}% acceptance` : ''}
-                      </p>
-                    </div>
-
-                    <div className="rounded-lg border border-border/70 bg-muted/25 p-4">
-                      <p className="flex items-center gap-2 text-sm font-medium">
-                        <MessageSquare className="h-4 w-4 text-[#b9774f]" />
-                        Agent chat details
-                      </p>
-                      <p className="mt-3 text-3xl font-semibold">{aiChatTotal}</p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        Chat questions asked in this document.
-                      </p>
-                    </div>
-                  </div>
-                ) : (
-                  <p className="rounded-lg border border-border/60 bg-muted/25 py-4 text-center text-sm text-muted-foreground">
-                    No AI statistics available.
-                  </p>
-                )}
-                {detailsOpen && (
-                  <CollapsibleTrigger asChild>
-                    <button
-                      type="button"
-                      aria-label="Hide more authorship details"
-                      className="mx-auto inline-flex items-center gap-1 rounded-full px-2 py-1 text-sm font-medium text-muted-foreground/70 transition hover:bg-muted/30 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    >
-                      See less
-                      <ChevronDown className="h-4 w-4 rotate-180" />
-                    </button>
-                  </CollapsibleTrigger>
-                )}
-              </CollapsibleContent>
-            </Collapsible>
+            </CollapsibleContent>
+          </Collapsible>
         </CardContent>
       </Card>
 
@@ -1258,7 +1529,8 @@ export function CertificateEvidenceView({
                 <div>
                   <CardTitle className={SECTION_TITLE_CLASS}>Replay</CardTitle>
                   <CardDescription className="text-xs sm:text-sm">
-                    Watch how this certificate was created from recorded edit history.
+                    Watch how this certificate was created from recorded edit
+                    history.
                   </CardDescription>
                 </div>
                 <CollapsibleTrigger asChild>
@@ -1267,17 +1539,24 @@ export function CertificateEvidenceView({
                     variant="ghost"
                     size="sm"
                     className="shrink-0 gap-1"
-                    aria-label={replayOpen ? 'Hide replay section' : 'Show replay section'}
+                    aria-label={
+                      replayOpen ? 'Hide replay section' : 'Show replay section'
+                    }
                   >
                     {replayOpen ? 'Hide' : 'Show'}
-                    <ChevronDown className={`h-4 w-4 transition-transform ${replayOpen ? 'rotate-180' : ''}`} />
+                    <ChevronDown
+                      className={`h-4 w-4 transition-transform ${replayOpen ? 'rotate-180' : ''}`}
+                    />
                   </Button>
                 </CollapsibleTrigger>
               </div>
             </CardHeader>
             <CollapsibleContent>
               <CardContent>
-                <DocumentReplay token={replayToken!} accessCode={replayAccessCode} />
+                <DocumentReplay
+                  token={replayToken!}
+                  accessCode={replayAccessCode}
+                />
               </CardContent>
             </CollapsibleContent>
           </Collapsible>
@@ -1285,30 +1564,40 @@ export function CertificateEvidenceView({
       )}
 
       <Card>
-        <Collapsible open={behaviorReviewOpen} onOpenChange={setBehaviorReviewOpen}>
+        <Collapsible
+          open={behaviorReviewOpen}
+          onOpenChange={setBehaviorReviewOpen}
+        >
           <CardHeader className="pb-3">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <div className="flex items-center gap-2">
-                  <CardTitle className={SECTION_TITLE_CLASS}>Anomaly Behavior Review</CardTitle>
+                  <CardTitle className={SECTION_TITLE_CLASS}>
+                    Anomaly Behavior Review
+                  </CardTitle>
                   <Popover>
                     <PopoverTrigger asChild>
                       <button
                         type="button"
                         aria-label="Explain detector types"
-                        className="inline-flex h-5 w-5 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                        className="inline-flex h-5 w-5 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                       >
                         <HelpCircle className="h-4 w-4" aria-hidden="true" />
                       </button>
                     </PopoverTrigger>
                     <PopoverContent align="start" className="space-y-2 text-sm">
-                      <p className="font-medium text-foreground">Detector types</p>
-                      <p className="leading-relaxed text-muted-foreground">{DETECTOR_HELP_TEXT}</p>
+                      <p className="font-medium text-foreground">
+                        Detector types
+                      </p>
+                      <p className="leading-relaxed text-muted-foreground">
+                        {DETECTOR_HELP_TEXT}
+                      </p>
                     </PopoverContent>
                   </Popover>
                 </div>
                 <CardDescription>
-                  Review write-time signals that may need attention. These are evidence for review, not automatic verdicts.
+                  Review write-time signals that may need attention. These are
+                  evidence for review, not automatic verdicts.
                 </CardDescription>
               </div>
               <CollapsibleTrigger asChild>
@@ -1324,7 +1613,9 @@ export function CertificateEvidenceView({
                   }
                 >
                   {behaviorReviewOpen ? 'Hide' : 'Show'}
-                  <ChevronDown className={`h-4 w-4 transition-transform ${behaviorReviewOpen ? 'rotate-180' : ''}`} />
+                  <ChevronDown
+                    className={`h-4 w-4 transition-transform ${behaviorReviewOpen ? 'rotate-180' : ''}`}
+                  />
                 </Button>
               </CollapsibleTrigger>
             </div>
@@ -1333,7 +1624,9 @@ export function CertificateEvidenceView({
             <CardContent>
               <div className="grid gap-3 lg:grid-cols-2">
                 <AnomalyPatternPanel result={detectorResults.anomalyPattern} />
-                <HumanTypingDetectorPanel result={detectorResults.humanTyping} />
+                <HumanTypingDetectorPanel
+                  result={detectorResults.humanTyping}
+                />
               </div>
             </CardContent>
           </CollapsibleContent>
@@ -1345,8 +1638,12 @@ export function CertificateEvidenceView({
           <CardHeader className="pb-3">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <CardTitle className={SECTION_TITLE_CLASS}>Environment</CardTitle>
-                <CardDescription>The writing policy active when this certificate was created.</CardDescription>
+                <CardTitle className={SECTION_TITLE_CLASS}>
+                  Environment
+                </CardTitle>
+                <CardDescription>
+                  The writing policy active when this certificate was created.
+                </CardDescription>
               </div>
               <CollapsibleTrigger asChild>
                 <Button
@@ -1354,10 +1651,16 @@ export function CertificateEvidenceView({
                   variant="ghost"
                   size="sm"
                   className="shrink-0 gap-1"
-                  aria-label={environmentOpen ? 'Hide environment section' : 'Show environment section'}
+                  aria-label={
+                    environmentOpen
+                      ? 'Hide environment section'
+                      : 'Show environment section'
+                  }
                 >
                   {environmentOpen ? 'Hide' : 'Show'}
-                  <ChevronDown className={`h-4 w-4 transition-transform ${environmentOpen ? 'rotate-180' : ''}`} />
+                  <ChevronDown
+                    className={`h-4 w-4 transition-transform ${environmentOpen ? 'rotate-180' : ''}`}
+                  />
                 </Button>
               </CollapsibleTrigger>
             </div>
@@ -1383,10 +1686,26 @@ export function CertificateEvidenceView({
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => downloadEnvironmentConfig(certificate.id, certificate.environmentConfig, 'json')}>
+                      <DropdownMenuItem
+                        onClick={() =>
+                          downloadEnvironmentConfig(
+                            certificate.id,
+                            certificate.environmentConfig,
+                            'json'
+                          )
+                        }
+                      >
                         Download as JSON
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => downloadEnvironmentConfig(certificate.id, certificate.environmentConfig, 'yaml')}>
+                      <DropdownMenuItem
+                        onClick={() =>
+                          downloadEnvironmentConfig(
+                            certificate.id,
+                            certificate.environmentConfig,
+                            'yaml'
+                          )
+                        }
+                      >
                         Download as YAML
                       </DropdownMenuItem>
                     </DropdownMenuContent>
@@ -1396,9 +1715,14 @@ export function CertificateEvidenceView({
               {environmentRows.length > 0 ? (
                 <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                   {environmentRows.map(([label, value]) => (
-                    <div key={label} className="rounded-lg border border-border/60 bg-muted/25 p-3">
+                    <div
+                      key={label}
+                      className="rounded-lg border border-border/60 bg-muted/25 p-3"
+                    >
                       <p className="text-xs text-muted-foreground">{label}</p>
-                      <p className="mt-1 break-words text-sm font-medium">{value}</p>
+                      <p className="mt-1 break-words text-sm font-medium">
+                        {value}
+                      </p>
                     </div>
                   ))}
                 </div>
@@ -1411,7 +1735,6 @@ export function CertificateEvidenceView({
           </CollapsibleContent>
         </Collapsible>
       </Card>
-
     </div>
   );
 }

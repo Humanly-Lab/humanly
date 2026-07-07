@@ -62,8 +62,9 @@ CREATE INDEX idx_document_events_user_id_timestamp ON document_events(user_id, t
 CREATE INDEX idx_document_events_event_type ON document_events(event_type);
 CREATE INDEX idx_document_events_timestamp ON document_events(timestamp DESC);
 
--- Compression policy (compress chunks older than 7 days)
-SELECT add_compression_policy('document_events', INTERVAL '7 days', if_not_exists => TRUE);
+-- Compression is intentionally not enabled here because later migrations alter
+-- this hypertable. Operators can add a compression policy after the full schema
+-- has been applied.
 
 -- ============================================================================
 -- Certificates table - Generated authorship certificates

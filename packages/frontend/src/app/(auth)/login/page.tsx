@@ -7,12 +7,12 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import Link from 'next/link';
 import { useAuthStore } from '@/stores/auth-store';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { OAuthButtons } from '@/components/auth/oauth-buttons';
+import { AuthCard } from '@/components/auth/auth-card';
 import { Mail, Lock, AlertCircle, Loader2, CheckCircle2 } from 'lucide-react';
 
 // Form validation schema
@@ -50,17 +50,22 @@ export default function LoginPage() {
       setShowResendVerification(false);
       setResendSuccess(false);
       setUserEmail(data.email);
-      
+
       await login(data.email, data.password);
 
       // Redirect to tasks on success
       router.push('/tasks');
     } catch (err: any) {
-      const errorMessage = err?.message || 'Login failed. Please check your credentials and try again.';
+      const errorMessage =
+        err?.message ||
+        'Login failed. Please check your credentials and try again.';
       setError(errorMessage);
-      
+
       // Check if error is about unverified email
-      if (errorMessage.toLowerCase().includes('verify') || errorMessage.toLowerCase().includes('verification')) {
+      if (
+        errorMessage.toLowerCase().includes('verify') ||
+        errorMessage.toLowerCase().includes('verification')
+      ) {
         setShowResendVerification(true);
       }
     }
@@ -95,157 +100,166 @@ export default function LoginPage() {
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Welcome back</CardTitle>
-        <CardDescription>
-          Sign in to your account to continue
-        </CardDescription>
-      </CardHeader>
-
-      <CardContent>
-        <OAuthButtons
-          className="mb-5"
-          separatorPosition="after"
-          separatorLabel="or use email"
-        />
-        <form method="post" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          {error && (
-            <Alert variant={resendSuccess ? "default" : "destructive"}>
-              {resendSuccess ? (
-                <CheckCircle2 className="h-4 w-4" />
-              ) : (
-                <AlertCircle className="h-4 w-4" />
-              )}
-              <AlertTitle>{resendSuccess ? "Success" : "Error"}</AlertTitle>
-              <AlertDescription>
-                {error}
-                {resendSuccess && (
-                  <Button asChild variant="outline" size="sm" className="mt-3 w-full">
-                    <Link href={verificationHref}>Enter verification code</Link>
-                  </Button>
-                )}
-              </AlertDescription>
-            </Alert>
-          )}
-
-          {showResendVerification && !resendSuccess && (
-            <Alert>
-              <Mail className="h-4 w-4" />
-              <AlertTitle>Email Not Verified</AlertTitle>
-              <AlertDescription className="space-y-3">
-                <p>Please verify your email address before logging in.</p>
+    <AuthCard
+      title="Welcome back"
+      footer={
+        <>
+          <p className="text-sm text-muted-foreground">
+            Do not have an account?{' '}
+            <Link
+              href="/register"
+              className="font-medium text-foreground hover:underline"
+            >
+              Sign up
+            </Link>
+          </p>
+          <p className="text-center text-xs leading-5 text-muted-foreground">
+            By signing in, you agree to our{' '}
+            <Link
+              href="https://app.writehumanly.net/terms"
+              target="_blank"
+              rel="noreferrer"
+              className="underline hover:text-foreground"
+            >
+              Terms of Service
+            </Link>
+          </p>
+        </>
+      }
+    >
+      <OAuthButtons
+        className="mb-5"
+        separatorPosition="after"
+        separatorLabel="or use email"
+      />
+      <form
+        method="post"
+        onSubmit={handleSubmit(onSubmit)}
+        className="space-y-4"
+      >
+        {error && (
+          <Alert variant={resendSuccess ? 'default' : 'destructive'}>
+            {resendSuccess ? (
+              <CheckCircle2 className="h-4 w-4" />
+            ) : (
+              <AlertCircle className="h-4 w-4" />
+            )}
+            <AlertTitle>{resendSuccess ? 'Success' : 'Error'}</AlertTitle>
+            <AlertDescription>
+              {error}
+              {resendSuccess && (
                 <Button
-                  type="button"
-                  onClick={handleResendVerification}
-                  disabled={resendLoading}
+                  asChild
                   variant="outline"
                   size="sm"
-                  className="w-full mt-2"
+                  className="mt-3 w-full"
                 >
-                  {resendLoading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Sending...
-                    </>
-                  ) : (
-                    <>
-                      <Mail className="mr-2 h-4 w-4" />
-                      Resend Verification Email
-                    </>
-                  )}
+                  <Link href={verificationHref}>Enter verification code</Link>
                 </Button>
-              </AlertDescription>
-            </Alert>
-          )}
+              )}
+            </AlertDescription>
+          </Alert>
+        )}
 
-          <div className="space-y-2">
-            <Label htmlFor="email">Email address</Label>
-            <div className="relative">
-              <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-              <Input
-                id="email"
-                type="email"
-                placeholder="you@example.com"
-                className="pl-10"
-                disabled={isLoading}
-                {...register('email')}
-                onChange={(e) => {
-                  register('email').onChange(e);
-                  handleInputChange();
-                }}
-              />
-            </div>
-            {errors.email && (
-              <p className="text-sm text-destructive">{errors.email.message}</p>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="password">Password</Label>
-              <Link
-                href="/forgot-password"
-                className="text-sm text-primary hover:underline"
+        {showResendVerification && !resendSuccess && (
+          <Alert>
+            <Mail className="h-4 w-4" />
+            <AlertTitle>Email Not Verified</AlertTitle>
+            <AlertDescription className="space-y-3">
+              <p>Please verify your email address before logging in.</p>
+              <Button
+                type="button"
+                onClick={handleResendVerification}
+                disabled={resendLoading}
+                variant="outline"
+                size="sm"
+                className="w-full mt-2"
               >
-                Forgot password?
-              </Link>
-            </div>
-            <div className="relative">
-              <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-              <Input
-                id="password"
-                type="password"
-                placeholder="Enter your password"
-                className="pl-10"
-                disabled={isLoading}
-                {...register('password')}
-                onChange={(e) => {
-                  register('password').onChange(e);
-                  handleInputChange();
-                }}
-              />
-            </div>
-            {errors.password && (
-              <p className="text-sm text-destructive">{errors.password.message}</p>
-            )}
+                {resendLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  <>
+                    <Mail className="mr-2 h-4 w-4" />
+                    Resend Verification Email
+                  </>
+                )}
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        <div className="space-y-2">
+          <Label htmlFor="email">Email address</Label>
+          <div className="relative">
+            <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+            <Input
+              id="email"
+              type="email"
+              placeholder="you@example.com"
+              className="pl-10"
+              disabled={isLoading}
+              {...register('email')}
+              onChange={(e) => {
+                register('email').onChange(e);
+                handleInputChange();
+              }}
+            />
           </div>
+          {errors.email && (
+            <p className="text-sm text-destructive">{errors.email.message}</p>
+          )}
+        </div>
 
-          <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Signing in...
-              </>
-            ) : (
-              'Sign in'
-            )}
-          </Button>
-        </form>
-      </CardContent>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <Label htmlFor="password">Password</Label>
+            <Link
+              href="/forgot-password"
+              className="text-sm text-primary hover:underline"
+            >
+              Forgot password?
+            </Link>
+          </div>
+          <div className="relative">
+            <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+            <Input
+              id="password"
+              type="password"
+              placeholder="Enter your password"
+              className="pl-10"
+              disabled={isLoading}
+              {...register('password')}
+              onChange={(e) => {
+                register('password').onChange(e);
+                handleInputChange();
+              }}
+            />
+          </div>
+          {errors.password && (
+            <p className="text-sm text-destructive">
+              {errors.password.message}
+            </p>
+          )}
+        </div>
 
-      <CardFooter className="flex flex-col items-center gap-3">
-        <p className="text-sm text-muted-foreground">
-          Do not have an account?{' '}
-          <Link
-            href="/register"
-            className="font-medium text-primary hover:underline"
-          >
-            Sign up
-          </Link>
-        </p>
-        <p className="text-center text-xs text-muted-foreground">
-          By signing in, you agree to our{' '}
-          <Link
-            href="https://app.writehumanly.net/terms"
-            target="_blank"
-            rel="noreferrer"
-            className="underline hover:text-foreground"
-          >
-            Terms of Service
-          </Link>
-        </p>
-      </CardFooter>
-    </Card>
+        <Button
+          type="submit"
+          className="h-11 w-full font-bold"
+          disabled={isLoading}
+        >
+          {isLoading ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Signing in...
+            </>
+          ) : (
+            'Sign in'
+          )}
+        </Button>
+      </form>
+    </AuthCard>
   );
 }

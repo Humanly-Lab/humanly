@@ -236,7 +236,7 @@ function ResetPasswordContent() {
 
                 <Button
                   type="submit"
-                  className="h-11 w-full rounded-full font-bold"
+                  className="h-11 w-full font-bold"
                   disabled={isLoading}
                 >
                   {isLoading ? (

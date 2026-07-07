@@ -30,7 +30,12 @@ import { useAuthStore } from '@/stores/auth-store';
 import { useToast } from '@/components/ui/use-toast';
 import { downloadBlob } from '@/lib/download';
 import { TaskRulesDialog } from '@/components/documents/task-rules-dialog';
-import { AIAssistantButton, AIAssistantPanel, AISelectionMenu, type ActionType } from '@/components/ai';
+import {
+  AIAssistantButton,
+  AIAssistantPanel,
+  AISelectionMenu,
+  type ActionType,
+} from '@/components/ai';
 import { useAI } from '@/hooks/use-ai';
 import { useAIStore } from '@/stores/ai-store';
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
@@ -115,7 +120,9 @@ type TaskInstructionFile = AppFile;
 
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL ||
-  (process.env.NODE_ENV === 'production' ? '/api/v1' : 'http://localhost:3001/api/v1');
+  (process.env.NODE_ENV === 'production'
+    ? '/api/v1'
+    : 'http://localhost:3001/api/v1');
 const SUBMISSION_SESSION_START_DELAY_MS = 250;
 const EDITOR_AUTO_SAVE_INTERVAL_MS = 750;
 const EDITOR_EVENT_BATCH_SIZE = 10;
@@ -131,12 +138,11 @@ interface PendingActivityEventBatch {
   sessionId?: string | null;
 }
 
-const containsWorkspaceLifecycleEvent = (events: PendingActivityEvent[]) => (
-  events.some((event) => (
-    event.eventType === 'page_hidden' ||
-    event.eventType === 'page_visible'
-  ))
-);
+const containsWorkspaceLifecycleEvent = (events: PendingActivityEvent[]) =>
+  events.some(
+    (event) =>
+      event.eventType === 'page_hidden' || event.eventType === 'page_visible'
+  );
 
 function formatTimerDuration(totalSeconds: number): string {
   const safeSeconds = Math.max(0, Math.floor(totalSeconds));
@@ -179,7 +185,9 @@ const getTimestampMs = (value?: string | Date | null): number | null => {
   return Number.isFinite(timestamp) ? timestamp : null;
 };
 
-const getAiProviderConfigForBaseUrl = (baseUrl: string): WritingAiProviderConfig | undefined => {
+const getAiProviderConfigForBaseUrl = (
+  baseUrl: string
+): WritingAiProviderConfig | undefined => {
   const normalizedBaseUrl = baseUrl.trim();
   if (!normalizedBaseUrl) return undefined;
   return {
@@ -188,19 +196,25 @@ const getAiProviderConfigForBaseUrl = (baseUrl: string): WritingAiProviderConfig
   };
 };
 
-const getAiProviderConfigForModel = (model: string): WritingAiProviderConfig | undefined => {
+const getAiProviderConfigForModel = (
+  model: string
+): WritingAiProviderConfig | undefined => {
   const normalizedModel = model.trim();
   if (!normalizedModel) return undefined;
 
-  const provider = AI_PROVIDER_OPTIONS.find((option) => (
-    !!option.baseUrl && getWhitelist(option.baseUrl)?.includes(normalizedModel)
-  ));
+  const provider = AI_PROVIDER_OPTIONS.find(
+    (option) =>
+      !!option.baseUrl &&
+      getWhitelist(option.baseUrl)?.includes(normalizedModel)
+  );
 
-  return provider?.baseUrl ? getAiProviderConfigForBaseUrl(provider.baseUrl) : undefined;
+  return provider?.baseUrl
+    ? getAiProviderConfigForBaseUrl(provider.baseUrl)
+    : undefined;
 };
 
 const enrichEnvironmentConfigForExport = (
-  config: WritingEnvironmentConfig,
+  config: WritingEnvironmentConfig
 ): WritingEnvironmentConfig => {
   if (config.aiAccess === 'off' || config.aiProvider?.baseUrl) {
     return config;
@@ -208,32 +222,43 @@ const enrichEnvironmentConfigForExport = (
 
   const model = config.allowedModels?.[0] || config.customModels?.[0] || '';
   const inferredProvider = getAiProviderConfigForModel(model);
-  return inferredProvider ? { ...config, aiProvider: inferredProvider } : config;
+  return inferredProvider
+    ? { ...config, aiProvider: inferredProvider }
+    : config;
 };
 
-function normalizeEditorInitialContent(content: unknown): string | Record<string, any> | undefined {
+function normalizeEditorInitialContent(
+  content: unknown
+): string | Record<string, any> | undefined {
   if (!content) {
     return undefined;
   }
 
-  const parsedContent = typeof content === 'string'
-    ? (() => {
-        try {
-          return JSON.parse(content);
-        } catch {
-          return null;
-        }
-      })()
-    : content;
+  const parsedContent =
+    typeof content === 'string'
+      ? (() => {
+          try {
+            return JSON.parse(content);
+          } catch {
+            return null;
+          }
+        })()
+      : content;
 
-  if (parsedContent && typeof parsedContent === 'object' && 'root' in parsedContent) {
+  if (
+    parsedContent &&
+    typeof parsedContent === 'object' &&
+    'root' in parsedContent
+  ) {
     const root = (parsedContent as { root?: { children?: unknown } }).root;
     if (!root || !Array.isArray(root.children) || root.children.length === 0) {
       return undefined;
     }
   }
 
-  return typeof content === 'string' ? content : content as Record<string, any>;
+  return typeof content === 'string'
+    ? content
+    : (content as Record<string, any>);
 }
 
 function serializeEditorSnapshot(content: unknown): string {
@@ -246,7 +271,9 @@ function serializeEditorSnapshot(content: unknown): string {
 
 interface EditorAIBridgeCaptureProps {
   insertAtCursor: EditorAIBridgeAPI['insertAtCursor'] | null;
-  onInsertAtCursorChange: (insertAtCursor: EditorAIBridgeAPI['insertAtCursor'] | null) => void;
+  onInsertAtCursorChange: (
+    insertAtCursor: EditorAIBridgeAPI['insertAtCursor'] | null
+  ) => void;
 }
 
 function EditorAIBridgeCapture({
@@ -308,7 +335,9 @@ export default function DocumentEditorPage() {
     startWritingSession,
     trackEvents,
   } = useDocument(documentId);
-  const { generateCertificate } = useCertificates(undefined, { skip: isDemoDocument });
+  const { generateCertificate } = useCertificates(undefined, {
+    skip: isDemoDocument,
+  });
 
   const [title, setTitle] = useState('');
   const [isTitleEditing, setIsTitleEditing] = useState(false);
@@ -317,22 +346,49 @@ export default function DocumentEditorPage() {
   const [isSubmittingTask, setIsSubmittingTask] = useState(false);
   const [isSyncingActivityLogs, setIsSyncingActivityLogs] = useState(false);
   const [taskRulesDialogOpen, setTaskRulesDialogOpen] = useState(false);
-  const [writingRulesAcknowledged, setWritingRulesAcknowledged] = useState(false);
-  const [taskInstructionFile, setTaskInstructionFile] = useState<TaskInstructionFile | null>(null);
-  const [taskInstructionFiles, setTaskInstructionFiles] = useState<TaskInstructionFile[]>([]);
-  const [isTaskInstructionFilesLoading, setIsTaskInstructionFilesLoading] = useState(false);
-  const [selectedInstructionFileId, setSelectedInstructionFileId] = useState<string | null>(null);
-  const [submissionSessionId, setSubmissionSessionId] = useState<string | null>(null);
-  const [taskEnrollment, setTaskEnrollment] = useState<TaskEnrollment | null>(null);
+  const [writingRulesAcknowledged, setWritingRulesAcknowledged] =
+    useState(false);
+  const [taskInstructionFile, setTaskInstructionFile] =
+    useState<TaskInstructionFile | null>(null);
+  const [taskInstructionFiles, setTaskInstructionFiles] = useState<
+    TaskInstructionFile[]
+  >([]);
+  const [isTaskInstructionFilesLoading, setIsTaskInstructionFilesLoading] =
+    useState(false);
+  const [selectedInstructionFileId, setSelectedInstructionFileId] = useState<
+    string | null
+  >(null);
+  const [submissionSessionId, setSubmissionSessionId] = useState<string | null>(
+    null
+  );
+  const [taskEnrollment, setTaskEnrollment] = useState<TaskEnrollment | null>(
+    null
+  );
   const [isTaskEnrollmentLoading, setIsTaskEnrollmentLoading] = useState(true);
   const [taskAccessError, setTaskAccessError] = useState<string | null>(null);
-  const [editorInsertAtCursor, setEditorInsertAtCursor] = useState<EditorAIBridgeAPI['insertAtCursor'] | null>(null);
-  const submissionSessionRef = useRef<{ taskId: string; sessionId: string } | null>(null);
-  const lastSubmissionSessionRef = useRef<{ taskId: string; sessionId: string } | null>(null);
+  const [editorInsertAtCursor, setEditorInsertAtCursor] = useState<
+    EditorAIBridgeAPI['insertAtCursor'] | null
+  >(null);
+  const submissionSessionRef = useRef<{
+    taskId: string;
+    sessionId: string;
+  } | null>(null);
+  const lastSubmissionSessionRef = useRef<{
+    taskId: string;
+    sessionId: string;
+  } | null>(null);
   const autoSubmittedTimeLimitRef = useRef<string | null>(null);
-  const quickActionTriggerRef = useRef<((type: ActionType) => void) | null>(null);
-  const latestEditorSnapshotRef = useRef<{ content: Record<string, any>; plainText: string } | null>(null);
-  const lastSavedEditorSnapshotRef = useRef<{ contentKey: string; plainText: string } | null>(null);
+  const quickActionTriggerRef = useRef<((type: ActionType) => void) | null>(
+    null
+  );
+  const latestEditorSnapshotRef = useRef<{
+    content: Record<string, any>;
+    plainText: string;
+  } | null>(null);
+  const lastSavedEditorSnapshotRef = useRef<{
+    contentKey: string;
+    plainText: string;
+  } | null>(null);
   const loadedDocumentIdRef = useRef<string | null>(null);
   const taskDocumentKnownRef = useRef(false);
   const lastCharacterLimitToastRef = useRef(0);
@@ -356,7 +412,9 @@ export default function DocumentEditorPage() {
   const [timerNowMs, setTimerNowMs] = useState(() => Date.now());
   const isTaskDocument = Boolean(taskEnrollment);
   const isGuestUser = isGuestUserEmail(user?.email);
-  const hasPublicDocumentAccessToken = Boolean(TokenManager.getPublicDocumentAccessToken(documentId));
+  const hasPublicDocumentAccessToken = Boolean(
+    TokenManager.getPublicDocumentAccessToken(documentId)
+  );
   const isGuestDocumentContext = isGuestUser || hasPublicDocumentAccessToken;
   const isEnvironmentManagedDocument = isTaskDocument || isGuestDocumentContext;
   const isPublicTaskGuestDocument = isTaskDocument && isGuestDocumentContext;
@@ -366,7 +424,10 @@ export default function DocumentEditorPage() {
     const sourceConfig: Partial<WritingEnvironmentConfig> = isTaskDocument
       ? taskEnvironmentConfig || {}
       : document?.environmentConfig || {};
-    const baseConfig = { ...DEFAULT_WRITING_ENVIRONMENT_CONFIG, ...sourceConfig };
+    const baseConfig = {
+      ...DEFAULT_WRITING_ENVIRONMENT_CONFIG,
+      ...sourceConfig,
+    };
 
     return {
       ...baseConfig,
@@ -395,14 +456,19 @@ export default function DocumentEditorPage() {
         ...DEFAULT_WRITING_ENVIRONMENT_CONFIG.traceability,
         ...(sourceConfig.traceability || {}),
       },
-      resourceAccess: normalizeResourceAccessPolicy(sourceConfig.resourceAccess),
+      resourceAccess: normalizeResourceAccessPolicy(
+        sourceConfig.resourceAccess
+      ),
       copyPastePolicy: normalizeCopyPastePolicy(sourceConfig.copyPastePolicy),
     };
   }, [document?.environmentConfig, isTaskDocument, taskEnvironmentConfig]);
 
-  const aiAccessMode = normalizeWritingAiAccess(currentEnvironmentConfig.aiAccess);
+  const aiAccessMode = normalizeWritingAiAccess(
+    currentEnvironmentConfig.aiAccess
+  );
   const aiEnabled = !isDemoDocument && isWritingAiEnabled(aiAccessMode);
-  const aiPolishEnabled = !isDemoDocument && isWritingAiPolishEnabled(aiAccessMode);
+  const aiPolishEnabled =
+    !isDemoDocument && isWritingAiPolishEnabled(aiAccessMode);
   const aiChatEnabled = !isDemoDocument && isWritingAiChatEnabled(aiAccessMode);
   const isAIPanelVisible = aiChatEnabled && isAIPanelOpen;
 
@@ -411,10 +477,9 @@ export default function DocumentEditorPage() {
     [document?.content]
   );
 
-  const activeTimeLimitSeconds =
-    currentEnvironmentConfig.time.timeLimitSeconds
-      ? Math.max(1, Math.floor(currentEnvironmentConfig.time.timeLimitSeconds))
-      : null;
+  const activeTimeLimitSeconds = currentEnvironmentConfig.time.timeLimitSeconds
+    ? Math.max(1, Math.floor(currentEnvironmentConfig.time.timeLimitSeconds))
+    : null;
   const hasLoadedDocument = Boolean(document?.id);
   const writingRulesAvailable = hasLoadedDocument && !isTaskEnrollmentLoading;
   const writingRulesDismissalKey = taskEnrollment
@@ -424,54 +489,83 @@ export default function DocumentEditorPage() {
       : null;
   const documentWritingStartedAt = document?.writingStartedAt || null;
 
-  const timeLimitRemainingSeconds = activeTimeLimitSeconds === null
-    ? null
-    : timerStartedAtMs === null
-      ? activeTimeLimitSeconds
-      : Math.max(0, activeTimeLimitSeconds - Math.floor((timerNowMs - timerStartedAtMs) / 1000));
+  const timeLimitRemainingSeconds =
+    activeTimeLimitSeconds === null
+      ? null
+      : timerStartedAtMs === null
+        ? activeTimeLimitSeconds
+        : Math.max(
+            0,
+            activeTimeLimitSeconds -
+              Math.floor((timerNowMs - timerStartedAtMs) / 1000)
+          );
   const isTimeLimitExpired =
     activeTimeLimitSeconds !== null &&
     timerStartedAtMs !== null &&
     timeLimitRemainingSeconds === 0;
   const taskLifecycleStatus = taskEnrollment?.lifecycleStatus || 'active';
-  const taskLifecycleBlocksWriting = Boolean(taskEnrollment) && taskLifecycleStatus !== 'active';
-  const taskLifecycleReadOnlyMessage = taskLifecycleStatus === 'draft'
-    ? 'This task has not been launched yet. The document is read-only until the owner launches it.'
-    : taskLifecycleStatus === 'paused'
-      ? 'This task is paused. The document is read-only until the owner resumes it.'
-      : taskLifecycleStatus === 'ended'
-        ? 'This task has ended. The document is read-only.'
-        : null;
+  const taskLifecycleBlocksWriting =
+    Boolean(taskEnrollment) && taskLifecycleStatus !== 'active';
+  const taskLifecycleReadOnlyMessage =
+    taskLifecycleStatus === 'draft'
+      ? 'This task has not been launched yet. The document is read-only until the owner launches it.'
+      : taskLifecycleStatus === 'paused'
+        ? 'This task is paused. The document is read-only until the owner resumes it.'
+        : taskLifecycleStatus === 'ended'
+          ? 'This task has ended. The document is read-only.'
+          : null;
   const isEditorReadOnly = isTimeLimitExpired || taskLifecycleBlocksWriting;
-  const taskDeadlineMs = taskEnrollment ? getTimestampMs(taskEnrollment.endDate) : null;
-  const taskDeadlineRemainingSeconds = taskDeadlineMs === null
-    ? null
-    : Math.max(0, Math.floor((taskDeadlineMs - timerNowMs) / 1000));
-  const visibleCountdown = timeLimitRemainingSeconds !== null
-    ? {
-        label: timeLimitRemainingSeconds === 0 ? 'Writing time limit reached' : 'Writing time left',
-        value: formatCountdownDuration(timeLimitRemainingSeconds),
-        variant: timeLimitRemainingSeconds === 0 ? 'destructive' as const : 'outline' as const,
-        title: `Writing time limit: ${formatCountdownDuration(activeTimeLimitSeconds || 0)}`,
-      }
-    : taskDeadlineRemainingSeconds !== null
+  const taskDeadlineMs = taskEnrollment
+    ? getTimestampMs(taskEnrollment.endDate)
+    : null;
+  const taskDeadlineRemainingSeconds =
+    taskDeadlineMs === null
+      ? null
+      : Math.max(0, Math.floor((taskDeadlineMs - timerNowMs) / 1000));
+  const visibleCountdown =
+    timeLimitRemainingSeconds !== null
       ? {
-          label: taskDeadlineRemainingSeconds === 0 ? 'Task deadline reached' : 'Task deadline in',
-          value: formatCountdownDuration(taskDeadlineRemainingSeconds),
-          variant: taskDeadlineRemainingSeconds === 0 ? 'destructive' as const : 'outline' as const,
-          title: taskEnrollment?.endDate ? `Task deadline: ${formatDateTime(taskEnrollment.endDate)}` : 'Task deadline',
+          label:
+            timeLimitRemainingSeconds === 0
+              ? 'Writing time limit reached'
+              : 'Writing time left',
+          value: formatCountdownDuration(timeLimitRemainingSeconds),
+          variant:
+            timeLimitRemainingSeconds === 0
+              ? ('destructive' as const)
+              : ('outline' as const),
+          title: `Writing time limit: ${formatCountdownDuration(activeTimeLimitSeconds || 0)}`,
         }
-      : null;
+      : taskDeadlineRemainingSeconds !== null
+        ? {
+            label:
+              taskDeadlineRemainingSeconds === 0
+                ? 'Task deadline reached'
+                : 'Task deadline in',
+            value: formatCountdownDuration(taskDeadlineRemainingSeconds),
+            variant:
+              taskDeadlineRemainingSeconds === 0
+                ? ('destructive' as const)
+                : ('outline' as const),
+            title: taskEnrollment?.endDate
+              ? `Task deadline: ${formatDateTime(taskEnrollment.endDate)}`
+              : 'Task deadline',
+          }
+        : null;
   const minimumSubmissionCharacters =
     isTaskDocument && currentEnvironmentConfig.submission.minCharacters
-      ? Math.max(1, Math.floor(currentEnvironmentConfig.submission.minCharacters))
+      ? Math.max(
+          1,
+          Math.floor(currentEnvironmentConfig.submission.minCharacters)
+        )
       : null;
-  const maximumSubmissionCharacters =
-    currentEnvironmentConfig.submission.maxCharacters
-      ? Math.max(1, Math.floor(currentEnvironmentConfig.submission.maxCharacters))
-      : null;
+  const maximumSubmissionCharacters = currentEnvironmentConfig.submission
+    .maxCharacters
+    ? Math.max(1, Math.floor(currentEnvironmentConfig.submission.maxCharacters))
+    : null;
   const hasCharacterBounds =
-    minimumSubmissionCharacters !== null || maximumSubmissionCharacters !== null;
+    minimumSubmissionCharacters !== null ||
+    maximumSubmissionCharacters !== null;
   const characterBoundsTitle =
     minimumSubmissionCharacters !== null && maximumSubmissionCharacters !== null
       ? `Character count includes letters, spaces, punctuation, and symbols. Required range: ${minimumSubmissionCharacters.toLocaleString()}-${maximumSubmissionCharacters.toLocaleString()} characters.`
@@ -496,7 +590,9 @@ export default function DocumentEditorPage() {
         loadedDocumentIdRef.current = document.id;
         setSaveStatus('saved');
       }
-      setCharacterCount(document.characterCount ?? (document.plainText || '').length);
+      setCharacterCount(
+        document.characterCount ?? (document.plainText || '').length
+      );
       setTimerStartedAtMs(getTimestampMs(document.writingStartedAt));
       latestEditorSnapshotRef.current = {
         content: document.content,
@@ -510,17 +606,24 @@ export default function DocumentEditorPage() {
   }, [document]);
 
   useEffect(() => {
-    if (!hasLoadedDocument || isTaskEnrollmentLoading || !writingRulesDismissalKey) {
+    if (
+      !hasLoadedDocument ||
+      isTaskEnrollmentLoading ||
+      !writingRulesDismissalKey
+    ) {
       setWritingRulesAcknowledged(false);
       return;
     }
-    if (checkedWritingRulesDismissalKeyRef.current === writingRulesDismissalKey) return;
+    if (checkedWritingRulesDismissalKeyRef.current === writingRulesDismissalKey)
+      return;
 
     checkedWritingRulesDismissalKeyRef.current = writingRulesDismissalKey;
 
     let dismissed = false;
     try {
-      dismissed = window.localStorage.getItem(writingRulesDismissalKey) === TASK_RULES_DISMISSED_VALUE;
+      dismissed =
+        window.localStorage.getItem(writingRulesDismissalKey) ===
+        TASK_RULES_DISMISSED_VALUE;
     } catch {
       dismissed = false;
     }
@@ -532,18 +635,24 @@ export default function DocumentEditorPage() {
     }
   }, [hasLoadedDocument, isTaskEnrollmentLoading, writingRulesDismissalKey]);
 
-  const handleTaskRulesDialogOpenChange = useCallback((open: boolean) => {
-    setTaskRulesDialogOpen(open);
+  const handleTaskRulesDialogOpenChange = useCallback(
+    (open: boolean) => {
+      setTaskRulesDialogOpen(open);
 
-    if (!open && writingRulesDismissalKey) {
-      try {
-        window.localStorage.setItem(writingRulesDismissalKey, TASK_RULES_DISMISSED_VALUE);
-      } catch {
-        // Ignore storage failures; the rules remain available from the toolbar.
+      if (!open && writingRulesDismissalKey) {
+        try {
+          window.localStorage.setItem(
+            writingRulesDismissalKey,
+            TASK_RULES_DISMISSED_VALUE
+          );
+        } catch {
+          // Ignore storage failures; the rules remain available from the toolbar.
+        }
+        setWritingRulesAcknowledged(true);
       }
-      setWritingRulesAcknowledged(true);
-    }
-  }, [writingRulesDismissalKey]);
+    },
+    [writingRulesDismissalKey]
+  );
 
   useEffect(() => {
     setTimerNowMs(Date.now());
@@ -565,7 +674,9 @@ export default function DocumentEditorPage() {
     startWritingSession()
       .then((startedDocument) => {
         if (cancelled) return;
-        setTimerStartedAtMs(getTimestampMs(startedDocument?.writingStartedAt) ?? Date.now());
+        setTimerStartedAtMs(
+          getTimestampMs(startedDocument?.writingStartedAt) ?? Date.now()
+        );
         setTimerNowMs(Date.now());
       })
       .catch((err) => {
@@ -578,10 +689,17 @@ export default function DocumentEditorPage() {
     return () => {
       cancelled = true;
     };
-  }, [activeTimeLimitSeconds, documentWritingStartedAt, hasLoadedDocument, startWritingSession, writingRulesAcknowledged]);
+  }, [
+    activeTimeLimitSeconds,
+    documentWritingStartedAt,
+    hasLoadedDocument,
+    startWritingSession,
+    writingRulesAcknowledged,
+  ]);
 
   useEffect(() => {
-    if (taskAccessError || (!activeTimeLimitSeconds && taskDeadlineMs === null)) return;
+    if (taskAccessError || (!activeTimeLimitSeconds && taskDeadlineMs === null))
+      return;
     const interval = window.setInterval(() => setTimerNowMs(Date.now()), 1000);
     return () => window.clearInterval(interval);
   }, [activeTimeLimitSeconds, taskAccessError, taskDeadlineMs]);
@@ -595,7 +713,7 @@ export default function DocumentEditorPage() {
       '!': 'grammar',
       '@': 'improve',
       '#': 'simplify',
-      '$': 'formal',
+      $: 'formal',
     };
     const quickActionByCode: Record<string, ActionType> = {
       Digit1: 'grammar',
@@ -610,7 +728,8 @@ export default function DocumentEditorPage() {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (isEditorReadOnly || !aiPolishEnabled) return;
       if (!(event.metaKey || event.ctrlKey) || !event.shiftKey) return;
-      const actionType = quickActionByKey[event.key] || quickActionByCode[event.code];
+      const actionType =
+        quickActionByKey[event.key] || quickActionByCode[event.code];
       if (!actionType || !quickActionTriggerRef.current) return;
       event.preventDefault();
       quickActionTriggerRef.current(actionType);
@@ -670,7 +789,10 @@ export default function DocumentEditorPage() {
         if (cancelled) return;
 
         const enrollments = response.data.data?.enrollments || [];
-        const enrollment = enrollments.find((task: TaskEnrollment) => task.documentId === documentId) || null;
+        const enrollment =
+          enrollments.find(
+            (task: TaskEnrollment) => task.documentId === documentId
+          ) || null;
         if (enrollment) {
           taskDocumentKnownRef.current = true;
           setTaskAccessError(null);
@@ -740,7 +862,10 @@ export default function DocumentEditorPage() {
         ? enrollment.instructionFiles
         : null;
       if (hydratedFiles) {
-        applyInstructionFiles(hydratedFiles, enrollment.instructionFile || hydratedFiles[0] || null);
+        applyInstructionFiles(
+          hydratedFiles,
+          enrollment.instructionFile || hydratedFiles[0] || null
+        );
         setIsTaskInstructionFilesLoading(false);
         if (enrollment.documentId === documentId) {
           return;
@@ -837,14 +962,17 @@ export default function DocumentEditorPage() {
           const sessionId = response.data.data?.sessionId;
           if (sessionId) {
             const token = getDocumentScopedAccessToken(documentId);
-            await fetch(`${API_URL}/tasks/enrollments/${enrollment.id}/submission-sessions/${sessionId}/end`, {
-              method: 'PUT',
-              keepalive: true,
-              credentials: 'include',
-              headers: {
-                ...(token ? { Authorization: `Bearer ${token}` } : {}),
-              },
-            }).catch(() => {});
+            await fetch(
+              `${API_URL}/tasks/enrollments/${enrollment.id}/submission-sessions/${sessionId}/end`,
+              {
+                method: 'PUT',
+                keepalive: true,
+                credentials: 'include',
+                headers: {
+                  ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                },
+              }
+            ).catch(() => {});
           }
           return;
         }
@@ -900,11 +1028,18 @@ export default function DocumentEditorPage() {
       toast({ title: 'Success', description: 'Document title updated' });
     } catch {
       setSaveStatus('error');
-      toast({ title: 'Error', description: 'Failed to update title', variant: 'destructive' });
+      toast({
+        title: 'Error',
+        description: 'Failed to update title',
+        variant: 'destructive',
+      });
     }
   };
 
-  const handleContentChange = async (content: Record<string, any>, plainText: string) => {
+  const handleContentChange = async (
+    content: Record<string, any>,
+    plainText: string
+  ) => {
     latestEditorSnapshotRef.current = { content, plainText };
     setCharacterCount(plainText.length);
 
@@ -912,7 +1047,8 @@ export default function DocumentEditorPage() {
     if (
       lastSavedSnapshot &&
       plainText === lastSavedSnapshot.plainText &&
-      (plainText.length === 0 || serializeEditorSnapshot(content) === lastSavedSnapshot.contentKey)
+      (plainText.length === 0 ||
+        serializeEditorSnapshot(content) === lastSavedSnapshot.contentKey)
     ) {
       setSaveStatus('saved');
       return;
@@ -921,7 +1057,10 @@ export default function DocumentEditorPage() {
     setSaveStatus('saving');
   };
 
-  const handleAutoSave = async (content: Record<string, any>, plainText: string) => {
+  const handleAutoSave = async (
+    content: Record<string, any>,
+    plainText: string
+  ) => {
     try {
       latestEditorSnapshotRef.current = { content, plainText };
       const contentKey = serializeEditorSnapshot(content);
@@ -945,89 +1084,106 @@ export default function DocumentEditorPage() {
     }
   };
 
-  const getCurrentActivitySessionId = useCallback(() => (
-    submissionSessionRef.current?.sessionId ||
-    lastSubmissionSessionRef.current?.sessionId ||
-    submissionSessionId ||
-    null
-  ), [submissionSessionId]);
+  const getCurrentActivitySessionId = useCallback(
+    () =>
+      submissionSessionRef.current?.sessionId ||
+      lastSubmissionSessionRef.current?.sessionId ||
+      submissionSessionId ||
+      null,
+    [submissionSessionId]
+  );
 
-  const mapTrackedEventsForWrite = useCallback((
-    events: TrackedEvent[],
-    currentSessionId?: string | null
-  ): PendingActivityEvent[] => (
-    events.map((event) => ({
-      sessionId: currentSessionId || undefined,
-      eventType: event.eventType,
-      timestamp: event.timestamp,
-      keyCode: event.keyCode,
-      keyChar: event.keyChar,
-      textBefore: event.textBefore,
-      textAfter: event.textAfter,
-      cursorPosition: event.cursorPosition,
-      selectionStart: event.selectionStart,
-      selectionEnd: event.selectionEnd,
-      editorStateBefore: event.editorStateBefore,
-      editorStateAfter: event.editorStateAfter,
-      metadata: event.metadata,
-    }))
-  ), []);
+  const mapTrackedEventsForWrite = useCallback(
+    (
+      events: TrackedEvent[],
+      currentSessionId?: string | null
+    ): PendingActivityEvent[] =>
+      events.map((event) => ({
+        sessionId: currentSessionId || undefined,
+        eventType: event.eventType,
+        timestamp: event.timestamp,
+        keyCode: event.keyCode,
+        keyChar: event.keyChar,
+        textBefore: event.textBefore,
+        textAfter: event.textAfter,
+        cursorPosition: event.cursorPosition,
+        selectionStart: event.selectionStart,
+        selectionEnd: event.selectionEnd,
+        editorStateBefore: event.editorStateBefore,
+        editorStateAfter: event.editorStateAfter,
+        metadata: event.metadata,
+      })),
+    []
+  );
 
-  const buildEventBatchPayload = useCallback((batch: PendingActivityEventBatch) => {
-    const token = getDocumentScopedAccessToken(documentId);
-    return {
-      token,
-      body: JSON.stringify({
-        events: batch.events,
-        ...(batch.sessionId ? { sessionId: batch.sessionId } : {}),
-        ...(token ? { taskToken: token } : {}),
-      }),
-    };
-  }, [documentId]);
+  const buildEventBatchPayload = useCallback(
+    (batch: PendingActivityEventBatch) => {
+      const token = getDocumentScopedAccessToken(documentId);
+      return {
+        token,
+        body: JSON.stringify({
+          events: batch.events,
+          ...(batch.sessionId ? { sessionId: batch.sessionId } : {}),
+          ...(token ? { taskToken: token } : {}),
+        }),
+      };
+    },
+    [documentId]
+  );
 
-  const sendEmergencyEventBatch = useCallback((batch: PendingActivityEventBatch): boolean => {
-    if (batch.events.length === 0) {
-      return true;
-    }
-
-    if (isDemoDocument) {
-      appendDemoEvents(documentId, batch.events);
-      return true;
-    }
-
-    const url = `${API_URL}/documents/${documentId}/events`;
-
-    if (typeof fetch !== 'function') {
-      return false;
-    }
-
-    try {
-      for (let index = 0; index < batch.events.length; index += EDITOR_EMERGENCY_EVENT_CHUNK_SIZE) {
-        const eventChunk = batch.events.slice(index, index + EDITOR_EMERGENCY_EVENT_CHUNK_SIZE);
-        const { token, body } = buildEventBatchPayload({
-          events: eventChunk,
-          sessionId: batch.sessionId,
-        });
-
-        void fetch(url, {
-          method: 'POST',
-          keepalive: true,
-          credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-          body,
-        }).catch((error) => {
-          console.error('Emergency event flush failed:', error);
-        });
+  const sendEmergencyEventBatch = useCallback(
+    (batch: PendingActivityEventBatch): boolean => {
+      if (batch.events.length === 0) {
+        return true;
       }
-      return true;
-    } catch (error) {
-      console.error('Emergency event flush could not be queued:', error);
-      return false;
-    }
-  }, [buildEventBatchPayload, documentId, isDemoDocument]);
+
+      if (isDemoDocument) {
+        appendDemoEvents(documentId, batch.events);
+        return true;
+      }
+
+      const url = `${API_URL}/documents/${documentId}/events`;
+
+      if (typeof fetch !== 'function') {
+        return false;
+      }
+
+      try {
+        for (
+          let index = 0;
+          index < batch.events.length;
+          index += EDITOR_EMERGENCY_EVENT_CHUNK_SIZE
+        ) {
+          const eventChunk = batch.events.slice(
+            index,
+            index + EDITOR_EMERGENCY_EVENT_CHUNK_SIZE
+          );
+          const { token, body } = buildEventBatchPayload({
+            events: eventChunk,
+            sessionId: batch.sessionId,
+          });
+
+          void fetch(url, {
+            method: 'POST',
+            keepalive: true,
+            credentials: 'include',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+            body,
+          }).catch((error) => {
+            console.error('Emergency event flush failed:', error);
+          });
+        }
+        return true;
+      } catch (error) {
+        console.error('Emergency event flush could not be queued:', error);
+        return false;
+      }
+    },
+    [buildEventBatchPayload, documentId, isDemoDocument]
+  );
 
   const postEventBatch = useCallback(
     async (batch: PendingActivityEventBatch) => {
@@ -1038,29 +1194,37 @@ export default function DocumentEditorPage() {
 
       const shouldUseKeepalive =
         containsWorkspaceLifecycleEvent(batch.events) ||
-        (typeof window !== 'undefined' && window.document.visibilityState === 'hidden');
+        (typeof window !== 'undefined' &&
+          window.document.visibilityState === 'hidden');
 
       if (shouldUseKeepalive && typeof fetch === 'function') {
         const { token, body } = buildEventBatchPayload(batch);
-        const response = await fetch(`${API_URL}/documents/${documentId}/events`, {
-          method: 'POST',
-          keepalive: true,
-          credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-          body,
-        });
+        const response = await fetch(
+          `${API_URL}/documents/${documentId}/events`,
+          {
+            method: 'POST',
+            keepalive: true,
+            credentials: 'include',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+            body,
+          }
+        );
 
         if (!response.ok) {
-          throw new Error(`Failed to track workspace lifecycle events: ${response.status}`);
+          throw new Error(
+            `Failed to track workspace lifecycle events: ${response.status}`
+          );
         }
         return;
       }
 
       await waitForDocumentScopedAccessTokenReady(documentId);
-      await trackEvents(batch.events as any, batch.sessionId, { throwOnError: true });
+      await trackEvents(batch.events as any, batch.sessionId, {
+        throwOnError: true,
+      });
     },
     [buildEventBatchPayload, documentId, isDemoDocument, trackEvents]
   );
@@ -1115,18 +1279,33 @@ export default function DocumentEditorPage() {
   const handleEventsBuffer = async (events: TrackedEvent[]) => {
     const currentSessionId = getCurrentActivitySessionId();
     const mappedEvents = mapTrackedEventsForWrite(events, currentSessionId);
-    await enqueueEventWrite(mappedEvents, currentSessionId, { retainOnFailure: false });
+    await enqueueEventWrite(mappedEvents, currentSessionId, {
+      retainOnFailure: false,
+    });
   };
 
-  const handleEmergencyEventsBuffer = useCallback((events: TrackedEvent[]) => {
-    const currentSessionId = getCurrentActivitySessionId();
-    const mappedEvents = mapTrackedEventsForWrite(events, currentSessionId);
-    return sendEmergencyEventBatch({ events: mappedEvents, sessionId: currentSessionId });
-  }, [getCurrentActivitySessionId, mapTrackedEventsForWrite, sendEmergencyEventBatch]);
+  const handleEmergencyEventsBuffer = useCallback(
+    (events: TrackedEvent[]) => {
+      const currentSessionId = getCurrentActivitySessionId();
+      const mappedEvents = mapTrackedEventsForWrite(events, currentSessionId);
+      return sendEmergencyEventBatch({
+        events: mappedEvents,
+        sessionId: currentSessionId,
+      });
+    },
+    [
+      getCurrentActivitySessionId,
+      mapTrackedEventsForWrite,
+      sendEmergencyEventBatch,
+    ]
+  );
 
-  const handleEventFlushReady = useCallback((flushPendingEvents: (() => Promise<void>) | null) => {
-    flushEditorEventsRef.current = flushPendingEvents;
-  }, []);
+  const handleEventFlushReady = useCallback(
+    (flushPendingEvents: (() => Promise<void>) | null) => {
+      flushEditorEventsRef.current = flushPendingEvents;
+    },
+    []
+  );
 
   const flushActivityLogWrites = useCallback(async () => {
     await flushEditorEventsRef.current?.();
@@ -1142,18 +1321,19 @@ export default function DocumentEditorPage() {
     });
   }, [toast]);
 
-  const syncActivityLogsForAuditAction = useCallback(async (): Promise<boolean> => {
-    setIsSyncingActivityLogs(true);
-    try {
-      await flushActivityLogWrites();
-      return true;
-    } catch (error) {
-      showActivityLogSaveError();
-      return false;
-    } finally {
-      setIsSyncingActivityLogs(false);
-    }
-  }, [flushActivityLogWrites, showActivityLogSaveError]);
+  const syncActivityLogsForAuditAction =
+    useCallback(async (): Promise<boolean> => {
+      setIsSyncingActivityLogs(true);
+      try {
+        await flushActivityLogWrites();
+        return true;
+      } catch (error) {
+        showActivityLogSaveError();
+        return false;
+      } finally {
+        setIsSyncingActivityLogs(false);
+      }
+    }, [flushActivityLogWrites, showActivityLogSaveError]);
 
   const handleViewLogs = useCallback(async () => {
     const destination = `/logs/${documentId}${isDemoDocument ? '?demo=1' : ''}`;
@@ -1161,7 +1341,9 @@ export default function DocumentEditorPage() {
 
     try {
       await flushActivityLogWrites();
-      await markWorkspaceExitRef.current?.('view_logs_navigation', { destination });
+      await markWorkspaceExitRef.current?.('view_logs_navigation', {
+        destination,
+      });
       await pendingEventWriteRef.current;
       await retryFailedEventBatches();
       router.push(destination);
@@ -1170,17 +1352,30 @@ export default function DocumentEditorPage() {
     } finally {
       setIsSyncingActivityLogs(false);
     }
-  }, [documentId, flushActivityLogWrites, isDemoDocument, retryFailedEventBatches, router, showActivityLogSaveError]);
+  }, [
+    documentId,
+    flushActivityLogWrites,
+    isDemoDocument,
+    retryFailedEventBatches,
+    router,
+    showActivityLogSaveError,
+  ]);
 
-  const handleWorkspaceExitReady = useCallback((markWorkspaceExit: WorkspaceExitMarker | null) => {
-    markWorkspaceExitRef.current = markWorkspaceExit;
-  }, []);
+  const handleWorkspaceExitReady = useCallback(
+    (markWorkspaceExit: WorkspaceExitMarker | null) => {
+      markWorkspaceExitRef.current = markWorkspaceExit;
+    },
+    []
+  );
 
   const openPanelWithQuote = useAIStore((state) => state.openPanelWithQuote);
-  const handleAskAI = useCallback((selectedText: string) => {
-    if (!aiChatEnabled) return;
-    openPanelWithQuote(selectedText);
-  }, [aiChatEnabled, openPanelWithQuote]);
+  const handleAskAI = useCallback(
+    (selectedText: string) => {
+      if (!aiChatEnabled) return;
+      openPanelWithQuote(selectedText);
+    },
+    [aiChatEnabled, openPanelWithQuote]
+  );
 
   const handleEditorInsertAtCursorChange = useCallback(
     (insertAtCursor: EditorAIBridgeAPI['insertAtCursor'] | null) => {
@@ -1190,10 +1385,7 @@ export default function DocumentEditorPage() {
   );
 
   const handleInsertAssistantMessage = useCallback(
-    async (
-      text: string,
-      source: { messageId: string; logId?: string }
-    ) => {
+    async (text: string, source: { messageId: string; logId?: string }) => {
       if (!editorInsertAtCursor) {
         toast({
           title: 'Editor unavailable',
@@ -1203,7 +1395,9 @@ export default function DocumentEditorPage() {
         return;
       }
 
-      const insertion = editorInsertAtCursor(text, { suppressTextChangeTracking: true });
+      const insertion = editorInsertAtCursor(text, {
+        suppressTextChangeTracking: true,
+      });
       if (insertion.inserted === false) return;
       const currentSessionId =
         submissionSessionRef.current?.sessionId ||
@@ -1227,7 +1421,9 @@ export default function DocumentEditorPage() {
         },
       };
 
-      void enqueueEventWrite([event as any], currentSessionId, { retainOnFailure: true }).catch(() => undefined);
+      void enqueueEventWrite([event as any], currentSessionId, {
+        retainOnFailure: true,
+      }).catch(() => undefined);
       toast({ title: 'Inserted into document' });
     },
     [editorInsertAtCursor, enqueueEventWrite, submissionSessionId, toast]
@@ -1243,21 +1439,26 @@ export default function DocumentEditorPage() {
         metadata,
       };
 
-      void enqueueEventWrite([event as any], currentSessionId, { retainOnFailure: true }).catch(() => undefined);
+      void enqueueEventWrite([event as any], currentSessionId, {
+        retainOnFailure: true,
+      }).catch(() => undefined);
     },
     [enqueueEventWrite, getCurrentActivitySessionId]
   );
 
-  const handleCharacterLimitReached = useCallback((limit: number) => {
-    const now = Date.now();
-    if (now - lastCharacterLimitToastRef.current < 1200) return;
-    lastCharacterLimitToastRef.current = now;
+  const handleCharacterLimitReached = useCallback(
+    (limit: number) => {
+      const now = Date.now();
+      if (now - lastCharacterLimitToastRef.current < 1200) return;
+      lastCharacterLimitToastRef.current = now;
 
-    toast({
-      title: 'Maximum length reached',
-      description: `This document is limited to ${limit.toLocaleString()} characters.`,
-    });
-  }, [toast]);
+      toast({
+        title: 'Maximum length reached',
+        description: `This document is limited to ${limit.toLocaleString()} characters.`,
+      });
+    },
+    [toast]
+  );
 
   const handleAISelectionAction = useCallback(
     async (
@@ -1267,7 +1468,11 @@ export default function DocumentEditorPage() {
       replacementResult?: SelectionReplacementResult
     ) => {
       const event = {
-        sessionId: submissionSessionRef.current?.sessionId || lastSubmissionSessionRef.current?.sessionId || submissionSessionId || undefined,
+        sessionId:
+          submissionSessionRef.current?.sessionId ||
+          lastSubmissionSessionRef.current?.sessionId ||
+          submissionSessionId ||
+          undefined,
         eventType: 'ai_selection_action',
         timestamp: new Date(),
         textBefore: originalText,
@@ -1288,27 +1493,41 @@ export default function DocumentEditorPage() {
     [enqueueEventWrite, submissionSessionId]
   );
 
-  const validateCharacterBounds = useCallback((actionLabel: string): boolean => {
-    if (minimumSubmissionCharacters && characterCount < minimumSubmissionCharacters) {
-      toast({
-        title: 'Minimum length required',
-        description: `Write at least ${minimumSubmissionCharacters.toLocaleString()} characters before ${actionLabel}. Current length: ${characterCount.toLocaleString()} characters.`,
-        variant: 'destructive',
-      });
-      return false;
-    }
+  const validateCharacterBounds = useCallback(
+    (actionLabel: string): boolean => {
+      if (
+        minimumSubmissionCharacters &&
+        characterCount < minimumSubmissionCharacters
+      ) {
+        toast({
+          title: 'Minimum length required',
+          description: `Write at least ${minimumSubmissionCharacters.toLocaleString()} characters before ${actionLabel}. Current length: ${characterCount.toLocaleString()} characters.`,
+          variant: 'destructive',
+        });
+        return false;
+      }
 
-    if (maximumSubmissionCharacters && characterCount > maximumSubmissionCharacters) {
-      toast({
-        title: 'Maximum length exceeded',
-        description: `Keep the submission at most ${maximumSubmissionCharacters.toLocaleString()} characters before ${actionLabel}. Current length: ${characterCount.toLocaleString()} characters.`,
-        variant: 'destructive',
-      });
-      return false;
-    }
+      if (
+        maximumSubmissionCharacters &&
+        characterCount > maximumSubmissionCharacters
+      ) {
+        toast({
+          title: 'Maximum length exceeded',
+          description: `Keep the submission at most ${maximumSubmissionCharacters.toLocaleString()} characters before ${actionLabel}. Current length: ${characterCount.toLocaleString()} characters.`,
+          variant: 'destructive',
+        });
+        return false;
+      }
 
-    return true;
-  }, [characterCount, maximumSubmissionCharacters, minimumSubmissionCharacters, toast]);
+      return true;
+    },
+    [
+      characterCount,
+      maximumSubmissionCharacters,
+      minimumSubmissionCharacters,
+      toast,
+    ]
+  );
 
   const handleGenerateCertificate = async () => {
     if (!validateCharacterBounds('generating a certificate')) return;
@@ -1327,7 +1546,10 @@ export default function DocumentEditorPage() {
         if (!certificate) {
           throw new Error('Demo certificate could not be generated');
         }
-        toast({ title: 'Success', description: 'Demo certificate preview generated locally' });
+        toast({
+          title: 'Success',
+          description: 'Demo certificate preview generated locally',
+        });
         router.push(`/certificates/${certificate.id}?demo=1`);
         return;
       }
@@ -1337,12 +1559,19 @@ export default function DocumentEditorPage() {
         includeFullText: true,
         includeEditHistory: true,
       });
-      const publicDocumentAccessToken = TokenManager.getPublicDocumentAccessToken(documentId);
+      const publicDocumentAccessToken =
+        TokenManager.getPublicDocumentAccessToken(documentId);
       if (certificate?.id && publicDocumentAccessToken) {
-        TokenManager.setPublicCertificateAccessToken(certificate.id, publicDocumentAccessToken);
+        TokenManager.setPublicCertificateAccessToken(
+          certificate.id,
+          publicDocumentAccessToken
+        );
       }
 
-      toast({ title: 'Success', description: 'Certificate generated successfully' });
+      toast({
+        title: 'Success',
+        description: 'Certificate generated successfully',
+      });
       router.push(`/certificates/${certificate.id}`);
     } catch (err: any) {
       toast({
@@ -1355,56 +1584,74 @@ export default function DocumentEditorPage() {
     }
   };
 
-  const handleSubmitTask = useCallback(async (options: { automatic?: boolean } = {}) => {
-    if (!taskEnrollment) return;
+  const handleSubmitTask = useCallback(
+    async (options: { automatic?: boolean } = {}) => {
+      if (!taskEnrollment) return;
 
-    if (!options.automatic && !validateCharacterBounds('submitting')) return;
+      if (!options.automatic && !validateCharacterBounds('submitting')) return;
 
-    try {
-      setIsSubmittingTask(true);
-      await waitForDocumentScopedAccessTokenReady(documentId);
+      try {
+        setIsSubmittingTask(true);
+        await waitForDocumentScopedAccessTokenReady(documentId);
 
-      const activityLogsSynced = await syncActivityLogsForAuditAction();
-      if (!activityLogsSynced) return;
+        const activityLogsSynced = await syncActivityLogsForAuditAction();
+        if (!activityLogsSynced) return;
 
-      if (latestEditorSnapshotRef.current) {
-        await updateDocument(
-          latestEditorSnapshotRef.current.content,
-          latestEditorSnapshotRef.current.plainText
+        if (latestEditorSnapshotRef.current) {
+          await updateDocument(
+            latestEditorSnapshotRef.current.content,
+            latestEditorSnapshotRef.current.plainText
+          );
+        }
+        const response = await apiClient.post(
+          `/tasks/enrollments/${taskEnrollment.id}/submissions`,
+          {
+            documentId,
+            ...(options.automatic ? { automatic: true } : {}),
+          },
+          getPublicDocumentAuthConfig(documentId)
         );
+        const certificate = response.data.data?.certificate;
+        const publicDocumentAccessToken =
+          TokenManager.getPublicDocumentAccessToken(documentId);
+        if (certificate?.id && publicDocumentAccessToken) {
+          TokenManager.setPublicCertificateAccessToken(
+            certificate.id,
+            publicDocumentAccessToken
+          );
+        }
+        toast({
+          title: options.automatic ? 'Auto-submitted' : 'Submitted',
+          description: options.automatic
+            ? 'Time expired, so your assigned task and certificate were created automatically.'
+            : 'Your assigned task and certificate were created.',
+        });
+        if (certificate?.id && !options.automatic) {
+          router.push(`/certificates/${certificate.id}`);
+        }
+      } catch (err: any) {
+        toast({
+          title: 'Submission failed',
+          description:
+            err.response?.data?.message ||
+            err.message ||
+            'Failed to submit task',
+          variant: 'destructive',
+        });
+      } finally {
+        setIsSubmittingTask(false);
       }
-      const response = await apiClient.post(
-        `/tasks/enrollments/${taskEnrollment.id}/submissions`,
-        {
-          documentId,
-          ...(options.automatic ? { automatic: true } : {}),
-        },
-        getPublicDocumentAuthConfig(documentId)
-      );
-      const certificate = response.data.data?.certificate;
-      const publicDocumentAccessToken = TokenManager.getPublicDocumentAccessToken(documentId);
-      if (certificate?.id && publicDocumentAccessToken) {
-        TokenManager.setPublicCertificateAccessToken(certificate.id, publicDocumentAccessToken);
-      }
-      toast({
-        title: options.automatic ? 'Auto-submitted' : 'Submitted',
-        description: options.automatic
-          ? 'Time expired, so your assigned task and certificate were created automatically.'
-          : 'Your assigned task and certificate were created.',
-      });
-      if (certificate?.id && !options.automatic) {
-        router.push(`/certificates/${certificate.id}`);
-      }
-    } catch (err: any) {
-      toast({
-        title: 'Submission failed',
-        description: err.response?.data?.message || err.message || 'Failed to submit task',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsSubmittingTask(false);
-    }
-  }, [documentId, router, syncActivityLogsForAuditAction, taskEnrollment, toast, updateDocument, validateCharacterBounds]);
+    },
+    [
+      documentId,
+      router,
+      syncActivityLogsForAuditAction,
+      taskEnrollment,
+      toast,
+      updateDocument,
+      validateCharacterBounds,
+    ]
+  );
 
   useEffect(() => {
     if (!isTimeLimitExpired || !taskEnrollment || isSubmittingTask) return;
@@ -1414,7 +1661,14 @@ export default function DocumentEditorPage() {
 
     autoSubmittedTimeLimitRef.current = autoSubmitKey;
     void handleSubmitTask({ automatic: true });
-  }, [documentId, handleSubmitTask, isSubmittingTask, isTimeLimitExpired, taskEnrollment, timerStartedAtMs]);
+  }, [
+    documentId,
+    handleSubmitTask,
+    isSubmittingTask,
+    isTimeLimitExpired,
+    taskEnrollment,
+    timerStartedAtMs,
+  ]);
 
   if (isLoading || isTaskEnrollmentLoading) {
     return (
@@ -1431,10 +1685,16 @@ export default function DocumentEditorPage() {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-center">
-          <p className="text-destructive">{error || taskAccessError || 'Document not found'}</p>
+          <p className="text-destructive">
+            {error || taskAccessError || 'Document not found'}
+          </p>
           {!isGuestDocumentContext && (
             <Button
-              onClick={() => router.push(isDemoDocument ? '/documents/new?demo=1' : '/documents')}
+              onClick={() =>
+                router.push(
+                  isDemoDocument ? '/documents/new?demo=1' : '/documents'
+                )
+              }
               variant="ghost"
               className="mt-4 px-2 text-muted-foreground hover:bg-transparent hover:text-foreground"
             >
@@ -1449,23 +1709,32 @@ export default function DocumentEditorPage() {
 
   const CANVAS = 'mx-auto w-full max-w-[2400px] px-3 sm:px-4';
   const hydratedInstructionFiles = taskEnrollment?.instructionFiles || [];
-  const displayInstructionFiles = taskInstructionFiles.length > 0
-    ? taskInstructionFiles
-    : hydratedInstructionFiles;
+  const displayInstructionFiles =
+    taskInstructionFiles.length > 0
+      ? taskInstructionFiles
+      : hydratedInstructionFiles;
   const selectedInstructionFile =
-    displayInstructionFiles.find((file) => file.id === selectedInstructionFileId) ||
+    displayInstructionFiles.find(
+      (file) => file.id === selectedInstructionFileId
+    ) ||
     taskInstructionFile ||
     taskEnrollment?.instructionFile ||
     displayInstructionFiles[0] ||
     null;
   const displayFile = selectedInstructionFile || linkedFile;
-  const demoPdfPreviewUrl = isDemoDocument && displayFile?.storageProvider === 'browser-local'
-    ? displayFile.storageKey || undefined
-    : undefined;
-  const isPdfPanelPending = !displayFile && Boolean(taskEnrollment && isTaskInstructionFilesLoading);
+  const demoPdfPreviewUrl =
+    isDemoDocument && displayFile?.storageProvider === 'browser-local'
+      ? displayFile.storageKey || undefined
+      : undefined;
+  const isPdfPanelPending =
+    !displayFile && Boolean(taskEnrollment && isTaskInstructionFilesLoading);
   const hasPdfPanel = Boolean(displayFile) || isPdfPanelPending;
-  const isResourceViewOnly = normalizeResourceAccessPolicy(currentEnvironmentConfig.resourceAccess) === 'view-only';
-  const lockedAiModel = currentEnvironmentConfig.allowedModels?.[0] || (isEnvironmentManagedDocument ? 'Task model' : undefined);
+  const isResourceViewOnly =
+    normalizeResourceAccessPolicy(currentEnvironmentConfig.resourceAccess) ===
+    'view-only';
+  const lockedAiModel =
+    currentEnvironmentConfig.allowedModels?.[0] ||
+    (isEnvironmentManagedDocument ? 'Task model' : undefined);
   const lockedAiBaseUrl = currentEnvironmentConfig.aiProvider?.baseUrl;
   const aiRequestLimit =
     currentEnvironmentConfig.aiUsageLimit.mode === 'max_requests' &&
@@ -1474,11 +1743,19 @@ export default function DocumentEditorPage() {
       : null;
 
   const handleExportConfig = (format: EnvironmentConfigFileFormat) => {
-    const configForExport = enrichEnvironmentConfigForExport(currentEnvironmentConfig);
-    const { content, contentType } = serializeEnvironmentConfig(configForExport, format);
+    const configForExport = enrichEnvironmentConfigForExport(
+      currentEnvironmentConfig
+    );
+    const { content, contentType } = serializeEnvironmentConfig(
+      configForExport,
+      format
+    );
     const blob = new Blob([content], { type: contentType });
 
-    downloadBlob(blob, buildEnvironmentConfigFilename(title || 'document', format));
+    downloadBlob(
+      blob,
+      buildEnvironmentConfigFilename(title || 'document', format)
+    );
   };
 
   const effectiveSaveStatus: SaveStatus = isSaving ? 'saving' : saveStatus;
@@ -1493,11 +1770,15 @@ export default function DocumentEditorPage() {
               {!isPublicTaskGuestDocument && (
                 <Button
                   variant="ghost"
-	                  size="icon"
-	                  className="-ml-2 text-muted-foreground hover:bg-transparent hover:text-foreground"
-	                  aria-label="Back to Documents"
-	                  onClick={() => router.push(isDemoDocument ? '/documents/new?demo=1' : '/documents')}
-	                >
+                  size="icon"
+                  className="-ml-2 text-muted-foreground hover:bg-transparent hover:text-foreground"
+                  aria-label="Back to Documents"
+                  onClick={() =>
+                    router.push(
+                      isDemoDocument ? '/documents/new?demo=1' : '/documents'
+                    )
+                  }
+                >
                   <ArrowLeft className="h-4 w-4" />
                 </Button>
               )}
@@ -1531,7 +1812,11 @@ export default function DocumentEditorPage() {
                           ? 'cursor-default'
                           : 'cursor-pointer hover:text-muted-foreground'
                       }`}
-                      onClick={isTaskDocument ? undefined : () => setIsTitleEditing(true)}
+                      onClick={
+                        isTaskDocument
+                          ? undefined
+                          : () => setIsTitleEditing(true)
+                      }
                       title={title || 'Untitled Document'}
                     >
                       {title || 'Untitled Document'}
@@ -1539,16 +1824,21 @@ export default function DocumentEditorPage() {
                     <SaveStatusIndicator status={effectiveSaveStatus} />
                   </div>
                 )}
-                {taskEnrollment && (taskEnrollment.startDate || taskEnrollment.endDate) && (
-                  <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                    {taskEnrollment.startDate && (
-                      <span>Starts {formatDateTime(taskEnrollment.startDate)}</span>
-                    )}
-                    {taskEnrollment.endDate && (
-                      <span>Deadline {formatDateTime(taskEnrollment.endDate)}</span>
-                    )}
-                  </div>
-                )}
+                {taskEnrollment &&
+                  (taskEnrollment.startDate || taskEnrollment.endDate) && (
+                    <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                      {taskEnrollment.startDate && (
+                        <span>
+                          Starts {formatDateTime(taskEnrollment.startDate)}
+                        </span>
+                      )}
+                      {taskEnrollment.endDate && (
+                        <span>
+                          Deadline {formatDateTime(taskEnrollment.endDate)}
+                        </span>
+                      )}
+                    </div>
+                  )}
                 {visibleCountdown && (
                   <Badge
                     variant={visibleCountdown.variant}
@@ -1557,7 +1847,9 @@ export default function DocumentEditorPage() {
                   >
                     <Clock className="h-3.5 w-3.5 shrink-0" />
                     <span>{visibleCountdown.label}</span>
-                    <span className=" font-semibold">{visibleCountdown.value}</span>
+                    <span className=" font-semibold">
+                      {visibleCountdown.value}
+                    </span>
                   </Badge>
                 )}
               </div>
@@ -1598,7 +1890,10 @@ export default function DocumentEditorPage() {
               )}
 
               {aiChatEnabled && (
-                <AIAssistantButton isOpen={isAIPanelOpen} onClick={toggleAIPanel} />
+                <AIAssistantButton
+                  isOpen={isAIPanelOpen}
+                  onClick={toggleAIPanel}
+                />
               )}
 
               <Button
@@ -1606,7 +1901,7 @@ export default function DocumentEditorPage() {
                 size="sm"
                 onClick={handleViewLogs}
                 disabled={isSyncingActivityLogs}
-                className="sm:size-default"
+                className="border-[#9E756B] bg-[#9E756B] text-white hover:border-[#8F685F] hover:bg-[#8F685F] hover:text-white sm:size-default"
               >
                 {isSyncingActivityLogs ? (
                   <>
@@ -1635,10 +1930,14 @@ export default function DocumentEditorPage() {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => handleExportConfig('json')}>
+                    <DropdownMenuItem
+                      onClick={() => handleExportConfig('json')}
+                    >
                       Export as JSON
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleExportConfig('yaml')}>
+                    <DropdownMenuItem
+                      onClick={() => handleExportConfig('yaml')}
+                    >
                       Export as YAML
                     </DropdownMenuItem>
                   </DropdownMenuContent>
@@ -1656,7 +1955,9 @@ export default function DocumentEditorPage() {
                     <>
                       <Clock className="h-4 w-4 sm:mr-2 animate-spin" />
                       <span className="hidden sm:inline">
-                        {isSyncingActivityLogs ? 'Saving activity...' : 'Submitting...'}
+                        {isSyncingActivityLogs
+                          ? 'Saving activity...'
+                          : 'Submitting...'}
                       </span>
                     </>
                   ) : (
@@ -1681,7 +1982,9 @@ export default function DocumentEditorPage() {
                   ) : (
                     <>
                       <Award className="h-4 w-4 sm:mr-2" />
-                      <span className="hidden sm:inline">Generate Certificate</span>
+                      <span className="hidden sm:inline">
+                        Generate Certificate
+                      </span>
                     </>
                   )}
                 </Button>
@@ -1695,7 +1998,10 @@ export default function DocumentEditorPage() {
       <div className="flex-1 overflow-hidden">
         <div className={`${CANVAS} h-full py-3`}>
           {/* ✅ Resizable like Overleaf */}
-          <ResizablePanelGroup direction="horizontal" className="h-full w-full overflow-hidden rounded-lg border border-border/80 bg-card">
+          <ResizablePanelGroup
+            direction="horizontal"
+            className="h-full w-full overflow-hidden rounded-lg border border-border/80 bg-card"
+          >
             {/* PDF */}
             {hasPdfPanel ? (
               <ResizablePanel defaultSize={38} minSize={22}>
@@ -1707,27 +2013,35 @@ export default function DocumentEditorPage() {
                           <Button
                             key={file.id}
                             type="button"
-                            variant={file.id === selectedInstructionFile?.id ? 'default' : 'outline'}
+                            variant={
+                              file.id === selectedInstructionFile?.id
+                                ? 'default'
+                                : 'outline'
+                            }
                             size="sm"
                             className="max-w-[240px] shrink-0 justify-start truncate"
                             title={file.title}
-                            onClick={() => setSelectedInstructionFileId(file.id)}
+                            onClick={() =>
+                              setSelectedInstructionFileId(file.id)
+                            }
                           >
-                            <span className="truncate">{file.title || `File ${index + 1}`}</span>
+                            <span className="truncate">
+                              {file.title || `File ${index + 1}`}
+                            </span>
                           </Button>
                         ))}
                       </div>
                     </div>
                   ) : null}
                   <div className="min-h-0 flex-1 overflow-hidden">
-	                    {displayFile ? (
-	                      <PDFViewer
-	                        key={displayFile.id}
-	                        fileId={demoPdfPreviewUrl ? undefined : displayFile.id}
-	                        documentId={documentId}
-	                        previewUrl={demoPdfPreviewUrl}
-	                        viewOnly={isResourceViewOnly}
-	                      />
+                    {displayFile ? (
+                      <PDFViewer
+                        key={displayFile.id}
+                        fileId={demoPdfPreviewUrl ? undefined : displayFile.id}
+                        documentId={documentId}
+                        previewUrl={demoPdfPreviewUrl}
+                        viewOnly={isResourceViewOnly}
+                      />
                     ) : (
                       <div className="flex h-full items-center justify-center bg-muted/30">
                         <div className="flex flex-col items-center gap-3 text-sm text-muted-foreground">
@@ -1745,16 +2059,28 @@ export default function DocumentEditorPage() {
 
             {/* Editor */}
             <ResizablePanel
-              defaultSize={hasPdfPanel ? (isAIPanelVisible ? 37 : 62) : (isAIPanelVisible ? 70 : 100)}
+              defaultSize={
+                hasPdfPanel
+                  ? isAIPanelVisible
+                    ? 37
+                    : 62
+                  : isAIPanelVisible
+                    ? 70
+                    : 100
+              }
               minSize={30}
             >
               <div className="h-full overflow-auto bg-background">
-                <div className={`${hasPdfPanel || isAIPanelVisible ? 'px-4 py-4' : 'px-6 py-6'} h-full`}>
+                <div
+                  className={`${hasPdfPanel || isAIPanelVisible ? 'px-4 py-4' : 'px-6 py-6'} h-full`}
+                >
                   {!hasPdfPanel && (
                     <div className="mb-4 rounded-lg border border-dashed border-border/80 bg-muted/30 p-4">
                       <div>
                         <div>
-                          <h2 className="text-sm font-semibold">No PDF linked</h2>
+                          <h2 className="text-sm font-semibold">
+                            No PDF linked
+                          </h2>
                           <p className="text-sm text-muted-foreground">
                             {taskEnrollment
                               ? 'This assigned task does not have an instruction PDF.'
@@ -1768,8 +2094,11 @@ export default function DocumentEditorPage() {
                     <div className="mb-4 rounded-lg border border-border/70 bg-muted/40 p-4 text-sm text-muted-foreground">
                       {taskLifecycleReadOnlyMessage || (
                         <>
-                          The writing time limit has ended. This document is now read-only.
-                          {taskEnrollment ? ' Humanly is submitting the task automatically.' : null}
+                          The writing time limit has ended. This document is now
+                          read-only.
+                          {taskEnrollment
+                            ? ' Humanly is submitting the task automatically.'
+                            : null}
                         </>
                       )}
                     </div>
@@ -1778,7 +2107,11 @@ export default function DocumentEditorPage() {
                     documentId={documentId}
                     userId={user?.id}
                     initialContent={editorInitialContent}
-                    placeholder={hasPdfPanel ? 'Start writing with your PDF open...' : 'Start typing your document...'}
+                    placeholder={
+                      hasPdfPanel
+                        ? 'Start writing with your PDF open...'
+                        : 'Start typing your document...'
+                    }
                     editable={!isEditorReadOnly}
                     trackingEnabled={!isEditorReadOnly}
                     copyPastePolicy={currentEnvironmentConfig.copyPastePolicy}
@@ -1795,33 +2128,49 @@ export default function DocumentEditorPage() {
                     trackingFlushInterval={EDITOR_EVENT_FLUSH_INTERVAL_MS}
                     onAutoSave={handleAutoSave}
                     className="h-full"
-                    renderSelectionPopup={aiEnabled && !isEditorReadOnly ? ({ selection, onClose, replaceSelection, cancelAIAction, undoLastAction }) => (
-                      <AISelectionMenu
-                        documentId={documentId}
-                        selection={selection}
-                        onClose={onClose}
-                        replaceSelection={replaceSelection}
-                        cancelAIAction={cancelAIAction}
-                        undoLastAction={undoLastAction}
-                        onActionApplied={handleAISelectionAction}
-                        onAskAI={(text) => {
-                          onClose();
-                          handleAskAI(text);
-                        }}
-                        taskManaged={isEnvironmentManagedDocument}
-                        getDocumentPlainText={() => document?.plainText || ''}
-                        documentTitle={document?.title || ''}
-                        registerActionTrigger={(trigger) => {
-                          quickActionTriggerRef.current = trigger;
-                        }}
-                        allowPolishActions={aiPolishEnabled}
-                        allowAskAI={aiChatEnabled}
-                      />
-                    ) : undefined}
+                    renderSelectionPopup={
+                      aiEnabled && !isEditorReadOnly
+                        ? ({
+                            selection,
+                            onClose,
+                            replaceSelection,
+                            cancelAIAction,
+                            undoLastAction,
+                          }) => (
+                            <AISelectionMenu
+                              documentId={documentId}
+                              selection={selection}
+                              onClose={onClose}
+                              replaceSelection={replaceSelection}
+                              cancelAIAction={cancelAIAction}
+                              undoLastAction={undoLastAction}
+                              onActionApplied={handleAISelectionAction}
+                              onAskAI={(text) => {
+                                onClose();
+                                handleAskAI(text);
+                              }}
+                              taskManaged={isEnvironmentManagedDocument}
+                              getDocumentPlainText={() =>
+                                document?.plainText || ''
+                              }
+                              documentTitle={document?.title || ''}
+                              registerActionTrigger={(trigger) => {
+                                quickActionTriggerRef.current = trigger;
+                              }}
+                              allowPolishActions={aiPolishEnabled}
+                              allowAskAI={aiChatEnabled}
+                            />
+                          )
+                        : undefined
+                    }
                     renderAIBridge={({ insertAtCursor }) => (
                       <EditorAIBridgeCapture
-                        insertAtCursor={isEditorReadOnly ? null : insertAtCursor}
-                        onInsertAtCursorChange={handleEditorInsertAtCursorChange}
+                        insertAtCursor={
+                          isEditorReadOnly ? null : insertAtCursor
+                        }
+                        onInsertAtCursorChange={
+                          handleEditorInsertAtCursorChange
+                        }
                       />
                     )}
                   />
@@ -1843,7 +2192,11 @@ export default function DocumentEditorPage() {
                       lockedBaseUrl={lockedAiBaseUrl}
                       pdfContextFile={displayFile}
                       aiRequestLimit={aiRequestLimit}
-                      insertAtCursor={!isEditorReadOnly && editorInsertAtCursor ? handleInsertAssistantMessage : null}
+                      insertAtCursor={
+                        !isEditorReadOnly && editorInsertAtCursor
+                          ? handleInsertAssistantMessage
+                          : null
+                      }
                       onAIChatCopy={handleAIChatCopy}
                     />
                   </div>

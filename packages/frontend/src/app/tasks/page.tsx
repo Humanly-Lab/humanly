@@ -7,7 +7,14 @@ import api, { ApiError } from '@/lib/api-client';
 import { buildTaskShareUrl } from '@/lib/certificate-url';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -32,7 +39,10 @@ import {
   LayoutGrid,
   List,
 } from 'lucide-react';
-import type { AdminTaskDashboardResponse, TaskDashboardSort } from '@humanly/shared';
+import type {
+  AdminTaskDashboardResponse,
+  TaskDashboardSort,
+} from '@humanly/shared';
 import { useToast } from '@/components/ui/use-toast';
 import { TaskCard, TASK_LIST_GRID_CLASS } from './_components/task-card';
 import {
@@ -57,9 +67,8 @@ const TASK_SORT_API_VALUES: Record<TaskSortOption, TaskDashboardSort> = {
   name: 'name:asc',
 };
 
-const isTaskViewMode = (value: string | null): value is TaskViewMode => (
-  value === 'cards' || value === 'list'
-);
+const isTaskViewMode = (value: string | null): value is TaskViewMode =>
+  value === 'cards' || value === 'list';
 
 /**
  * Tasks list page component
@@ -87,10 +96,18 @@ export default function TasksPage() {
     archived: 0,
   });
   const [deletingTaskId, setDeletingTaskId] = useState<string | null>(null);
-  const [changingActiveStateTaskId, setChangingActiveStateTaskId] = useState<string | null>(null);
-  const [changingLifecycleTaskId, setChangingLifecycleTaskId] = useState<string | null>(null);
-  const [duplicatingTaskId, setDuplicatingTaskId] = useState<string | null>(null);
-  const [openOptionsTaskId, setOpenOptionsTaskId] = useState<string | null>(null);
+  const [changingActiveStateTaskId, setChangingActiveStateTaskId] = useState<
+    string | null
+  >(null);
+  const [changingLifecycleTaskId, setChangingLifecycleTaskId] = useState<
+    string | null
+  >(null);
+  const [duplicatingTaskId, setDuplicatingTaskId] = useState<string | null>(
+    null
+  );
+  const [openOptionsTaskId, setOpenOptionsTaskId] = useState<string | null>(
+    null
+  );
   const [dashboardNowMs, setDashboardNowMs] = useState(() => Date.now());
   const [taskViewMode, setTaskViewMode] = useState<TaskViewMode>('cards');
   const [taskSortBy, setTaskSortBy] = useState<TaskSortOption>('createdAt');
@@ -99,7 +116,9 @@ export default function TasksPage() {
   const itemsPerPage = 9; // 3x3 grid
 
   useEffect(() => {
-    const storedViewMode = window.localStorage.getItem(TASK_VIEW_MODE_STORAGE_KEY);
+    const storedViewMode = window.localStorage.getItem(
+      TASK_VIEW_MODE_STORAGE_KEY
+    );
     if (isTaskViewMode(storedViewMode)) {
       setTaskViewMode(storedViewMode);
     }
@@ -110,52 +129,60 @@ export default function TasksPage() {
     window.localStorage.setItem(TASK_VIEW_MODE_STORAGE_KEY, nextViewMode);
   }, []);
 
-  const fetchTasks = useCallback(async (overrides: {
-    page?: number;
-    status?: TaskDashboardTab;
-    search?: string;
-    sortBy?: TaskSortOption;
-  } = {}) => {
-    const pageToFetch = overrides.page ?? currentPage;
-    const statusToFetch = overrides.status ?? activeTab;
-    const searchToFetch = overrides.search ?? debouncedSearchQuery;
-    const sortByToFetch = overrides.sortBy ?? taskSortBy;
+  const fetchTasks = useCallback(
+    async (
+      overrides: {
+        page?: number;
+        status?: TaskDashboardTab;
+        search?: string;
+        sortBy?: TaskSortOption;
+      } = {}
+    ) => {
+      const pageToFetch = overrides.page ?? currentPage;
+      const statusToFetch = overrides.status ?? activeTab;
+      const searchToFetch = overrides.search ?? debouncedSearchQuery;
+      const sortByToFetch = overrides.sortBy ?? taskSortBy;
 
-    try {
-      setIsLoading(true);
-      setError(null);
+      try {
+        setIsLoading(true);
+        setError(null);
 
-      const response = await api.get<{
-        success: boolean;
-        data: AdminTaskDashboardResponse;
-      }>('/api/v1/tasks/dashboard', {
-        params: {
-          status: statusToFetch,
-          page: pageToFetch,
-          limit: itemsPerPage,
-          search: searchToFetch || undefined,
-          sort: TASK_SORT_API_VALUES[sortByToFetch],
-        },
-      });
-      setTasks(response.data.items);
-      setDashboardPagination(response.data.pagination);
-      setDashboardCounts(response.data.counts);
-      setHasLoadedDashboard(true);
-    } catch (err) {
-      const errorMessage = err instanceof ApiError
-        ? err.message
-        : 'Failed to load tasks';
-      setError(errorMessage);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [activeTab, currentPage, debouncedSearchQuery, itemsPerPage, taskSortBy]);
+        const response = await api.get<{
+          success: boolean;
+          data: AdminTaskDashboardResponse;
+        }>('/api/v1/tasks/dashboard', {
+          params: {
+            status: statusToFetch,
+            page: pageToFetch,
+            limit: itemsPerPage,
+            search: searchToFetch || undefined,
+            sort: TASK_SORT_API_VALUES[sortByToFetch],
+          },
+        });
+        setTasks(response.data.items);
+        setDashboardPagination(response.data.pagination);
+        setDashboardCounts(response.data.counts);
+        setHasLoadedDashboard(true);
+      } catch (err) {
+        const errorMessage =
+          err instanceof ApiError ? err.message : 'Failed to load tasks';
+        setError(errorMessage);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [activeTab, currentPage, debouncedSearchQuery, itemsPerPage, taskSortBy]
+  );
 
   /**
    * Delete a task
    */
   const handleDeleteTask = async (task: TaskDashboardItem) => {
-    if (!confirm(`Are you sure you want to delete "${task.name}"? This action cannot be undone.`)) {
+    if (
+      !confirm(
+        `Are you sure you want to delete "${task.name}"? This action cannot be undone.`
+      )
+    ) {
       return;
     }
 
@@ -171,16 +198,18 @@ export default function TasksPage() {
         await fetchTasks();
       }
     } catch (err) {
-      const errorMessage = err instanceof ApiError
-        ? err.message
-        : 'Failed to delete task';
+      const errorMessage =
+        err instanceof ApiError ? err.message : 'Failed to delete task';
       alert(errorMessage);
     } finally {
       setDeletingTaskId(null);
     }
   };
 
-  const handleTaskActiveStateChange = async (task: TaskDashboardItem, nextIsActive: boolean) => {
+  const handleTaskActiveStateChange = async (
+    task: TaskDashboardItem,
+    nextIsActive: boolean
+  ) => {
     const action = getTaskActiveStateAction(nextIsActive);
     if (!confirm(action.confirmMessage)) {
       return;
@@ -196,9 +225,13 @@ export default function TasksPage() {
         isActive: nextIsActive,
       });
 
-      setTasks(prev => prev.map(currentTask => (
-        currentTask.id === task.id ? { ...currentTask, ...response.data } : currentTask
-      )));
+      setTasks((prev) =>
+        prev.map((currentTask) =>
+          currentTask.id === task.id
+            ? { ...currentTask, ...response.data }
+            : currentTask
+        )
+      );
       setOpenOptionsTaskId(null);
 
       const remainingTasks = Math.max(0, dashboardPagination.total - 1);
@@ -209,9 +242,10 @@ export default function TasksPage() {
         await fetchTasks();
       }
     } catch (err) {
-      const errorMessage = err instanceof ApiError
-        ? err.message
-        : `Failed to ${nextIsActive ? 'restore' : 'archive'} task`;
+      const errorMessage =
+        err instanceof ApiError
+          ? err.message
+          : `Failed to ${nextIsActive ? 'restore' : 'archive'} task`;
       alert(errorMessage);
     } finally {
       setChangingActiveStateTaskId(null);
@@ -230,14 +264,17 @@ export default function TasksPage() {
         message: string;
       }>(`/api/v1/tasks/${task.id}/${action}`);
 
-      setTasks(prev => prev.map(currentTask => (
-        currentTask.id === task.id ? { ...currentTask, ...response.data } : currentTask
-      )));
+      setTasks((prev) =>
+        prev.map((currentTask) =>
+          currentTask.id === task.id
+            ? { ...currentTask, ...response.data }
+            : currentTask
+        )
+      );
       setOpenOptionsTaskId(null);
     } catch (err) {
-      const errorMessage = err instanceof ApiError
-        ? err.message
-        : `Failed to ${action} task`;
+      const errorMessage =
+        err instanceof ApiError ? err.message : `Failed to ${action} task`;
       alert(errorMessage);
     } finally {
       setChangingLifecycleTaskId(null);
@@ -284,9 +321,8 @@ export default function TasksPage() {
         description: `${response.data.name} was created as a draft.`,
       });
     } catch (err) {
-      const errorMessage = err instanceof ApiError
-        ? err.message
-        : 'Failed to duplicate task';
+      const errorMessage =
+        err instanceof ApiError ? err.message : 'Failed to duplicate task';
       alert(errorMessage);
     } finally {
       setDuplicatingTaskId(null);
@@ -333,8 +369,9 @@ export default function TasksPage() {
   const renderDashboardHeader = (description: string) => (
     <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
       <div className="space-y-2">
-        <p className="humanly-eyebrow">Publisher workspace</p>
-        <h1 className="text-2xl font-semibold tracking-normal sm:text-3xl">Publisher Tasks</h1>
+        <h1 className="text-2xl font-medium sm:text-3xl">
+          Publisher Dashboard
+        </h1>
         <p className="max-w-2xl text-sm text-muted-foreground sm:text-base">
           {description}
         </p>
@@ -357,9 +394,7 @@ export default function TasksPage() {
       }}
     >
       <TabsList className="grid w-full grid-cols-2 border border-border/70 bg-muted/60 sm:w-[310px]">
-        <TabsTrigger value="open">
-          Open ({openTaskCount})
-        </TabsTrigger>
+        <TabsTrigger value="open">Open ({openTaskCount})</TabsTrigger>
         <TabsTrigger value="archived">
           Archived ({archivedTaskCount})
         </TabsTrigger>
@@ -378,7 +413,11 @@ export default function TasksPage() {
               size="icon"
               className="h-10 w-10 text-muted-foreground hover:text-foreground"
               aria-label={taskViewMode === 'cards' ? 'List view' : 'Card view'}
-              onClick={() => handleTaskViewModeChange(taskViewMode === 'cards' ? 'list' : 'cards')}
+              onClick={() =>
+                handleTaskViewModeChange(
+                  taskViewMode === 'cards' ? 'list' : 'cards'
+                )
+              }
             >
               {taskViewMode === 'cards' ? (
                 <List className="h-6 w-6" />
@@ -392,7 +431,10 @@ export default function TasksPage() {
           </TooltipContent>
         </Tooltip>
 
-        <DropdownMenu open={isTaskSortMenuOpen} onOpenChange={setIsTaskSortMenuOpen}>
+        <DropdownMenu
+          open={isTaskSortMenuOpen}
+          onOpenChange={setIsTaskSortMenuOpen}
+        >
           <DropdownMenuTrigger asChild>
             <Button
               type="button"
@@ -404,26 +446,34 @@ export default function TasksPage() {
               onPointerDown={(event) => event.preventDefault()}
               onClick={(event) => {
                 if (event.detail === 0) return;
-                setIsTaskSortMenuOpen(open => !open);
+                setIsTaskSortMenuOpen((open) => !open);
               }}
             >
               <ArrowDownAZ className="h-6 w-6" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            {(Object.keys(TASK_SORT_LABELS) as TaskSortOption[]).map((option) => (
-              <DropdownMenuItem
-                key={option}
-                onClick={() => {
-                  setCurrentPage(1);
-                  setTaskSortBy(option);
-                  setIsTaskSortMenuOpen(false);
-                }}
-              >
-                <Check className={taskSortBy === option ? 'mr-2 h-4 w-4 opacity-100' : 'mr-2 h-4 w-4 opacity-0'} />
-                {TASK_SORT_LABELS[option]}
-              </DropdownMenuItem>
-            ))}
+            {(Object.keys(TASK_SORT_LABELS) as TaskSortOption[]).map(
+              (option) => (
+                <DropdownMenuItem
+                  key={option}
+                  onClick={() => {
+                    setCurrentPage(1);
+                    setTaskSortBy(option);
+                    setIsTaskSortMenuOpen(false);
+                  }}
+                >
+                  <Check
+                    className={
+                      taskSortBy === option
+                        ? 'mr-2 h-4 w-4 opacity-100'
+                        : 'mr-2 h-4 w-4 opacity-0'
+                    }
+                  />
+                  {TASK_SORT_LABELS[option]}
+                </DropdownMenuItem>
+              )
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
@@ -490,7 +540,9 @@ export default function TasksPage() {
   if (error) {
     return (
       <div className="space-y-7">
-        {renderDashboardHeader('Manage invite-code writing tasks, enrollments, submissions, and analytics.')}
+        {renderDashboardHeader(
+          'Manage invite-code writing tasks, enrollments, submissions, and analytics.'
+        )}
 
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
@@ -517,16 +569,21 @@ export default function TasksPage() {
   if (!hasAnyTasks && !hasSearchQuery) {
     return (
       <div className="space-y-7">
-        {renderDashboardHeader('Create a writing task, configure its environment, and share its invite code with users.')}
+        {renderDashboardHeader(
+          'Create a writing task, configure its environment, and share its invite code with users.'
+        )}
 
         <Card className="humanly-surface border-dashed bg-card/80">
           <CardHeader className="text-center pb-4">
             <div className="mx-auto mb-4 h-12 w-12 rounded-full bg-muted/60 flex items-center justify-center">
               <Folder className="h-6 w-6 text-muted-foreground" />
             </div>
-            <CardTitle>No publisher tasks yet</CardTitle>
+            <CardTitle className="font-medium">
+              No publisher tasks yet
+            </CardTitle>
             <CardDescription>
-              Create your first writing task, configure AI access, and invite users with a code.
+              Create your first writing task, configure AI access, and invite
+              users with a code.
             </CardDescription>
           </CardHeader>
           <CardContent className="text-center pb-6">
@@ -558,7 +615,9 @@ export default function TasksPage() {
             <div className="mx-auto mb-4 h-12 w-12 rounded-full bg-muted/60 flex items-center justify-center">
               <Search className="h-6 w-6 text-muted-foreground" />
             </div>
-            <CardTitle>{hasSearchQuery ? 'No tasks found' : `No ${activeTabLabel} tasks`}</CardTitle>
+            <CardTitle className="font-medium">
+              {hasSearchQuery ? 'No tasks found' : `No ${activeTabLabel} tasks`}
+            </CardTitle>
             <CardDescription>
               {hasSearchQuery
                 ? `No ${activeTabLabel} tasks match your search query ${searchQuery}`
@@ -569,10 +628,7 @@ export default function TasksPage() {
           </CardHeader>
           <CardContent className="text-center pb-6">
             {hasSearchQuery ? (
-              <Button
-                variant="outline"
-                onClick={() => setSearchQuery('')}
-              >
+              <Button variant="outline" onClick={() => setSearchQuery('')}>
                 Clear Search
               </Button>
             ) : activeTab === 'open' ? (
@@ -610,9 +666,15 @@ export default function TasksPage() {
               isChangingLifecycleState={changingLifecycleTaskId === task.id}
               isDuplicating={duplicatingTaskId === task.id}
               isOptionsOpen={openOptionsTaskId === task.id}
-              onOptionsOpenChange={(open) => setOpenOptionsTaskId(open ? task.id : null)}
-              onView={(selectedTask) => router.push(`/tasks/${selectedTask.id}`)}
-              onEditSetting={(selectedTask) => router.push(`/tasks/${selectedTask.id}?tab=setting`)}
+              onOptionsOpenChange={(open) =>
+                setOpenOptionsTaskId(open ? task.id : null)
+              }
+              onView={(selectedTask) =>
+                router.push(`/tasks/${selectedTask.id}`)
+              }
+              onEditSetting={(selectedTask) =>
+                router.push(`/tasks/${selectedTask.id}?tab=setting`)
+              }
               onDelete={handleDeleteTask}
               onActiveStateChange={handleTaskActiveStateChange}
               onLifecycleAction={handleTaskLifecycleAction}
@@ -625,7 +687,9 @@ export default function TasksPage() {
         </div>
       ) : (
         <div>
-          <div className={`hidden gap-3 border-b border-border/70 px-2 pb-2 text-xs font-medium uppercase tracking-normal text-muted-foreground md:grid ${TASK_LIST_GRID_CLASS}`}>
+          <div
+            className={`hidden gap-3 border-b border-border/70 px-2 pb-2 text-xs font-medium uppercase tracking-normal text-muted-foreground md:grid ${TASK_LIST_GRID_CLASS}`}
+          >
             <span>Task name</span>
             <span>Status</span>
             <span>Completions</span>
@@ -644,9 +708,15 @@ export default function TasksPage() {
                 isChangingLifecycleState={changingLifecycleTaskId === task.id}
                 isDuplicating={duplicatingTaskId === task.id}
                 isOptionsOpen={openOptionsTaskId === task.id}
-                onOptionsOpenChange={(open) => setOpenOptionsTaskId(open ? task.id : null)}
-                onView={(selectedTask) => router.push(`/tasks/${selectedTask.id}`)}
-                onEditSetting={(selectedTask) => router.push(`/tasks/${selectedTask.id}?tab=setting`)}
+                onOptionsOpenChange={(open) =>
+                  setOpenOptionsTaskId(open ? task.id : null)
+                }
+                onView={(selectedTask) =>
+                  router.push(`/tasks/${selectedTask.id}`)
+                }
+                onEditSetting={(selectedTask) =>
+                  router.push(`/tasks/${selectedTask.id}?tab=setting`)
+                }
                 onDelete={handleDeleteTask}
                 onActiveStateChange={handleTaskActiveStateChange}
                 onLifecycleAction={handleTaskLifecycleAction}
@@ -667,7 +737,7 @@ export default function TasksPage() {
             variant="outline"
             size="sm"
             disabled={currentPage === 1}
-            onClick={() => setCurrentPage(prev => prev - 1)}
+            onClick={() => setCurrentPage((prev) => prev - 1)}
           >
             Previous
           </Button>
@@ -681,8 +751,10 @@ export default function TasksPage() {
                 (page >= currentPage - 1 && page <= currentPage + 1);
 
               // Show ellipsis
-              const showEllipsisBefore = page === currentPage - 2 && currentPage > 3;
-              const showEllipsisAfter = page === currentPage + 2 && currentPage < totalPages - 2;
+              const showEllipsisBefore =
+                page === currentPage - 2 && currentPage > 3;
+              const showEllipsisAfter =
+                page === currentPage + 2 && currentPage < totalPages - 2;
 
               if (!showPage && !showEllipsisBefore && !showEllipsisAfter) {
                 return null;
@@ -713,7 +785,7 @@ export default function TasksPage() {
             variant="outline"
             size="sm"
             disabled={currentPage === totalPages}
-            onClick={() => setCurrentPage(prev => prev + 1)}
+            onClick={() => setCurrentPage((prev) => prev + 1)}
           >
             Next
           </Button>

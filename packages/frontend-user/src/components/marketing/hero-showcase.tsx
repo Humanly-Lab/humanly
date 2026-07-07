@@ -14,7 +14,7 @@ export function HeroShowcase({
   const [activeSlide, setActiveSlide] = useState<HeroShowcaseSlide>('video');
 
   return (
-    <div className="relative mx-auto mt-[72px] w-full max-w-[1100px] overflow-visible pb-16">
+    <div className="relative mx-auto mt-12 w-full max-w-[1100px] overflow-visible pb-16 lg:mt-0">
       <div className="relative" style={{ aspectRatio: '1100 / 720' }}>
         <div
           aria-hidden={activeSlide !== 'video'}
@@ -35,7 +35,7 @@ export function HeroShowcase({
         </div>
       </div>
 
-      <div className="absolute bottom-0 left-1/2 z-50 flex -translate-x-1/2 items-center rounded-full border border-[var(--hly-hairline)] bg-white/90 p-1 shadow-[0_18px_40px_-28px_rgba(20,22,26,0.50)] backdrop-blur">
+      <div className="absolute bottom-0 left-1/2 z-50 flex -translate-x-1/2 items-center rounded-md border border-[var(--hly-hairline)] bg-white/90 p-1 shadow-[0_18px_40px_-28px_rgba(20,22,26,0.50)] backdrop-blur">
         {([
           ['video', 'Video'],
           ['workspace', 'Workspace'],
@@ -45,7 +45,7 @@ export function HeroShowcase({
             type="button"
             aria-label={slide === 'video' ? 'Show product video' : 'Show product workspace'}
             aria-pressed={activeSlide === slide}
-            className={`h-9 rounded-full px-4 text-[12px] font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--hly-brand)] ${
+            className={`h-9 rounded-md px-4 text-[12px] font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--hly-brand)] ${
               activeSlide === slide
                 ? 'bg-[var(--hly-brand)] text-white shadow-[0_10px_24px_-18px_rgba(20,22,26,0.70)]'
                 : 'text-muted-foreground hover:bg-[rgba(20,22,26,0.05)] hover:text-foreground'

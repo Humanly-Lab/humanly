@@ -28,7 +28,11 @@ import {
   type WritingEnvironmentConfig,
 } from '@humanly/shared';
 
-import { AIAssistantButton, AIAssistantPanelPreview, AISelectionMenu } from '@/components/ai';
+import {
+  AIAssistantButton,
+  AIAssistantPanelPreview,
+  AISelectionMenu,
+} from '@/components/ai';
 import PDFViewer from '@/components/pdf/PDFViewer';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -41,8 +45,10 @@ import { formatDateTime } from '@/lib/utils';
 
 const CANVAS = 'mx-auto w-full max-w-[2400px] px-3 sm:px-4';
 const PREVIEW_DOCUMENT_ID = 'workspace-preview';
-const PREVIEW_SELECTED_TEXT = 'This selected sentence shows where AI writing tools appear.';
-const PREVIEW_EDITOR_INTRO = 'This preview mirrors the real writing workspace with a source panel, toolbar, editor surface, and optional AI assistant.';
+const PREVIEW_SELECTED_TEXT =
+  'This selected sentence shows where AI writing tools appear.';
+const PREVIEW_EDITOR_INTRO =
+  'This preview mirrors the real writing workspace with a source panel, toolbar, editor surface, and optional AI assistant.';
 const PREVIEW_EDITOR_TEXT = `After a short draft, ${PREVIEW_SELECTED_TEXT} The rest of this paragraph remains visible after the writer selects text.`;
 const PREVIEW_EDITOR_CONTENT = {
   root: {
@@ -92,7 +98,9 @@ const PREVIEW_EDITOR_CONTENT = {
   },
 };
 
-function normalizePreviewConfig(config: Partial<WritingEnvironmentConfig> | undefined): WritingEnvironmentConfig {
+function normalizePreviewConfig(
+  config: Partial<WritingEnvironmentConfig> | undefined
+): WritingEnvironmentConfig {
   const sourceConfig = config || {};
   return {
     ...DEFAULT_WRITING_ENVIRONMENT_CONFIG,
@@ -155,7 +163,9 @@ function getPreviewPayload(): WorkspaceSetupPreviewPayload | null {
     }
   }
 
-  const encodedPayload = getWorkspaceSetupPreviewHashValue(window.location.hash);
+  const encodedPayload = getWorkspaceSetupPreviewHashValue(
+    window.location.hash
+  );
   if (!encodedPayload) return null;
 
   try {
@@ -170,22 +180,30 @@ function getPreviewStorageKey(): string | null {
   return getWorkspaceSetupPreviewStorageHashValue(window.location.hash);
 }
 
-function getTaskWindowLabel(payload: WorkspaceSetupPreviewPayload): string | null {
+function getTaskWindowLabel(
+  payload: WorkspaceSetupPreviewPayload
+): string | null {
   const taskWindow = payload.taskWindow;
   if (!taskWindow || payload.mode !== 'admin') return null;
   if (!taskWindow.enabled) return 'Always available';
   if (taskWindow.startDate && taskWindow.endDate) {
     return `${formatDateTime(taskWindow.startDate)} - ${formatDateTime(taskWindow.endDate)}`;
   }
-  if (taskWindow.startDate) return `Starts ${formatDateTime(taskWindow.startDate)}`;
-  if (taskWindow.endDate) return `Deadline ${formatDateTime(taskWindow.endDate)}`;
+  if (taskWindow.startDate)
+    return `Starts ${formatDateTime(taskWindow.startDate)}`;
+  if (taskWindow.endDate)
+    return `Deadline ${formatDateTime(taskWindow.endDate)}`;
   return 'Task window enabled';
 }
 
-function getCharacterBounds(config: WritingEnvironmentConfig, mode: WorkspaceSetupPreviewPayload['mode']) {
-  const minimum = mode === 'admin' && config.submission.minCharacters
-    ? Math.max(1, Math.floor(config.submission.minCharacters))
-    : null;
+function getCharacterBounds(
+  config: WritingEnvironmentConfig,
+  mode: WorkspaceSetupPreviewPayload['mode']
+) {
+  const minimum =
+    mode === 'admin' && config.submission.minCharacters
+      ? Math.max(1, Math.floor(config.submission.minCharacters))
+      : null;
   const maximum = config.submission.maxCharacters
     ? Math.max(1, Math.floor(config.submission.maxCharacters))
     : null;
@@ -217,7 +235,8 @@ function getCharacterBounds(config: WritingEnvironmentConfig, mode: WorkspaceSet
   return {
     hasBounds: false,
     label: '0 characters',
-    title: 'Character count includes letters, spaces, punctuation, and symbols.',
+    title:
+      'Character count includes letters, spaces, punctuation, and symbols.',
   };
 }
 
@@ -286,7 +305,9 @@ function PdfPreviewPanel({
 }
 
 export default function WorkspacePreviewPage() {
-  const [payload, setPayload] = useState<WorkspaceSetupPreviewPayload | null>(null);
+  const [payload, setPayload] = useState<WorkspaceSetupPreviewPayload | null>(
+    null
+  );
   const [parseFailed, setParseFailed] = useState(false);
 
   useEffect(() => {
@@ -337,7 +358,7 @@ export default function WorkspacePreviewPage() {
 
   const config = useMemo(
     () => normalizePreviewConfig(payload?.config),
-    [payload?.config],
+    [payload?.config]
   );
 
   if (parseFailed) {
@@ -361,20 +382,26 @@ export default function WorkspacePreviewPage() {
     );
   }
 
-  const title = payload.title?.trim() || (payload.mode === 'admin' ? 'Assigned writing task' : 'Untitled Document');
+  const title =
+    payload.title?.trim() ||
+    (payload.mode === 'admin' ? 'Assigned writing task' : 'Untitled Document');
   const description = payload.description?.trim();
   const aiAccessMode = normalizeWritingAiAccess(config.aiAccess);
   const aiEnabled = isWritingAiEnabled(aiAccessMode);
   const aiPolishEnabled = isWritingAiPolishEnabled(aiAccessMode);
   const aiChatEnabled = isWritingAiChatEnabled(aiAccessMode);
   const hasPdf = !!payload.hasPdf;
-  const isResourceViewOnly = normalizeResourceAccessPolicy(config.resourceAccess) === 'view-only';
+  const isResourceViewOnly =
+    normalizeResourceAccessPolicy(config.resourceAccess) === 'view-only';
   const characterBounds = getCharacterBounds(config, payload.mode);
   const timeLimitSeconds = config.time.timeLimitSeconds
     ? Math.max(1, Math.floor(config.time.timeLimitSeconds))
     : null;
   const taskWindowLabel = getTaskWindowLabel(payload);
-  const lockedAiModel = payload.selectedAiModel || config.allowedModels?.[0] || config.customModels?.[0];
+  const lockedAiModel =
+    payload.selectedAiModel ||
+    config.allowedModels?.[0] ||
+    config.customModels?.[0];
   const lockedAiBaseUrl = config.aiProvider?.baseUrl;
 
   return (
@@ -395,22 +422,36 @@ export default function WorkspacePreviewPage() {
 
               <div className="min-w-0 flex-1">
                 <div className="flex min-w-0 items-center gap-2">
-                  <h1 className="min-w-0 truncate text-lg font-semibold tracking-normal" title={title}>
+                  <h1
+                    className="min-w-0 truncate text-lg font-semibold tracking-normal"
+                    title={title}
+                  >
                     {title}
                   </h1>
-                  <Badge variant="secondary" className="rounded-md">Preview</Badge>
+                  <Badge variant="secondary" className="rounded-md">
+                    Preview
+                  </Badge>
                 </div>
                 {description ? (
-                  <p className="mt-1 max-w-2xl truncate text-xs text-muted-foreground">{description}</p>
+                  <p className="mt-1 max-w-2xl truncate text-xs text-muted-foreground">
+                    {description}
+                  </p>
                 ) : null}
                 {taskWindowLabel ? (
-                  <div className="mt-1 text-xs text-muted-foreground">{taskWindowLabel}</div>
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    {taskWindowLabel}
+                  </div>
                 ) : null}
                 {timeLimitSeconds ? (
-                  <Badge variant="outline" className="mt-2 inline-flex max-w-full items-center gap-1.5 rounded-md">
+                  <Badge
+                    variant="outline"
+                    className="mt-2 inline-flex max-w-full items-center gap-1.5 rounded-md"
+                  >
                     <Clock className="h-3.5 w-3.5 shrink-0" />
                     <span>Writing time left</span>
-                    <span className="font-semibold">{formatCountdownDuration(timeLimitSeconds)}</span>
+                    <span className="font-semibold">
+                      {formatCountdownDuration(timeLimitSeconds)}
+                    </span>
                   </Badge>
                 ) : null}
               </div>
@@ -418,11 +459,18 @@ export default function WorkspacePreviewPage() {
 
             <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
               {!characterBounds.hasBounds ? (
-                <div className="hidden text-sm text-muted-foreground sm:block" title={characterBounds.title}>
+                <div
+                  className="hidden text-sm text-muted-foreground sm:block"
+                  title={characterBounds.title}
+                >
                   {characterBounds.label}
                 </div>
               ) : (
-                <Badge variant="secondary" className="rounded-md" title={characterBounds.title}>
+                <Badge
+                  variant="secondary"
+                  className="rounded-md"
+                  title={characterBounds.title}
+                >
                   {characterBounds.label}
                 </Badge>
               )}
@@ -440,13 +488,15 @@ export default function WorkspacePreviewPage() {
               </Button>
 
               {aiChatEnabled ? (
-                <AIAssistantButton
-                  isOpen
-                  onClick={() => undefined}
-                />
+                <AIAssistantButton isOpen onClick={() => undefined} />
               ) : null}
 
-              <Button variant="outline" size="sm" disabled>
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-[#9E756B] bg-[#9E756B] text-white opacity-100 hover:border-[#8F685F] hover:bg-[#8F685F] hover:text-white disabled:opacity-100"
+                disabled
+              >
                 <FileText className="h-4 w-4 sm:mr-2" />
                 <span className="hidden sm:inline">View Logs</span>
               </Button>
@@ -461,7 +511,9 @@ export default function WorkspacePreviewPage() {
 
               <Button size="sm" disabled>
                 <Award className="h-4 w-4 sm:mr-2" />
-                <span className="hidden sm:inline">{payload.mode === 'admin' ? 'Submit' : 'Generate Certificate'}</span>
+                <span className="hidden sm:inline">
+                  {payload.mode === 'admin' ? 'Submit' : 'Generate Certificate'}
+                </span>
               </Button>
             </div>
           </div>
@@ -470,7 +522,10 @@ export default function WorkspacePreviewPage() {
 
       <div className="flex-1 overflow-hidden">
         <div className={`${CANVAS} h-full py-3`}>
-          <ResizablePanelGroup direction="horizontal" className="h-full w-full overflow-hidden rounded-lg border border-border/80 bg-card">
+          <ResizablePanelGroup
+            direction="horizontal"
+            className="h-full w-full overflow-hidden rounded-lg border border-border/80 bg-card"
+          >
             {hasPdf ? (
               <ResizablePanel defaultSize={38} minSize={22}>
                 <PdfPreviewPanel
@@ -484,11 +539,15 @@ export default function WorkspacePreviewPage() {
             {hasPdf ? <ResizableHandle withHandle /> : null}
 
             <ResizablePanel
-              defaultSize={hasPdf ? (aiChatEnabled ? 37 : 62) : (aiChatEnabled ? 70 : 100)}
+              defaultSize={
+                hasPdf ? (aiChatEnabled ? 37 : 62) : aiChatEnabled ? 70 : 100
+              }
               minSize={30}
             >
               <div className="h-full overflow-auto bg-background">
-                <div className={`${hasPdf || aiChatEnabled ? 'px-4 py-4' : 'px-6 py-6'} h-full`}>
+                <div
+                  className={`${hasPdf || aiChatEnabled ? 'px-4 py-4' : 'px-6 py-6'} h-full`}
+                >
                   {!hasPdf ? (
                     <div className="mb-4 rounded-lg border border-dashed border-border/80 bg-muted/30 p-4">
                       <h2 className="text-sm font-semibold">No PDF linked</h2>
@@ -504,9 +563,15 @@ export default function WorkspacePreviewPage() {
                     <LexicalEditor
                       documentId={PREVIEW_DOCUMENT_ID}
                       initialContent={PREVIEW_EDITOR_CONTENT}
-                      initialSelectionText={aiEnabled ? PREVIEW_SELECTED_TEXT : undefined}
+                      initialSelectionText={
+                        aiEnabled ? PREVIEW_SELECTED_TEXT : undefined
+                      }
                       clearSelectionOnPopupClose
-                      placeholder={hasPdf ? 'Start writing with your PDF open...' : 'Start typing your document...'}
+                      placeholder={
+                        hasPdf
+                          ? 'Start writing with your PDF open...'
+                          : 'Start typing your document...'
+                      }
                       editable
                       previewReadOnly
                       trackingEnabled={false}
@@ -514,25 +579,37 @@ export default function WorkspacePreviewPage() {
                       maxCharacters={config.submission.maxCharacters}
                       autoSaveEnabled={false}
                       className="h-full"
-                      renderSelectionPopup={aiEnabled ? ({ selection, onClose, replaceSelection, cancelAIAction, undoLastAction }) => (
-                        <AISelectionMenu
-                          documentId={PREVIEW_DOCUMENT_ID}
-                          selection={selection}
-                          onClose={onClose}
-                          replaceSelection={replaceSelection}
-                          cancelAIAction={cancelAIAction}
-                          undoLastAction={undoLastAction}
-                          onAskAI={() => undefined}
-                          taskManaged
-                          allowPolishActions={aiPolishEnabled}
-                          allowAskAI={aiChatEnabled}
-                          previewOnly
-                        />
-                      ) : undefined}
+                      renderSelectionPopup={
+                        aiEnabled
+                          ? ({
+                              selection,
+                              onClose,
+                              replaceSelection,
+                              cancelAIAction,
+                              undoLastAction,
+                            }) => (
+                              <AISelectionMenu
+                                documentId={PREVIEW_DOCUMENT_ID}
+                                selection={selection}
+                                onClose={onClose}
+                                replaceSelection={replaceSelection}
+                                cancelAIAction={cancelAIAction}
+                                undoLastAction={undoLastAction}
+                                onAskAI={() => undefined}
+                                taskManaged
+                                allowPolishActions={aiPolishEnabled}
+                                allowAskAI={aiChatEnabled}
+                                previewOnly
+                              />
+                            )
+                          : undefined
+                      }
                     />
                     <div className="pointer-events-none absolute bottom-3 right-3 rounded-md border border-border/70 bg-background/90 px-2 py-1 text-xs text-muted-foreground shadow-sm">
                       Tracking: {getTraceabilityLabel(config)}
-                      {timeLimitSeconds ? ` / ${formatCompactDuration(timeLimitSeconds)} limit` : ''}
+                      {timeLimitSeconds
+                        ? ` / ${formatCompactDuration(timeLimitSeconds)} limit`
+                        : ''}
                     </div>
                   </div>
                 </div>

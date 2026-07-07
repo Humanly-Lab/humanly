@@ -4,8 +4,14 @@ import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useCertificates } from '@/hooks/use-certificates';
 import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Award, ChevronDown, FileText, Folder, Trash2 } from 'lucide-react';
+import {
+  ArrowLeft,
+  Award,
+  ChevronDown,
+  FileText,
+  Folder,
+  Trash2,
+} from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import {
@@ -37,7 +43,8 @@ function formatDate(date: Date | string) {
 }
 
 function getActivityLabel(certificate: Certificate) {
-  const finalTextCharacterCount = getCertificateFinalTextCharacterCount(certificate);
+  const finalTextCharacterCount =
+    getCertificateFinalTextCharacterCount(certificate);
   const showMetrics = finalTextCharacterCount > 0;
   const lowActivity = certificate.totalEvents < 5;
   const pendingActivity = !certificate.totalEvents && !finalTextCharacterCount;
@@ -64,12 +71,14 @@ type DeleteTarget =
 export default function CertificatesPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const { certificates, isLoading, error, deleteCertificate } = useCertificates({
-    limit: 50,
-    offset: 0,
-    sortBy: 'generatedAt',
-    sortOrder: 'desc',
-  });
+  const { certificates, isLoading, error, deleteCertificate } = useCertificates(
+    {
+      limit: 50,
+      offset: 0,
+      sortBy: 'generatedAt',
+      sortOrder: 'desc',
+    }
+  );
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const certificateGroups = useMemo(
@@ -91,7 +100,9 @@ export default function CertificatesPage() {
         });
       } else {
         await Promise.all(
-          deleteTarget.group.certificates.map((certificate) => deleteCertificate(certificate.id))
+          deleteTarget.group.certificates.map((certificate) =>
+            deleteCertificate(certificate.id)
+          )
         );
         toast({
           title: 'Certificate folder deleted',
@@ -113,16 +124,18 @@ export default function CertificatesPage() {
     }
   };
 
-  const deleteDialogTitle = deleteTarget?.type === 'folder'
-    ? 'Delete certificate folder?'
-    : 'Delete certificate?';
-  const deleteDialogDescription = deleteTarget?.type === 'folder'
-    ? `This will delete all ${deleteTarget.group.certificates.length} certificate${
-        deleteTarget.group.certificates.length === 1 ? '' : 's'
-      } currently in "${deleteTarget.group.title}". If you generate another certificate for this task later, the folder will be created again.`
-    : deleteTarget
-    ? `This will delete the certificate issued ${formatDate(deleteTarget.certificate.generatedAt)}.`
-    : '';
+  const deleteDialogTitle =
+    deleteTarget?.type === 'folder'
+      ? 'Delete certificate folder?'
+      : 'Delete certificate?';
+  const deleteDialogDescription =
+    deleteTarget?.type === 'folder'
+      ? `This will delete all ${deleteTarget.group.certificates.length} certificate${
+          deleteTarget.group.certificates.length === 1 ? '' : 's'
+        } currently in "${deleteTarget.group.title}". If you generate another certificate for this task later, the folder will be created again.`
+      : deleteTarget
+        ? `This will delete the certificate issued ${formatDate(deleteTarget.certificate.generatedAt)}.`
+        : '';
 
   if (isLoading) {
     return (
@@ -159,12 +172,11 @@ export default function CertificatesPage() {
           onClick={() => router.push('/documents')}
         >
           <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Workspace
+          Back to Dashboard
         </Button>
-        <p className="humanly-eyebrow">Certificates</p>
-        <h1 className="mt-2 text-2xl font-semibold tracking-normal sm:text-3xl">Authorship records</h1>
+        <h1 className="text-2xl font-medium sm:text-3xl">Certificates</h1>
         <p className="mt-2 max-w-2xl text-sm text-muted-foreground sm:text-base">
-          Proof of authorship grouped by writing task
+          Writing certificates grouped by task
         </p>
       </div>
 
@@ -178,9 +190,10 @@ export default function CertificatesPage() {
         <Card>
           <CardContent className="flex min-h-[400px] flex-col items-center justify-center py-12">
             <Award className="h-12 w-12 text-accent" />
-            <h3 className="mt-4 text-lg font-semibold">No certificates yet</h3>
+            <h3 className="mt-4 text-lg font-medium">No certificates yet</h3>
             <p className="mt-2 text-center text-sm text-muted-foreground max-w-md">
-              Generate a certificate from a personal document after you have enough writing activity.
+              Generate a certificate from a personal document after you have
+              enough writing activity.
             </p>
           </CardContent>
         </Card>
@@ -196,15 +209,20 @@ export default function CertificatesPage() {
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                     <div className="min-w-0">
-                      <h3 className="line-clamp-1 text-base font-semibold leading-snug sm:text-lg">
+                      <h3 className="line-clamp-1 text-base font-medium leading-snug sm:text-lg">
                         {group.title}
                       </h3>
                       <p className="mt-1 text-sm text-muted-foreground">
-                        {group.certificates.length} {group.certificates.length === 1 ? 'certificate' : 'certificates'}
+                        {group.certificates.length}{' '}
+                        {group.certificates.length === 1
+                          ? 'certificate'
+                          : 'certificates'}
                       </p>
                     </div>
                     <div className="flex shrink-0 items-center gap-2 text-sm text-muted-foreground">
-                      <span>Latest {formatDate(group.latestCertificate.generatedAt)}</span>
+                      <span>
+                        Latest {formatDate(group.latestCertificate.generatedAt)}
+                      </span>
                       <Button
                         type="button"
                         variant="ghost"
@@ -238,7 +256,9 @@ export default function CertificatesPage() {
                         type="button"
                         aria-label={`Open certificate issued ${formatDate(certificate.generatedAt)}`}
                         className="flex min-w-0 flex-1 flex-col gap-3 px-4 py-3 text-left sm:flex-row sm:items-center sm:px-5"
-                        onClick={() => router.push(`/certificates/${certificate.id}`)}
+                        onClick={() =>
+                          router.push(`/certificates/${certificate.id}`)
+                        }
                       >
                         <div className="flex min-w-0 items-start gap-3">
                           <FileText className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
@@ -247,14 +267,6 @@ export default function CertificatesPage() {
                               <span className="text-sm font-medium text-foreground">
                                 Issued {formatDate(certificate.generatedAt)}
                               </span>
-                              {certificate.certificateType && (
-                                <Badge
-                                  variant={certificate.certificateType === 'full_authorship' ? 'default' : 'secondary'}
-                                  className="shrink-0 rounded-md"
-                                >
-                                  {certificate.certificateType === 'full_authorship' ? 'Certificate' : 'Partial'}
-                                </Badge>
-                              )}
                             </div>
                             {activityLabel && (
                               <p className="mt-1 text-sm text-muted-foreground">

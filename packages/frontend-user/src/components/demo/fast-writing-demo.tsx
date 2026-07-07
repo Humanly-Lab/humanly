@@ -661,7 +661,7 @@ function DemoTaskSetup({
               />
             </div>
 
-            <div className="rounded-lg border border-dashed border-border/80 bg-muted/25 p-3">
+            <div className="rounded-lg border border-dashed border-border p-3">
               <div className="flex items-center gap-2 text-sm font-medium">
                 <Upload className="h-4 w-4 text-accent" />
                 PDF

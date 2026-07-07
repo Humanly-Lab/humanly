@@ -361,7 +361,7 @@ export function AISettingsDialog({ onSettingsChanged }: AISettingsDialogProps) {
                 </div>
               )}
 
-              <div className="grid gap-4 rounded-lg border border-border/70 bg-muted/25 p-3 sm:grid-cols-2">
+              <div className="grid gap-4 rounded-lg border border-border/70 p-3 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label className="text-xs font-medium">Shortcut Tokens</Label>
                   <Input

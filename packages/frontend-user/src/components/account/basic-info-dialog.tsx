@@ -213,7 +213,7 @@ export function BasicInfoDialog({ open, mode, onOpenChange }: BasicInfoDialogPro
                   <Button
                     type="button"
                     variant="destructive"
-                    className="shrink-0 rounded-full"
+                    className="shrink-0 rounded-md"
                     onClick={() => {
                       setDeleteError(null);
                       setDeleteConfirmation('');
@@ -233,14 +233,14 @@ export function BasicInfoDialog({ open, mode, onOpenChange }: BasicInfoDialogPro
                 <Button
                   type="button"
                   variant="outline"
-                  className="rounded-full"
+                  className="rounded-md"
                   onClick={() => onOpenChange(false)}
                   disabled={isSaving || isDeleting}
                 >
                   Cancel
                 </Button>
               ) : null}
-              <Button type="submit" className="rounded-full font-bold" disabled={isSaving || isDeleting}>
+              <Button type="submit" className="font-bold" disabled={isSaving || isDeleting}>
                 {isSaving ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
