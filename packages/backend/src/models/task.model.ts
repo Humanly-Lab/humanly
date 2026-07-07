@@ -1,5 +1,14 @@
 import { query, queryOne, transaction } from '../config/database';
-import { Task, TaskLifecycleStatus, WritingEnvironmentConfig } from '@humanly/shared';
+import {
+  AdminTaskDashboardCounts,
+  AdminTaskDashboardItem,
+  AdminTaskDashboardPagination,
+  Task,
+  TaskDashboardSort,
+  TaskDashboardStatus,
+  TaskLifecycleStatus,
+  WritingEnvironmentConfig,
+} from '@humanly/shared';
 import { generateTaskToken } from '../utils/crypto';
 import crypto from 'crypto';
 
@@ -43,6 +52,20 @@ export interface TaskListResult {
   page: number;
   limit: number;
   totalPages: number;
+}
+
+export interface TaskDashboardListParams {
+  status: TaskDashboardStatus;
+  page: number;
+  limit: number;
+  search?: string;
+  sort: TaskDashboardSort;
+}
+
+export interface TaskDashboardListResult {
+  items: AdminTaskDashboardItem[];
+  pagination: AdminTaskDashboardPagination;
+  counts: AdminTaskDashboardCounts;
 }
 
 export interface TaskOwnershipSummary {
@@ -129,6 +152,20 @@ export interface ExpiredTimedTaskEnrollment {
 }
 
 export class TaskModel {
+  private static dashboardOrderBy(sort: TaskDashboardSort): string {
+    switch (sort) {
+      case 'createdAt:asc':
+        return 'p.created_at ASC, p.id ASC';
+      case 'name:asc':
+        return 'LOWER(p.name) ASC, p.created_at DESC, p.id DESC';
+      case 'name:desc':
+        return 'LOWER(p.name) DESC, p.created_at DESC, p.id DESC';
+      case 'createdAt:desc':
+      default:
+        return 'p.created_at DESC, p.id DESC';
+    }
+  }
+
   private static activeWriterPredicate(alias: string): string {
     return `
       ${alias}.is_active = TRUE
@@ -354,6 +391,86 @@ export class TaskModel {
       page: pagination.page,
       limit: pagination.limit,
       totalPages: Math.ceil(total / pagination.limit),
+    };
+  }
+
+  static async findDashboardByUserId(
+    userId: string,
+    params: TaskDashboardListParams
+  ): Promise<TaskDashboardListResult> {
+    const page = Math.max(1, params.page);
+    const limit = Math.max(1, params.limit);
+    const offset = (page - 1) * limit;
+    const isActive = params.status === 'open';
+    const search = params.search?.trim();
+
+    let itemSearchCondition = '';
+    let countSearchCondition = '';
+    const itemParams: any[] = [userId, isActive, limit, offset];
+    const countParams: any[] = [userId];
+
+    if (search) {
+      itemSearchCondition = 'AND (p.name ILIKE $5 OR p.description ILIKE $5)';
+      countSearchCondition = 'AND (name ILIKE $2 OR description ILIKE $2)';
+      const searchPattern = `%${search}%`;
+      itemParams.push(searchPattern);
+      countParams.push(searchPattern);
+    }
+
+    const countsSql = `
+      SELECT
+        (COUNT(*) FILTER (WHERE is_active = TRUE))::int as open,
+        (COUNT(*) FILTER (WHERE is_active = FALSE))::int as archived
+      FROM tasks
+      WHERE user_id = $1
+        AND deleted_at IS NULL
+        ${countSearchCondition}
+    `;
+    const counts = await queryOne<AdminTaskDashboardCounts>(countsSql, countParams);
+    const resolvedCounts = {
+      open: counts?.open || 0,
+      archived: counts?.archived || 0,
+    };
+    const total = params.status === 'open' ? resolvedCounts.open : resolvedCounts.archived;
+
+    const itemsSql = `
+      SELECT
+        p.id,
+        p.user_id as "userId",
+        p.name,
+        p.description,
+        p.task_token as "taskToken",
+        p.is_active as "isActive",
+        p.lifecycle_status as "lifecycleStatus",
+        p.start_date as "startDate",
+        p.end_date as "endDate",
+        p.created_at as "createdAt",
+        p.updated_at as "updatedAt",
+        COALESCE(submission_stats.submission_count, 0)::int as "submissionCount"
+      FROM tasks p
+      LEFT JOIN LATERAL (
+        SELECT COUNT(*)::int as submission_count
+        FROM submissions sub
+        WHERE sub.task_id = p.id
+      ) submission_stats ON true
+      WHERE p.user_id = $1
+        AND p.is_active = $2
+        AND p.deleted_at IS NULL
+        ${itemSearchCondition}
+      ORDER BY ${this.dashboardOrderBy(params.sort)}
+      LIMIT $3 OFFSET $4
+    `;
+    const items = await query<AdminTaskDashboardItem>(itemsSql, itemParams);
+
+    return {
+      items,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+      counts: resolvedCounts,
     };
   }
 

@@ -1,18 +1,8 @@
-import { getTaskEffectiveStatus, type Task, type TaskEffectiveStatus } from '@humanly/shared';
+import { getTaskEffectiveStatus, type AdminTaskDashboardItem, type TaskEffectiveStatus } from '@humanly/shared';
 
 export type TaskDashboardTab = 'open' | 'archived';
 
-export interface TaskDashboardItem extends Task {
-  eventCount?: number;
-  sessionCount?: number;
-  enrolledUserCount?: number;
-  documentCount?: number;
-  submissionCount?: number;
-  aiUsageLimit?: number | null;
-  allowedAiModels?: string[];
-  allowedLlmModels?: string[];
-  inviteCode?: string;
-}
+export type TaskDashboardItem = AdminTaskDashboardItem;
 
 export interface TaskWindowStatus {
   label: 'Draft' | 'Scheduled' | 'Active' | 'Paused' | 'Ended' | 'Archived';

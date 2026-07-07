@@ -34,6 +34,43 @@ export interface Task {
   updatedAt: Date;
 }
 
+export type TaskDashboardStatus = 'open' | 'archived';
+export type TaskDashboardSort = 'createdAt:desc' | 'createdAt:asc' | 'name:asc' | 'name:desc';
+
+export interface AdminTaskDashboardItem {
+  id: string;
+  userId: string;
+  name: string;
+  description?: string | null;
+  taskToken: string;
+  isActive: boolean;
+  lifecycleStatus: TaskLifecycleStatus;
+  effectiveStatus?: TaskEffectiveStatus;
+  startDate: Date;
+  endDate: Date;
+  createdAt: Date;
+  updatedAt: Date;
+  submissionCount: number;
+}
+
+export interface AdminTaskDashboardCounts {
+  open: number;
+  archived: number;
+}
+
+export interface AdminTaskDashboardPagination {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
+export interface AdminTaskDashboardResponse {
+  items: AdminTaskDashboardItem[];
+  pagination: AdminTaskDashboardPagination;
+  counts: AdminTaskDashboardCounts;
+}
+
 export interface TaskCreateInput {
   name: string;
   description?: string;

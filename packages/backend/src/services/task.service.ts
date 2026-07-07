@@ -4,6 +4,8 @@ import {
   UpdateTaskData,
   PaginationParams,
   TaskListResult,
+  TaskDashboardListParams,
+  TaskDashboardListResult,
 } from '../models/task.model';
 import { DocumentModel } from '../models/document.model';
 import { SessionModel } from '../models/session.model';
@@ -16,7 +18,7 @@ import { FileModel } from '../models/file.model';
 import { UserModel } from '../models/user.model';
 import { RefreshTokenModel } from '../models/refresh-token.model';
 import { CertificateService } from './certificate.service';
-import type { AppFile, Document, Task, TaskLifecycleStatus, TaskWithSnippets, User } from '@humanly/shared';
+import type { AdminTaskDashboardItem, AppFile, Document, Task, TaskLifecycleStatus, TaskWithSnippets, User } from '@humanly/shared';
 import {
   BRAND,
   TASK_INSTRUCTION_PDF_MAX_FILES,
@@ -244,6 +246,13 @@ export class TaskService {
     };
   }
 
+  private static withDashboardEffectiveStatus<T extends AdminTaskDashboardItem>(task: T): T {
+    return {
+      ...task,
+      effectiveStatus: getTaskEffectiveStatus(task),
+    };
+  }
+
   private static async invalidateAnalytics(taskId: string): Promise<void> {
     await cacheDelPattern(`analytics:${taskId}:*`);
   }
@@ -460,6 +469,25 @@ export class TaskService {
       };
     } catch (error) {
       logger.error('Error listing tasks', { error, userId });
+      throw error;
+    }
+  }
+
+  static async listDashboardTasks(
+    userId: string,
+    params: TaskDashboardListParams
+  ): Promise<TaskDashboardListResult> {
+    try {
+      logger.debug('Listing dashboard tasks', { userId, params });
+
+      const result = await TaskModel.findDashboardByUserId(userId, params);
+
+      return {
+        ...result,
+        items: result.items.map((task) => this.withDashboardEffectiveStatus(task)),
+      };
+    } catch (error) {
+      logger.error('Error listing dashboard tasks', { error, userId });
       throw error;
     }
   }

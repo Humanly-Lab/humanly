@@ -9,6 +9,7 @@ import {
   getTask,
   getPublicTask,
   listTasks,
+  listDashboardTasks,
   listTaskEnrollments,
   listMyTaskEnrollments,
   joinTask,
@@ -76,6 +77,12 @@ router.use(authenticate);
  * - search: string (optional, searches name and description)
  */
 router.get('/', asyncHandler(listTasks));
+
+/**
+ * GET /api/v1/tasks/dashboard
+ * List lightweight publisher dashboard task cards with server-side filtering.
+ */
+router.get('/dashboard', asyncHandler(listDashboardTasks));
 
 /**
  * POST /api/v1/tasks

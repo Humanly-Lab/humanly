@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState, useMemo } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import api, { ApiError } from '@/lib/api-client';
@@ -32,12 +32,12 @@ import {
   LayoutGrid,
   List,
 } from 'lucide-react';
+import type { AdminTaskDashboardResponse, TaskDashboardSort } from '@humanly/shared';
 import { useToast } from '@/components/ui/use-toast';
 import { TaskCard, TASK_LIST_GRID_CLASS } from './_components/task-card';
 import {
-  filterTasksForDashboard,
-  getTaskActiveStateAction,
   getTaskDashboardTabCountText,
+  getTaskActiveStateAction,
   type TaskDashboardItem,
   type TaskDashboardTab,
 } from './_components/task-dashboard-lifecycle';
@@ -52,14 +52,14 @@ const TASK_SORT_LABELS: Record<TaskSortOption, string> = {
   name: 'Task name',
 };
 
+const TASK_SORT_API_VALUES: Record<TaskSortOption, TaskDashboardSort> = {
+  createdAt: 'createdAt:desc',
+  name: 'name:asc',
+};
+
 const isTaskViewMode = (value: string | null): value is TaskViewMode => (
   value === 'cards' || value === 'list'
 );
-
-const getTaskCreatedAtMs = (task: TaskDashboardItem) => {
-  const timestamp = new Date(task.createdAt).getTime();
-  return Number.isFinite(timestamp) ? timestamp : 0;
-};
 
 /**
  * Tasks list page component
@@ -69,11 +69,23 @@ export default function TasksPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [tasks, setTasks] = useState<TaskDashboardItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+  const [hasLoadedDashboard, setHasLoadedDashboard] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TaskDashboardTab>('open');
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [dashboardPagination, setDashboardPagination] = useState({
+    page: 1,
+    limit: 9,
+    total: 0,
+    totalPages: 0,
+  });
+  const [dashboardCounts, setDashboardCounts] = useState({
+    open: 0,
+    archived: 0,
+  });
   const [deletingTaskId, setDeletingTaskId] = useState<string | null>(null);
   const [changingActiveStateTaskId, setChangingActiveStateTaskId] = useState<string | null>(null);
   const [changingLifecycleTaskId, setChangingLifecycleTaskId] = useState<string | null>(null);
@@ -98,20 +110,37 @@ export default function TasksPage() {
     window.localStorage.setItem(TASK_VIEW_MODE_STORAGE_KEY, nextViewMode);
   }, []);
 
-  /**
-   * Fetch all tasks for the current user
-   */
-  const fetchTasks = async () => {
+  const fetchTasks = useCallback(async (overrides: {
+    page?: number;
+    status?: TaskDashboardTab;
+    search?: string;
+    sortBy?: TaskSortOption;
+  } = {}) => {
+    const pageToFetch = overrides.page ?? currentPage;
+    const statusToFetch = overrides.status ?? activeTab;
+    const searchToFetch = overrides.search ?? debouncedSearchQuery;
+    const sortByToFetch = overrides.sortBy ?? taskSortBy;
+
     try {
       setIsLoading(true);
       setError(null);
 
-      // Fetch tasks from API
       const response = await api.get<{
         success: boolean;
-        data: TaskDashboardItem[];
-      }>('/api/v1/tasks');
-      setTasks(response.data);
+        data: AdminTaskDashboardResponse;
+      }>('/api/v1/tasks/dashboard', {
+        params: {
+          status: statusToFetch,
+          page: pageToFetch,
+          limit: itemsPerPage,
+          search: searchToFetch || undefined,
+          sort: TASK_SORT_API_VALUES[sortByToFetch],
+        },
+      });
+      setTasks(response.data.items);
+      setDashboardPagination(response.data.pagination);
+      setDashboardCounts(response.data.counts);
+      setHasLoadedDashboard(true);
     } catch (err) {
       const errorMessage = err instanceof ApiError
         ? err.message
@@ -120,7 +149,7 @@ export default function TasksPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [activeTab, currentPage, debouncedSearchQuery, itemsPerPage, taskSortBy]);
 
   /**
    * Delete a task
@@ -134,14 +163,12 @@ export default function TasksPage() {
       setDeletingTaskId(task.id);
       await api.delete(`/api/v1/tasks/${task.id}`);
 
-      // Remove task from state
-      setTasks(prev => prev.filter(p => p.id !== task.id));
-
-      // Reset to page 1 if current page is now empty
-      const remainingTasks = filteredTasks.length - 1;
-      const maxPage = Math.ceil(remainingTasks / itemsPerPage);
-      if (currentPage > maxPage && maxPage > 0) {
-        setCurrentPage(maxPage);
+      const remainingTasks = Math.max(0, dashboardPagination.total - 1);
+      const nextPage = Math.max(1, Math.ceil(remainingTasks / itemsPerPage));
+      if (currentPage > nextPage) {
+        setCurrentPage(nextPage);
+      } else {
+        await fetchTasks();
       }
     } catch (err) {
       const errorMessage = err instanceof ApiError
@@ -174,10 +201,12 @@ export default function TasksPage() {
       )));
       setOpenOptionsTaskId(null);
 
-      const remainingTasks = filteredTasks.length - 1;
-      const maxPage = Math.ceil(remainingTasks / itemsPerPage);
-      if (currentPage > maxPage && maxPage > 0) {
-        setCurrentPage(maxPage);
+      const remainingTasks = Math.max(0, dashboardPagination.total - 1);
+      const nextPage = Math.max(1, Math.ceil(remainingTasks / itemsPerPage));
+      if (currentPage > nextPage) {
+        setCurrentPage(nextPage);
+      } else {
+        await fetchTasks();
       }
     } catch (err) {
       const errorMessage = err instanceof ApiError
@@ -246,7 +275,9 @@ export default function TasksPage() {
         message: string;
       }>(`/api/v1/tasks/${task.id}/duplicate`);
 
-      setTasks(prev => [response.data, ...prev]);
+      setActiveTab('open');
+      setCurrentPage(1);
+      await fetchTasks({ status: 'open', page: 1 });
       setOpenOptionsTaskId(null);
       toast({
         title: 'Task duplicated',
@@ -262,51 +293,27 @@ export default function TasksPage() {
     }
   };
 
-  /**
-   * Filter tasks based on lifecycle tab and search query
-   */
-  const filteredTasks = useMemo(() => {
-    return filterTasksForDashboard(tasks, activeTab, searchQuery);
-  }, [tasks, activeTab, searchQuery]);
-
-  const sortedTasks = useMemo(() => {
-    const tasksToSort = [...filteredTasks];
-
-    if (taskSortBy === 'name') {
-      return tasksToSort.sort((a, b) => a.name.localeCompare(b.name));
-    }
-
-    return tasksToSort.sort((a, b) => getTaskCreatedAtMs(b) - getTaskCreatedAtMs(a));
-  }, [filteredTasks, taskSortBy]);
-
-  const openTaskCount = useMemo(() => (
-    tasks.filter(task => task.isActive).length
-  ), [tasks]);
-
-  const archivedTaskCount = useMemo(() => (
-    tasks.filter(task => !task.isActive).length
-  ), [tasks]);
-
-  /**
-   * Paginate filtered tasks
-   */
-  const paginatedTasks = useMemo(() => {
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    const endIndex = startIndex + itemsPerPage;
-    return sortedTasks.slice(startIndex, endIndex);
-  }, [sortedTasks, currentPage, itemsPerPage]);
-
-  /**
-   * Calculate total pages
-   */
-  const totalPages = Math.ceil(filteredTasks.length / itemsPerPage);
+  const paginatedTasks = tasks;
+  const openTaskCount = dashboardCounts.open;
+  const archivedTaskCount = dashboardCounts.archived;
+  const totalPages = dashboardPagination.totalPages;
+  const hasAnyTasks = dashboardCounts.open + dashboardCounts.archived > 0;
 
   /**
    * Load tasks on mount
    */
   useEffect(() => {
     fetchTasks();
-  }, []);
+  }, [fetchTasks]);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setCurrentPage(1);
+      setDebouncedSearchQuery(searchQuery.trim());
+    }, 300);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [searchQuery]);
 
   useEffect(() => {
     const intervalId = window.setInterval(() => {
@@ -316,15 +323,12 @@ export default function TasksPage() {
     return () => window.clearInterval(intervalId);
   }, []);
 
-  /**
-   * Reset to page 1 when filters change
-   */
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [activeTab, searchQuery, taskSortBy]);
-
-  const hasSearchQuery = searchQuery.trim().length > 0;
-  const tabCountText = getTaskDashboardTabCountText(filteredTasks.length, activeTab, hasSearchQuery);
+  const hasSearchQuery = debouncedSearchQuery.length > 0;
+  const tabCountText = getTaskDashboardTabCountText(
+    dashboardPagination.total,
+    activeTab,
+    hasSearchQuery
+  );
 
   const renderDashboardHeader = (description: string) => (
     <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -345,12 +349,18 @@ export default function TasksPage() {
   );
 
   const renderTaskTabs = () => (
-    <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as TaskDashboardTab)}>
+    <Tabs
+      value={activeTab}
+      onValueChange={(value) => {
+        setCurrentPage(1);
+        setActiveTab(value as TaskDashboardTab);
+      }}
+    >
       <TabsList className="grid w-full grid-cols-2 border border-border/70 bg-muted/60 sm:w-[310px]">
-        <TabsTrigger value="open" onClick={() => setActiveTab('open')}>
+        <TabsTrigger value="open">
           Open ({openTaskCount})
         </TabsTrigger>
-        <TabsTrigger value="archived" onClick={() => setActiveTab('archived')}>
+        <TabsTrigger value="archived">
           Archived ({archivedTaskCount})
         </TabsTrigger>
       </TabsList>
@@ -405,6 +415,7 @@ export default function TasksPage() {
               <DropdownMenuItem
                 key={option}
                 onClick={() => {
+                  setCurrentPage(1);
                   setTaskSortBy(option);
                   setIsTaskSortMenuOpen(false);
                 }}
@@ -441,7 +452,7 @@ export default function TasksPage() {
   /**
    * Loading state
    */
-  if (isLoading) {
+  if (isLoading && !hasLoadedDashboard) {
     return (
       <div className="space-y-7">
         <div className="mb-8 space-y-3">
@@ -490,7 +501,7 @@ export default function TasksPage() {
               variant="outline"
               size="sm"
               className="mt-2"
-              onClick={fetchTasks}
+              onClick={() => fetchTasks()}
             >
               Try Again
             </Button>
@@ -503,7 +514,7 @@ export default function TasksPage() {
   /**
    * Empty state - no tasks
    */
-  if (tasks.length === 0) {
+  if (!hasAnyTasks && !hasSearchQuery) {
     return (
       <div className="space-y-7">
         {renderDashboardHeader('Create a writing task, configure its environment, and share its invite code with users.')}
@@ -534,7 +545,7 @@ export default function TasksPage() {
   /**
    * Empty state - no search results
    */
-  if (filteredTasks.length === 0) {
+  if (tasks.length === 0) {
     const activeTabLabel = activeTab === 'open' ? 'open' : 'archived';
 
     return (

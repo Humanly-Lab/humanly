@@ -9,6 +9,7 @@ import {
   updateTaskSchema,
   validate,
 } from '@humanly/shared';
+import type { TaskDashboardSort, TaskDashboardStatus } from '@humanly/shared';
 import {
   serializePublicTaskPreview,
   serializePublicTaskStartResult,
@@ -23,6 +24,8 @@ type TaskExportFormat = 'csv' | 'json';
 
 const DEFAULT_TASK_SUBMISSION_LIST_LIMIT = 100;
 const MAX_TASK_SUBMISSION_LIST_LIMIT = 500;
+const DEFAULT_TASK_DASHBOARD_LIMIT = 9;
+const MAX_TASK_DASHBOARD_LIMIT = 50;
 
 const TASK_SUBMISSION_EXPORT_COLUMNS = [
   'submissionId',
@@ -90,6 +93,34 @@ function parseTaskExportUserId(value: unknown): string | undefined {
   }
 
   return parsed.data;
+}
+
+function parseTaskDashboardStatus(value: unknown): TaskDashboardStatus {
+  const firstValue = getFirstQueryValue(value);
+  if (firstValue === undefined || firstValue === null || firstValue === '') return 'open';
+  if (firstValue === 'open' || firstValue === 'archived') return firstValue;
+  throw new AppError(400, 'status must be open or archived');
+}
+
+function parseTaskDashboardSort(value: unknown): TaskDashboardSort {
+  const firstValue = getFirstQueryValue(value);
+  if (firstValue === undefined || firstValue === null || firstValue === '') return 'createdAt:desc';
+  if (
+    firstValue === 'createdAt:desc' ||
+    firstValue === 'createdAt:asc' ||
+    firstValue === 'name:asc' ||
+    firstValue === 'name:desc'
+  ) {
+    return firstValue;
+  }
+  throw new AppError(400, 'sort must be createdAt:desc, createdAt:asc, name:asc, or name:desc');
+}
+
+function parseTaskDashboardSearch(value: unknown): string | undefined {
+  const firstValue = getFirstQueryValue(value);
+  if (typeof firstValue !== 'string') return undefined;
+  const search = firstValue.trim();
+  return search ? search.slice(0, 200) : undefined;
 }
 
 function getFirstQueryValue(value: unknown): unknown {
@@ -350,6 +381,40 @@ export async function listTasks(req: Request, res: Response): Promise<void> {
       total: result.total,
       totalPages: result.totalPages,
     },
+  });
+}
+
+/**
+ * List lightweight dashboard tasks for the current publisher account.
+ */
+export async function listDashboardTasks(req: Request, res: Response): Promise<void> {
+  const userId = req.user!.userId;
+  const page = parseTaskSubmissionListNumber(req.query.page, {
+    fallback: 1,
+    min: 1,
+    name: 'page',
+  });
+  const limit = parseTaskSubmissionListNumber(req.query.limit, {
+    fallback: DEFAULT_TASK_DASHBOARD_LIMIT,
+    min: 1,
+    max: MAX_TASK_DASHBOARD_LIMIT,
+    name: 'limit',
+  });
+  const status = parseTaskDashboardStatus(req.query.status);
+  const sort = parseTaskDashboardSort(req.query.sort);
+  const search = parseTaskDashboardSearch(req.query.search);
+
+  const result = await TaskService.listDashboardTasks(userId, {
+    status,
+    page,
+    limit,
+    search,
+    sort,
+  });
+
+  res.json({
+    success: true,
+    data: result,
   });
 }
 
