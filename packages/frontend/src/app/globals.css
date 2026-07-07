@@ -161,7 +161,7 @@
   }
 
   .humanly-dashboard-page {
-    @apply mx-auto w-full max-w-[95rem] px-5 py-7 sm:px-8 lg:px-10;
+    @apply mx-auto w-full max-w-7xl px-5 py-7 sm:px-8 lg:px-10;
   }
 
   .humanly-surface {
