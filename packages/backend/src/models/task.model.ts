@@ -176,36 +176,49 @@ export class TaskModel {
   `;
 
   private static readonly enrollmentCountJoin = `
-    LEFT JOIN (
-      SELECT task_id, COUNT(*)::int as enrolled_user_count
-      FROM task_enrollments
-      GROUP BY task_id
-    ) pe ON pe.task_id = p.id
+    LEFT JOIN LATERAL (
+      SELECT COUNT(*)::int as enrolled_user_count
+      FROM task_enrollments te
+      WHERE te.task_id = p.id
+    ) pe ON true
   `;
 
   private static readonly taskStatsJoin = `
-    LEFT JOIN (
+    LEFT JOIN LATERAL (
+      WITH task_docs AS (
+        SELECT DISTINCT COALESCE(ta.document_id, te.submission_document_id) as document_id
+        FROM task_enrollments te
+        LEFT JOIN task_attempts ta
+          ON ta.task_id = te.task_id
+         AND ta.user_id = te.user_id
+        WHERE te.task_id = p.id
+          AND COALESCE(ta.document_id, te.submission_document_id) IS NOT NULL
+      )
       SELECT
-        te.task_id,
-        (COUNT(DISTINCT COALESCE(ta.document_id, te.submission_document_id))
-          FILTER (WHERE COALESCE(ta.document_id, te.submission_document_id) IS NOT NULL))::int as document_count,
-        COUNT(DISTINCT sub.id)::int as submission_count,
-        (COUNT(DISTINCT e.id) + COUNT(DISTINCT de.id))::int as event_count
-      FROM task_enrollments te
-      LEFT JOIN task_attempts ta
-        ON ta.task_id = te.task_id
-       AND ta.user_id = te.user_id
-      LEFT JOIN users u ON u.id = te.user_id
-      LEFT JOIN sessions s
-        ON s.task_id = te.task_id
-       AND s.external_user_id = u.email
-      LEFT JOIN events e ON e.session_id = s.id
-      LEFT JOIN document_events de ON de.document_id = COALESCE(ta.document_id, te.submission_document_id)
-      LEFT JOIN submissions sub
-        ON sub.task_id = te.task_id
-       AND sub.user_id = te.user_id
-      GROUP BY te.task_id
-    ) ps ON ps.task_id = p.id
+        (SELECT COUNT(*)::int FROM task_docs) as document_count,
+        (
+          SELECT COUNT(DISTINCT sub.id)::int
+          FROM task_enrollments te
+          JOIN submissions sub
+            ON sub.task_id = te.task_id
+           AND sub.user_id = te.user_id
+          WHERE te.task_id = p.id
+        ) as submission_count,
+        (
+          SELECT COUNT(DISTINCT e.id)::int
+          FROM task_enrollments te
+          JOIN users u ON u.id = te.user_id
+          JOIN sessions s
+            ON s.task_id = te.task_id
+           AND s.external_user_id = u.email
+          JOIN events e ON e.session_id = s.id
+          WHERE te.task_id = p.id
+        ) + (
+          SELECT COUNT(DISTINCT de.id)::int
+          FROM task_docs td
+          JOIN document_events de ON de.document_id = td.document_id
+        ) as event_count
+    ) ps ON true
   `;
 
   /**
