@@ -98,6 +98,7 @@ run-migration.ts
 test_config.md
 DEV_LOG.md
 *.png
+!packages/frontend-user/public/brand/monet-water-lilies.png
 
 # ── Uploads (VM local storage, not in git) ───────────────────────────────────
 uploads/
