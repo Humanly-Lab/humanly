@@ -34,6 +34,8 @@ interface SubmissionPanelProps {
   isLoadingSubmissions: boolean;
   isLoadingMoreSubmissions: boolean;
   enrollmentsError: string | null;
+  hasLoadedEnrollments: boolean;
+  onLoadEnrollments: () => void;
   onSelectedUserChange: (userId: 'all' | string) => void;
   onLoadMoreSubmissions: () => void;
   onRefresh: () => void;
@@ -98,6 +100,8 @@ export function SubmissionPanel({
   isLoadingSubmissions,
   isLoadingMoreSubmissions,
   enrollmentsError,
+  hasLoadedEnrollments,
+  onLoadEnrollments,
   onSelectedUserChange,
   onLoadMoreSubmissions,
   onRefresh,
@@ -118,20 +122,21 @@ export function SubmissionPanel({
   const selectedSubmissions = selectedUserId === 'all'
     ? []
     : submissionsByUser[selectedUserId] || [];
-  const latestSubmissions = enrollments
-    .map((enrollment) => ({
-      enrollment,
-      submission: submissionsByUser[enrollment.userId]?.[0] || null,
-    }))
-    .filter((item): item is { enrollment: TaskEnrollment; submission: AdminSubmission } => Boolean(item.submission));
+  const visibleSubmissions = selectedUserId === 'all'
+    ? sortSubmissions(submissions)
+    : selectedSubmissions;
 
   useEffect(() => {
-    if (selectedUserId !== 'all' && !enrollments.some((enrollment) => enrollment.userId === selectedUserId)) {
+    if (
+      hasLoadedEnrollments &&
+      selectedUserId !== 'all' &&
+      !enrollments.some((enrollment) => enrollment.userId === selectedUserId)
+    ) {
       onSelectedUserChange('all');
     }
-  }, [enrollments, onSelectedUserChange, selectedUserId]);
+  }, [enrollments, hasLoadedEnrollments, onSelectedUserChange, selectedUserId]);
 
-  const isLoading = isLoadingEnrollments || (isLoadingSubmissions && submissions.length === 0);
+  const isLoading = isLoadingSubmissions && submissions.length === 0;
   const loadedSubmissionCount = submissions.length;
   const totalSubmissionCount = submissionPagination?.total ?? loadedSubmissionCount;
 
@@ -269,13 +274,33 @@ export function SubmissionPanel({
               <Users className="h-4 w-4" />
               All users
             </span>
-            <Badge variant="secondary">{enrollments.length}</Badge>
+            <Badge variant="secondary">
+              {hasLoadedEnrollments ? enrollments.length : totalSubmissionCount}
+            </Badge>
           </button>
 
           <div className="max-h-[520px] space-y-2 overflow-y-auto pr-1">
             {isLoadingEnrollments ? (
               <div className="flex h-32 items-center justify-center">
                 <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              </div>
+            ) : enrollmentsError ? (
+              <Alert variant="destructive">
+                <AlertTitle>Users could not load</AlertTitle>
+                <AlertDescription>{enrollmentsError}</AlertDescription>
+              </Alert>
+            ) : !hasLoadedEnrollments ? (
+              <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
+                <p>User filtering is loaded only when needed.</p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="mt-3"
+                  onClick={onLoadEnrollments}
+                >
+                  Load user filter
+                </Button>
               </div>
             ) : enrollments.length === 0 ? (
               <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
@@ -371,21 +396,13 @@ export function SubmissionPanel({
                 <p className="text-sm text-muted-foreground">Loading submissions...</p>
               </div>
             </div>
-          ) : enrollmentsError ? (
+          ) : selectedUserId !== 'all' && enrollmentsError ? (
             <Alert variant="destructive">
               <AlertTitle>Error loading users</AlertTitle>
               <AlertDescription>{enrollmentsError}</AlertDescription>
             </Alert>
           ) : selectedUserId === 'all' ? (
-            enrollments.length === 0 ? (
-              <div className="flex h-[240px] items-center justify-center rounded-md border border-dashed">
-                <div className="space-y-2 text-center">
-                  <Users className="mx-auto h-8 w-8 text-muted-foreground" />
-                  <p className="font-medium">No enrolled users yet</p>
-                  <p className="text-sm text-muted-foreground">Users will appear here after joining with the task code.</p>
-                </div>
-              </div>
-            ) : latestSubmissions.length === 0 ? (
+            visibleSubmissions.length === 0 ? (
               <div className="flex h-[240px] items-center justify-center rounded-md border border-dashed">
                 <div className="space-y-2 text-center">
                   <FileText className="mx-auto h-8 w-8 text-muted-foreground" />
@@ -407,11 +424,11 @@ export function SubmissionPanel({
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {latestSubmissions.map(({ enrollment, submission }) => {
+                      {visibleSubmissions.map((submission) => {
                         return (
-                          <TableRow key={enrollment.id}>
+                          <TableRow key={submission.id}>
                             <TableCell>
-                              <div className="font-medium">{enrollment.email}</div>
+                              <div className="font-medium">{submission.userEmail || submission.userId}</div>
                             </TableCell>
                             <TableCell>
                               <div className="flex items-start gap-2">

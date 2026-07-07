@@ -232,7 +232,7 @@ export default function TaskDetailPage() {
       fetchSubmissions();
     }
 
-    if ((activeTab === 'submission' || activeTab === 'users' || activeTab === 'analytics') && !hasLoadedEnrollments && !isLoadingEnrollments) {
+    if (activeTab === 'users' && !hasLoadedEnrollments && !isLoadingEnrollments) {
       fetchEnrollments();
     }
   }, [
@@ -357,10 +357,12 @@ export default function TaskDetailPage() {
             isLoadingSubmissions={isLoadingSubmissions}
             isLoadingMoreSubmissions={isLoadingMoreSubmissions}
             enrollmentsError={enrollmentsError}
+            hasLoadedEnrollments={hasLoadedEnrollments}
+            onLoadEnrollments={() => fetchEnrollments()}
             onSelectedUserChange={handleSubmissionScopeChange}
             onLoadMoreSubmissions={handleLoadMoreSubmissions}
             onRefresh={() => {
-              fetchEnrollments();
+              if (hasLoadedEnrollments) fetchEnrollments(false);
               fetchSubmissions(true, { scope: submissionScope });
             }}
           />
@@ -380,9 +382,8 @@ export default function TaskDetailPage() {
             taskId={taskId}
             taskStartDate={task.startDate}
             taskEndDate={task.endDate}
-            enrollments={enrollments}
             submissions={submissions}
-            isLoadingEnrollments={isLoadingEnrollments}
+            submissionTotal={submissionPagination?.total ?? submissions.length}
             isLoadingSubmissions={isLoadingSubmissions}
           />
         );

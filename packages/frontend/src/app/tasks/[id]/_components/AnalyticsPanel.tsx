@@ -55,7 +55,7 @@ import {
 } from '@/components/ui/tooltip';
 import { ANALYTICS_CHART_COLORS } from '@/lib/analytics-palette';
 
-import type { AdminSubmission, TaskEnrollment } from './types';
+import type { AdminSubmission } from './types';
 
 export type DateRangePreset = '7days' | '30days' | 'all';
 
@@ -68,15 +68,14 @@ interface AnalyticsPanelProps {
   taskId: string;
   taskStartDate: string | Date;
   taskEndDate?: string | Date | null;
-  enrollments: TaskEnrollment[];
   submissions: AdminSubmission[];
-  isLoadingEnrollments: boolean;
+  submissionTotal: number;
   isLoadingSubmissions: boolean;
 }
 
 const EXPECTED_EDITING_SPAN_SECONDS = 60 * 60;
 const MAX_DAILY_SUBMISSION_TIMELINE_DAYS = 120;
-const COMPLETION_DIFFICULTY_HELP = 'Calculated from non-submitters, average editing time, and resubmissions; more of any raises difficulty.';
+const COMPLETION_DIFFICULTY_HELP = 'Estimated from completion rate, average editing time, and repeated submissions; higher values suggest more review attention.';
 const EVENT_TYPE_VISIBLE_LIMIT = 6;
 const OTHER_EVENT_TYPE = '__other_event_types__';
 const OTHER_EVENT_TYPE_COLOR = 'var(--hly-neutral-text)';
@@ -256,9 +255,8 @@ export function AnalyticsPanel({
   taskId,
   taskStartDate,
   taskEndDate,
-  enrollments,
   submissions,
-  isLoadingEnrollments,
+  submissionTotal,
   isLoadingSubmissions,
 }: AnalyticsPanelProps) {
   const [summary, setSummary] = useState<ExtendedAnalyticsSummary | null>(null);
@@ -373,24 +371,23 @@ export function AnalyticsPanel({
     if (foldedEventTypeChartData.length === 0) return;
     setIsOtherEventTypesOpen(true);
   }, [foldedEventTypeChartData.length]);
-  const totalSubmissions = submissions.length;
+  const totalSubmissions = submissionTotal;
   const submissionsByUser = submissions.reduce<Record<string, number>>((counts, submission) => {
     counts[submission.userId] = (counts[submission.userId] || 0) + 1;
     return counts;
   }, {});
-  const submittedUserCount = enrollments.filter((enrollment) => (
-    (enrollment.submissionCount || 0) > 0 || (submissionsByUser[enrollment.userId] || 0) > 0
-  )).length;
-  const noSubmissionCount = Math.max(0, enrollments.length - submittedUserCount);
-  const multipleSubmitterCount = enrollments.filter((enrollment) => (
-    Math.max(enrollment.submissionCount || 0, submissionsByUser[enrollment.userId] || 0) > 1
-  )).length;
-  const completionRate = enrollments.length > 0 ? submittedUserCount / enrollments.length : 0;
-  const noSubmissionPressure = enrollments.length > 0 ? noSubmissionCount / enrollments.length : 0;
+  const submittedUserCount = Math.max(
+    Object.keys(submissionsByUser).length,
+    summary?.uniqueUsers || 0
+  );
+  const activeWriterCount = summary?.totalUsers || submittedUserCount;
+  const multipleSubmitterCount = Object.values(submissionsByUser).filter((count) => count > 1).length;
+  const completionRate = clamp01((summary?.completionRate || 0) / 100);
+  const noSubmissionPressure = summary ? clamp01(1 - completionRate) : 0;
   const resubmissionRate = submittedUserCount > 0 ? multipleSubmitterCount / submittedUserCount : 0;
   const editingSpanSeconds = summary?.avgSessionDuration || 0;
   const timePressure = clamp01((editingSpanSeconds / EXPECTED_EDITING_SPAN_SECONDS - 0.75) / 1.25);
-  const difficultyScore = enrollments.length > 0
+  const difficultyScore = summary
     ? Math.round(100 * (
       0.55 * noSubmissionPressure +
       0.30 * timePressure +
@@ -482,9 +479,11 @@ export function AnalyticsPanel({
   const metrics = [
     {
       title: 'Submitted users',
-      value: `${submittedUserCount.toLocaleString()} / ${enrollments.length.toLocaleString()}`,
+      value: activeWriterCount > 0
+        ? `${submittedUserCount.toLocaleString()} / ${activeWriterCount.toLocaleString()}`
+        : submittedUserCount.toLocaleString(),
       icon: Users,
-      isLoading: isLoadingEnrollments || isLoadingSubmissions,
+      isLoading: isLoadingSummary || isLoadingSubmissions,
     },
     {
       title: 'Total submissions',
@@ -502,11 +501,11 @@ export function AnalyticsPanel({
       title: 'Completion Difficulty',
       value: difficultyLabel,
       detail: difficultyScore === null
-        ? 'Needs enrolled users'
+        ? 'Needs analytics data'
         : `${difficultyScore}/100 · ${formatPercent(completionRate * 100)} completed`,
       helpText: COMPLETION_DIFFICULTY_HELP,
       icon: Gauge,
-      isLoading: isLoadingEnrollments || isLoadingSubmissions || isLoadingSummary,
+      isLoading: isLoadingSummary,
     },
   ];
 

@@ -112,8 +112,7 @@ export function UsersPanel({
 	                    <TableHead>Joined</TableHead>
 	                    <TableHead className="text-right">Attempts</TableHead>
 	                    <TableHead className="text-right">Submissions</TableHead>
-	                    <TableHead className="text-right">Events</TableHead>
-                    <TableHead>Last Activity</TableHead>
+                    <TableHead>Latest Submission</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -125,9 +124,10 @@ export function UsersPanel({
 	                      <TableCell>{formatDateTime(enrollment.joinedAt)}</TableCell>
 	                      <TableCell className="text-right">{enrollment.attemptCount || 0}</TableCell>
 	                      <TableCell className="text-right">{enrollment.submissionCount}</TableCell>
-                      <TableCell className="text-right">{enrollment.eventCount}</TableCell>
                       <TableCell>
-                        {enrollment.lastActivity ? formatDateTime(enrollment.lastActivity) : 'No activity yet'}
+                        {enrollment.submissionCount > 0 && enrollment.lastActivity
+                          ? formatDateTime(enrollment.lastActivity)
+                          : 'No submission yet'}
                       </TableCell>
                     </TableRow>
                   ))}

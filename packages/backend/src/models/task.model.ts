@@ -1055,14 +1055,11 @@ export class TaskModel {
         active_attempt.attempt_number as "currentAttemptNumber",
         COALESCE(attempt_stats.attempt_count, 0)::int as "attemptCount",
         pe.joined_at as "joinedAt",
-        COALESCE(session_stats.session_count, 0)::int as "sessionCount",
+        0::int as "sessionCount",
         COALESCE(submission_stats.submission_count, 0)::int as "submissionCount",
-        (COALESCE(legacy_event_stats.event_count, 0) + COALESCE(document_event_stats.event_count, 0))::int as "eventCount",
+        0::int as "eventCount",
         GREATEST(
           pe.joined_at,
-          COALESCE(session_stats.last_session_activity, pe.joined_at),
-          COALESCE(legacy_event_stats.last_event_activity, pe.joined_at),
-          COALESCE(document_event_stats.last_event_activity, pe.joined_at),
           COALESCE(submission_stats.last_submission_activity, pe.joined_at)
         ) as "lastActivity"
       FROM scoped_enrollments pe
@@ -1080,42 +1077,6 @@ export class TaskModel {
         WHERE ta.task_id = pe.task_id
           AND ta.user_id = pe.user_id
       ) attempt_stats ON true
-      LEFT JOIN LATERAL (
-        SELECT
-          COUNT(*)::int as session_count,
-          MAX(COALESCE(s.session_end, s.session_start)) as last_session_activity
-        FROM sessions s
-        WHERE s.task_id = pe.task_id
-          AND s.external_user_id = pe.email
-      ) session_stats ON true
-      LEFT JOIN LATERAL (
-        SELECT
-          COUNT(e.id)::int as event_count,
-          MAX(e.timestamp) as last_event_activity
-        FROM sessions s
-        JOIN events e ON e.session_id = s.id
-        WHERE s.task_id = pe.task_id
-          AND s.external_user_id = pe.email
-      ) legacy_event_stats ON true
-      LEFT JOIN LATERAL (
-        SELECT
-          COUNT(de.id)::int as event_count,
-          MAX(de.timestamp) as last_event_activity
-        FROM document_events de
-        WHERE de.document_id IN (
-          SELECT DISTINCT task_documents.document_id
-          FROM (
-            SELECT ta.document_id
-            FROM task_attempts ta
-            WHERE ta.task_id = pe.task_id
-              AND ta.user_id = pe.user_id
-              AND ta.document_id IS NOT NULL
-            UNION
-            SELECT pe.submission_document_id
-            WHERE pe.submission_document_id IS NOT NULL
-          ) task_documents
-        )
-      ) document_event_stats ON true
       LEFT JOIN LATERAL (
         SELECT
           COUNT(*)::int as submission_count,

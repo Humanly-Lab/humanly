@@ -82,7 +82,8 @@ const SUBMISSION_SUMMARY_SELECT_FIELDS = `
   s.supersedes_submission_id as "supersedesSubmissionId",
   s.status,
   COALESCE(s.anomaly_flags, c.anomaly_flags, '[]'::jsonb) as "anomalyFlags",
-  COALESCE(s.detector_results, c.detector_results) as "detectorResults",
+  NULL::jsonb as "detectorResults",
+  0::int as "aiPolicyRefusalCount",
   s.created_at as "createdAt"
 `;
 
@@ -203,34 +204,15 @@ export class SubmissionModel {
     const offsetParamIndex = baseParams.length + 2;
 
     const sql = `
-      WITH scoped_submissions AS (
-        SELECT ${SUBMISSION_SUMMARY_SELECT_FIELDS}
-        FROM submissions s
-        LEFT JOIN certificates c ON c.id = s.certificate_id
-        LEFT JOIN users u ON u.id = s.user_id
-        LEFT JOIN documents d ON d.id = s.document_id
-        LEFT JOIN task_attempts ta ON ta.id = s.task_attempt_id
-        ${filterClause}
-        ORDER BY s.submitted_at DESC, s.created_at DESC, s.id DESC
-        LIMIT $${limitParamIndex} OFFSET $${offsetParamIndex}
-      ),
-      refusal_counts AS (
-        SELECT
-          ss."id" AS "submissionId",
-          COUNT(de.id)::int AS "aiPolicyRefusalCount"
-        FROM scoped_submissions ss
-        JOIN document_events de
-          ON de.document_id = ss."documentId"
-          AND de.event_type = 'ai_policy_refusal'
-          AND de.timestamp <= ss."submittedAt"
-        GROUP BY ss."id"
-      )
-      SELECT
-        ss.*,
-        COALESCE(rc."aiPolicyRefusalCount", 0) AS "aiPolicyRefusalCount"
-      FROM scoped_submissions ss
-      LEFT JOIN refusal_counts rc ON rc."submissionId" = ss."id"
-      ORDER BY ss."submittedAt" DESC, ss."createdAt" DESC, ss."id" DESC
+      SELECT ${SUBMISSION_SUMMARY_SELECT_FIELDS}
+      FROM submissions s
+      LEFT JOIN certificates c ON c.id = s.certificate_id
+      LEFT JOIN users u ON u.id = s.user_id
+      LEFT JOIN documents d ON d.id = s.document_id
+      LEFT JOIN task_attempts ta ON ta.id = s.task_attempt_id
+      ${filterClause}
+      ORDER BY s.submitted_at DESC, s.created_at DESC, s.id DESC
+      LIMIT $${limitParamIndex} OFFSET $${offsetParamIndex}
     `;
 
     const countSql = `
