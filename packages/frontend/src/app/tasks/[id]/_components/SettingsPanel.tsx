@@ -105,7 +105,7 @@ const taskSettingsSchema = z.object({
     .max(100, 'Task name must not exceed 100 characters'),
   description: z
     .string()
-    .max(500, 'Description must not exceed 500 characters')
+    .max(500, 'Notes must not exceed 500 characters')
     .optional()
     .or(z.literal('')),
   aiUsageLimit: z.coerce.number().int().min(1, 'AI usage limit must be at least 1'),
@@ -318,10 +318,12 @@ function DetectorSettingsBox({
   config,
   disabled,
   onChange,
+  embedded = false,
 }: {
   config: WritingEnvironmentConfig;
   disabled?: boolean;
   onChange: (config: WritingEnvironmentConfig) => void;
+  embedded?: boolean;
 }) {
   const detectors = normalizeWritingDetectorConfig(config.detectors);
   const setDetectorEnabled = (
@@ -338,7 +340,13 @@ function DetectorSettingsBox({
   };
 
   return (
-    <div className="space-y-3 rounded-md border bg-background p-3">
+    <div
+      className={
+        embedded
+          ? 'space-y-3'
+          : 'space-y-3 rounded-md border bg-background p-3'
+      }
+    >
       <div className="flex items-start justify-between gap-3">
         <div>
           <FormLabel>Anomaly behavior review</FormLabel>
@@ -1035,7 +1043,7 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
                   name="description"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Description</FormLabel>
+                      <FormLabel>Notes</FormLabel>
                       <FormControl>
                         <Textarea
                           placeholder="Describe the writing task, deadline, evaluation criteria, or class context..."
@@ -1045,7 +1053,7 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
                         />
                       </FormControl>
                       <FormDescription>
-                        This description is stored with the task and shown in task context.
+                        These notes are stored with the task and shown in task context.
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -1055,7 +1063,7 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
                 <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(320px,0.42fr)] xl:items-start">
                   <div className="space-y-6">
                     <div className="space-y-2">
-                      <FormLabel>Task Instruction</FormLabel>
+                      <FormLabel>Writing Instruction</FormLabel>
                       <Textarea
                         value={environmentConfig.instructions.taskInstruction || ''}
                         placeholder="No text instruction configured for this task."
@@ -1225,8 +1233,7 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
             <div className="grid gap-4 xl:grid-cols-2">
               <AdminEnvironmentDialogSection
                 className="xl:col-span-2"
-                title="AI"
-                description="Control whether enrolled users can use assistant support."
+                title="AI Policy"
               >
                 <div className="grid gap-4 lg:grid-cols-[minmax(0,0.7fr)_minmax(0,1.3fr)]">
                   <div className="space-y-2">
@@ -1429,7 +1436,6 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
 
               <AdminEnvironmentDialogSection
                 title="Writing Control"
-                description="Set copy-paste behavior and final submission length rules."
               >
                 <div className="grid gap-2">
                   <FormLabel htmlFor="copy-paste-policy">Copy & Paste</FormLabel>
@@ -1463,7 +1469,7 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
                     <option value="downloadable">View and download</option>
                     <option value="view-only">View only</option>
                   </select>
-                  <FormDescription>
+                  <FormDescription className="text-xs">
                     View-only instruction PDFs load through short-lived workspace access and hide file-saving affordances.
                   </FormDescription>
                 </div>
@@ -1515,9 +1521,6 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
                       <option value="single">Single durable attempt</option>
                       <option value="restart_allowed">Allow writers to restart</option>
                     </select>
-                    <FormDescription>
-                      Single attempt restores the same submission if a writer removes and rejoins the task.
-                    </FormDescription>
                   </div>
 
                   {normalizeWritingAttemptPolicy(environmentConfig.submission.attemptPolicy).mode === 'restart_allowed' ? (
@@ -1540,21 +1543,8 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
                 </div>
               </AdminEnvironmentDialogSection>
 
-              <DetectorSettingsBox
-                config={environmentConfig}
-                disabled={controlsDisabled}
-                onChange={(nextConfig) => {
-                  setEnvironmentConfig((current) => ({
-                    ...current,
-                    ...nextConfig,
-                    preset: 'custom',
-                  }));
-                }}
-              />
-
               <AdminEnvironmentDialogSection
                 title="Time"
-                description="Set the task availability window shown to enrolled users."
               >
                 <div className="grid gap-2">
                   <FormLabel htmlFor="task-availability-mode">Time</FormLabel>
@@ -1613,14 +1603,11 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
                   </div>
                 )}
 
-                <div className="space-y-4 border-t border-border/70 pt-4">
+                <div className="space-y-4">
                   <div className="space-y-1">
                     <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                       Writing Session Timer
                     </h3>
-                    <p className="text-sm text-muted-foreground">
-                      Set an optional countdown shown while enrolled users write.
-                    </p>
                   </div>
 
                   <div className="grid gap-2">
@@ -1655,6 +1642,19 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
                     </div>
                   )}
                 </div>
+
+                <DetectorSettingsBox
+                  embedded
+                  config={environmentConfig}
+                  disabled={controlsDisabled}
+                  onChange={(nextConfig) => {
+                    setEnvironmentConfig((current) => ({
+                      ...current,
+                      ...nextConfig,
+                      preset: 'custom',
+                    }));
+                  }}
+                />
               </AdminEnvironmentDialogSection>
             </div>
 

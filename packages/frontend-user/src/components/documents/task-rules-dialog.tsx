@@ -201,11 +201,11 @@ export function TaskRulesDialog({
           <DialogTitle>Instructions</DialogTitle>
           <DialogDescription>
             {taskName && taskInstruction
-              ? `${taskName} includes the task instruction and writing rules below.`
+              ? `${taskName} includes the writing instruction and writing rules below.`
               : taskName
                 ? `${taskName} includes the writing rules below.`
                 : taskInstruction
-                  ? 'Review the task instruction and writing rules for this workspace.'
+                  ? 'Review the writing instruction and writing rules for this workspace.'
                   : 'Review the writing rules for this workspace.'}
           </DialogDescription>
         </DialogHeader>
@@ -213,7 +213,7 @@ export function TaskRulesDialog({
         <div className="space-y-3">
           {taskInstruction ? (
             <section className="rounded-lg border border-border/70 bg-muted/20 px-4 py-3">
-              <h3 className="text-sm font-medium text-foreground">Task Instruction</h3>
+              <h3 className="text-sm font-medium text-foreground">Writing Instruction</h3>
               <MarkdownContent className="mt-2 text-sm text-muted-foreground [&_a]:font-medium [&_a]:text-foreground [&_a]:underline [&_a]:underline-offset-2 [&_code]:rounded [&_code]:bg-background/80 [&_code]:px-1 [&_code]:py-0.5 [&_em]:italic [&_li]:my-1 [&_ol]:list-decimal [&_ol]:pl-5 [&_strong]:font-semibold [&_strong]:text-foreground [&_ul]:list-disc [&_ul]:pl-5">
                 {taskInstruction}
               </MarkdownContent>

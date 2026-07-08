@@ -410,58 +410,87 @@ function TrackingCard() {
         <span className="text-[11px] font-medium">Tracking log</span>
         <span className="text-[9px] text-muted-foreground">live</span>
       </div>
-      {logRows.map(([time, kind, rowBg, fg, count]) => (
-        <div
-          key={`${time}-${kind}`}
-          className="grid grid-cols-[50px_1fr_auto] items-center gap-1 border-t border-dashed border-[rgba(20,22,26,0.05)] py-[3px] text-[9.5px] first:border-t-0"
-        >
-          <span className="text-muted-foreground">{time}</span>
-          <span
-            className="w-fit rounded-[3px] px-1.5 py-px text-[9px] font-medium"
-            style={{ backgroundColor: rowBg, color: fg }}
-          >
-            {kind}
-          </span>
-          <span className="text-muted-foreground">{count}</span>
+      <div className="overflow-hidden rounded-md border border-border/60">
+        <div className="grid grid-cols-[46px_1fr_auto] gap-1 bg-muted/50 px-1.5 py-[3px] text-[8px] font-medium text-muted-foreground">
+          <span>Time</span>
+          <span>Activity</span>
+          <span>Count</span>
         </div>
-      ))}
+        {logRows.map(([time, kind, rowBg, fg, count]) => (
+          <div
+            key={`${time}-${kind}`}
+            className="grid grid-cols-[46px_1fr_auto] items-center gap-1 border-t border-border/60 px-1.5 py-[3px] text-[9.5px]"
+          >
+            <span className="tabular-nums text-muted-foreground">{time}</span>
+            <span
+              className="w-fit rounded-[3px] px-1.5 py-px text-[9px] font-medium"
+              style={{ backgroundColor: rowBg, color: fg }}
+            >
+              {kind}
+            </span>
+            <span className="tabular-nums text-muted-foreground">{count}</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
 
 function CertificateCard() {
   return (
-    <div className="humanly-hover-pop absolute bottom-[5%] right-[3%] z-30 grid min-h-[84px] w-[40%] rotate-[-0.8deg] grid-cols-[1fr_auto] items-center gap-3.5 rounded-[10px] border border-[var(--hly-hairline)] bg-[#fdfcf7] px-4 py-3 shadow-[0_24px_50px_-18px_rgba(20,22,26,0.40)] hover:z-50 hover:shadow-[0_32px_70px_-18px_rgba(20,22,26,0.48)]">
-      <div>
-        <div className="mb-1.5 flex items-center gap-1.5">
-          <CertBadge />
-          <span className="text-[8.5px] font-medium tracking-[0.2em] text-muted-foreground">
-            CERTIFICATE · SEALED
-          </span>
-          <span className="ml-1.5 h-1.5 w-1.5 rounded-full bg-[var(--hly-brand)]" />
+    <div className="humanly-hover-pop absolute bottom-[3%] left-[8%] z-30 w-[39%] rounded-[10px] border border-[var(--hly-hairline)] bg-background p-3.5 shadow-[0_24px_50px_-18px_rgba(20,22,26,0.40)] hover:z-50 hover:shadow-[0_32px_70px_-18px_rgba(20,22,26,0.48)]">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="mb-1.5 flex items-center gap-1.5">
+            <CertBadge />
+            <span className="text-[8.5px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+              Certificate
+            </span>
+          </div>
+          <div className="truncate text-[13px] font-medium tracking-[-0.005em]">
+            Drafting with attention
+          </div>
+          <div className="mt-1 whitespace-nowrap text-[9px] text-muted-foreground">
+            Generated May 19, 2026 · certificate sealed
+          </div>
         </div>
-        <div className="text-sm font-medium tracking-[-0.005em]">
-          Drafting with attention
-        </div>
-        <div className="mt-1 whitespace-nowrap text-[9.5px] text-muted-foreground">
-          Generated May 19, 2026 · token · 9F3A 7B2C
-        </div>
+        <span className="rounded-full border border-[var(--hly-green-border)] bg-[var(--hly-green-bg)] px-2 py-0.5 text-[9px] font-medium text-[var(--hly-green-text)]">
+          Sealed
+        </span>
       </div>
-      <div className="flex gap-3">
+
+      <div className="mt-3 grid grid-cols-3 gap-2">
         {[
-          ['TYPED', '93%'],
-          ['CHARS', '1,204'],
-          ['TIME', '18 min'],
+          ['Typed', '93%'],
+          ['Pasted', '7%'],
+          ['AI', '0%'],
         ].map(([label, value]) => (
-          <div key={label} className="text-right">
-            <div className="text-[8.5px] tracking-[0.12em] text-muted-foreground">
+          <div
+            key={label}
+            className="rounded-md border border-border/70 bg-card px-2 py-2 text-center"
+          >
+            <div className="text-[8.5px] uppercase tracking-[0.14em] text-muted-foreground">
               {label}
             </div>
-            <div className="mt-0.5 text-sm font-medium tracking-[-0.01em]">
-              {value}
-            </div>
+            <div className="mt-1 text-[16px] font-medium leading-none">{value}</div>
           </div>
         ))}
+      </div>
+
+      <div className="mt-3 rounded-md border border-border/70 bg-card px-3 py-2">
+        <div className="flex items-center justify-between gap-2">
+          <div className="min-w-0">
+            <div className="truncate text-[10.5px] font-medium">
+              Humanly Typing Detector
+            </div>
+            <div className="mt-1 truncate text-[9px] text-muted-foreground">
+              Writing trajectory is consistent with human writing.
+            </div>
+          </div>
+          <span className="shrink-0 rounded-full bg-[var(--hly-green-bg)] px-2 py-0.5 text-[8.5px] font-medium text-[var(--hly-green-text)]">
+            93% human
+          </span>
+        </div>
       </div>
     </div>
   );

@@ -456,9 +456,6 @@ export default function EnvironmentConfigFields({
               <option value="single">Single durable attempt</option>
               <option value="restart_allowed">Allow writers to restart</option>
             </select>
-            <p className="text-xs text-muted-foreground">
-              Single attempt restores the same submission if a writer rejoins.
-            </p>
           </div>
         )}
 

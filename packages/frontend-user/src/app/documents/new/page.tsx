@@ -70,7 +70,6 @@ import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -169,10 +168,12 @@ function DetectorSettingsBox({
   config,
   disabled,
   onChange,
+  embedded = false,
 }: {
   config: WritingEnvironmentConfig;
   disabled?: boolean;
   onChange: (config: WritingEnvironmentConfig) => void;
+  embedded?: boolean;
 }) {
   const detectors = normalizeWritingDetectorConfig(config.detectors);
   const setDetectorEnabled = (
@@ -189,7 +190,13 @@ function DetectorSettingsBox({
   };
 
   return (
-    <div className="space-y-3 rounded-md border bg-background p-3">
+    <div
+      className={
+        embedded
+          ? 'space-y-3'
+          : 'space-y-3 rounded-md border bg-background p-3'
+      }
+    >
       <div className="flex items-start justify-between gap-3">
         <div>
           <Label>Anomaly behavior review</Label>
@@ -1227,13 +1234,9 @@ function NewDocumentPageContent() {
   const customEnvironmentControls = (
     <div className="grid gap-4 lg:grid-cols-2">
       <div className="space-y-4 rounded-md border p-4 lg:col-span-2">
-        <SectionHeading
-          title="AI"
-          description="Control whether this document can use assistant support."
-        />
+        <SectionHeading title="AI Policy" />
 
         <div className="humanly-field">
-          <Label>AI</Label>
           <Select
             value={environmentConfig.aiAccess}
             onValueChange={(value) => setAiAccess(value as WritingAiAccess)}
@@ -1512,10 +1515,7 @@ function NewDocumentPageContent() {
       </div>
 
       <div className="space-y-4 rounded-md border p-4">
-        <SectionHeading
-          title="Writing Control"
-          description="Set rules for editing behavior during writing."
-        />
+        <SectionHeading title="Writing Control" />
 
         <div className="humanly-field">
           <Label>Copy & Paste</Label>
@@ -1589,96 +1589,90 @@ function NewDocumentPageContent() {
         </div>
       </div>
 
-      <div className="space-y-4">
-        <div className="space-y-4 rounded-md border p-4">
-          <SectionHeading
-            title="Time Limitation"
-            description="Set whether the writing session should have a time limit."
-          />
-
-          <div className="humanly-field">
-            <Label>Time</Label>
-            <Select
-              value={timeMode}
-              onValueChange={(value) => {
-                markCustom((current) => ({
-                  ...current,
-                  aiUsageLimit: {
-                    ...current.aiUsageLimit,
-                    mode:
-                      value === 'time_restricted'
-                        ? 'time_restricted'
-                        : 'unlimited',
-                  },
-                  time: {
-                    ...current.time,
-                    timeLimitSeconds:
-                      value === 'time_restricted'
-                        ? current.time.timeLimitSeconds || 3600
-                        : undefined,
-                  },
-                }));
-                if (value === 'time_restricted') {
-                  setTimeLimitMinutesInput(
-                    getTimeLimitMinutesValue(
-                      environmentConfig.time.timeLimitSeconds
-                    )
-                  );
-                }
-              }}
-            >
-              <SelectTrigger aria-label="Time policy">
-                <SelectValue placeholder="Time policy" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="unlimited">No limitations</SelectItem>
-                <SelectItem value="time_restricted">Time limited</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {timeMode === 'time_restricted' && (
-            <div className="humanly-field">
-              <Label htmlFor="time-limit-minutes">Time Limit (minutes)</Label>
-              <Input
-                id="time-limit-minutes"
-                type="number"
-                min={1}
-                value={timeLimitMinutesInput}
-                disabled={isCreating}
-                onChange={(event) => {
-                  const nextValue = event.target.value;
-                  setTimeLimitMinutesInput(nextValue);
-                  if (!nextValue) return;
-                  const minutes = parseTimeLimitMinutes(nextValue, 1);
-                  markCustom((current) => ({
-                    ...current,
-                    time: {
-                      ...current.time,
-                      timeLimitSeconds: minutes * 60,
-                    },
-                  }));
-                }}
-                onBlur={() => {
-                  const minutes = parseTimeLimitMinutes(
-                    timeLimitMinutesInput,
-                    1
-                  );
-                  setTimeLimitMinutesInput(String(minutes));
-                  markCustom((current) => ({
-                    ...current,
-                    time: {
-                      ...current.time,
-                      timeLimitSeconds: minutes * 60,
-                    },
-                  }));
-                }}
-              />
-            </div>
-          )}
+      <div className="space-y-4 rounded-md border p-4">
+        <div className="humanly-field">
+          <Label>Time</Label>
+          <Select
+            value={timeMode}
+            onValueChange={(value) => {
+              markCustom((current) => ({
+                ...current,
+                aiUsageLimit: {
+                  ...current.aiUsageLimit,
+                  mode:
+                    value === 'time_restricted'
+                      ? 'time_restricted'
+                      : 'unlimited',
+                },
+                time: {
+                  ...current.time,
+                  timeLimitSeconds:
+                    value === 'time_restricted'
+                      ? current.time.timeLimitSeconds || 3600
+                      : undefined,
+                },
+              }));
+              if (value === 'time_restricted') {
+                setTimeLimitMinutesInput(
+                  getTimeLimitMinutesValue(
+                    environmentConfig.time.timeLimitSeconds
+                  )
+                );
+              }
+            }}
+          >
+            <SelectTrigger aria-label="Time policy">
+              <SelectValue placeholder="Time policy" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="unlimited">No limitations</SelectItem>
+              <SelectItem value="time_restricted">Time limited</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
+        {timeMode === 'time_restricted' && (
+          <div className="humanly-field">
+            <Label htmlFor="time-limit-minutes">Time Limit (minutes)</Label>
+            <Input
+              id="time-limit-minutes"
+              type="number"
+              min={1}
+              value={timeLimitMinutesInput}
+              disabled={isCreating}
+              onChange={(event) => {
+                const nextValue = event.target.value;
+                setTimeLimitMinutesInput(nextValue);
+                if (!nextValue) return;
+                const minutes = parseTimeLimitMinutes(nextValue, 1);
+                markCustom((current) => ({
+                  ...current,
+                  time: {
+                    ...current.time,
+                    timeLimitSeconds: minutes * 60,
+                  },
+                }));
+              }}
+              onBlur={() => {
+                const minutes = parseTimeLimitMinutes(
+                  timeLimitMinutesInput,
+                  1
+                );
+                setTimeLimitMinutesInput(String(minutes));
+                markCustom((current) => ({
+                  ...current,
+                  time: {
+                    ...current.time,
+                    timeLimitSeconds: minutes * 60,
+                  },
+                }));
+              }}
+            />
+          </div>
+        )}
+
         <DetectorSettingsBox
+          embedded
           config={environmentConfig}
           disabled={isCreating}
           onChange={(nextConfig) => {
@@ -1712,7 +1706,7 @@ function NewDocumentPageContent() {
             onClick={openWorkspacePreview}
             disabled={isCreating}
           >
-            <Eye className="h-4 w-4" />
+            <Eye className="h-4 w-4 text-white" />
             Preview
           </Button>
         </div>
@@ -1735,7 +1729,7 @@ function NewDocumentPageContent() {
             </div>
 
             <div className="humanly-field">
-              <Label htmlFor="document-description">Description</Label>
+              <Label htmlFor="document-description">Notes</Label>
               <Textarea
                 id="document-description"
                 value={description}
@@ -1746,7 +1740,7 @@ function NewDocumentPageContent() {
             </div>
 
             <div className="humanly-field">
-              <Label htmlFor="document-instruction">Task Instruction</Label>
+              <Label htmlFor="document-instruction">Writing Instruction</Label>
               <Textarea
                 id="document-instruction"
                 value={taskInstruction}
@@ -1802,7 +1796,23 @@ function NewDocumentPageContent() {
           </section>
 
           <div className="h-full space-y-4 py-1 xl:border-l xl:border-border/60 xl:pl-8">
-            <SectionHeading title="Environment" />
+            <div className="flex items-center justify-between gap-3">
+              <SectionHeading title="Environment" />
+              {showCustomEnvironmentSummary && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    allowEnvironmentDialogCloseRef.current = false;
+                    setEnvironmentDialogOpen(true);
+                  }}
+                  disabled={isCreating}
+                >
+                  Edit Settings
+                </Button>
+              )}
+            </div>
 
             <div className="humanly-field">
               <Select
@@ -1845,68 +1855,40 @@ function NewDocumentPageContent() {
             )}
 
             {!showCustomEnvironmentSummary && !isImportingEnvironment && (
-              <div className="pt-1">
-                <div className="flex items-center gap-3">
-                  <CheckCircle className="h-4 w-4 shrink-0 text-[var(--hly-green-text)]" />
-                  <p className="font-medium">Default Environment</p>
-                </div>
-
-                <dl className="mt-4 border-t border-border/70">
-                  {[
-                    ['AI assistant', 'Off'],
-                    ['Copy & paste', 'Allowed'],
-                    ['Time limit', 'None'],
-                    ['Detectors', 'Both on'],
-                  ].map(([label, value]) => (
-                    <div
-                      key={label}
-                      className="flex items-baseline justify-between border-b border-border/70 py-2.5 text-sm"
-                    >
-                      <dt className="text-muted-foreground">{label}</dt>
-                      <dd className="font-medium">{value}</dd>
-                    </div>
-                  ))}
-                </dl>
-              </div>
+              <dl className="border-t border-border/70">
+                {[
+                  ['AI assistant', 'Off'],
+                  ['Copy & paste', 'Allowed'],
+                  ['Time limit', 'None'],
+                  ['Detectors', 'Both on'],
+                ].map(([label, value]) => (
+                  <div
+                    key={label}
+                    className="flex items-baseline justify-between border-b border-border/70 py-2.5 text-sm"
+                  >
+                    <dt className="text-muted-foreground">{label}</dt>
+                    <dd className="font-medium">{value}</dd>
+                  </div>
+                ))}
+              </dl>
             )}
 
             {showCustomEnvironmentSummary && (
-              <div className="pt-1">
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="flex min-w-0 items-center gap-3">
-                    <CheckCircle className="h-4 w-4 shrink-0 text-[var(--hly-green-text)]" />
-                    <p className="font-medium">Custom Environment</p>
-                  </div>
-
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => {
-                      allowEnvironmentDialogCloseRef.current = false;
-                      setEnvironmentDialogOpen(true);
-                    }}
-                    disabled={isCreating}
+              <dl className="border-t border-border/70">
+                {customEnvironmentSummaryItems.map((item) => (
+                  <div
+                    key={item.label}
+                    className="flex items-baseline justify-between gap-4 border-b border-border/70 py-2.5 text-sm"
                   >
-                    Edit Settings
-                  </Button>
-                </div>
-
-                <dl className="mt-4 border-t border-border/70">
-                  {customEnvironmentSummaryItems.map((item) => (
-                    <div
-                      key={item.label}
-                      className="flex items-baseline justify-between gap-4 border-b border-border/70 py-2.5 text-sm"
-                    >
-                      <dt className="shrink-0 text-muted-foreground">
-                        {item.label}
-                      </dt>
-                      <dd className="min-w-0 text-right">
-                        <span className="font-medium">{item.value}</span>
-                      </dd>
-                    </div>
-                  ))}
-                </dl>
-              </div>
+                    <dt className="shrink-0 text-muted-foreground">
+                      {item.label}
+                    </dt>
+                    <dd className="min-w-0 text-right">
+                      <span className="font-medium">{item.value}</span>
+                    </dd>
+                  </div>
+                ))}
+              </dl>
             )}
           </div>
         </CardContent>
@@ -1929,13 +1911,12 @@ function NewDocumentPageContent() {
         open={environmentDialogOpen}
         onOpenChange={handleEnvironmentDialogOpenChange}
       >
-        <DialogContent className="max-h-[85vh] w-[calc(100vw-2rem)] max-w-5xl overflow-y-auto">
+        <DialogContent
+          aria-describedby={undefined}
+          className="max-h-[85vh] w-[calc(100vw-2rem)] max-w-5xl overflow-y-auto"
+        >
           <DialogHeader>
             <DialogTitle>Custom Environment</DialogTitle>
-            <DialogDescription>
-              Configure AI access, writing rules, character cap, and time limit
-              before creating this document.
-            </DialogDescription>
           </DialogHeader>
 
           {customEnvironmentControls}
