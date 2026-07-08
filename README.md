@@ -27,7 +27,7 @@ controlled workspace for drafting with configurable AI support, and it gives
 reviewers a certificate that shows how the writing process unfolded.
 
 <p align="center">
-  <img src="./assets/humanly-product-hero.svg" alt="Humanly writing workspace with PDF context, editor, and AI assistant" width="960" />
+  <img src="./assets/humanly-product-hero.png" alt="Humanly writing workspace with PDF context, editor, and AI assistant" width="960" />
 </p>
 
 ## Product
