@@ -135,6 +135,7 @@ function Scene({ active, children }: { active: boolean; children: ReactNode }) {
 
 export function PipelineShowcase() {
   const [scene, setScene] = useState(0);
+  const [hasStarted, setHasStarted] = useState(false);
   const [docName, setDocName] = useState('');
   const [text, setText] = useState('');
   const [writePhase, setWritePhase] = useState<WritePhase>('typing');
@@ -147,12 +148,42 @@ export function PipelineShowcase() {
   const [sealed, setSealed] = useState(false);
   const [pressed, setPressed] = useState<string | null>(null);
   const [cursor, setCursor] = useState({ x: 0, y: 0, click: false, shown: false });
+  const showcaseRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const logScrollRef = useRef<HTMLDivElement>(null);
   const certScrollRef = useRef<HTMLDivElement>(null);
   const runIdRef = useRef(0);
 
   useEffect(() => {
+    if (hasStarted) return;
+
+    const showcase = showcaseRef.current;
+    if (!showcase) return;
+
+    if (typeof IntersectionObserver === 'undefined') {
+      setHasStarted(true);
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry?.isIntersecting) return;
+        setScene(0);
+        setCursor({ x: 0, y: 0, click: false, shown: false });
+        setHasStarted(true);
+        observer.disconnect();
+      },
+      { threshold: 0.25 }
+    );
+
+    observer.observe(showcase);
+
+    return () => observer.disconnect();
+  }, [hasStarted]);
+
+  useEffect(() => {
+    if (!hasStarted) return;
+
     const id = ++runIdRef.current;
     const alive = () => runIdRef.current === id;
 
@@ -323,7 +354,7 @@ export function PipelineShowcase() {
         runIdRef.current = id + 1;
       }
     };
-  }, [scene]);
+  }, [hasStarted, scene]);
 
   const press = (name: string) => (pressed === name ? 'scale-95' : '');
   const renderSelectedSentence = (progress: number) => {
@@ -345,13 +376,16 @@ export function PipelineShowcase() {
   ).length;
 
   return (
-    <div className="w-full max-w-[880px]">
+    <div ref={showcaseRef} className="w-full max-w-[880px]">
       <div className="mb-5 flex flex-wrap gap-2">
         {STEPS.map((label, i) => (
           <button
             key={label}
             type="button"
-            onClick={() => setScene(i)}
+            onClick={() => {
+              if (!hasStarted) setHasStarted(true);
+              setScene(i);
+            }}
             className={`rounded-md border px-3.5 py-1.5 text-[12px] font-medium transition-all duration-200 ${
               scene === i
                 ? 'border-primary bg-primary text-primary-foreground shadow-sm'
