@@ -49,12 +49,12 @@ export function StatementVisual() {
   const logComplete = eventCount >= EVENTS.length;
 
   return (
-    <div className="mx-auto mt-12 grid max-w-[760px] items-stretch gap-4 text-left sm:grid-cols-2">
+    <div className="mt-12 grid max-w-[760px] items-stretch gap-4 text-left sm:grid-cols-2">
       {/* a detector, guessing after the fact */}
       <div className="flex flex-col rounded-[12px] border border-[var(--hly-hairline)] bg-white p-4 shadow-[0_20px_50px_-30px_rgba(35,32,25,0.3)]">
         <div className="flex items-center justify-between text-[11px]">
           <span className="font-medium text-muted-foreground">AI detector</span>
-          <span className="text-[9.5px] text-[var(--hly-neutral)]">sees only the final text</span>
+          <span className="text-[9.5px] text-[var(--hly-neutral)]">sees only the pure text</span>
         </div>
         <div className="relative mt-3 h-[190px] overflow-hidden rounded-md border border-border/60 p-3">
           {LINES.map((w, i) => (
