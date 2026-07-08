@@ -5,6 +5,10 @@
 </p>
 
 <p align="center">
+  <strong>Humanly: A Configurable and Traceable Environment for Human-AI Collaborative Writing.</strong>
+</p>
+
+<p align="center">
   <a href="#product">Product</a> ·
   <a href="#features">Features</a> ·
   <a href="#one-command-deployment">Self-Host</a> ·
@@ -19,8 +23,6 @@
   <img alt="Backend stack" src="https://img.shields.io/badge/Express%20%2F%20PostgreSQL-backend-b79a8b?style=for-the-badge">
   <a href="./LICENSE"><img alt="License" src="https://img.shields.io/badge/license-MIT-9aa77d?style=for-the-badge"></a>
 </p>
-
-**A Configurable and Traceable Environment for Human-AI Collaborative Writing.**
 
 Humanly is a writing provenance platform for human-AI work. It gives writers a
 controlled workspace for drafting with configurable AI support, and it gives
