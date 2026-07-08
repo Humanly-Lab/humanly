@@ -59,7 +59,7 @@ interface PageLayout {
 }
 
 const PDF_LOAD_TIMEOUT_MS = 30_000
-const PDF_RANGE_CHUNK_SIZE = 64 * 1024
+const PDF_RANGE_CHUNK_SIZE = 1024 * 1024
 // PDFPageView owns page DOM/text/annotation layers; this queue keeps Humanly's custom highlights and view-only logging.
 const MAX_CONCURRENT_PAGE_RENDERS = 2
 const PRE_RENDER_RADIUS = 1
@@ -524,25 +524,6 @@ export default function PDFViewer({ fileId, documentId, previewUrl, viewOnly = f
         setNumPages(pdf.numPages)
         setFitToWidth(true)
         setLoading(false)
-
-        void (async () => {
-          const hydratedLayouts = [...initialLayouts]
-          for (let pageNum = 2; pageNum <= pdf.numPages; pageNum++) {
-            if (cancelled) return
-            const page = await pdf.getPage(pageNum)
-            const viewport = page.getViewport({ scale: 1.0, rotation: 0 })
-            hydratedLayouts[pageNum - 1] = {
-              pageNumber: pageNum,
-              width: viewport.width,
-              height: viewport.height,
-              loaded: true,
-            }
-          }
-          if (!cancelled) {
-            pageLayoutsRef.current = hydratedLayouts
-            setPageLayouts(hydratedLayouts)
-          }
-        })()
 
       } catch (err: any) {
         if (cancelled) return
