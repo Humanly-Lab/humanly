@@ -650,7 +650,7 @@ function DemoTaskSetup({
             </div>
 
             <div className="humanly-field">
-              <Label htmlFor="demo-document-description">Description</Label>
+              <Label htmlFor="demo-document-description">Notes</Label>
               <Textarea
                 id="demo-document-description"
                 value={settings.description}

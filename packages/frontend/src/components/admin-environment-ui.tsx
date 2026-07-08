@@ -70,7 +70,7 @@ export function AdminEnvironmentDialogSection({
 }: {
   children: ReactNode;
   className?: string;
-  description: string;
+  description?: string;
   title: string;
 }) {
   return (

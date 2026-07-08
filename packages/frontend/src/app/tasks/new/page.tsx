@@ -128,16 +128,16 @@ const taskFormSchema = z
       .string()
       .max(
         TASK_DESCRIPTION_MAX_LENGTH,
-        `Description must not exceed ${TASK_DESCRIPTION_MAX_LENGTH} characters`
+        `Notes must not exceed ${TASK_DESCRIPTION_MAX_LENGTH} characters`
       )
       .optional()
       .or(z.literal('')),
     taskInstruction: z
-      .string()
-      .max(
-        TASK_INSTRUCTION_MAX_LENGTH,
-        `Task Instruction must not exceed ${TASK_INSTRUCTION_MAX_LENGTH} characters`
-      )
+    .string()
+    .max(
+      TASK_INSTRUCTION_MAX_LENGTH,
+      `Writing Instruction must not exceed ${TASK_INSTRUCTION_MAX_LENGTH} characters`
+    )
       .optional()
       .or(z.literal('')),
     aiUsageLimit: z.coerce
@@ -273,10 +273,12 @@ function DetectorSettingsBox({
   config,
   disabled,
   onChange,
+  embedded = false,
 }: {
   config: WritingEnvironmentConfig;
   disabled?: boolean;
   onChange: (config: WritingEnvironmentConfig) => void;
+  embedded?: boolean;
 }) {
   const detectors = normalizeWritingDetectorConfig(config.detectors);
   const setDetectorEnabled = (
@@ -293,7 +295,13 @@ function DetectorSettingsBox({
   };
 
   return (
-    <div className="grid gap-3 rounded-md border bg-background p-3 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.35fr)] lg:items-center">
+    <div
+      className={
+        embedded
+          ? 'space-y-3'
+          : 'space-y-3 rounded-md border bg-background p-3'
+      }
+    >
       <div className="flex items-start justify-between gap-3">
         <div>
           <FormLabel>Anomaly behavior review</FormLabel>
@@ -1513,10 +1521,7 @@ export default function NewTaskPage() {
   const customEnvironmentControls = (
     <div className="grid gap-4 xl:grid-cols-2">
       <div className="space-y-4 rounded-md border p-4 xl:col-span-2">
-        <SectionHeading
-          title="AI"
-          description="Control whether enrolled users can use assistant support."
-        />
+        <SectionHeading title="AI Policy" />
 
         <div className="grid gap-2">
           <Select
@@ -1824,10 +1829,7 @@ export default function NewTaskPage() {
       </div>
 
       <div className="space-y-4 rounded-md border p-4">
-        <SectionHeading
-          title="Writing Control"
-          description="Set copy-paste behavior and final submission length rules."
-        />
+        <SectionHeading title="Writing Control" />
 
         <div className="grid gap-2">
           <FormLabel>Copy & Paste</FormLabel>
@@ -1869,7 +1871,7 @@ export default function NewTaskPage() {
               <SelectItem value="view-only">View only</SelectItem>
             </SelectContent>
           </Select>
-          <FormDescription>
+          <FormDescription className="text-xs">
             View-only instruction PDFs load through short-lived workspace access
             and hide file-saving affordances.
           </FormDescription>
@@ -1941,10 +1943,6 @@ export default function NewTaskPage() {
                 </SelectItem>
               </SelectContent>
             </Select>
-            <FormDescription>
-              Single attempt restores the same submission if a writer removes
-              and rejoins the task.
-            </FormDescription>
           </div>
 
           {normalizeWritingAttemptPolicy(
@@ -1978,10 +1976,7 @@ export default function NewTaskPage() {
       </div>
 
       <div className="space-y-4 rounded-md border p-4">
-        <SectionHeading
-          title="Time"
-          description="Set the task availability window shown to enrolled users."
-        />
+        <SectionHeading title="Time" />
 
         <div className="grid gap-2">
           <FormLabel>Time</FormLabel>
@@ -2133,11 +2128,8 @@ export default function NewTaskPage() {
           </div>
         )}
 
-        <div className="space-y-4 border-t border-border/70 pt-4">
-          <SectionHeading
-            title="Writing Session Timer"
-            description="Set an optional countdown shown while enrolled users write."
-          />
+        <div className="space-y-4">
+          <SectionHeading title="Writing Session Timer" />
 
           <div className="grid gap-2">
             <FormLabel>Timer</FormLabel>
@@ -2184,10 +2176,9 @@ export default function NewTaskPage() {
             </div>
           )}
         </div>
-      </div>
 
-      <div className="xl:col-span-2">
         <DetectorSettingsBox
+          embedded
           config={environmentConfig}
           disabled={isSubmitting}
           onChange={(nextConfig) => {
@@ -2223,7 +2214,7 @@ export default function NewTaskPage() {
             onClick={openWorkspacePreview}
             disabled={isSubmitting}
           >
-            <Eye className="h-4 w-4" />
+            <Eye className="h-4 w-4 text-white" />
             Preview
           </Button>
         </div>
@@ -2268,7 +2259,7 @@ export default function NewTaskPage() {
                   name="description"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Description</FormLabel>
+                      <FormLabel>Notes</FormLabel>
                       <FormControl>
                         <Textarea
                           placeholder="Describe the writing task, deadline, evaluation criteria, or class context..."
@@ -2278,10 +2269,6 @@ export default function NewTaskPage() {
                           disabled={isSubmitting}
                         />
                       </FormControl>
-                      <FormDescription>
-                        Up to {TASK_DESCRIPTION_MAX_LENGTH.toLocaleString()}{' '}
-                        characters.
-                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -2292,7 +2279,7 @@ export default function NewTaskPage() {
                   name="taskInstruction"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Task Instruction</FormLabel>
+                      <FormLabel>Writing Instruction</FormLabel>
                       <FormControl>
                         <Textarea
                           placeholder="Instructions shown to the writer before writing starts..."
@@ -2302,10 +2289,6 @@ export default function NewTaskPage() {
                           disabled={isSubmitting}
                         />
                       </FormControl>
-                      <FormDescription>
-                        Shown above the writing rules in the writer Instructions
-                        dialog. Markdown formatting is supported.
-                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -2368,7 +2351,20 @@ export default function NewTaskPage() {
               </section>
 
               <div className="h-full space-y-4 py-1 xl:border-l xl:border-border/60 xl:pl-8">
-                <SectionHeading title="Environment" />
+                <div className="flex items-center justify-between gap-3">
+                  <SectionHeading title="Environment" />
+                  {showCustomEnvironmentSummary && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setEnvironmentDialogOpen(true)}
+                      disabled={isSubmitting}
+                    >
+                      Edit Settings
+                    </Button>
+                  )}
+                </div>
 
                 <div className="grid gap-2">
                   <Select
@@ -2411,65 +2407,40 @@ export default function NewTaskPage() {
                 )}
 
                 {!showCustomEnvironmentSummary && !isImportingEnvironment && (
-                  <div className="pt-1">
-                    <div className="flex items-center gap-3">
-                      <CheckCircle className="h-4 w-4 shrink-0 text-[var(--hly-green-text)]" />
-                      <p className="font-medium">Default Environment</p>
-                    </div>
-
-                    <dl className="mt-4 border-t border-border/70">
-                      {[
-                        ['AI assistant', 'Off'],
-                        ['Copy & paste', 'Allowed'],
-                        ['Time', 'Two-week window'],
-                        ['Detectors', 'Both on'],
-                      ].map(([label, value]) => (
-                        <div
-                          key={label}
-                          className="flex items-baseline justify-between border-b border-border/70 py-2.5 text-sm"
-                        >
-                          <dt className="text-muted-foreground">{label}</dt>
-                          <dd className="font-medium">{value}</dd>
-                        </div>
-                      ))}
-                    </dl>
-                  </div>
+                  <dl className="border-t border-border/70">
+                    {[
+                      ['AI assistant', 'Off'],
+                      ['Copy & paste', 'Allowed'],
+                      ['Time', 'Two-week window'],
+                      ['Detectors', 'Both on'],
+                    ].map(([label, value]) => (
+                      <div
+                        key={label}
+                        className="flex items-baseline justify-between border-b border-border/70 py-2.5 text-sm"
+                      >
+                        <dt className="text-muted-foreground">{label}</dt>
+                        <dd className="font-medium">{value}</dd>
+                      </div>
+                    ))}
+                  </dl>
                 )}
 
                 {showCustomEnvironmentSummary && (
-                  <div className="pt-1">
-                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                      <div className="flex min-w-0 items-center gap-3">
-                        <CheckCircle className="h-4 w-4 shrink-0 text-[var(--hly-green-text)]" />
-                        <p className="font-medium">Custom Environment</p>
-                      </div>
-
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => setEnvironmentDialogOpen(true)}
-                        disabled={isSubmitting}
+                  <dl className="border-t border-border/70">
+                    {customEnvironmentSummaryItems.map((item) => (
+                      <div
+                        key={item.label}
+                        className="flex items-baseline justify-between gap-4 border-b border-border/70 py-2.5 text-sm"
                       >
-                        Edit Settings
-                      </Button>
-                    </div>
-
-                    <dl className="mt-4 border-t border-border/70">
-                      {customEnvironmentSummaryItems.map((item) => (
-                        <div
-                          key={item.label}
-                          className="flex items-baseline justify-between gap-4 border-b border-border/70 py-2.5 text-sm"
-                        >
-                          <dt className="shrink-0 text-muted-foreground">
-                            {item.label}
-                          </dt>
-                          <dd className="min-w-0 text-right font-medium">
-                            {item.value}
-                          </dd>
-                        </div>
-                      ))}
-                    </dl>
-                  </div>
+                        <dt className="shrink-0 text-muted-foreground">
+                          {item.label}
+                        </dt>
+                        <dd className="min-w-0 text-right font-medium">
+                          {item.value}
+                        </dd>
+                      </div>
+                    ))}
+                  </dl>
                 )}
 
                 <div className="border-t border-border/70 pt-4">
@@ -2515,13 +2486,12 @@ export default function NewTaskPage() {
             open={environmentDialogOpen}
             onOpenChange={setEnvironmentDialogOpen}
           >
-            <DialogContent className="max-h-[85vh] w-[calc(100vw-2rem)] max-w-5xl overflow-y-auto">
+            <DialogContent
+              aria-describedby={undefined}
+              className="max-h-[85vh] w-[calc(100vw-2rem)] max-w-5xl overflow-y-auto"
+            >
               <DialogHeader>
                 <DialogTitle>Custom Environment</DialogTitle>
-                <DialogDescription>
-                  Configure AI access, task availability, writing session
-                  timing, and submission rules before creating this task.
-                </DialogDescription>
               </DialogHeader>
 
               {customEnvironmentControls}

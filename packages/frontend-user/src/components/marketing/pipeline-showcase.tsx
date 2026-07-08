@@ -19,51 +19,89 @@ import {
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 
 type Kind =
-  | 'input'
+  | 'Typed'
   | 'paste'
-  | 'blocked'
-  | 'select'
-  | 'ai chat'
-  | 'ai edit'
-  | 'resource'
-  | 'focus'
-  | 'delete';
-const KIND_STYLE: Record<Kind, { bg: string; fg: string }> = {
-  input: { bg: 'var(--hly-green-tint)', fg: 'var(--hly-green-strong)' },
-  paste: { bg: 'var(--hly-paste-bg)', fg: 'var(--hly-paste-text)' },
-  blocked: { bg: 'var(--hly-red-bg)', fg: 'var(--hly-red-text)' },
-  select: { bg: 'var(--hly-purple-bg)', fg: 'var(--hly-purple-text)' },
-  'ai chat': { bg: 'var(--hly-ai-bg)', fg: 'var(--hly-ai-text)' },
-  'ai edit': { bg: 'var(--hly-green-bg)', fg: 'var(--hly-green-text)' },
-  resource: { bg: 'var(--hly-surface-2)', fg: 'var(--hly-neutral)' },
-  focus: { bg: 'var(--hly-green-tint)', fg: 'var(--hly-green-strong)' },
-  delete: { bg: 'var(--hly-red-bg)', fg: 'var(--hly-red-text)' },
+  | 'blocked copy-paste'
+  | 'Selected'
+  | 'Chat'
+  | 'Fix grammar'
+  | 'AI inserted'
+  | 'Focused'
+  | 'Delete';
+const KIND_STYLE: Record<Kind, { bg: string; border: string; fg: string }> = {
+  Typed: {
+    bg: 'var(--hly-blue-bg)',
+    border: 'var(--hly-blue-border)',
+    fg: 'var(--hly-blue-text)',
+  },
+  paste: {
+    bg: '#F2EFE8',
+    border: 'var(--hly-amber-border)',
+    fg: 'var(--hly-neutral-text)',
+  },
+  'blocked copy-paste': {
+    bg: 'var(--hly-red-bg)',
+    border: 'var(--hly-red-border)',
+    fg: 'var(--hly-red-text)',
+  },
+  Selected: {
+    bg: '#F1EEE8',
+    border: 'var(--hly-amber-border)',
+    fg: 'var(--hly-neutral-text)',
+  },
+  Chat: {
+    bg: 'var(--hly-purple-bg)',
+    border: 'var(--hly-purple-border)',
+    fg: 'var(--hly-purple-text)',
+  },
+  'Fix grammar': {
+    bg: 'var(--hly-purple-bg)',
+    border: 'var(--hly-purple-border)',
+    fg: 'var(--hly-purple-text)',
+  },
+  'AI inserted': {
+    bg: 'var(--hly-purple-bg)',
+    border: 'var(--hly-purple-border)',
+    fg: 'var(--hly-purple-text)',
+  },
+  Focused: {
+    bg: 'var(--hly-green-bg)',
+    border: 'var(--hly-green-border)',
+    fg: 'var(--hly-green-text)',
+  },
+  Delete: {
+    bg: 'var(--hly-red-bg)',
+    border: 'var(--hly-red-border)',
+    fg: 'var(--hly-red-text)',
+  },
 };
 
 const STEPS = ['01 Configure', '02 Write', '03 Log', '04 Certify'] as const;
 const DOC_NAME = 'On Attention';
 const LINE_1 = 'The first thing to notice about a draft is the pause before it. ';
 const ERR_SENTENCE = 'The discipline are to wait, then to choose.';
+const CHAT_PROMPT = 'Summarize the source document';
+const CHAT_RESPONSE =
+  'The source argues that attention changes how writers weigh evidence, especially when revision slows the draft and makes the reasoning visible.';
 const LOG_ROWS: Array<[string, Kind, string, string]> = [
-  ['12:41:42', 'focus', 'Writing workspace opened', ''],
-  ['12:41:44', 'resource', 'attention-sources.pdf viewed', '1'],
-  ['12:41:46', 'input', '"The first thing to notice…"', '+38'],
-  ['12:41:48', 'input', '"The first thing to notice about a draft…"', '+64'],
-  ['12:41:50', 'input', '"…is the pause before it."', '+54'],
-  ['12:41:52', 'input', '"…is the pause before it. Before a sentence…"', '+118'],
-  ['12:41:54', 'input', '"Before a sentence lands on the page…"', '+72'],
-  ['12:41:56', 'input', '"The discipline are to wait…"', '+44'],
-  ['12:41:59', 'input', '"…then to choose."', '+16'],
-  ['12:42:01', 'select', '"The discipline are to wait…"', '39'],
-  ['12:42:03', 'ai chat', 'Summarize source document', '1'],
-  ['12:42:06', 'ai edit', 'Grammar shortcut applied', '+1/-3'],
-  ['12:42:08', 'delete', '"are" removed from selected sentence', '-3'],
-  ['12:42:09', 'input', '"is" inserted after discipline', '+2'],
-  ['12:42:11', 'blocked', 'Clipboard blocked by writing policy', '✕'],
-  ['12:42:14', 'input', '"then to choose."', '+16'],
-  ['12:42:18', 'paste', '"Attention reshaped how models handle…"', '+186'],
-  ['12:42:22', 'focus', 'Workspace remained active', ''],
-  ['12:42:26', 'input', '"Source evidence supports the point…"', '+52'],
+  ['12:41:42', 'Focused', 'Editor focused', 'Cursor 0'],
+  ['12:41:46', 'Typed', '"The first thing to notice…"', 'Cursor 38'],
+  ['12:41:48', 'Typed', '"The first thing to notice about a draft…"', 'Cursor 64'],
+  ['12:41:50', 'Typed', '"…is the pause before it."', 'Cursor 92'],
+  ['12:41:52', 'Typed', '"…is the pause before it. Before a sentence…"', 'Cursor 118'],
+  ['12:41:54', 'Typed', '"Before a sentence lands on the page…"', 'Cursor 154'],
+  ['12:41:56', 'Typed', '"The discipline are to wait…"', 'Cursor 176'],
+  ['12:41:59', 'Typed', '"…then to choose."', 'Cursor 197'],
+  ['12:42:01', 'Selected', '"The discipline are to wait…"', '39 chars'],
+  ['12:42:03', 'Chat', 'Asked "Summarize the source document"', '—'],
+  ['12:42:06', 'Fix grammar', 'Fix grammar applied', '—'],
+  ['12:42:08', 'AI inserted', 'Replaced with "is"', 'Cursor 197'],
+  ['12:42:10', 'Delete', '"are" removed from selected sentence', 'Cursor 193'],
+  ['12:42:11', 'blocked copy-paste', 'Blocked paste by copy-paste policy', '1 attempt'],
+  ['12:42:14', 'Typed', '"then to choose."', 'Cursor 211'],
+  ['12:42:18', 'paste', '"Attention reshaped how models handle…"', 'Cursor 397'],
+  ['12:42:22', 'Focused', 'Editor focused', 'Cursor 397'],
+  ['12:42:26', 'Typed', '"Source evidence supports the point…"', 'Cursor 449'],
 ];
 type WritePhase = 'typing' | 'selecting' | 'selected' | 'diff' | 'applied';
 
@@ -102,6 +140,9 @@ export function PipelineShowcase() {
   const [writePhase, setWritePhase] = useState<WritePhase>('typing');
   const [selectionProgress, setSelectionProgress] = useState(0);
   const [aiChatVisible, setAiChatVisible] = useState(false);
+  const [chatInputText, setChatInputText] = useState('');
+  const [aiResponseText, setAiResponseText] = useState('');
+  const [aiResponseStreaming, setAiResponseStreaming] = useState(false);
   const [logCount, setLogCount] = useState(0);
   const [sealed, setSealed] = useState(false);
   const [pressed, setPressed] = useState<string | null>(null);
@@ -143,7 +184,7 @@ export function PipelineShowcase() {
     const typeInto = async (
       line: string,
       set: (fn: (t: string) => string) => void,
-      pace = 46
+      pace = 58
     ) => {
       for (let i = 0; i < line.length && alive(); i += 2) {
         const piece = line.slice(i, i + 2);
@@ -157,7 +198,10 @@ export function PipelineShowcase() {
     setWritePhase('typing');
     setSelectionProgress(0);
     setAiChatVisible(false);
-    setLogCount(0);
+    setChatInputText('');
+    setAiResponseText('');
+    setAiResponseStreaming(false);
+    setLogCount(scene === 2 ? LOG_ROWS.length : 0);
     setSealed(false);
     setPressed(null);
     if (logScrollRef.current) logScrollRef.current.scrollTop = 0;
@@ -188,7 +232,7 @@ export function PipelineShowcase() {
         setSelectionProgress(0);
         await sleep(250);
         // Select the faulty sentence progressively; the highlight follows the cursor drag.
-        await moveToEl('s1-sentence', -150, 0);
+        await moveToEl('s1-sentence', -105, 0);
         setCursor((c) => ({ ...c, click: true }));
         setSelectionProgress(100);
         await moveToEl('s1-sentence', 150, 0);
@@ -210,24 +254,29 @@ export function PipelineShowcase() {
         if (!alive()) return;
         await moveToEl('s1-chat-input');
         await click('s1-chat-input');
+        await typeInto(CHAT_PROMPT, setChatInputText, 42);
+        if (!alive()) return;
+        await moveToEl('s1-chat-send');
+        await click('s1-chat-send');
         setAiChatVisible(true);
-        await sleep(900);
+        setChatInputText('');
+        setAiResponseText('');
+        setAiResponseStreaming(true);
+        await sleep(220);
+        await typeInto(CHAT_RESPONSE, setAiResponseText, 34);
+        setAiResponseStreaming(false);
+        await sleep(650);
         if (!alive()) return;
         await moveToEl('s1-log');
         await click('s1-log');
         await sleep(1000);
       },
-      // 03 · watch the record build
+      // 03 · review the complete record
       2: async () => {
-        setLogCount(8);
+        setLogCount(LOG_ROWS.length);
         setCursor((c) => ({ ...c, shown: true }));
         await moveToEl('s2-list', 0, -45);
-        for (const count of [11, 14, 17, LOG_ROWS.length]) {
-          if (!alive()) return;
-          setLogCount(count);
-          await sleep(340);
-        }
-        await sleep(120);
+        await sleep(350);
         const maxLogScroll = Math.max(
           0,
           (logScrollRef.current?.scrollHeight || 0) - (logScrollRef.current?.clientHeight || 0)
@@ -291,7 +340,9 @@ export function PipelineShowcase() {
   };
 
   const visibleLogRows = LOG_ROWS.slice(0, logCount);
-  const visibleAiLogCount = visibleLogRows.filter(([, kind]) => kind === 'ai chat' || kind === 'ai edit').length;
+  const visibleAiLogCount = visibleLogRows.filter(([, kind]) =>
+    kind === 'Chat' || kind === 'Fix grammar' || kind === 'AI inserted'
+  ).length;
 
   return (
     <div className="w-full max-w-[880px]">
@@ -324,8 +375,8 @@ export function PipelineShowcase() {
             <p className="text-[10px] text-muted-foreground">← Back to Workspace</p>
             <div className="mt-1 flex items-end justify-between">
               <h3 className="text-[18px] font-medium tracking-[-0.02em]">Create Writing</h3>
-              <span className="flex items-center gap-1 rounded-md border border-input bg-transparent px-3 py-1.5 text-[10.5px] font-medium">
-                <Eye className="h-3 w-3" /> Preview
+              <span className="flex items-center gap-1 rounded-md border border-[#9E756B] bg-[#9E756B] px-3 py-1.5 text-[10.5px] font-medium text-white">
+                <Eye className="h-3 w-3 text-white" /> Preview
               </span>
             </div>
             <div className="mt-2.5 grid flex-1 grid-cols-[1fr_0.9fr] overflow-hidden rounded-lg border border-border/80 bg-card">
@@ -345,7 +396,7 @@ export function PipelineShowcase() {
                     <span className="humanly-cursor-blink ml-px inline-block h-3 w-0.5 bg-foreground" />
                   )}
                 </div>
-                <p className="mt-2.5 text-[11px] font-medium">Description</p>
+                <p className="mt-2.5 text-[11px] font-medium">Notes</p>
                 <div className="mt-1 h-9 rounded-md border border-input bg-card px-2 pt-1 text-[10px] text-[var(--hly-neutral)]">
                   Optional context for this document...
                 </div>
@@ -479,7 +530,7 @@ export function PipelineShowcase() {
 
                 {/* floating shortcut bar (appears on selection, like the real editor) */}
                 {writePhase === 'selected' && (
-                  <div className="absolute left-6 top-[90px] z-20 flex items-center gap-1.5 rounded-[9px] border border-[var(--hly-hairline)] bg-white/95 px-2 py-1.5 shadow-[0_16px_34px_-22px_rgba(35,32,25,0.55)]">
+                  <div className="absolute left-6 top-[56px] z-20 flex items-center gap-1.5 rounded-[9px] border border-[var(--hly-hairline)] bg-white/95 px-2 py-1.5 shadow-[0_16px_34px_-22px_rgba(35,32,25,0.55)]">
                     <span
                       data-t="s1-fix"
                       className={`flex items-center gap-1 whitespace-nowrap rounded-md px-1.5 py-0.5 text-[9.5px] font-medium transition-transform duration-150 ${press('s1-fix')} bg-[var(--hly-green-bg)] text-[var(--hly-green-text)]`}
@@ -496,7 +547,7 @@ export function PipelineShowcase() {
 
                 {/* AI suggestion card with Apply / Discard (mirrors the real assist card) */}
                 {writePhase === 'diff' && (
-                  <div className="absolute left-6 top-[110px] z-20 w-[240px] rounded-[10px] border border-[var(--hly-hairline)] bg-white px-3 py-2.5 shadow-[0_24px_60px_-18px_rgba(35,32,25,0.4)]">
+                  <div className="absolute left-6 top-[68px] z-20 w-[240px] rounded-[10px] border border-[var(--hly-hairline)] bg-white px-3 py-2.5 shadow-[0_24px_60px_-18px_rgba(35,32,25,0.4)]">
                     <div className="mb-1.5 flex items-center gap-1.5">
                       <span className="grid h-4 w-4 place-items-center rounded bg-foreground text-[8px] font-medium text-white">✦</span>
                       <span className="text-[9.5px] font-medium">AI Assistant</span>
@@ -534,23 +585,35 @@ export function PipelineShowcase() {
               <div className="flex-1 space-y-1.5 p-2.5">
                 {aiChatVisible && (
                   <div className="ml-auto max-w-[82%] rounded-[10px] bg-foreground px-2 py-1 text-[9px] leading-snug text-white">
-                    Summarize the source document
+                    {CHAT_PROMPT}
                   </div>
                 )}
-                {aiChatVisible && (
+                {(aiResponseText || aiResponseStreaming) && (
                   <div className="rounded-md bg-[var(--hly-surface)] px-2 py-1.5 text-[9px] leading-relaxed text-[var(--hly-ink)]">
-                    The source argues that attention changes how models weigh context, especially when writers revise with evidence instead of guessing.
+                    {aiResponseText}
+                    {aiResponseStreaming && (
+                      <span className="humanly-cursor-blink ml-px inline-block h-[1em] w-0.5 bg-foreground align-[-0.12em]" />
+                    )}
                   </div>
                 )}
               </div>
               <div className="flex items-center gap-1.5 border-t border-border/70 p-2">
                 <div
                   data-t="s1-chat-input"
-                  className="flex-1 rounded-md border border-[var(--hly-hairline)] bg-white px-2 py-1 text-[9px] text-[var(--hly-neutral)]"
+                  className={`flex-1 rounded-md border border-[var(--hly-hairline)] bg-white px-2 py-1 text-[9px] ${
+                    chatInputText ? 'text-foreground' : 'text-[var(--hly-neutral)]'
+                  }`}
                 >
-                  Type your message…
+                  {chatInputText || 'Type your message…'}
                 </div>
-                <span className="grid h-5 w-5 place-items-center rounded-md bg-[var(--hly-neutral)] text-[9px] text-white">↗</span>
+                <span
+                  data-t="s1-chat-send"
+                  className={`grid h-5 w-5 place-items-center rounded-md text-[9px] text-white transition-transform duration-150 ${
+                    chatInputText ? 'bg-foreground' : 'bg-[var(--hly-neutral)]'
+                  } ${press('s1-chat-send')}`}
+                >
+                  ↗
+                </span>
               </div>
             </div>
           </div>
@@ -585,7 +648,7 @@ export function PipelineShowcase() {
                 <thead className="bg-muted/50 text-[9px] text-muted-foreground">
                   <tr>
                     <th className="w-[70px] px-3 py-1.5 text-left font-medium">Time</th>
-                    <th className="w-[78px] px-3 py-1.5 text-left font-medium">Activity</th>
+                    <th className="w-[118px] px-3 py-1.5 text-left font-medium">Activity</th>
                     <th className="px-3 py-1.5 text-left font-medium">Text / Detail</th>
                     <th className="w-[50px] px-3 py-1.5 text-left font-medium">Count</th>
                   </tr>
@@ -596,8 +659,12 @@ export function PipelineShowcase() {
                       <td className="px-3 py-[5px] tabular-nums text-muted-foreground">{t}</td>
                       <td className="px-3 py-[5px]">
                         <span
-                          className="rounded-[4px] px-1.5 py-px text-[9px] font-medium"
-                          style={{ backgroundColor: KIND_STYLE[kind].bg, color: KIND_STYLE[kind].fg }}
+                          className="inline-flex whitespace-nowrap rounded border px-1.5 py-px text-[9px] font-medium"
+                          style={{
+                            backgroundColor: KIND_STYLE[kind].bg,
+                            borderColor: KIND_STYLE[kind].border,
+                            color: KIND_STYLE[kind].fg,
+                          }}
                         >
                           {kind}
                         </span>
@@ -652,7 +719,7 @@ export function PipelineShowcase() {
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="text-[13px] font-medium">Certificate seal</p>
                       <span className="rounded-full border border-[var(--hly-green-border)] bg-card px-2 py-0.5 text-[10px] font-medium text-[var(--hly-green-text)]">
-                        Signature verified
+                        Sealed
                       </span>
                     </div>
                     <p className="mt-1 text-[11px] text-muted-foreground">
