@@ -674,10 +674,6 @@ export default function DocumentsPage() {
               <h1 className="text-2xl font-medium sm:text-3xl">
                 Writer Dashboard
               </h1>
-              <p className="max-w-2xl text-sm text-muted-foreground sm:text-base">
-                Start your own tracked writing or complete an assigned task from
-                an instructor.
-              </p>
             </div>
 
             <div className="mb-6 lg:hidden">

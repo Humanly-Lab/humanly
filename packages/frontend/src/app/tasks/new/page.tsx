@@ -2371,7 +2371,6 @@ export default function NewTaskPage() {
                 <SectionHeading title="Environment" />
 
                 <div className="grid gap-2">
-                  <FormLabel>Environment</FormLabel>
                   <Select
                     value={environmentSelection}
                     onValueChange={(value) =>
@@ -2380,7 +2379,7 @@ export default function NewTaskPage() {
                       )
                     }
                   >
-                    <SelectTrigger>
+                    <SelectTrigger aria-label="Environment">
                       <SelectValue placeholder="Select environment" />
                     </SelectTrigger>
                     <SelectContent>

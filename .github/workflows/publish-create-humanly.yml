@@ -64,7 +64,16 @@ jobs:
         working-directory: packages/create-humanly
         env:
           VERSION: ${{ steps.release-version.outputs.version }}
-        run: npm version "$VERSION" --no-git-tag-version --allow-same-version
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+
+          const packagePath = 'package.json';
+          const pkg = JSON.parse(fs.readFileSync(packagePath, 'utf8'));
+          pkg.version = process.env.VERSION;
+          fs.writeFileSync(packagePath, `${JSON.stringify(pkg, null, 2)}\n`);
+          console.log(`${pkg.name}@${pkg.version}`);
+          NODE
 
       - name: Test package
         if: steps.package-status.outputs.exists == 'false'

@@ -1805,7 +1805,6 @@ function NewDocumentPageContent() {
             <SectionHeading title="Environment" />
 
             <div className="humanly-field">
-              <Label>Environment</Label>
               <Select
                 value={environmentSelection}
                 onValueChange={(value) =>
