@@ -2037,7 +2037,7 @@ export default function TaskSubmissionAnalyticsPage() {
             {isLoading ? (
               <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
             ) : (
-              <div className="text-2xl font-semibold">
+              <div className="text-2xl font-medium">
                 {sortedEvents.length.toLocaleString()}
               </div>
             )}
@@ -2054,7 +2054,7 @@ export default function TaskSubmissionAnalyticsPage() {
             {isLoading ? (
               <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
             ) : (
-              <div className="text-2xl font-semibold">
+              <div className="text-2xl font-medium">
                 {formatDuration(editingDurationSeconds)}
               </div>
             )}
@@ -2071,7 +2071,7 @@ export default function TaskSubmissionAnalyticsPage() {
             {isLoading ? (
               <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
             ) : (
-              <div className="text-2xl font-semibold">
+              <div className="text-2xl font-medium">
                 {textMetrics.typedCharacters.toLocaleString()}
               </div>
             )}
@@ -2086,7 +2086,7 @@ export default function TaskSubmissionAnalyticsPage() {
             {isLoading ? (
               <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
             ) : (
-              <div className="text-2xl font-semibold">
+              <div className="text-2xl font-medium">
                 {formatPercent(pasteShare)}
               </div>
             )}

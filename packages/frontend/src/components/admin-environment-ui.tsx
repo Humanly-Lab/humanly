@@ -76,7 +76,7 @@ export function AdminEnvironmentDialogSection({
   return (
     <section
       className={cn(
-        'space-y-4 rounded-lg border border-border/70 bg-card p-4',
+        'space-y-4 rounded-lg border border-border/70 bg-background p-4',
         className
       )}
     >

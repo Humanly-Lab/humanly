@@ -497,10 +497,10 @@ export function FastWritingDemo() {
       <div className="mx-auto max-w-[1180px]">
         <div className="mb-3 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div className="min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
+            <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
               Humanly Demo
             </p>
-            <h2 className="mt-1 text-2xl font-semibold leading-tight tracking-normal sm:text-3xl">
+            <h2 className="mt-1 text-2xl font-medium leading-tight tracking-normal sm:text-3xl">
               Setup, write, certify.
             </h2>
           </div>
@@ -599,7 +599,7 @@ function StepBadge({
 function SectionHeading({ title, description }: { title: string; description?: string }) {
   return (
     <div>
-      <h3 className="text-base font-semibold tracking-normal">{title}</h3>
+      <h3 className="text-base font-medium tracking-normal">{title}</h3>
       {description ? <p className="mt-1 text-sm leading-6 text-muted-foreground">{description}</p> : null}
     </div>
   );
@@ -718,15 +718,15 @@ function DemoTaskSetup({
               <div className="rounded-lg border border-border/70 bg-card p-3">
                 <div className="grid gap-3 text-sm text-muted-foreground sm:grid-cols-3">
                   <div>
-                    <p className="text-xs font-bold uppercase tracking-[0.12em]">AI</p>
+                    <p className="text-xs font-medium uppercase tracking-[0.12em]">AI</p>
                     <p className="mt-1 text-foreground">{formatWritingAiAccess(settings.aiAccess)}</p>
                   </div>
                   <div>
-                    <p className="text-xs font-bold uppercase tracking-[0.12em]">Paste</p>
+                    <p className="text-xs font-medium uppercase tracking-[0.12em]">Paste</p>
                     <p className="mt-1 text-foreground">{pastePolicyLabels[settings.pastePolicy]}</p>
                   </div>
                   <div>
-                    <p className="text-xs font-bold uppercase tracking-[0.12em]">Maximum</p>
+                    <p className="text-xs font-medium uppercase tracking-[0.12em]">Maximum</p>
                     <p className="mt-1 text-foreground">{settings.maxCharacters.toLocaleString()} characters</p>
                   </div>
                 </div>
@@ -902,7 +902,7 @@ function DemoWritingEditor({
               </Button>
               <div className="min-w-0 flex-1">
                 <div className="flex min-w-0 items-center gap-2">
-                  <h3 className="min-w-0 truncate text-lg font-semibold tracking-normal">
+                  <h3 className="min-w-0 truncate text-lg font-medium tracking-normal">
                     {settings.documentName || 'Untitled Writing'}
                   </h3>
                   <SaveStatusIndicator status={saveStatus} />
@@ -955,10 +955,10 @@ function DemoWritingEditor({
             </div>
             <div className="min-h-0 flex-1 overflow-auto bg-[#f8f8f6] p-3">
               <div className="mx-auto min-h-full max-w-[390px] rounded-sm bg-white p-4 shadow-sm ring-1 ring-border/70">
-                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
                   Assignment Brief
                 </p>
-                <h4 className="mt-3 text-base font-semibold">Reflection Prompt</h4>
+                <h4 className="mt-3 text-base font-medium">Reflection Prompt</h4>
                 <p className="mt-2 text-sm leading-5 text-muted-foreground">
                   Write a short reflection that explains your reasoning process.
                 </p>
@@ -1078,7 +1078,7 @@ function DemoActivityLog({
     <div className="mx-auto max-w-6xl rounded-lg border border-border/80 bg-card shadow-[0_34px_80px_-56px_rgba(20,22,26,0.75)]">
       <div className="flex flex-col gap-3 border-b border-border/70 p-3 sm:flex-row sm:items-center sm:justify-between sm:p-4">
         <div>
-          <h3 className="text-xl font-semibold tracking-normal">Activity Logs</h3>
+          <h3 className="text-xl font-medium tracking-normal">Activity Logs</h3>
         </div>
         <div className="flex gap-2">
           <Button type="button" variant="outline" onClick={onBackToWriting}>
@@ -1092,7 +1092,7 @@ function DemoActivityLog({
       </div>
 
       <div className="overflow-hidden">
-        <div className="grid grid-cols-[88px_128px_1fr_72px] bg-muted/35 px-4 py-2 text-xs font-bold uppercase tracking-[0.12em] text-muted-foreground">
+        <div className="grid grid-cols-[88px_128px_1fr_72px] bg-muted/35 px-4 py-2 text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
           <span>Time</span>
           <span>Event</span>
           <span>Detail</span>
@@ -1130,7 +1130,7 @@ function StatTile({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-lg border border-border/60 bg-muted/35 p-3">
       <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="mt-1 text-2xl font-semibold">{value}</p>
+      <p className="mt-1 text-2xl font-medium">{value}</p>
     </div>
   );
 }
@@ -1214,10 +1214,10 @@ function DemoCertificatePreview({
     <div className="mx-auto max-w-6xl rounded-lg border border-border/80 bg-background p-3 shadow-[0_34px_80px_-56px_rgba(20,22,26,0.75)] sm:p-4">
       <div className="mb-3 flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
         <div className="min-w-0">
-          <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
+          <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
             Certificate
           </p>
-          <h3 className="truncate text-xl font-semibold tracking-normal">{title || 'Untitled Writing'}</h3>
+          <h3 className="truncate text-xl font-medium tracking-normal">{title || 'Untitled Writing'}</h3>
         </div>
 
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:w-auto">
@@ -1360,12 +1360,12 @@ function DemoCertificatePreview({
 function DonePanel({ onRestart }: { onRestart: () => void }) {
   return (
     <div className="mx-auto max-w-3xl rounded-lg border border-border/80 bg-card p-8 text-center shadow-[0_34px_80px_-56px_rgba(20,22,26,0.75)]">
-      <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-muted-foreground">Demo complete</p>
-      <h3 className="mt-3 text-2xl font-semibold tracking-normal">The local session has ended.</h3>
+      <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">Demo complete</p>
+      <h3 className="mt-3 text-2xl font-medium tracking-normal">The local session has ended.</h3>
       <p className="mx-auto mt-4 max-w-md text-sm leading-6 text-muted-foreground">
         Start another run to configure a fresh writing document, write again, inspect new logs, and generate a new preview.
       </p>
-      <Button type="button" className="mt-6 font-bold" onClick={onRestart}>
+      <Button type="button" className="mt-6 font-medium" onClick={onRestart}>
         <RotateCcw className="mr-2 h-4 w-4" />
         Do it again
       </Button>

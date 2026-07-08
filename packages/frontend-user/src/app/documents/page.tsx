@@ -644,439 +644,495 @@ export default function DocumentsPage() {
   }
 
   return (
-    <main className={containerClass}>
-      <div className="mb-6 flex flex-col gap-2">
-        <h1 className="text-2xl font-medium sm:text-3xl">Writer Dashboard</h1>
-        <p className="max-w-2xl text-sm text-muted-foreground sm:text-base">
-          Start your own tracked writing or complete an assigned task from an
-          instructor.
-        </p>
-      </div>
-
-      <Tabs
-        value={activeWorkspaceTab}
-        onValueChange={(value) => setActiveWorkspaceTab(value as WorkspaceTab)}
-      >
-        <div className="mb-6 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-          <div className="relative w-full sm:max-w-sm">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              type="search"
-              placeholder={
-                activeWorkspaceTab === 'documents'
-                  ? 'Search documents...'
-                  : 'Search assigned tasks...'
-              }
-              className="pl-10"
-              value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
-            />
-          </div>
-          <TabsList className="grid w-full grid-cols-2 border border-border/70 bg-muted/60 sm:w-[310px]">
-            <TabsTrigger value="documents">Personal Writing</TabsTrigger>
-            <TabsTrigger value="tasks">Assigned Task</TabsTrigger>
+    <Tabs
+      value={activeWorkspaceTab}
+      onValueChange={(value) => setActiveWorkspaceTab(value as WorkspaceTab)}
+    >
+      <main className="flex min-h-[calc(100vh-73px)] w-full">
+        <aside className="hidden w-[236px] shrink-0 border-r border-border/55 px-4 py-7 lg:block xl:w-[252px]">
+          <TabsList className="sticky top-24 flex h-auto w-full flex-col items-stretch justify-start gap-1 rounded-none bg-transparent p-0">
+            <TabsTrigger
+              value="documents"
+              className="h-11 justify-start gap-3 rounded-md px-3 text-sm data-[state=active]:bg-secondary data-[state=active]:shadow-none"
+            >
+              <FileText className="h-4 w-4" />
+              <span>Personal Writing</span>
+            </TabsTrigger>
+            <TabsTrigger
+              value="tasks"
+              className="h-11 justify-start gap-3 rounded-md px-3 text-sm data-[state=active]:bg-secondary data-[state=active]:shadow-none"
+            >
+              <BookOpen className="h-4 w-4" />
+              <span>Assigned Task</span>
+            </TabsTrigger>
           </TabsList>
-        </div>
+        </aside>
 
-        <TabsContent value="documents" className="mt-0 space-y-6">
-          <section className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <h2 className="text-xl font-medium tracking-normal">
-                Personal Writing
-              </h2>
-              <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-                Create personal writing projects, track your process, and
-                generate verifiable authorship certificates.
+        <section className="min-w-0 flex-1 px-5 py-7 sm:px-8 lg:px-10">
+          <div className="mx-auto w-full max-w-7xl">
+            <div className="mb-6 flex flex-col gap-2">
+              <h1 className="text-2xl font-medium sm:text-3xl">
+                Writer Dashboard
+              </h1>
+              <p className="max-w-2xl text-sm text-muted-foreground sm:text-base">
+                Start your own tracked writing or complete an assigned task from
+                an instructor.
               </p>
             </div>
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <Button
-                variant="outline"
-                className="w-full border-[#9E756B] bg-[#9E756B] text-white hover:border-[#8F685F] hover:bg-[#8F685F] hover:text-white sm:w-auto"
-                onClick={() => router.push('/certificates')}
-              >
-                <Award className="mr-2 h-4 w-4" />
-                View Certificates
-              </Button>
-              <Button
-                className="w-full sm:w-auto"
-                onClick={() => router.push('/documents/new')}
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                Create Writing
-              </Button>
-            </div>
-          </section>
 
-          {personalDocuments.length === 0 ? (
-            <div className="humanly-surface flex min-h-[360px] flex-col items-center justify-center bg-card px-6 text-center">
-              <FileText className="h-10 w-10 text-accent" />
-              <h3 className="mt-4 text-lg font-medium">
-                {hasSearchQuery
-                  ? 'No documents found'
-                  : 'No personal documents yet'}
-              </h3>
-              <p className="mt-2 max-w-sm text-center text-sm text-muted-foreground">
-                {hasSearchQuery
-                  ? 'No personal writing documents match your search.'
-                  : 'Start a personal writing document when you want authorship tracking and certificate generation.'}
-              </p>
-              {hasSearchQuery ? (
-                <Button
-                  variant="outline"
-                  className="mt-4"
-                  onClick={() => setSearchQuery('')}
-                >
-                  Clear Search
-                </Button>
-              ) : (
-                <Button
-                  className="mt-4"
-                  onClick={() => router.push('/documents/new')}
-                >
-                  <Plus className="mr-2 h-4 w-4" />
-                  Create Writing
-                </Button>
-              )}
+            <div className="mb-6 lg:hidden">
+              <TabsList className="grid h-auto w-full grid-cols-2 border border-border/70 bg-background p-1">
+                <TabsTrigger value="documents" className="gap-2 px-3 py-2.5">
+                  <FileText className="h-4 w-4" />
+                  <span>Personal Writing</span>
+                </TabsTrigger>
+                <TabsTrigger value="tasks" className="gap-2 px-3 py-2.5">
+                  <BookOpen className="h-4 w-4" />
+                  <span>Assigned Task</span>
+                </TabsTrigger>
+              </TabsList>
             </div>
-          ) : (
-            <>
-              <div className="flex items-center justify-end gap-2">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="h-10 w-10 text-muted-foreground hover:text-foreground"
-                  aria-label={
-                    documentViewMode === 'cards' ? 'List view' : 'Card view'
-                  }
-                  onClick={() =>
-                    handleDocumentViewModeChange(
-                      documentViewMode === 'cards' ? 'list' : 'cards'
-                    )
-                  }
-                >
-                  {documentViewMode === 'cards' ? (
-                    <List className="h-6 w-6" />
-                  ) : (
-                    <LayoutGrid className="h-6 w-6" />
-                  )}
-                </Button>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
+
+            <TabsContent value="documents" className="mt-0 space-y-6">
+              <section className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <h2 className="text-xl font-medium tracking-normal">
+                    Personal Writing
+                  </h2>
+                  <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+                    Create personal writing projects, track your process, and
+                    generate verifiable authorship certificates.
+                  </p>
+                </div>
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <Button
+                    variant="outline"
+                    className="w-full border-[#9E756B] bg-[#9E756B] text-white hover:border-[#8F685F] hover:bg-[#8F685F] hover:text-white sm:w-auto"
+                    onClick={() => router.push('/certificates')}
+                  >
+                    <Award className="mr-2 h-4 w-4" />
+                    View Certificates
+                  </Button>
+                  <Button
+                    className="w-full sm:w-auto"
+                    onClick={() => router.push('/documents/new')}
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Create Writing
+                  </Button>
+                </div>
+              </section>
+
+              {allPersonalDocuments.length > 0 || hasSearchQuery ? (
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="relative w-full sm:max-w-sm">
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      type="search"
+                      placeholder="Search documents..."
+                      className="pl-10"
+                      value={searchQuery}
+                      onChange={(event) => setSearchQuery(event.target.value)}
+                    />
+                  </div>
+                  <div className="flex items-center justify-end gap-2">
                     <Button
                       type="button"
                       variant="ghost"
                       size="icon"
                       className="h-10 w-10 text-muted-foreground hover:text-foreground"
-                      aria-label={`Sort by ${SORT_LABELS[sortBy]}`}
+                      aria-label={
+                        documentViewMode === 'cards' ? 'List view' : 'Card view'
+                      }
+                      onClick={() =>
+                        handleDocumentViewModeChange(
+                          documentViewMode === 'cards' ? 'list' : 'cards'
+                        )
+                      }
                     >
-                      <ArrowDownAZ className="h-6 w-6" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    {(Object.keys(SORT_LABELS) as SortOption[]).map(
-                      (option) => (
-                        <DropdownMenuItem
-                          key={option}
-                          onClick={() => setSortBy(option)}
-                        >
-                          <Check
-                            className={
-                              sortBy === option
-                                ? 'mr-2 h-4 w-4 opacity-100'
-                                : 'mr-2 h-4 w-4 opacity-0'
-                            }
-                          />
-                          {SORT_LABELS[option]}
-                        </DropdownMenuItem>
-                      )
-                    )}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-
-              {documentViewMode === 'cards' ? (
-                <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                  {personalDocuments.map((document: Document) => (
-                    <DocumentCard
-                      key={document.id}
-                      document={document}
-                      timerState={getWritingTimerState(
-                        document,
-                        dashboardNowMs
+                      {documentViewMode === 'cards' ? (
+                        <List className="h-6 w-6" />
+                      ) : (
+                        <LayoutGrid className="h-6 w-6" />
                       )}
-                      onDelete={handleDeleteDocument}
-                      variant="card"
-                    />
-                  ))}
+                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-10 w-10 text-muted-foreground hover:text-foreground"
+                          aria-label={`Sort by ${SORT_LABELS[sortBy]}`}
+                        >
+                          <ArrowDownAZ className="h-6 w-6" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        {(Object.keys(SORT_LABELS) as SortOption[]).map(
+                          (option) => (
+                            <DropdownMenuItem
+                              key={option}
+                              onClick={() => setSortBy(option)}
+                            >
+                              <Check
+                                className={
+                                  sortBy === option
+                                    ? 'mr-2 h-4 w-4 opacity-100'
+                                    : 'mr-2 h-4 w-4 opacity-0'
+                                }
+                              />
+                              {SORT_LABELS[option]}
+                            </DropdownMenuItem>
+                          )
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                </div>
+              ) : null}
+
+              {personalDocuments.length === 0 ? (
+                <div className="humanly-surface flex min-h-[360px] flex-col items-center justify-center px-6 text-center">
+                  <FileText className="h-10 w-10 text-accent" />
+                  <h3 className="mt-4 text-lg font-medium">
+                    {hasSearchQuery
+                      ? 'No documents found'
+                      : 'No personal documents yet'}
+                  </h3>
+                  <p className="mt-2 max-w-sm text-center text-sm text-muted-foreground">
+                    {hasSearchQuery
+                      ? 'No personal writing documents match your search.'
+                      : 'Start a personal writing document when you want authorship tracking and certificate generation.'}
+                  </p>
+                  {hasSearchQuery ? (
+                    <Button
+                      variant="outline"
+                      className="mt-4"
+                      onClick={() => setSearchQuery('')}
+                    >
+                      Clear Search
+                    </Button>
+                  ) : (
+                    <Button
+                      className="mt-4"
+                      onClick={() => router.push('/documents/new')}
+                    >
+                      <Plus className="mr-2 h-4 w-4" />
+                      Create Writing
+                    </Button>
+                  )}
                 </div>
               ) : (
-                <div>
-                  <div className="hidden grid-cols-[minmax(0,1fr)_8.5rem_10rem_2.75rem] gap-3 border-b border-border/70 px-2 pb-2 pr-12 text-xs font-medium uppercase tracking-normal text-muted-foreground md:grid">
-                    <span>Name</span>
-                    <span>Characters</span>
-                    <span>Last edited</span>
-                    <span />
-                  </div>
-                  <div>
-                    {personalDocuments.map((document: Document) => (
-                      <DocumentCard
-                        key={document.id}
-                        document={document}
-                        timerState={getWritingTimerState(
-                          document,
-                          dashboardNowMs
-                        )}
-                        onDelete={handleDeleteDocument}
-                        variant="list"
-                      />
-                    ))}
-                  </div>
-                </div>
+                <>
+                  {documentViewMode === 'cards' ? (
+                    <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                      {personalDocuments.map((document: Document) => (
+                        <DocumentCard
+                          key={document.id}
+                          document={document}
+                          timerState={getWritingTimerState(
+                            document,
+                            dashboardNowMs
+                          )}
+                          onDelete={handleDeleteDocument}
+                          variant="card"
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <div>
+                      <div className="hidden grid-cols-[minmax(0,1fr)_8.5rem_10rem_2.75rem] gap-3 border-b border-border/70 px-2 pb-2 pr-12 text-xs font-medium uppercase tracking-normal text-muted-foreground md:grid">
+                        <span>Name</span>
+                        <span>Characters</span>
+                        <span>Last edited</span>
+                        <span />
+                      </div>
+                      <div>
+                        {personalDocuments.map((document: Document) => (
+                          <DocumentCard
+                            key={document.id}
+                            document={document}
+                            timerState={getWritingTimerState(
+                              document,
+                              dashboardNowMs
+                            )}
+                            onDelete={handleDeleteDocument}
+                            variant="list"
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
-            </>
-          )}
-        </TabsContent>
+            </TabsContent>
 
-        <TabsContent value="tasks" className="mt-0 space-y-6">
-          <section className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <h2 className="text-xl font-medium tracking-normal">
-                Assigned Task
-              </h2>
-              <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-                Join tasks from an instructor or organization and complete the
-                assigned task workflow.
-              </p>
-            </div>
-            <Dialog open={showJoinDialog} onOpenChange={setShowJoinDialog}>
-              <DialogTrigger asChild>
-                <Button className="w-full sm:w-auto">
-                  <KeyRound className="mr-2 h-4 w-4" />
-                  Join Task
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-md">
-                <DialogHeader>
-                  <DialogTitle>Join Task</DialogTitle>
-                  <DialogDescription>
-                    Enter the 6-character invite code from your instructor or
-                    publisher.
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="grid gap-2 py-4">
-                  <Label htmlFor="invite-code">Invite Code</Label>
+            <TabsContent value="tasks" className="mt-0 space-y-6">
+              <section className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <h2 className="text-xl font-medium tracking-normal">
+                    Assigned Task
+                  </h2>
+                  <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+                    Join tasks from an instructor or organization and complete
+                    the assigned task workflow.
+                  </p>
+                </div>
+                <Dialog open={showJoinDialog} onOpenChange={setShowJoinDialog}>
+                  <DialogTrigger asChild>
+                    <Button className="w-full sm:w-auto">
+                      <KeyRound className="mr-2 h-4 w-4" />
+                      Join Task
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                      <DialogTitle>Join Task</DialogTitle>
+                      <DialogDescription>
+                        Enter the 6-character invite code from your instructor
+                        or publisher.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-2 py-4">
+                      <Label htmlFor="invite-code">Invite Code</Label>
+                      <Input
+                        id="invite-code"
+                        value={inviteCode}
+                        maxLength={6}
+                        placeholder="A7K2QX"
+                        className=" uppercase tracking-normal"
+                        onChange={(event) =>
+                          setInviteCode(event.target.value.toUpperCase())
+                        }
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter') {
+                            handleJoinTask();
+                          }
+                        }}
+                      />
+                    </div>
+                    <DialogFooter>
+                      <Button
+                        variant="outline"
+                        onClick={() => setShowJoinDialog(false)}
+                        disabled={isJoiningTask}
+                      >
+                        Cancel
+                      </Button>
+                      <Button onClick={handleJoinTask} disabled={isJoiningTask}>
+                        {isJoiningTask ? 'Joining...' : 'Join Task'}
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </section>
+
+              {validTaskEnrollments.length > 0 || hasSearchQuery ? (
+                <div className="relative w-full sm:max-w-sm">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
-                    id="invite-code"
-                    value={inviteCode}
-                    maxLength={6}
-                    placeholder="A7K2QX"
-                    className=" uppercase tracking-normal"
-                    onChange={(event) =>
-                      setInviteCode(event.target.value.toUpperCase())
-                    }
-                    onKeyDown={(event) => {
-                      if (event.key === 'Enter') {
-                        handleJoinTask();
-                      }
-                    }}
+                    type="search"
+                    placeholder="Search assigned tasks..."
+                    className="pl-10"
+                    value={searchQuery}
+                    onChange={(event) => setSearchQuery(event.target.value)}
                   />
                 </div>
-                <DialogFooter>
-                  <Button
-                    variant="outline"
-                    onClick={() => setShowJoinDialog(false)}
-                    disabled={isJoiningTask}
-                  >
-                    Cancel
-                  </Button>
-                  <Button onClick={handleJoinTask} disabled={isJoiningTask}>
-                    {isJoiningTask ? 'Joining...' : 'Join Task'}
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-          </section>
-
-          {filteredTaskEnrollments.length === 0 ? (
-            <div className="humanly-surface flex min-h-[360px] flex-col items-center justify-center bg-card px-6 text-center">
-              <BookOpen className="h-10 w-10 text-accent" />
-              <h3 className="mt-4 text-lg font-medium">
-                {hasSearchQuery ? 'No assigned tasks found' : 'No assigned tasks yet'}
-              </h3>
-              <p className="mt-2 max-w-sm text-center text-sm text-muted-foreground">
-                {hasSearchQuery
-                  ? 'No assigned tasks match your search.'
-                  : 'Use an invite code when an instructor or organization asks you to complete a Humanly task.'}
-              </p>
-              {hasSearchQuery ? (
-                <Button
-                  variant="outline"
-                  className="mt-4"
-                  onClick={() => setSearchQuery('')}
-                >
-                  Clear Search
-                </Button>
               ) : null}
-            </div>
-          ) : (
-            <div className="grid min-w-0 gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {filteredTaskEnrollments.map((task) => {
-                const taskName = getDisplayTaskName(task);
-                const taskDescription = getDisplayTaskDescription(task);
-                const timerState = getWritingTimerState(task, dashboardNowMs, {
-                  expiredDetail: 'Submission opens in read-only mode.',
-                });
-                const statusBadge = getTaskStatusBadge(
-                  task,
-                  dashboardNowMs,
-                  timerState
-                );
-                const latestCertificateId = task.latestCertificateId || null;
-                const certificateCount = task.certificateCount || 0;
-                return (
-                  <Card
-                    key={`${task.id}-${task.documentId}`}
-                    data-testid="task-submission-card"
-                    className="flex h-full min-h-[390px] flex-col transition-[border-color,transform] hover:-translate-y-1 hover:border-foreground/20"
-                  >
-                    <CardHeader className="h-[230px] shrink-0 overflow-hidden">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0 flex-1">
-                          <CardTitle
-                            className="line-clamp-2 break-words [overflow-wrap:anywhere] text-xl font-medium leading-tight"
-                            title={taskName}
-                          >
-                            {taskName}
-                          </CardTitle>
-                        </div>
 
-                        <Badge
-                          variant="outline"
-                          className={`${statusBadge.className} shrink-0 whitespace-nowrap rounded-full px-3`}
-                        >
-                          {statusBadge.label}
-                        </Badge>
-                      </div>
-
-                      <CardDescription
-                        className="mt-4 line-clamp-4 break-words [overflow-wrap:anywhere]"
-                        title={taskDescription}
+              {filteredTaskEnrollments.length === 0 ? (
+                <div className="humanly-surface flex min-h-[360px] flex-col items-center justify-center px-6 text-center">
+                  <BookOpen className="h-10 w-10 text-accent" />
+                  <h3 className="mt-4 text-lg font-medium">
+                    {hasSearchQuery
+                      ? 'No assigned tasks found'
+                      : 'No assigned tasks yet'}
+                  </h3>
+                  <p className="mt-2 max-w-sm text-center text-sm text-muted-foreground">
+                    {hasSearchQuery
+                      ? 'No assigned tasks match your search.'
+                      : 'Use an invite code when an instructor or organization asks you to complete a Humanly task.'}
+                  </p>
+                  {hasSearchQuery ? (
+                    <Button
+                      variant="outline"
+                      className="mt-4"
+                      onClick={() => setSearchQuery('')}
+                    >
+                      Clear Search
+                    </Button>
+                  ) : null}
+                </div>
+              ) : (
+                <div className="grid min-w-0 gap-6 md:grid-cols-2 lg:grid-cols-3">
+                  {filteredTaskEnrollments.map((task) => {
+                    const taskName = getDisplayTaskName(task);
+                    const taskDescription = getDisplayTaskDescription(task);
+                    const timerState = getWritingTimerState(
+                      task,
+                      dashboardNowMs,
+                      {
+                        expiredDetail: 'Submission opens in read-only mode.',
+                      }
+                    );
+                    const statusBadge = getTaskStatusBadge(
+                      task,
+                      dashboardNowMs,
+                      timerState
+                    );
+                    const latestCertificateId =
+                      task.latestCertificateId || null;
+                    const certificateCount = task.certificateCount || 0;
+                    return (
+                      <Card
+                        key={`${task.id}-${task.documentId}`}
+                        data-testid="task-submission-card"
+                        className="flex h-full min-h-[390px] flex-col transition-[border-color,transform] hover:-translate-y-1 hover:border-foreground/20"
                       >
-                        {taskDescription}
-                      </CardDescription>
-                    </CardHeader>
-
-                    <CardContent className="shrink-0 pb-8">
-                      <div className="space-y-2 text-sm text-muted-foreground">
-                        <div className="flex items-center gap-3">
-                          <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
-                          <span className="min-w-0 truncate">
-                            {getTaskAttemptLabel(task)}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <Calendar className="h-4 w-4 shrink-0 text-muted-foreground" />
-                          <span className="min-w-0 truncate">
-                            Start Date:{' '}
-                            {formatTaskDateLabel(
-                              task.startDate,
-                              'Not scheduled'
-                            )}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <Calendar className="h-4 w-4 shrink-0 text-muted-foreground" />
-                          <span className="min-w-0 truncate">
-                            Deadline:{' '}
-                            {formatTaskDateLabel(task.endDate, 'No deadline')}
-                          </span>
-                        </div>
-                      </div>
-                    </CardContent>
-
-                    <CardFooter className="mt-auto border-t border-border/70 bg-muted/20 !p-0">
-                      <div className="flex w-full flex-col gap-2 px-6 pb-6 pt-6">
-                        <div className="flex w-full gap-2">
-                          {latestCertificateId ? (
-                            <>
-                              <Button
-                                variant="default"
-                                size="sm"
-                                className="h-10 flex-1"
-                                onClick={() =>
-                                  router.push(
-                                    `/certificates/${latestCertificateId}`
-                                  )
-                                }
+                        <CardHeader className="h-[230px] shrink-0 overflow-hidden">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0 flex-1">
+                              <CardTitle
+                                className="line-clamp-2 break-words [overflow-wrap:anywhere] text-xl font-medium leading-tight"
+                                title={taskName}
                               >
-                                <Award className="mr-2 h-4 w-4" />
-                                View Certificate
-                                {certificateCount > 1
-                                  ? ` (${certificateCount})`
-                                  : ''}
-                              </Button>
+                                {taskName}
+                              </CardTitle>
+                            </div>
+
+                            <Badge
+                              variant="outline"
+                              className={`${statusBadge.className} shrink-0 whitespace-nowrap rounded-full px-3`}
+                            >
+                              {statusBadge.label}
+                            </Badge>
+                          </div>
+
+                          <CardDescription
+                            className="mt-4 line-clamp-4 break-words [overflow-wrap:anywhere]"
+                            title={taskDescription}
+                          >
+                            {taskDescription}
+                          </CardDescription>
+                        </CardHeader>
+
+                        <CardContent className="shrink-0 pb-8">
+                          <div className="space-y-2 text-sm text-muted-foreground">
+                            <div className="flex items-center gap-3">
+                              <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+                              <span className="min-w-0 truncate">
+                                {getTaskAttemptLabel(task)}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <Calendar className="h-4 w-4 shrink-0 text-muted-foreground" />
+                              <span className="min-w-0 truncate">
+                                Start Date:{' '}
+                                {formatTaskDateLabel(
+                                  task.startDate,
+                                  'Not scheduled'
+                                )}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <Calendar className="h-4 w-4 shrink-0 text-muted-foreground" />
+                              <span className="min-w-0 truncate">
+                                Deadline:{' '}
+                                {formatTaskDateLabel(
+                                  task.endDate,
+                                  'No deadline'
+                                )}
+                              </span>
+                            </div>
+                          </div>
+                        </CardContent>
+
+                        <CardFooter className="mt-auto border-t border-border/70 bg-background !p-0">
+                          <div className="flex w-full flex-col gap-2 px-6 pb-6 pt-6">
+                            <div className="flex w-full gap-2">
+                              {latestCertificateId ? (
+                                <>
+                                  <Button
+                                    variant="default"
+                                    size="sm"
+                                    className="h-10 flex-1"
+                                    onClick={() =>
+                                      router.push(
+                                        `/certificates/${latestCertificateId}`
+                                      )
+                                    }
+                                  >
+                                    <Award className="mr-2 h-4 w-4" />
+                                    View Certificate
+                                    {certificateCount > 1
+                                      ? ` (${certificateCount})`
+                                      : ''}
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-10 min-w-[52px] px-3"
+                                    title="Open assigned task"
+                                    onClick={() =>
+                                      router.push(
+                                        `/documents/${task.documentId}`
+                                      )
+                                    }
+                                  >
+                                    <Eye className="h-4 w-4" />
+                                    <span className="sr-only">
+                                      Open Assigned Task
+                                    </span>
+                                  </Button>
+                                </>
+                              ) : (
+                                <Button
+                                  variant="default"
+                                  size="sm"
+                                  className="h-10 flex-1"
+                                  onClick={() =>
+                                    router.push(`/documents/${task.documentId}`)
+                                  }
+                                >
+                                  <Eye className="mr-2 h-4 w-4" />
+                                  Open Submission
+                                </Button>
+                              )}
+
                               <Button
                                 variant="outline"
                                 size="sm"
-                                className="h-10 min-w-[52px] px-3"
-                                title="Open assigned task"
-                                onClick={() =>
-                                  router.push(`/documents/${task.documentId}`)
-                                }
+                                className="h-10 min-w-[120px]"
+                                title="Remove task from dashboard"
+                                onClick={() => setTaskToDelete(task)}
                               >
-                                <Eye className="h-4 w-4" />
-                                <span className="sr-only">
-                                  Open Assigned Task
-                                </span>
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Remove
                               </Button>
-                            </>
-                          ) : (
-                            <Button
-                              variant="default"
-                              size="sm"
-                              className="h-10 flex-1"
-                              onClick={() =>
-                                router.push(`/documents/${task.documentId}`)
-                              }
-                            >
-                              <Eye className="mr-2 h-4 w-4" />
-                              Open Submission
-                            </Button>
-                          )}
-
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-10 min-w-[120px]"
-                            title="Remove task from dashboard"
-                            onClick={() => setTaskToDelete(task)}
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Remove
-                          </Button>
-                        </div>
-                        {canStartNewTaskAttempt(task) ? (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-10 w-full"
-                            onClick={() => setTaskToRestart(task)}
-                          >
-                            <RotateCcw className="mr-2 h-4 w-4" />
-                            Start New Attempt
-                          </Button>
-                        ) : null}
-                      </div>
-                    </CardFooter>
-                  </Card>
-                );
-              })}
-            </div>
-          )}
-        </TabsContent>
-      </Tabs>
+                            </div>
+                            {canStartNewTaskAttempt(task) ? (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-10 w-full"
+                                onClick={() => setTaskToRestart(task)}
+                              >
+                                <RotateCcw className="mr-2 h-4 w-4" />
+                                Start New Attempt
+                              </Button>
+                            ) : null}
+                          </div>
+                        </CardFooter>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+            </TabsContent>
+          </div>
+        </section>
+      </main>
 
       <AlertDialog
         open={!!taskToDelete}
@@ -1131,6 +1187,6 @@ export default function DocumentsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </main>
+    </Tabs>
   );
 }

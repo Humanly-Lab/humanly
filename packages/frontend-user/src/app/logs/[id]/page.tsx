@@ -1818,7 +1818,7 @@ export default function DocumentLogsPage() {
           Back
         </Button>
         <div>
-          <h1 className="font-semibold text-sm">{documentTitle}</h1>
+          <h1 className="font-medium text-sm">{documentTitle}</h1>
           <p className="text-xs text-muted-foreground">Document and AI Activity Timeline</p>
         </div>
       </div>

@@ -45,7 +45,7 @@ export function HeroShowcase({
             type="button"
             aria-label={slide === 'video' ? 'Show product video' : 'Show product workspace'}
             aria-pressed={activeSlide === slide}
-            className={`h-9 rounded-md px-4 text-[12px] font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--hly-brand)] ${
+            className={`h-9 rounded-md px-4 text-[12px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--hly-brand)] ${
               activeSlide === slide
                 ? 'bg-[var(--hly-brand)] text-white shadow-[0_10px_24px_-18px_rgba(20,22,26,0.70)]'
                 : 'text-muted-foreground hover:bg-[rgba(20,22,26,0.05)] hover:text-foreground'

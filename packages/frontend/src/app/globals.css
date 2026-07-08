@@ -7,7 +7,7 @@
     /* Atelier theme: paper-white ground, warm ink, morandi rose accent. */
     --background: 45 29% 97%; /* #FAF9F6 paper white */
     --foreground: 42 17% 12%; /* #232019 warm ink */
-    --card: 0 0% 100%;
+    --card: 45 29% 97%;
     --card-foreground: 42 17% 12%;
     --popover: 0 0% 100%;
     --popover-foreground: 42 17% 12%;
@@ -164,11 +164,11 @@
   }
 
   .humanly-surface {
-    @apply rounded-lg border border-border/80 bg-card shadow-none;
+    @apply rounded-lg border border-border/80 bg-background shadow-none;
   }
 
   .humanly-muted-surface {
-    @apply rounded-lg border border-border/70 bg-muted/35;
+    @apply rounded-lg border border-border/70 bg-background;
   }
 
   .humanly-eyebrow {

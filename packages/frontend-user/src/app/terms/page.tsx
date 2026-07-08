@@ -9,7 +9,7 @@ export default function TermsOfServicePage() {
         <div className="mb-8">
           <Link
             href={marketingHref('/')}
-            className="flex items-center gap-2 text-xl font-bold mb-8"
+            className="flex items-center gap-2 text-xl font-medium mb-8"
           >
             <HumanlyWordmark size="sm" cursor={false} />
           </Link>
@@ -18,7 +18,7 @@ export default function TermsOfServicePage() {
 
         <div className="prose prose-gray max-w-none space-y-6 text-muted-foreground">
           <section>
-            <h2 className="text-lg font-semibold text-foreground mb-2">
+            <h2 className="text-lg font-medium text-foreground mb-2">
               Use of Service
             </h2>
             <p className="leading-relaxed">

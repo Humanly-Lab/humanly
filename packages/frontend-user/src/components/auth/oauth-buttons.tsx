@@ -83,14 +83,14 @@ export function OAuthButtons({
           <Button
             type="button"
             variant="outline"
-            className="h-11 border-border/80 bg-white/80 px-3 font-bold hover:bg-muted/60"
+            className="h-11 border-border/80 bg-white/80 px-3 font-medium hover:bg-muted/60"
             onClick={() => startLogin('google')}
             disabled={loadingProvider !== null}
           >
             {loadingProvider === 'google' ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (
-              <span className="mr-2 font-sans text-base font-bold">G</span>
+              <span className="mr-2 font-sans text-base font-medium">G</span>
             )}
             Google
           </Button>
@@ -100,7 +100,7 @@ export function OAuthButtons({
           <Button
             type="button"
             variant="outline"
-            className="h-11 border-border/80 bg-white/80 px-3 font-bold hover:bg-muted/60"
+            className="h-11 border-border/80 bg-white/80 px-3 font-medium hover:bg-muted/60"
             onClick={() => startLogin('github')}
             disabled={loadingProvider !== null}
           >

@@ -7,8 +7,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import {
   ArrowLeft,
   Award,
+  BadgeCheck,
   ChevronDown,
-  FileText,
   Folder,
   Trash2,
 } from 'lucide-react';
@@ -67,6 +67,18 @@ type DeleteTarget =
       type: 'folder';
       group: CertificateTaskGroup;
     };
+
+function CertificateFolderIcon() {
+  return (
+    <span className="relative mt-0.5 grid h-8 w-8 shrink-0 place-items-center text-[#8F685F]">
+      <Folder className="h-8 w-8 stroke-[1.8]" aria-hidden="true" />
+      <BadgeCheck
+        className="absolute left-1/2 top-1/2 h-[12px] w-[12px] -translate-x-1/2 -translate-y-1/2 stroke-[2.2]"
+        aria-hidden="true"
+      />
+    </span>
+  );
+}
 
 export default function CertificatesPage() {
   const router = useRouter();
@@ -202,7 +214,7 @@ export default function CertificatesPage() {
               className="group rounded-lg border bg-card text-card-foreground shadow-sm"
             >
               <summary className="flex cursor-pointer list-none items-start gap-3 px-4 py-4 marker:content-none sm:px-5">
-                <Folder className="mt-1 h-5 w-5 shrink-0 text-accent" />
+                <CertificateFolderIcon />
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                     <div className="min-w-0">
@@ -258,7 +270,7 @@ export default function CertificatesPage() {
                         }
                       >
                         <div className="flex min-w-0 items-start gap-3">
-                          <FileText className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                          <BadgeCheck className="mt-0.5 h-4 w-4 shrink-0 text-[#9E756B]" />
                           <div className="min-w-0">
                             <div className="flex flex-wrap items-center gap-2">
                               <span className="text-sm font-medium text-foreground">

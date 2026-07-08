@@ -45,23 +45,29 @@ export function Navbar({ forceGuest = false }: { forceGuest?: boolean }) {
 
   // Use wider layout for document editor pages
   const isDocumentEditorPage = /^\/documents\/[a-f0-9-]{36}/.test(pathname);
+  const isAppShellPage =
+    pathname.startsWith('/documents') ||
+    pathname.startsWith('/certificates') ||
+    pathname.startsWith('/logs');
   const containerClass = isDocumentEditorPage
     ? 'mx-auto w-full max-w-[2400px] px-3'
-    : 'mx-auto max-w-7xl px-4 sm:px-6 lg:px-8';
+    : isAppShellPage
+      ? 'w-full px-5 sm:px-8 lg:px-10'
+      : 'mx-auto max-w-7xl px-4 sm:px-6 lg:px-8';
 
   return (
     <>
-      <nav className="border-b border-border/70 bg-card">
+      <nav className="bg-background">
         <div className={containerClass}>
           <div className="flex h-16 items-center justify-between">
             <div className="flex items-center">
               {isGuestMode ? (
                 <div className="flex items-center">
-                  <HumanlyWordmark size="md" />
+                  <HumanlyWordmark size="md" cursor={false} />
                 </div>
               ) : (
                 <Link href="/documents" className="flex items-center">
-                  <HumanlyWordmark size="md" />
+                  <HumanlyWordmark size="md" cursor={false} />
                 </Link>
               )}
             </div>

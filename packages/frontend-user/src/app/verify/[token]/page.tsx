@@ -224,7 +224,7 @@ export default function CertificatePage() {
               href={marketingUrl}
               target="_blank"
               rel="noreferrer"
-              className="font-semibold underline-offset-2 hover:underline"
+              className="font-medium underline-offset-2 hover:underline"
             >
               writehumanly.net
             </a>

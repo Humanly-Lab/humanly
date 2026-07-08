@@ -99,7 +99,7 @@ export default function HomePage() {
       >
         <div className="mx-auto grid max-w-[1280px] items-center gap-10 lg:grid-cols-[0.85fr_1.15fr] lg:gap-12">
           <div className="mx-auto max-w-[560px] text-center lg:mx-0 lg:max-w-none lg:text-left">
-            <h1 className="text-[32px] font-semibold leading-[1.08] tracking-[-0.035em] sm:text-[40px] lg:text-[46px]">
+            <h1 className="text-[32px] font-light leading-[1.08] tracking-[-0.035em] sm:text-[40px] lg:text-[46px]">
               <span className="lg:whitespace-nowrap">
                 Every piece of writing has a{' '}
                 <span className="text-[var(--hly-brand)]">story</span>.
@@ -151,7 +151,7 @@ function DemoLaunchSection() {
       className="bg-background px-5 py-[104px] sm:px-8 lg:px-14"
     >
       <div className="mx-auto max-w-[720px] text-center">
-        <h2 className="text-[28px] font-semibold leading-[1.1] tracking-[-0.03em] sm:text-[36px]">
+        <h2 className="text-[28px] font-light leading-[1.1] tracking-[-0.03em] sm:text-[36px]">
           Humanly Demo
         </h2>
         <p className="mx-auto mt-5 max-w-[560px] text-[15px] leading-[1.7] text-muted-foreground sm:text-[17px]">
@@ -174,7 +174,7 @@ function DemoLaunchSection() {
 
 function NavBar() {
   return (
-    <header className="grid grid-cols-[1fr_auto] items-center bg-[#fffdfa] px-5 py-2.5 sm:px-8 lg:grid-cols-[1fr_auto_1fr] lg:px-14 lg:py-3">
+    <header className="grid grid-cols-[1fr_auto] items-center bg-background px-5 py-2.5 sm:px-8 lg:grid-cols-[1fr_auto_1fr] lg:px-14 lg:py-3">
       <Link href={marketingHref('/')} className="justify-self-start">
         <HumanlyWordmark
           size="md"
@@ -276,7 +276,7 @@ function HeroDocCalm() {
           <div className="mb-2 text-[11px] text-muted-foreground">
             Untitled draft
           </div>
-          <h3 className="mb-4 text-[22px] font-bold leading-[1.2] tracking-[-0.015em]">
+          <h3 className="mb-4 text-[22px] font-medium leading-[1.2] tracking-[-0.015em]">
             Drafting with attention
           </h3>
           <p className="mb-3 text-[13px] leading-[1.75] text-[var(--hly-ink)]">
@@ -311,7 +311,7 @@ function HeroDocCalm() {
 
         <div className="flex flex-col bg-[#fcfcfb]">
           <div className="flex items-center justify-between border-b border-[rgba(20,22,26,0.05)] px-3.5 py-3">
-            <span className="inline-flex items-center gap-1.5 text-[11.5px] font-bold">
+            <span className="inline-flex items-center gap-1.5 text-[11.5px] font-medium">
               <span className="grid h-4 w-4 place-items-center rounded bg-foreground text-[9px] text-white">
                 ✦
               </span>
@@ -331,7 +331,7 @@ function HeroDocCalm() {
                   className="grid grid-cols-[auto_auto_minmax(0,1fr)_auto] items-center gap-1.5 rounded-md border border-[rgba(20,22,26,0.05)] bg-white px-2.5 py-1.5 text-[10px] text-[var(--hly-ink)]"
                 >
                   <span className="text-[9px] text-[var(--hly-brand)]">✓</span>
-                  <span className="font-bold">{tool}</span>
+                  <span className="font-medium">{tool}</span>
                   <span className="truncate text-[9px] text-muted-foreground">
                     {detail}
                   </span>
@@ -347,7 +347,7 @@ function HeroDocCalm() {
           </div>
 
           <div className="flex flex-col gap-1.5 p-3">
-            <div className="flex items-center gap-1.5 rounded-full bg-[rgba(91,111,140,0.10)] px-2 py-1 text-[10px] font-bold text-[var(--hly-info)]">
+            <div className="flex items-center gap-1.5 rounded-full bg-[rgba(91,111,140,0.10)] px-2 py-1 text-[10px] font-medium text-[var(--hly-info)]">
               <span>⊙</span>
               PDF context available (13 pages)
             </div>
@@ -376,11 +376,11 @@ function AIAssistCard() {
   return (
     <div className="humanly-hover-pop absolute left-[2.5%] top-[33.3%] z-30 w-[18.2%] min-w-[176px] rotate-[-2deg] rounded-[10px] border border-[var(--hly-hairline)] bg-white px-3.5 py-3 shadow-[0_24px_60px_-18px_rgba(20,22,26,0.40)] hover:z-50 hover:shadow-[0_32px_70px_-18px_rgba(20,22,26,0.48)]">
       <div className="mb-2 flex items-center gap-1.5">
-        <span className="grid h-[18px] w-[18px] place-items-center rounded-[5px] bg-foreground text-[10px] font-bold text-white">
+        <span className="grid h-[18px] w-[18px] place-items-center rounded-[5px] bg-foreground text-[10px] font-medium text-white">
           ✦
         </span>
-        <span className="text-[11px] font-bold">AI Assistant</span>
-        <span className="ml-auto rounded-full bg-[var(--hly-ai-bg)] px-1.5 py-px text-[8px] font-bold text-[var(--hly-ai-text)]">
+        <span className="text-[11px] font-medium">AI Assistant</span>
+        <span className="ml-auto rounded-full bg-[var(--hly-ai-bg)] px-1.5 py-px text-[8px] font-medium text-[var(--hly-ai-text)]">
           SIMPLIFY
         </span>
       </div>
@@ -389,16 +389,16 @@ function AIAssistCard() {
         <span className="text-muted-foreground line-through decoration-[#a07868] decoration-[1.5px]">
           accepts whatever language arrives
         </span>{' '}
-        <span className="rounded-sm bg-[var(--hly-green-tint)] px-1 font-bold text-[var(--hly-green-strong)]">
+        <span className="rounded-sm bg-[var(--hly-green-tint)] px-1 font-medium text-[var(--hly-green-strong)]">
           takes what arrives
         </span>
         .
       </p>
       <div className="flex gap-1">
-        <span className="rounded-[5px] bg-foreground px-2.5 py-1.5 text-[10px] font-bold text-white">
+        <span className="rounded-[5px] bg-foreground px-2.5 py-1.5 text-[10px] font-medium text-white">
           Apply
         </span>
-        <span className="rounded-[5px] border border-[var(--hly-hairline)] px-2.5 py-1.5 text-[10px] font-bold text-muted-foreground">
+        <span className="rounded-[5px] border border-[var(--hly-hairline)] px-2.5 py-1.5 text-[10px] font-medium text-muted-foreground">
           Discard
         </span>
       </div>
@@ -410,7 +410,7 @@ function TrackingCard() {
   return (
     <div className="humanly-hover-pop absolute right-[2.5%] top-[9.7%] z-40 w-[18.2%] min-w-[176px] rotate-[2deg] rounded-[10px] border border-[var(--hly-hairline)] bg-white px-3.5 py-3 shadow-[0_24px_50px_-18px_rgba(20,22,26,0.40)] hover:z-50 hover:shadow-[0_32px_70px_-18px_rgba(20,22,26,0.48)]">
       <div className="mb-2.5 flex justify-between">
-        <span className="text-[11px] font-bold">Tracking log</span>
+        <span className="text-[11px] font-medium">Tracking log</span>
         <span className="text-[9px] text-muted-foreground">live</span>
       </div>
       {logRows.map(([time, kind, rowBg, fg, count]) => (
@@ -420,7 +420,7 @@ function TrackingCard() {
         >
           <span className="text-muted-foreground">{time}</span>
           <span
-            className="w-fit rounded-[3px] px-1.5 py-px text-[9px] font-bold"
+            className="w-fit rounded-[3px] px-1.5 py-px text-[9px] font-medium"
             style={{ backgroundColor: rowBg, color: fg }}
           >
             {kind}
@@ -438,12 +438,12 @@ function CertificateCard() {
       <div>
         <div className="mb-1.5 flex items-center gap-1.5">
           <CertBadge />
-          <span className="text-[8.5px] font-bold tracking-[0.2em] text-muted-foreground">
+          <span className="text-[8.5px] font-medium tracking-[0.2em] text-muted-foreground">
             CERTIFICATE · SEALED
           </span>
           <span className="ml-1.5 h-1.5 w-1.5 rounded-full bg-[var(--hly-brand)]" />
         </div>
-        <div className="text-sm font-bold tracking-[-0.005em]">
+        <div className="text-sm font-medium tracking-[-0.005em]">
           Drafting with attention
         </div>
         <div className="mt-1 whitespace-nowrap text-[9.5px] text-muted-foreground">
@@ -460,7 +460,7 @@ function CertificateCard() {
             <div className="text-[8.5px] tracking-[0.12em] text-muted-foreground">
               {label}
             </div>
-            <div className="mt-0.5 text-sm font-bold tracking-[-0.01em]">
+            <div className="mt-0.5 text-sm font-medium tracking-[-0.01em]">
               {value}
             </div>
           </div>
@@ -475,13 +475,14 @@ function StatementSection() {
     <section className="px-5 py-[110px] sm:px-8 lg:px-14">
       <div className="mx-auto max-w-[880px] text-center">
         <div>
-          <h2 className="text-[30px] font-semibold leading-[1.15] tracking-[-0.03em] sm:text-[40px]">
+          <p className="humanly-eyebrow mb-4">Problem</p>
+          <h2 className="text-[30px] font-light leading-[1.15] tracking-[-0.03em] sm:text-[40px]">
             Did you write this,{' '}
             <span className="text-[var(--hly-neutral)]">or did AI?</span>
           </h2>
           <p className="mx-auto mt-6 max-w-[620px] text-[15px] leading-[1.75] text-muted-foreground sm:text-[17px]">
             Detectors guess from the finished text. Humanly records the work
-            as it happens, so the answer is a receipt, not a defense.
+            as it happens, turning the writing process into reviewable evidence.
           </p>
           <BlurFade inView delay={0.25}>
             <StatementVisual />
@@ -497,10 +498,11 @@ function TryItSection() {
     <section id="process" className="px-5 py-[110px] sm:px-8 lg:px-14">
       <div className="mx-auto max-w-[1080px]">
         <div className="mb-12 text-center">
-          <h2 className="text-[28px] font-semibold leading-[1.1] tracking-[-0.03em] sm:text-[36px]">
+          <p className="humanly-eyebrow mb-4">Product flow</p>
+          <h2 className="text-[28px] font-light leading-[1.1] tracking-[-0.03em] sm:text-[36px]">
             How it works
           </h2>
-          <p className="mx-auto mt-5 max-w-[560px] text-[15px] leading-[1.7] text-muted-foreground sm:text-[16px]">
+          <p className="mx-auto mt-5 max-w-none text-[15px] leading-[1.7] text-muted-foreground md:whitespace-nowrap sm:text-[16px]">
             Configure writing policy, write in Humanly, review the activity
             log, and generate a certificate.
           </p>
@@ -518,7 +520,7 @@ function FAQSection() {
     <section id="faq" className="px-5 py-[120px] sm:px-8 lg:px-14">
       <div className="mx-auto grid max-w-[980px] gap-12 md:grid-cols-[1fr_2fr] md:gap-20">
         <div>
-          <h2 className="text-[28px] font-semibold leading-[1.1] tracking-[-0.03em] sm:text-[36px]">
+          <h2 className="text-[28px] font-light leading-[1.1] tracking-[-0.03em] sm:text-[36px]">
             Common Q&amp;A
           </h2>
         </div>

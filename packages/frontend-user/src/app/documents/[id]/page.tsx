@@ -93,7 +93,7 @@ import {
 const PDFViewer = dynamic(() => import('@/components/pdf/PDFViewer'), {
   ssr: false,
   loading: () => (
-    <div className="flex h-full items-center justify-center bg-muted/40">
+    <div className="flex h-full items-center justify-center bg-background">
       <p className="text-muted-foreground">Loading PDF viewer...</p>
     </div>
   ),
@@ -1763,7 +1763,7 @@ export default function DocumentEditorPage() {
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-background">
       {/* Header */}
-      <div className="shrink-0 border-b border-border/70 bg-card">
+      <div className="shrink-0 border-b border-border/70 bg-background">
         <div className={`${CANVAS} py-3`}>
           <div className="flex items-center justify-between gap-4">
             <div className="flex min-w-0 items-center gap-3">
@@ -1789,7 +1789,7 @@ export default function DocumentEditorPage() {
                     <Input
                       value={title}
                       onChange={(e) => setTitle(e.target.value)}
-                      className="text-lg font-semibold"
+                      className="text-lg font-medium"
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') handleTitleSave();
                         else if (e.key === 'Escape') {
@@ -1807,7 +1807,7 @@ export default function DocumentEditorPage() {
                 ) : (
                   <div className="flex min-w-0 items-center gap-2">
                     <h1
-                      className={`min-w-0 truncate text-lg font-semibold tracking-normal ${
+                      className={`min-w-0 truncate text-lg font-medium tracking-normal ${
                         isTaskDocument
                           ? 'cursor-default'
                           : 'cursor-pointer hover:text-muted-foreground'
@@ -1847,7 +1847,7 @@ export default function DocumentEditorPage() {
                   >
                     <Clock className="h-3.5 w-3.5 shrink-0" />
                     <span>{visibleCountdown.label}</span>
-                    <span className=" font-semibold">
+                    <span className=" font-medium">
                       {visibleCountdown.value}
                     </span>
                   </Badge>
@@ -2000,14 +2000,14 @@ export default function DocumentEditorPage() {
           {/* ✅ Resizable like Overleaf */}
           <ResizablePanelGroup
             direction="horizontal"
-            className="h-full w-full overflow-hidden rounded-lg border border-border/80 bg-card"
+            className="h-full w-full overflow-hidden rounded-lg border border-border/80 bg-background"
           >
             {/* PDF */}
             {hasPdfPanel ? (
               <ResizablePanel defaultSize={38} minSize={22}>
-                <div className="flex h-full flex-col overflow-hidden border-r border-border/70 bg-card">
+                <div className="flex h-full flex-col overflow-hidden border-r border-border/70 bg-background">
                   {displayInstructionFiles.length > 1 ? (
-                    <div className="shrink-0 border-b border-border/70 bg-muted/30 px-3 py-2">
+                    <div className="shrink-0 border-b border-border/70 bg-background px-3 py-2">
                       <div className="flex max-w-full gap-2 overflow-x-auto pb-1">
                         {displayInstructionFiles.map((file, index) => (
                           <Button
@@ -2043,7 +2043,7 @@ export default function DocumentEditorPage() {
                         viewOnly={isResourceViewOnly}
                       />
                     ) : (
-                      <div className="flex h-full items-center justify-center bg-muted/30">
+                      <div className="flex h-full items-center justify-center bg-background">
                         <div className="flex flex-col items-center gap-3 text-sm text-muted-foreground">
                           <Loader2 className="h-6 w-6 animate-spin" />
                           <p>Loading PDF...</p>
@@ -2075,10 +2075,10 @@ export default function DocumentEditorPage() {
                   className={`${hasPdfPanel || isAIPanelVisible ? 'px-4 py-4' : 'px-6 py-6'} h-full`}
                 >
                   {!hasPdfPanel && (
-                    <div className="mb-4 rounded-lg border border-dashed border-border/80 bg-muted/30 p-4">
+                    <div className="mb-4 rounded-lg border border-dashed border-border/80 bg-background p-4">
                       <div>
                         <div>
-                          <h2 className="text-sm font-semibold">
+                          <h2 className="text-sm font-medium">
                             No PDF linked
                           </h2>
                           <p className="text-sm text-muted-foreground">
@@ -2091,7 +2091,7 @@ export default function DocumentEditorPage() {
                     </div>
                   )}
                   {isEditorReadOnly && (
-                    <div className="mb-4 rounded-lg border border-border/70 bg-muted/40 p-4 text-sm text-muted-foreground">
+                    <div className="mb-4 rounded-lg border border-border/70 bg-background p-4 text-sm text-muted-foreground">
                       {taskLifecycleReadOnlyMessage || (
                         <>
                           The writing time limit has ended. This document is now
@@ -2183,7 +2183,7 @@ export default function DocumentEditorPage() {
               <>
                 <ResizableHandle withHandle />
                 <ResizablePanel defaultSize={25} minSize={18}>
-                  <div className="h-full overflow-hidden border-l border-border/70 bg-card">
+                  <div className="h-full overflow-hidden border-l border-border/70 bg-background">
                     <AIAssistantPanel
                       documentId={documentId}
                       onClose={closeAIPanel}

@@ -208,7 +208,7 @@ export function OverviewPanel({
             <div>
               <dt className="text-sm font-medium text-muted-foreground">Invite Code</dt>
               <dd className="mt-1 flex items-center gap-2">
-                <span className="rounded-md border bg-muted/40 px-2 py-1 text-sm font-semibold tracking-wider">
+                <span className="rounded-md border bg-muted/40 px-2 py-1 text-sm font-medium tracking-wider">
                   {inviteCode}
                 </span>
                 <Button
@@ -308,7 +308,7 @@ export function OverviewPanel({
               <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
             ) : (
               <>
-                <div className="text-2xl font-bold">{totalEvents.toLocaleString()}</div>
+                <div className="text-2xl font-medium">{totalEvents.toLocaleString()}</div>
                 <p className="text-xs text-muted-foreground">Recorded task activity</p>
               </>
             )}
@@ -321,7 +321,7 @@ export function OverviewPanel({
             <FileText className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalSubmissions.toLocaleString()}</div>
+            <div className="text-2xl font-medium">{totalSubmissions.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">Across enrolled users</p>
           </CardContent>
         </Card>
@@ -336,7 +336,7 @@ export function OverviewPanel({
               <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
             ) : (
               <>
-                <div className="text-2xl font-bold">{enrolledUserCount.toLocaleString()}</div>
+                <div className="text-2xl font-medium">{enrolledUserCount.toLocaleString()}</div>
                 <p className="text-xs text-muted-foreground">Users enrolled in this task</p>
               </>
             )}
@@ -353,7 +353,7 @@ export function OverviewPanel({
               <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
             ) : (
               <>
-                <div className="text-2xl font-bold">{completionRate.toFixed(1)}%</div>
+                <div className="text-2xl font-medium">{completionRate.toFixed(1)}%</div>
                 <p className="text-xs text-muted-foreground">of enrolled users submitted</p>
               </>
             )}

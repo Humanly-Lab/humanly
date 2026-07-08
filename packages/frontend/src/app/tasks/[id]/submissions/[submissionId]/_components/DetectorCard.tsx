@@ -213,7 +213,7 @@ export default function DetectorCard({
             <div className="max-w-3xl space-y-4">
               <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
                 <span
-                  className="inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-semibold"
+                  className="inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-medium"
                   style={{
                     color: verdictColor,
                     backgroundColor: isPositive ? 'var(--hly-red-bg)' : 'var(--hly-green-bg)',
@@ -225,7 +225,7 @@ export default function DetectorCard({
                 </span>
                 <div className="flex items-baseline gap-2">
                   <span
-                    className="text-3xl font-bold leading-none tracking-tight tabular-nums"
+                    className="text-3xl font-medium leading-none tracking-normal tabular-nums"
                     style={{ color: verdictColor }}
                   >
                     {pct}%
@@ -301,7 +301,7 @@ export default function DetectorCard({
                               />
                             )}
                           </span>
-                          <span className="font-semibold tabular-nums">{value}</span>
+                          <span className="font-medium tabular-nums">{value}</span>
                         </div>
                         <div className="mx-1 h-1.5 overflow-hidden rounded-full" style={{ backgroundColor: BAR_TRACK }}>
                           <div

@@ -512,7 +512,7 @@ export function AnalyticsPanel({
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <h2 className="text-2xl font-semibold tracking-tight">Analytics</h2>
+        <h2 className="text-2xl font-medium tracking-normal">Analytics</h2>
         <Select value={dateRange} onValueChange={(value) => setDateRange(value as DateRangePreset)}>
           <SelectTrigger className="w-[160px]">
             <SelectValue placeholder="Select date range" />
@@ -560,7 +560,7 @@ export function AnalyticsPanel({
                   <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                 ) : (
                   <div className="space-y-1">
-                    <div className="text-2xl font-semibold">{metric.value}</div>
+                    <div className="text-2xl font-medium">{metric.value}</div>
                     {'detail' in metric && metric.detail ? (
                       <div className="text-xs text-muted-foreground">{metric.detail}</div>
                     ) : null}
@@ -871,7 +871,7 @@ export function AnalyticsPanel({
                     className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center"
                     data-testid="event-type-total-events"
                   >
-                    <span className="text-2xl font-semibold">{totalEventTypeCount.toLocaleString()}</span>
+                    <span className="text-2xl font-medium">{totalEventTypeCount.toLocaleString()}</span>
                     <span className="text-xs text-muted-foreground">events</span>
                   </div>
                 </div>

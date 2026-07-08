@@ -9,7 +9,7 @@ export default function PrivacyPolicyPage() {
         <div className="mb-8">
           <Link
             href={marketingHref('/')}
-            className="flex items-center gap-2 text-xl font-bold mb-8"
+            className="flex items-center gap-2 text-xl font-medium mb-8"
           >
             <HumanlyWordmark size="sm" cursor={false} />
           </Link>
@@ -41,14 +41,14 @@ export default function PrivacyPolicyPage() {
           </section>
 
           <section>
-            <h2 className="text-lg font-semibold text-foreground mb-2">
+            <h2 className="text-lg font-medium text-foreground mb-2">
               1. Information We Collect
             </h2>
             <p className="leading-relaxed mb-3">
               We may collect the following types of information:
             </p>
 
-            <h3 className="text-base font-semibold text-foreground mb-2">
+            <h3 className="text-base font-medium text-foreground mb-2">
               a. Information You Provide Directly
             </h3>
             <p className="leading-relaxed">
@@ -69,7 +69,7 @@ export default function PrivacyPolicyPage() {
               </li>
             </ul>
 
-            <h3 className="text-base font-semibold text-foreground mb-2 mt-5">
+            <h3 className="text-base font-medium text-foreground mb-2 mt-5">
               b. Information Collected Automatically
             </h3>
             <p className="leading-relaxed">
@@ -86,7 +86,7 @@ export default function PrivacyPolicyPage() {
               <li>Log data, error reports, and performance diagnostics</li>
             </ul>
 
-            <h3 className="text-base font-semibold text-foreground mb-2 mt-5">
+            <h3 className="text-base font-medium text-foreground mb-2 mt-5">
               c. Usage and Activity Data
             </h3>
             <p className="leading-relaxed">
@@ -105,7 +105,7 @@ export default function PrivacyPolicyPage() {
           </section>
 
           <section>
-            <h2 className="text-lg font-semibold text-foreground mb-2">
+            <h2 className="text-lg font-medium text-foreground mb-2">
               2. How We Use Your Information
             </h2>
             <p className="leading-relaxed">
@@ -136,7 +136,7 @@ export default function PrivacyPolicyPage() {
           </section>
 
           <section>
-            <h2 className="text-lg font-semibold text-foreground mb-2">
+            <h2 className="text-lg font-medium text-foreground mb-2">
               3. AI Features and Uploaded Content
             </h2>
             <p className="leading-relaxed">
@@ -162,7 +162,7 @@ export default function PrivacyPolicyPage() {
           </section>
 
           <section>
-            <h2 className="text-lg font-semibold text-foreground mb-2">
+            <h2 className="text-lg font-medium text-foreground mb-2">
               4. Cookies and Similar Technologies
             </h2>
             <p className="leading-relaxed">
@@ -183,7 +183,7 @@ export default function PrivacyPolicyPage() {
           </section>
 
           <section>
-            <h2 className="text-lg font-semibold text-foreground mb-2">
+            <h2 className="text-lg font-medium text-foreground mb-2">
               5. How We Share Information
             </h2>
             <p className="leading-relaxed">
@@ -191,7 +191,7 @@ export default function PrivacyPolicyPage() {
               in the following circumstances:
             </p>
 
-            <h3 className="text-base font-semibold text-foreground mb-2">
+            <h3 className="text-base font-medium text-foreground mb-2">
               a. Service Providers
             </h3>
             <p className="leading-relaxed">
@@ -201,7 +201,7 @@ export default function PrivacyPolicyPage() {
               infrastructure providers.
             </p>
 
-            <h3 className="text-base font-semibold text-foreground mb-2 mt-5">
+            <h3 className="text-base font-medium text-foreground mb-2 mt-5">
               b. Legal Compliance
             </h3>
             <p className="leading-relaxed">
@@ -209,7 +209,7 @@ export default function PrivacyPolicyPage() {
               regulation, legal process, or governmental request.
             </p>
 
-            <h3 className="text-base font-semibold text-foreground mb-2 mt-5">
+            <h3 className="text-base font-medium text-foreground mb-2 mt-5">
               c. Protection of Rights
             </h3>
             <p className="leading-relaxed">
@@ -218,7 +218,7 @@ export default function PrivacyPolicyPage() {
               users, or others.
             </p>
 
-            <h3 className="text-base font-semibold text-foreground mb-2 mt-5">
+            <h3 className="text-base font-medium text-foreground mb-2 mt-5">
               d. Business Transfers
             </h3>
             <p className="leading-relaxed">
@@ -229,7 +229,7 @@ export default function PrivacyPolicyPage() {
           </section>
 
           <section>
-            <h2 className="text-lg font-semibold text-foreground mb-2">
+            <h2 className="text-lg font-medium text-foreground mb-2">
               6. Data Retention
             </h2>
             <p className="leading-relaxed">
@@ -250,7 +250,7 @@ export default function PrivacyPolicyPage() {
           </section>
 
           <section>
-            <h2 className="text-lg font-semibold text-foreground mb-2">
+            <h2 className="text-lg font-medium text-foreground mb-2">
               7. Data Security
             </h2>
             <p className="leading-relaxed">
@@ -266,7 +266,7 @@ export default function PrivacyPolicyPage() {
           </section>
 
           <section>
-            <h2 className="text-lg font-semibold text-foreground mb-2">
+            <h2 className="text-lg font-medium text-foreground mb-2">
               8. Your Rights and Choices
             </h2>
             <p className="leading-relaxed">
@@ -287,7 +287,7 @@ export default function PrivacyPolicyPage() {
           </section>
 
           <section>
-            <h2 className="text-lg font-semibold text-foreground mb-2">
+            <h2 className="text-lg font-medium text-foreground mb-2">
               9. International Data Transfers
             </h2>
             <p className="leading-relaxed">
@@ -300,7 +300,7 @@ export default function PrivacyPolicyPage() {
           </section>
 
           <section>
-            <h2 className="text-lg font-semibold text-foreground mb-2">
+            <h2 className="text-lg font-medium text-foreground mb-2">
               10. Children&apos;s Privacy
             </h2>
             <p className="leading-relaxed">
@@ -314,7 +314,7 @@ export default function PrivacyPolicyPage() {
           </section>
 
           <section>
-            <h2 className="text-lg font-semibold text-foreground mb-2">
+            <h2 className="text-lg font-medium text-foreground mb-2">
               11. Third-Party Services and Links
             </h2>
             <p className="leading-relaxed">
@@ -326,7 +326,7 @@ export default function PrivacyPolicyPage() {
           </section>
 
           <section>
-            <h2 className="text-lg font-semibold text-foreground mb-2">
+            <h2 className="text-lg font-medium text-foreground mb-2">
               12. Changes to This Privacy Policy
             </h2>
             <p className="leading-relaxed">

@@ -350,7 +350,7 @@ function DetectorSettingsBox({
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <label className="flex items-start justify-between gap-3 rounded-md border bg-muted/30 p-3 text-sm">
+        <label className="flex items-start justify-between gap-3 rounded-md border bg-background p-3 text-sm">
           <span>
             <span className="font-medium">Anomaly Pattern</span>
             <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
@@ -364,7 +364,7 @@ function DetectorSettingsBox({
           />
         </label>
 
-        <label className="flex items-start justify-between gap-3 rounded-md border bg-muted/30 p-3 text-sm">
+        <label className="flex items-start justify-between gap-3 rounded-md border bg-background p-3 text-sm">
           <span>
             <span className="font-medium">Humanly Typing Detector</span>
             <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
@@ -973,7 +973,7 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h2 className="text-2xl font-semibold tracking-tight">Task Settings</h2>
+          <h2 className="text-2xl font-medium tracking-normal">Task Settings</h2>
         </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -1104,7 +1104,7 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
                       {totalInstructionFileCount > 0 ? (
                         <div className="mt-3 space-y-2">
                           {visibleInstructionFiles.map((file) => (
-                            <div key={file.id} className="flex items-center gap-3 rounded-md border bg-muted/40 p-3">
+                            <div key={file.id} className="flex items-center gap-3 rounded-md border bg-background p-3">
                               <FileText className="h-5 w-5 shrink-0 text-muted-foreground" />
                               <div className="min-w-0 flex-1">
                                 <p className="truncate text-sm font-medium" title={file.title}>
@@ -1129,7 +1129,7 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
                             </div>
                           ))}
                           {pendingInstructionFiles.map((file) => (
-                            <div key={`${file.name}-${file.size}-${file.lastModified}`} className="flex items-center gap-3 rounded-md border bg-muted/40 p-3">
+                            <div key={`${file.name}-${file.size}-${file.lastModified}`} className="flex items-center gap-3 rounded-md border bg-background p-3">
                               <Upload className="h-5 w-5 shrink-0 text-muted-foreground" />
                               <div className="min-w-0 flex-1">
                                 <p className="truncate text-sm font-medium" title={file.name}>
@@ -1252,7 +1252,7 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
                       AI assistant access is disabled for enrolled users.
                     </div>
                   ) : (
-                    <div className="space-y-5 rounded-md border border-border/70 bg-muted/10 p-4">
+                    <div className="space-y-5 rounded-md border border-border/70 bg-background p-4">
                       <div className="grid gap-4 md:grid-cols-2">
                         <div className="space-y-2">
                           <FormLabel htmlFor="ai-provider">Provider</FormLabel>
@@ -1572,7 +1572,7 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
                 </div>
 
                 {timeLimitEnabled && (
-                  <div className="grid gap-4 rounded-md border bg-muted/30 p-3 sm:grid-cols-2">
+                  <div className="grid gap-4 rounded-md border bg-background p-3 sm:grid-cols-2">
                     <FormField
                       control={form.control}
                       name="startDate"

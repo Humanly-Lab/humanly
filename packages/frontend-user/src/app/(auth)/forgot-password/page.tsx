@@ -98,7 +98,7 @@ export default function ForgotPasswordPage() {
 
             <Button
               type="submit"
-              className="h-11 w-full font-bold"
+              className="h-11 w-full font-medium"
               disabled={isLoading}
             >
               {isLoading ? (

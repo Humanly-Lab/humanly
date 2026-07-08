@@ -41,7 +41,7 @@ export function UsersPanel({
   return (
     <div className="space-y-6">
       <div className="space-y-1">
-        <h2 className="text-2xl font-semibold tracking-tight">Enrolled Users</h2>
+        <h2 className="text-2xl font-medium tracking-normal">Enrolled Users</h2>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
@@ -51,7 +51,7 @@ export function UsersPanel({
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{enrollments.length.toLocaleString()}</div>
+            <div className="text-2xl font-medium">{enrollments.length.toLocaleString()}</div>
           </CardContent>
         </Card>
         <Card>
@@ -60,7 +60,7 @@ export function UsersPanel({
             <FileText className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalSubmissions.toLocaleString()}</div>
+            <div className="text-2xl font-medium">{totalSubmissions.toLocaleString()}</div>
           </CardContent>
         </Card>
       </div>

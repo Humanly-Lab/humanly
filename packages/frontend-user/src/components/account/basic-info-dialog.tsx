@@ -205,7 +205,7 @@ export function BasicInfoDialog({ open, mode, onOpenChange }: BasicInfoDialogPro
               <div className="rounded-[8px] border border-destructive/25 bg-destructive/5 p-4">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="space-y-1">
-                    <h3 className="text-sm font-semibold text-foreground">Delete account</h3>
+                    <h3 className="text-sm font-medium text-foreground">Delete account</h3>
                     <p className="text-sm leading-5 text-muted-foreground">
                       Permanently delete your account, documents, logs, certificates, and sessions.
                     </p>
@@ -240,7 +240,7 @@ export function BasicInfoDialog({ open, mode, onOpenChange }: BasicInfoDialogPro
                   Cancel
                 </Button>
               ) : null}
-              <Button type="submit" className="font-bold" disabled={isSaving || isDeleting}>
+              <Button type="submit" className="font-medium" disabled={isSaving || isDeleting}>
                 {isSaving ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />

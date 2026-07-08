@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/collapsible';
 import {
   ArrowLeft,
+  Code2,
   FileText,
   Copy,
   Check,
@@ -30,6 +31,12 @@ import {
 } from 'lucide-react';
 import QRCode from 'qrcode';
 import { Input } from '@/components/ui/input';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { copyTextToClipboard } from '@/lib/clipboard';
 import { TokenManager } from '@/lib/api-client';
 import { useAuthStore } from '@/stores/auth-store';
@@ -66,6 +73,14 @@ function usePublicCertificateToken(certificateId: string) {
       previousAccessTokenRef.current = undefined;
     };
   }, [certificateId]);
+}
+
+function escapeHtmlAttribute(value: string) {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
 }
 
 export default function CertificateDetailPage() {
@@ -196,6 +211,68 @@ export default function CertificateDetailPage() {
         setDetailsOpen(true);
         showCopyUnavailableToast('Certificate link');
       }
+    }
+  };
+
+  const getShareUrl = () => {
+    if (!certificate) return '';
+    return (
+      verificationUrl ||
+      `${window.location.origin}/verify/${certificate.verificationToken}`
+    );
+  };
+
+  const getShareTitle = () => {
+    const title = certificate?.title?.trim();
+    return title ? `Humanly certificate: ${title}` : 'Humanly certificate';
+  };
+
+  const openExternalShare = (url: string) => {
+    const opened = window.open(url, '_blank', 'noopener,noreferrer');
+    if (!opened) {
+      toast({
+        title: 'Share blocked',
+        description: 'Your browser blocked the share window. Copy the certificate link instead.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleShareToX = () => {
+    const shareUrl = getShareUrl();
+    if (!shareUrl) return;
+    const url = new URL('https://twitter.com/intent/tweet');
+    url.searchParams.set('url', shareUrl);
+    url.searchParams.set('text', getShareTitle());
+    openExternalShare(url.toString());
+  };
+
+  const handleShareToLinkedIn = () => {
+    const shareUrl = getShareUrl();
+    if (!shareUrl) return;
+    const url = new URL('https://www.linkedin.com/sharing/share-offsite/');
+    url.searchParams.set('url', shareUrl);
+    openExternalShare(url.toString());
+  };
+
+  const getEmbedSnippet = () => {
+    const shareUrl = getShareUrl();
+    const escapedUrl = escapeHtmlAttribute(shareUrl);
+    const escapedTitle = escapeHtmlAttribute(getShareTitle());
+    return `<iframe src="${escapedUrl}" title="${escapedTitle}" width="100%" height="720" loading="lazy" style="border: 0; border-radius: 8px;"></iframe>`;
+  };
+
+  const handleCopyEmbedSnippet = async () => {
+    if (!certificate) return;
+    const didCopy = await copyTextToClipboard(getEmbedSnippet());
+    if (didCopy) {
+      toast({
+        title: 'Embed copied',
+        description: 'Certificate embed snippet copied to clipboard',
+      });
+    } else {
+      setDetailsOpen(true);
+      showCopyUnavailableToast('Embed snippet');
     }
   };
 
@@ -346,7 +423,7 @@ export default function CertificateDetailPage() {
     return (
       <div className="humanly-page-narrow">
         <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4">
-          <h2 className="text-lg font-semibold text-destructive">Error</h2>
+          <h2 className="text-lg font-medium text-destructive">Error</h2>
           <p className="mt-2 text-sm">{error || 'Certificate not found'}</p>
           {!isGuestCertificateView && (
             <Button
@@ -392,15 +469,36 @@ export default function CertificateDetailPage() {
             <FileText className="mr-2 h-4 w-4" />
             View Logs
           </Button>
-          <Button
-            onClick={handleShareVerificationLink}
-            variant="outline"
-            size="sm"
-            className="min-w-0"
-          >
-            <Share2 className="mr-2 h-4 w-4" />
-            Share
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="min-w-0">
+                <Share2 className="mr-2 h-4 w-4" />
+                Share
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuItem onClick={handleShareVerificationLink}>
+                <Copy className="mr-2 h-4 w-4" />
+                Copy link
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleShareToX}>
+                <span className="mr-2 inline-flex h-4 w-4 items-center justify-center text-xs font-medium">
+                  X
+                </span>
+                Share on X
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleShareToLinkedIn}>
+                <span className="mr-2 inline-flex h-4 w-4 items-center justify-center rounded-sm border text-[10px] font-medium">
+                  in
+                </span>
+                Share on LinkedIn
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleCopyEmbedSnippet}>
+                <Code2 className="mr-2 h-4 w-4" />
+                Copy embed
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
@@ -458,20 +556,63 @@ export default function CertificateDetailPage() {
                         ) : (
                           <div className="h-36 w-36 animate-pulse rounded bg-muted" />
                         )}
-                        <Button
-                          onClick={handleShareVerificationLink}
-                          variant="outline"
-                          size="sm"
-                          className="mt-3 w-full max-w-56 bg-background"
-                        >
-                          <Share2 className="mr-2 h-4 w-4" />
-                          Copy Certificate Link
-                        </Button>
+                        <div className="mt-3 grid w-full max-w-56 gap-2">
+                          <Button
+                            onClick={handleShareVerificationLink}
+                            variant="outline"
+                            size="sm"
+                            className="w-full bg-background"
+                          >
+                            <Copy className="mr-2 h-4 w-4" />
+                            Copy Link
+                          </Button>
+                          <div className="grid grid-cols-2 gap-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="bg-background"
+                              onClick={handleShareToX}
+                            >
+                              <span className="mr-2 text-xs font-medium">X</span>
+                              X
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="bg-background"
+                              onClick={handleShareToLinkedIn}
+                            >
+                              <span className="mr-2 rounded-sm border px-1 text-[10px] font-medium">
+                                in
+                              </span>
+                              LinkedIn
+                            </Button>
+                          </div>
+                          <Button
+                            onClick={handleCopyEmbedSnippet}
+                            variant="outline"
+                            size="sm"
+                            className="w-full bg-background"
+                          >
+                            <Code2 className="mr-2 h-4 w-4" />
+                            Copy Embed
+                          </Button>
+                        </div>
                         {verificationUrl ? (
-                          <div className="mt-2 w-full max-w-56 rounded-md border border-border/70 bg-background px-2 py-1.5 text-center text-[11px] text-muted-foreground">
-                            <span className="select-all break-all">
-                              {verificationUrl}
-                            </span>
+                          <div className="mt-2 w-full max-w-56 space-y-2">
+                            <div className="rounded-md border border-border/70 bg-background px-2 py-1.5 text-center text-[11px] text-muted-foreground">
+                              <span className="select-all break-all">
+                                {verificationUrl}
+                              </span>
+                            </div>
+                            <textarea
+                              readOnly
+                              aria-label="Certificate embed snippet"
+                              value={getEmbedSnippet()}
+                              className="h-20 w-full resize-none rounded-md border border-border/70 bg-background px-2 py-1.5 font-mono text-[10px] text-muted-foreground outline-none"
+                            />
                           </div>
                         ) : null}
                       </div>

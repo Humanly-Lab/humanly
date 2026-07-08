@@ -126,7 +126,7 @@ export default function EnvironmentConfigFields({
   return (
     <div className="space-y-6 rounded-md border p-4">
       <div>
-        <h3 className="font-semibold">Writing Environment</h3>
+        <h3 className="font-medium">Writing Environment</h3>
         <p className="text-sm text-muted-foreground">
           Configure how this task can be written, assisted, submitted, and traced.
         </p>
@@ -314,7 +314,7 @@ export default function EnvironmentConfigFields({
       )}
 
       {chatTokensEnabled && (
-        <div className="grid gap-4 rounded-md border bg-muted/30 p-3">
+        <div className="grid gap-4 rounded-md border bg-background p-3">
           <div className="space-y-2">
             <Label>AI Guard policy</Label>
             <select
@@ -511,7 +511,7 @@ export default function EnvironmentConfigFields({
         </div>
       </div>
 
-      <div className="space-y-3 rounded-md border bg-muted/30 p-3">
+      <div className="space-y-3 rounded-md border bg-background p-3">
         <div className="flex items-start justify-between gap-3">
           <div>
             <Label>Anomaly behavior review</Label>

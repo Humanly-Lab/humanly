@@ -189,7 +189,7 @@ function DetectorSettingsBox({
   };
 
   return (
-    <div className="space-y-3 rounded-md border bg-muted/30 p-3">
+    <div className="space-y-3 rounded-md border bg-background p-3">
       <div className="flex items-start justify-between gap-3">
         <div>
           <Label>Anomaly behavior review</Label>
@@ -1252,7 +1252,7 @@ function NewDocumentPageContent() {
         </div>
 
         {environmentConfig.aiAccess !== 'off' && (
-          <div className="grid gap-4 rounded-md border bg-muted/30 p-3">
+          <div className="grid gap-4 rounded-md border bg-background p-3">
             <div className="humanly-field">
               <div className="flex items-center gap-1.5">
                 <Label htmlFor="ai-api-key">AI API Key</Label>

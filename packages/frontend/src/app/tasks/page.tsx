@@ -393,7 +393,7 @@ export default function TasksPage() {
         setActiveTab(value as TaskDashboardTab);
       }}
     >
-      <TabsList className="grid w-full grid-cols-2 border border-border/70 bg-muted/60 sm:w-[310px]">
+      <TabsList className="grid w-full grid-cols-2 border border-border/70 bg-background sm:w-[310px]">
         <TabsTrigger value="open">Open ({openTaskCount})</TabsTrigger>
         <TabsTrigger value="archived">
           Archived ({archivedTaskCount})
@@ -573,9 +573,9 @@ export default function TasksPage() {
           'Create a writing task, configure its environment, and share its invite code with users.'
         )}
 
-        <Card className="humanly-surface border-dashed bg-card/80">
+        <Card className="humanly-surface border-dashed">
           <CardHeader className="text-center pb-4">
-            <div className="mx-auto mb-4 h-12 w-12 rounded-full bg-muted/60 flex items-center justify-center">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full border border-border/70 bg-background">
               <Folder className="h-6 w-6 text-muted-foreground" />
             </div>
             <CardTitle className="font-medium">
@@ -610,9 +610,9 @@ export default function TasksPage() {
         {renderDashboardHeader(tabCountText)}
         {renderDashboardControls()}
 
-        <Card className="humanly-surface border-dashed bg-card/80">
+        <Card className="humanly-surface border-dashed">
           <CardHeader className="text-center pb-4">
-            <div className="mx-auto mb-4 h-12 w-12 rounded-full bg-muted/60 flex items-center justify-center">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full border border-border/70 bg-background">
               <Search className="h-6 w-6 text-muted-foreground" />
             </div>
             <CardTitle className="font-medium">

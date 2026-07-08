@@ -29,12 +29,15 @@ const LINES = [100, 92, 97, 74, 0, 96, 88, 60];
 
 export function StatementVisual() {
   const [guess, setGuess] = useState(0);
-  const [eventCount, setEventCount] = useState(1);
+  const [eventStep, setEventStep] = useState(0);
 
   useEffect(() => {
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setEventStep(EVENTS.length);
+      return;
+    }
     const a = setInterval(() => setGuess((v) => (v + 1) % GUESSES.length), 1200);
-    const b = setInterval(() => setEventCount((v) => (v % EVENTS.length) + 1), 950);
+    const b = setInterval(() => setEventStep((v) => (v + 1) % (EVENTS.length + 3)), 950);
     return () => {
       clearInterval(a);
       clearInterval(b);
@@ -42,16 +45,18 @@ export function StatementVisual() {
   }, []);
 
   const g = GUESSES[guess];
+  const eventCount = Math.min(eventStep, EVENTS.length);
+  const logComplete = eventCount >= EVENTS.length;
 
   return (
-    <div className="mx-auto mt-12 grid max-w-[760px] gap-4 text-left sm:grid-cols-2">
+    <div className="mx-auto mt-12 grid max-w-[760px] items-stretch gap-4 text-left sm:grid-cols-2">
       {/* a detector, guessing after the fact */}
-      <div className="rounded-[12px] border border-[var(--hly-hairline)] bg-white p-4 shadow-[0_20px_50px_-30px_rgba(35,32,25,0.3)]">
+      <div className="flex flex-col rounded-[12px] border border-[var(--hly-hairline)] bg-white p-4 shadow-[0_20px_50px_-30px_rgba(35,32,25,0.3)]">
         <div className="flex items-center justify-between text-[11px]">
-          <span className="font-semibold text-muted-foreground">AI detector</span>
+          <span className="font-medium text-muted-foreground">AI detector</span>
           <span className="text-[9.5px] text-[var(--hly-neutral)]">sees only the final text</span>
         </div>
-        <div className="relative mt-3 overflow-hidden rounded-md border border-border/60 p-3">
+        <div className="relative mt-3 h-[190px] overflow-hidden rounded-md border border-border/60 p-3">
           {LINES.map((w, i) => (
             <div
               key={i}
@@ -63,22 +68,22 @@ export function StatementVisual() {
           <div className="humanly-scanline absolute inset-x-0 h-5 bg-gradient-to-b from-transparent via-[rgba(176,141,132,0.22)] to-transparent" />
         </div>
         <div
-          className={`mt-3 inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[10.5px] font-semibold transition-colors duration-300 ${TONE[g.tone]}`}
+          className={`mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-md border px-2.5 py-1 text-[10.5px] font-medium transition-colors duration-300 ${TONE[g.tone]}`}
         >
           <span className="humanly-pulse">?</span> {g.label}
         </div>
       </div>
 
       {/* Humanly, recording as it happens */}
-      <div className="rounded-[12px] border border-[var(--hly-green-border)] bg-white p-4 shadow-[0_20px_50px_-30px_rgba(35,32,25,0.3)]">
+      <div className="flex flex-col rounded-[12px] border border-[var(--hly-green-border)] bg-white p-4 shadow-[0_20px_50px_-30px_rgba(35,32,25,0.3)]">
         <div className="flex items-center justify-between text-[11px]">
-          <span className="font-semibold">Humanly</span>
+          <span className="font-medium">Humanly</span>
           <span className="inline-flex items-center gap-1 text-[9.5px] text-[var(--hly-green-text)]">
             <span className="humanly-pulse h-1.5 w-1.5 rounded-full bg-current" />
             records the process
           </span>
         </div>
-        <div className="mt-3 rounded-md border border-border/60 p-3">
+        <div className="mt-3 h-[190px] rounded-md border border-border/60 p-3">
           {EVENTS.slice(0, eventCount).map(([t, kind, n, bg, fg]) => (
             <div
               key={`${t}-${kind}`}
@@ -86,7 +91,7 @@ export function StatementVisual() {
             >
               <span className="tabular-nums text-muted-foreground">{t}</span>
               <span
-                className="w-fit rounded-[4px] px-1.5 py-px text-[9px] font-semibold"
+                className="w-fit rounded-[4px] px-1.5 py-px text-[9px] font-medium"
                 style={{ backgroundColor: bg, color: fg }}
               >
                 {kind}
@@ -95,8 +100,14 @@ export function StatementVisual() {
             </div>
           ))}
         </div>
-        <div className="mt-3 inline-flex items-center gap-1.5 rounded-md border border-[var(--hly-green-border)] bg-[var(--hly-green-bg)] px-2.5 py-1 text-[10.5px] font-semibold text-[var(--hly-green-text)]">
-          93% typed, a receipt, not a guess
+        <div
+          className={`mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-md border px-2.5 py-1 text-[10.5px] font-medium transition-colors duration-300 ${
+            logComplete
+              ? 'border-[var(--hly-green-border)] bg-[var(--hly-green-bg)] text-[var(--hly-green-text)]'
+              : 'border-border bg-background text-muted-foreground'
+          }`}
+        >
+          {logComplete ? '93% human, 7% AI' : 'Recording process...'}
         </div>
       </div>
     </div>

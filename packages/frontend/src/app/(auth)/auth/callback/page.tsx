@@ -65,7 +65,7 @@ export default function OAuthCallbackPage() {
               <AlertTitle>Login failed</AlertTitle>
               <AlertDescription>{error}</AlertDescription>
             </Alert>
-            <Button asChild className="h-11 w-full font-bold">
+            <Button asChild className="h-11 w-full font-medium">
               <Link href="/login">Back to sign in</Link>
             </Button>
           </div>

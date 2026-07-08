@@ -579,7 +579,7 @@ export function AIAssistantPanel({
           <Dialog open={historyPopoverOpen} onOpenChange={setHistoryPopoverOpen}>
             <DialogContent className="max-w-md p-0 max-h-[80vh] flex flex-col">
               <DialogHeader className="px-4 py-3 border-b shrink-0">
-                <DialogTitle className="text-sm font-semibold">Chat History</DialogTitle>
+                <DialogTitle className="text-sm font-medium">Chat History</DialogTitle>
                 {sessionCount > 0 && (
                   <p className="text-xs text-muted-foreground mt-1">
                     {sessionCount} conversation{sessionCount !== 1 ? 's' : ''}

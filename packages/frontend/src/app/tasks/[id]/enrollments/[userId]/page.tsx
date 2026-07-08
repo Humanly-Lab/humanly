@@ -174,7 +174,7 @@ export default function EnrollmentSubmissionsPage() {
               </CardHeader>
               <CardContent>
                 <div
-                  className="truncate text-lg font-semibold"
+                  className="truncate text-lg font-medium"
                   title={enrollment.email}
                 >
                   {enrollment.email}
@@ -195,7 +195,7 @@ export default function EnrollmentSubmissionsPage() {
                 <FileText className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">
+                <div className="text-2xl font-medium">
                   {submissions.length.toLocaleString()}
                 </div>
               </CardContent>
@@ -206,7 +206,7 @@ export default function EnrollmentSubmissionsPage() {
                 <FileText className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">
+                <div className="text-2xl font-medium">
                   {(enrollment.attemptCount || 0).toLocaleString()}
                 </div>
                 {enrollment.currentAttemptNumber ? (

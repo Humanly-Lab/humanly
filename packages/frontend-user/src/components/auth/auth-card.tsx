@@ -36,7 +36,7 @@ export function AuthCard({
       )}
     >
       <CardHeader className="space-y-3 pb-5 text-center">
-        <CardTitle className="text-2xl font-bold leading-tight tracking-normal">
+        <CardTitle className="text-2xl font-medium leading-tight tracking-normal">
           {title}
         </CardTitle>
         {description && (

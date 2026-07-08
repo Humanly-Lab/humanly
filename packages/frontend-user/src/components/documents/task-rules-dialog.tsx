@@ -213,7 +213,7 @@ export function TaskRulesDialog({
         <div className="space-y-3">
           {taskInstruction ? (
             <section className="rounded-lg border border-border/70 bg-muted/20 px-4 py-3">
-              <h3 className="text-sm font-semibold text-foreground">Task Instruction</h3>
+              <h3 className="text-sm font-medium text-foreground">Task Instruction</h3>
               <MarkdownContent className="mt-2 text-sm text-muted-foreground [&_a]:font-medium [&_a]:text-foreground [&_a]:underline [&_a]:underline-offset-2 [&_code]:rounded [&_code]:bg-background/80 [&_code]:px-1 [&_code]:py-0.5 [&_em]:italic [&_li]:my-1 [&_ol]:list-decimal [&_ol]:pl-5 [&_strong]:font-semibold [&_strong]:text-foreground [&_ul]:list-disc [&_ul]:pl-5">
                 {taskInstruction}
               </MarkdownContent>
@@ -221,7 +221,7 @@ export function TaskRulesDialog({
           ) : null}
 
           <section className="rounded-lg border border-border/70 bg-muted/20 px-4 py-3">
-            <h3 className="text-sm font-semibold text-foreground">Writing rules</h3>
+            <h3 className="text-sm font-medium text-foreground">Writing rules</h3>
             <ul className="mt-2 space-y-2 text-sm leading-6 text-foreground">
               {ruleItems.map((item) => (
                 <li key={item.id} className="ml-4 list-disc pl-1">

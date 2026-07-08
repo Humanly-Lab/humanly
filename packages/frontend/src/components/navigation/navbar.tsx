@@ -42,12 +42,12 @@ export function Navbar() {
 
   return (
     <>
-      <nav className="border-b border-border/70 bg-card">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <nav className="bg-background">
+        <div className="mx-auto w-full max-w-7xl px-5 sm:px-8 lg:px-10">
           <div className="flex h-16 items-center justify-between">
             <div className="flex items-center">
               <Link href="/tasks" className="flex items-center rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                <HumanlyWordmark admin size="md" />
+                <HumanlyWordmark admin size="md" cursor={false} />
               </Link>
             </div>
 

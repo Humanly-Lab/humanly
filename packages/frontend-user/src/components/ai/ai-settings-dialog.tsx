@@ -238,7 +238,7 @@ export function AISettingsDialog({ onSettingsChanged }: AISettingsDialogProps) {
         </DialogTrigger>
         <DialogContent className="max-w-md overflow-hidden">
           <DialogHeader>
-            <DialogTitle className="text-sm font-semibold tracking-normal">AI Settings</DialogTitle>
+            <DialogTitle className="text-sm font-medium tracking-normal">AI Settings</DialogTitle>
           </DialogHeader>
 
           {loading ? (

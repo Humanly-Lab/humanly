@@ -307,7 +307,7 @@ function DetectorSettingsBox({
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <label className="flex items-start justify-between gap-3 rounded-md border bg-muted/30 p-3 text-sm">
+        <label className="flex items-start justify-between gap-3 rounded-md border bg-background p-3 text-sm">
           <span>
             <span className="font-medium">Anomaly Pattern</span>
             <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
@@ -324,7 +324,7 @@ function DetectorSettingsBox({
           />
         </label>
 
-        <label className="flex items-start justify-between gap-3 rounded-md border bg-muted/30 p-3 text-sm">
+        <label className="flex items-start justify-between gap-3 rounded-md border bg-background p-3 text-sm">
           <span>
             <span className="font-medium">Humanly Typing Detector</span>
             <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
@@ -1537,7 +1537,7 @@ export default function NewTaskPage() {
         </div>
 
         {aiAccess !== 'off' && (
-          <div className="grid gap-4 rounded-md border bg-muted/30 p-3">
+          <div className="grid gap-4 rounded-md border bg-background p-3">
             <div className="grid gap-2">
               <div className="flex items-center gap-1.5">
                 <FormLabel htmlFor="ai-api-key">AI API Key</FormLabel>
@@ -2000,7 +2000,7 @@ export default function NewTaskPage() {
         </div>
 
         {timeLimitEnabled && (
-          <div className="rounded-md border bg-muted/30 p-3">
+          <div className="rounded-md border bg-background p-3">
             <div className="flex items-start gap-3">
               <CalendarClock className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
               <div className="min-w-0 flex-1 space-y-3">
@@ -2114,7 +2114,7 @@ export default function NewTaskPage() {
                   />
                 </div>
 
-                <p className="rounded-md bg-muted/40 p-3 text-xs text-muted-foreground">
+                <p className="rounded-md border border-border/70 bg-background p-3 text-xs text-muted-foreground">
                   Students see the same absolute window converted into their own
                   local time. Your current timezone is {localTimeZoneLabel}.
                 </p>

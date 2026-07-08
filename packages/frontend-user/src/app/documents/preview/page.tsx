@@ -261,8 +261,8 @@ function PdfPreviewPanel({
   viewOnly: boolean;
 }) {
   return (
-    <div className="flex h-full flex-col overflow-hidden border-r border-border/70 bg-card">
-      <div className="flex items-center justify-between gap-3 border-b border-border/70 bg-muted/25 px-3 py-2">
+    <div className="flex h-full flex-col overflow-hidden border-r border-border/70 bg-background">
+      <div className="flex items-center justify-between gap-3 border-b border-border/70 bg-background px-3 py-2">
         <div className="flex min-w-0 items-center gap-2 text-sm font-medium">
           <FileText className="h-4 w-4 text-muted-foreground" />
           <span className="truncate">{label || 'Instruction PDF'}</span>
@@ -271,7 +271,7 @@ function PdfPreviewPanel({
           {viewOnly ? 'View only' : 'Downloadable'}
         </Badge>
       </div>
-      <div className="min-h-0 flex-1 bg-muted/20">
+      <div className="min-h-0 flex-1 bg-background">
         {previewUrl ? (
           <PDFViewer
             documentId={PREVIEW_DOCUMENT_ID}
@@ -365,7 +365,7 @@ export default function WorkspacePreviewPage() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background p-6">
         <div className="max-w-md text-center">
-          <h1 className="text-lg font-semibold">Preview unavailable</h1>
+          <h1 className="text-lg font-medium">Preview unavailable</h1>
           <p className="mt-2 text-sm text-muted-foreground">
             Return to the setup page and open the preview again.
           </p>
@@ -406,7 +406,7 @@ export default function WorkspacePreviewPage() {
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-background">
-      <div className="shrink-0 border-b border-border/70 bg-card">
+      <div className="shrink-0 border-b border-border/70 bg-background">
         <div className={`${CANVAS} py-3`}>
           <div className="flex items-center justify-between gap-4">
             <div className="flex min-w-0 items-center gap-3">
@@ -423,7 +423,7 @@ export default function WorkspacePreviewPage() {
               <div className="min-w-0 flex-1">
                 <div className="flex min-w-0 items-center gap-2">
                   <h1
-                    className="min-w-0 truncate text-lg font-semibold tracking-normal"
+                    className="min-w-0 truncate text-lg font-medium tracking-normal"
                     title={title}
                   >
                     {title}
@@ -449,7 +449,7 @@ export default function WorkspacePreviewPage() {
                   >
                     <Clock className="h-3.5 w-3.5 shrink-0" />
                     <span>Writing time left</span>
-                    <span className="font-semibold">
+                    <span className="font-medium">
                       {formatCountdownDuration(timeLimitSeconds)}
                     </span>
                   </Badge>
@@ -524,7 +524,7 @@ export default function WorkspacePreviewPage() {
         <div className={`${CANVAS} h-full py-3`}>
           <ResizablePanelGroup
             direction="horizontal"
-            className="h-full w-full overflow-hidden rounded-lg border border-border/80 bg-card"
+            className="h-full w-full overflow-hidden rounded-lg border border-border/80 bg-background"
           >
             {hasPdf ? (
               <ResizablePanel defaultSize={38} minSize={22}>
@@ -549,8 +549,8 @@ export default function WorkspacePreviewPage() {
                   className={`${hasPdf || aiChatEnabled ? 'px-4 py-4' : 'px-6 py-6'} h-full`}
                 >
                   {!hasPdf ? (
-                    <div className="mb-4 rounded-lg border border-dashed border-border/80 bg-muted/30 p-4">
-                      <h2 className="text-sm font-semibold">No PDF linked</h2>
+                    <div className="mb-4 rounded-lg border border-dashed border-border/80 bg-background p-4">
+                      <h2 className="text-sm font-medium">No PDF linked</h2>
                       <p className="text-sm text-muted-foreground">
                         {payload.mode === 'admin'
                           ? 'This assigned task does not have an instruction PDF.'
@@ -620,7 +620,7 @@ export default function WorkspacePreviewPage() {
               <>
                 <ResizableHandle withHandle />
                 <ResizablePanel defaultSize={25} minSize={18}>
-                  <div className="h-full overflow-hidden border-l border-border/70 bg-card">
+                  <div className="h-full overflow-hidden border-l border-border/70 bg-background">
                     <AIAssistantPanelPreview
                       lockedModel={lockedAiModel}
                       lockedBaseUrl={lockedAiBaseUrl}
