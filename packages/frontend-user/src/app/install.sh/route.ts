@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 
 const DEFAULT_SOURCE_REF = 'main';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 const bootstrapScript = `#!/usr/bin/env sh
 set -eu
 
@@ -21,7 +24,7 @@ fi
 export function GET() {
   return new NextResponse(bootstrapScript, {
     headers: {
-      'Cache-Control': 'public, max-age=3600',
+      'Cache-Control': 'no-store, no-cache, must-revalidate',
       'Content-Type': 'text/x-shellscript; charset=utf-8',
     },
   });
