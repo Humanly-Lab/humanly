@@ -36,6 +36,7 @@ interface FileViewTokenPayload extends JwtPayload {
 export type StreamFileResult =
   | {
       kind: 'stream';
+      file: AppFile;
       stream: Readable;
       fileSize: number;
       contentLength: number;
@@ -282,6 +283,7 @@ export class FileService {
 
     return {
       kind: 'stream',
+      file: appFile,
       stream,
       fileSize: parsedRange.fileSize,
       contentLength: parsedRange.contentLength,

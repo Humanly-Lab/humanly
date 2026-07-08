@@ -81,7 +81,31 @@ export async function issueFileViewToken(req: Request, res: Response): Promise<v
   });
 }
 
-export async function streamFileContent(req: Request, res: Response): Promise<void> {
+function encodeRFC5987Value(value: string): string {
+  return encodeURIComponent(value)
+    .replace(/['()]/g, (char) => `%${char.charCodeAt(0).toString(16).toUpperCase()}`)
+    .replace(/\*/g, '%2A');
+}
+
+function toSafeAsciiFilename(filename: string): string {
+  const normalized = filename
+    .replace(/[\r\n"]/g, '')
+    .replace(/[\\/]/g, '_')
+    .trim();
+  const fallback = normalized || 'document.pdf';
+  return fallback.replace(/[^\x20-\x7E]/g, '_');
+}
+
+function buildAttachmentContentDisposition(filename: string): string {
+  const safeAsciiFilename = toSafeAsciiFilename(filename);
+  return `attachment; filename="${safeAsciiFilename}"; filename*=UTF-8''${encodeRFC5987Value(filename)}`;
+}
+
+async function streamFileResponse(
+  req: Request,
+  res: Response,
+  disposition: 'inline' | 'attachment'
+): Promise<void> {
   const viewToken = typeof req.query.viewToken === 'string'
     ? req.query.viewToken
     : req.get('X-File-View-Token') || undefined;
@@ -91,7 +115,6 @@ export async function streamFileContent(req: Request, res: Response): Promise<vo
   });
 
   res.setHeader('Content-Type', 'application/pdf');
-  res.setHeader('Content-Disposition', 'inline');
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Cache-Control', 'private, no-cache, no-store, must-revalidate');
   res.setHeader('X-Frame-Options', 'SAMEORIGIN');
@@ -103,6 +126,12 @@ export async function streamFileContent(req: Request, res: Response): Promise<vo
     return;
   }
 
+  res.setHeader(
+    'Content-Disposition',
+    disposition === 'attachment'
+      ? buildAttachmentContentDisposition(result.file.originalFilename)
+      : 'inline'
+  );
   res.setHeader('Content-Length', result.contentLength.toString());
   if (result.contentRange) {
     res.setHeader('Content-Range', result.contentRange);
@@ -135,6 +164,14 @@ export async function streamFileContent(req: Request, res: Response): Promise<vo
   });
 
   stream.pipe(res);
+}
+
+export async function streamFileContent(req: Request, res: Response): Promise<void> {
+  await streamFileResponse(req, res, 'inline');
+}
+
+export async function downloadFileContent(req: Request, res: Response): Promise<void> {
+  await streamFileResponse(req, res, 'attachment');
 }
 
 export async function deleteFile(req: Request, res: Response): Promise<void> {
