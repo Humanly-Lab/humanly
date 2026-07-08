@@ -10,6 +10,7 @@ const runnableTestFiles = new Set([
   'packages/backend/src/config/cors.test.ts',
   'packages/backend/src/controllers/ai-settings.controller.test.ts',
   'packages/backend/src/controllers/ai.controller.test.ts',
+  'packages/backend/src/controllers/file.controller.test.ts',
   'packages/backend/src/services/certificate-detector-seal.service.test.ts',
   'packages/backend/src/services/file-text-index.service.test.ts',
   'packages/backend/src/services/task-dashboard-list.service.test.ts',

@@ -10,7 +10,6 @@ import {
   ChevronUp,
   ChevronDown,
   Maximize2,
-  AlertCircle,
   X,
   Loader2,
   Download,
@@ -22,7 +21,6 @@ import {
   getPublicDocumentAuthConfig,
   waitForDocumentScopedAccessTokenReady,
 } from '@/lib/api-client'
-import { usePDFTextStore } from '@/stores/pdf-text-store'
 import { extractCompatiblePDFTextContent } from './pdf-text-content'
 
 type PDFJSModule = typeof import('pdfjs-dist')
@@ -61,6 +59,7 @@ interface PageLayout {
 }
 
 const PDF_LOAD_TIMEOUT_MS = 30_000
+const PDF_RANGE_CHUNK_SIZE = 64 * 1024
 // PDFPageView owns page DOM/text/annotation layers; this queue keeps Humanly's custom highlights and view-only logging.
 const MAX_CONCURRENT_PAGE_RENDERS = 2
 const PRE_RENDER_RADIUS = 1
@@ -71,6 +70,9 @@ export const PDFJS_DOCUMENT_RESOURCE_OPTIONS = {
   cMapUrl: '/pdfjs/cmaps/',
   cMapPacked: true,
   standardFontDataUrl: '/pdfjs/standard_fonts/',
+  disableStream: true,
+  disableAutoFetch: true,
+  rangeChunkSize: PDF_RANGE_CHUNK_SIZE,
 } as const
 
 function isRenderCancelledError(err: unknown) {
@@ -143,8 +145,6 @@ function getTextItemHighlightRect(
 export default function PDFViewer({ fileId, documentId, previewUrl, viewOnly = false }: PDFViewerProps) {
   const [numPages, setNumPages] = useState<number>(0)
   const [currentPage, setCurrentPage] = useState<number>(1)
-  const [textExtractionError, setTextExtractionError] = useState<string | null>(null)
-  const { setPDFText, setExtracting, setError: setPDFError } = usePDFTextStore()
 
   const [scale, setScale] = useState<number>(1.0)
   const [fitToWidth, setFitToWidth] = useState<boolean>(true)
@@ -209,27 +209,6 @@ export default function PDFViewer({ fileId, documentId, previewUrl, viewOnly = f
     }
     return Math.max(0.5, Math.min(3.0, containerWidth / pageWidth))
   }, [])
-
-  // Extract PDF text in background for AI context
-  const extractPDFTextInBackground = useCallback(async (pdf: any, docId: string, extractedFileId: string) => {
-    try {
-      setExtracting(docId, true)
-      setTextExtractionError(null)
-      const pages: string[] = []
-      for (let i = 1; i <= pdf.numPages; i++) {
-        const page = await pdf.getPage(i)
-        const textContent = await extractCompatiblePDFTextContent(page)
-        pages.push(textContent.items.map((item: any) => item.str).join(' '))
-      }
-      const fullText = pages.join('\n\n')
-      const summary = pages.slice(0, 2).join('\n\n').substring(0, 2500)
-      setPDFText(docId, { fileId: extractedFileId, numPages: pdf.numPages, pages, fullText, summary, isExtracting: false })
-    } catch (err: any) {
-      const msg = err.message || 'Failed to extract PDF text'
-      setTextExtractionError(msg)
-      setPDFError(docId, msg)
-    }
-  }, [setPDFText, setExtracting, setPDFError])
 
   const cancelActiveRenderTasks = useCallback(() => {
     renderTasksRef.current.forEach((task) => {
@@ -484,7 +463,6 @@ export default function PDFViewer({ fileId, documentId, previewUrl, viewOnly = f
         setSearchMatches([])
         setCurrentMatchIndex(-1)
         setShowSearch(false)
-        setTextExtractionError(null)
         setPageLayouts([])
         setRenderedPageNumbers([])
         setLoading(true)
@@ -566,9 +544,6 @@ export default function PDFViewer({ fileId, documentId, previewUrl, viewOnly = f
           }
         })()
 
-        if (documentId && fileId && !previewUrl && !viewOnly && !cancelled) {
-          extractPDFTextInBackground(pdf, documentId, fileId)
-        }
       } catch (err: any) {
         if (cancelled) return
         setError(err.message || 'Failed to load PDF')
@@ -600,7 +575,7 @@ export default function PDFViewer({ fileId, documentId, previewUrl, viewOnly = f
       }
       pdfDocRef.current = null
     }
-  }, [fileId, documentId, previewUrl, viewOnly, loadAttempt, extractPDFTextInBackground, cancelCurrentRenderGeneration, getFitToWidthScale])
+  }, [fileId, documentId, previewUrl, viewOnly, loadAttempt, cancelCurrentRenderGeneration, getFitToWidthScale])
 
   // Re-render only visible and nearby pages on scale/layout changes.
   useEffect(() => {
@@ -1082,16 +1057,6 @@ export default function PDFViewer({ fileId, documentId, previewUrl, viewOnly = f
           </Button>
         ) : null}
       </div>
-
-      {/* PDF text extraction error */}
-      {documentId && textExtractionError && (
-        <div className="border-b bg-amber-50 border-amber-200 p-2 flex items-center gap-2">
-          <AlertCircle className="h-4 w-4 text-amber-600 shrink-0" />
-          <span className="text-xs text-amber-800">
-            PDF text extraction failed: {textExtractionError}. AI Assistant will not have access to PDF content.
-          </span>
-        </div>
-      )}
 
       {/* Continuous scroll canvas area */}
       <div

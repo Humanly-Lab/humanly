@@ -18,6 +18,10 @@ function buildFileContentUrl(fileId: string): string {
   return new URL(getApiUrl(`/files/${fileId}/content`), window.location.origin).toString();
 }
 
+function buildFileDownloadUrl(fileId: string): string {
+  return new URL(getApiUrl(`/files/${fileId}/download`), window.location.origin).toString();
+}
+
 async function getFileAccessHeaders(
   fileId: string,
   options: { viewOnly?: boolean; documentId?: string } = {}
@@ -72,13 +76,13 @@ export const fileApi = {
       viewOnly: false,
     });
 
-    const response = await fetch(buildFileContentUrl(fileId), {
+    const response = await fetch(buildFileDownloadUrl(fileId), {
       headers,
       credentials: 'include',
     });
 
     if (!response.ok) {
-      throw new Error('Failed to download PDF');
+      throw new Error(`Failed to download PDF: HTTP ${response.status}`);
     }
 
     return response.blob();

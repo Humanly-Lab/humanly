@@ -81,17 +81,58 @@ export async function issueFileViewToken(req: Request, res: Response): Promise<v
   });
 }
 
-export async function streamFileContent(req: Request, res: Response): Promise<void> {
+function encodeRFC5987Value(value: string): string {
+  return encodeURIComponent(value)
+    .replace(/['()]/g, (char) => `%${char.charCodeAt(0).toString(16).toUpperCase()}`)
+    .replace(/\*/g, '%2A');
+}
+
+const CONTENT_DISPOSITION_FILENAME_MAX_LENGTH = 200;
+
+function truncateFilename(filename: string): string {
+  if (filename.length <= CONTENT_DISPOSITION_FILENAME_MAX_LENGTH) {
+    return filename;
+  }
+
+  const extension = /\.pdf$/i.test(filename) ? filename.slice(-4) : '';
+  const baseLength = Math.max(1, CONTENT_DISPOSITION_FILENAME_MAX_LENGTH - extension.length);
+  const basename = filename.slice(0, baseLength).trimEnd() || 'document';
+  return `${basename}${extension}`;
+}
+
+function normalizeDownloadFilename(filename: string): string {
+  const normalized = filename
+    .replace(/[\r\n"]/g, '')
+    .replace(/[\\/]/g, '_')
+    .trim();
+  return truncateFilename(normalized || 'document.pdf');
+}
+
+function toSafeAsciiFilename(filename: string): string {
+  return normalizeDownloadFilename(filename).replace(/[^\x20-\x7E]/g, '_');
+}
+
+function buildAttachmentContentDisposition(filename: string): string {
+  const normalizedFilename = normalizeDownloadFilename(filename);
+  const safeAsciiFilename = toSafeAsciiFilename(normalizedFilename);
+  return `attachment; filename="${safeAsciiFilename}"; filename*=UTF-8''${encodeRFC5987Value(normalizedFilename)}`;
+}
+
+async function streamFileResponse(
+  req: Request,
+  res: Response,
+  disposition: 'inline' | 'attachment',
+  rangeHeader: string | undefined
+): Promise<void> {
   const viewToken = typeof req.query.viewToken === 'string'
     ? req.query.viewToken
     : req.get('X-File-View-Token') || undefined;
   const result = await FileService.streamFile(req.params.fileId, req.user!.userId, {
     viewToken,
-    rangeHeader: req.get('Range') || undefined,
+    rangeHeader,
   });
 
   res.setHeader('Content-Type', 'application/pdf');
-  res.setHeader('Content-Disposition', 'inline');
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Cache-Control', 'private, no-cache, no-store, must-revalidate');
   res.setHeader('X-Frame-Options', 'SAMEORIGIN');
@@ -103,6 +144,12 @@ export async function streamFileContent(req: Request, res: Response): Promise<vo
     return;
   }
 
+  res.setHeader(
+    'Content-Disposition',
+    disposition === 'attachment'
+      ? buildAttachmentContentDisposition(result.file.originalFilename)
+      : 'inline'
+  );
   res.setHeader('Content-Length', result.contentLength.toString());
   if (result.contentRange) {
     res.setHeader('Content-Range', result.contentRange);
@@ -135,6 +182,14 @@ export async function streamFileContent(req: Request, res: Response): Promise<vo
   });
 
   stream.pipe(res);
+}
+
+export async function streamFileContent(req: Request, res: Response): Promise<void> {
+  await streamFileResponse(req, res, 'inline', req.get('Range') || undefined);
+}
+
+export async function downloadFileContent(req: Request, res: Response): Promise<void> {
+  await streamFileResponse(req, res, 'attachment', undefined);
 }
 
 export async function deleteFile(req: Request, res: Response): Promise<void> {

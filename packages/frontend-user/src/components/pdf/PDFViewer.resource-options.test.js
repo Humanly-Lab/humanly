@@ -17,6 +17,9 @@ test('PDFViewer loads PDFs with app-hosted CMap and standard font assets', () =>
   assert.match(viewerSource, /cMapUrl: '\/pdfjs\/cmaps\/'/);
   assert.match(viewerSource, /cMapPacked: true/);
   assert.match(viewerSource, /standardFontDataUrl: '\/pdfjs\/standard_fonts\/'/);
+  assert.match(viewerSource, /disableStream: true/);
+  assert.match(viewerSource, /disableAutoFetch: true/);
+  assert.match(viewerSource, /rangeChunkSize: PDF_RANGE_CHUNK_SIZE/);
   assert.match(viewerSource, /\.\.\.PDFJS_DOCUMENT_RESOURCE_OPTIONS/);
   assert.match(viewerSource, /pdfjsLib\.getDocument\(\{/);
   assert.doesNotMatch(viewerSource, /window\.pdfjsLib|cdnjs/);
@@ -30,6 +33,9 @@ test('PDFViewer gives PDF.js an authenticated document source instead of a prelo
   assert.match(fileApiSource, /headers\['X-File-View-Token'\] = viewToken/);
   assert.match(fileApiSource, /withCredentials: true/);
   assert.match(fileApiSource, /downloadPdf/);
+  assert.match(fileApiSource, /buildFileDownloadUrl/);
+  assert.match(fileApiSource, /getApiUrl\(`\/files\/\$\{fileId\}\/download`\)/);
+  assert.match(fileApiSource, /Failed to download PDF: HTTP \$\{response\.status\}/);
 
   assert.match(viewerSource, /fileApi\.getPdfDocumentSource\(fileId!, \{ viewOnly, documentId \}\)/);
   assert.match(viewerSource, /url: source\.url/);
@@ -44,6 +50,16 @@ test('PDFViewer gives PDF.js an authenticated document source instead of a prelo
   assert.doesNotMatch(viewerSource, /downloadUrl = previewUrl/);
   assert.doesNotMatch(viewerSource, /getPdfBlob/);
   assert.doesNotMatch(fileApiSource, /getPdfBlob/);
+  assert.doesNotMatch(fileApiSource, /fetch\(buildFileContentUrl\(fileId\)/);
+});
+
+test('PDFViewer does not automatically extract every PDF page for AI retrieval', () => {
+  assert.doesNotMatch(viewerSource, /usePDFTextStore/);
+  assert.doesNotMatch(viewerSource, /extractPDFTextInBackground/);
+  assert.doesNotMatch(viewerSource, /setPDFText/);
+  assert.doesNotMatch(viewerSource, /PDF text extraction failed/);
+  assert.match(viewerSource, /const getPageTextContent = useCallback/);
+  assert.match(viewerSource, /extractCompatiblePDFTextContent\(page\)/);
 });
 
 test('PDFViewer uses a bounded visible-page render queue instead of rendering every page eagerly', () => {
