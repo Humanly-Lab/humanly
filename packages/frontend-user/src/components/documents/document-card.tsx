@@ -180,7 +180,7 @@ export function DocumentCard({
           href={documentHref}
           className="group block h-full rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          <Card className="flex h-[20rem] cursor-pointer overflow-hidden transition-colors group-hover:border-foreground/30">
+          <Card className="humanly-hover-pop flex h-[20rem] cursor-pointer overflow-hidden">
             <div className="flex h-full min-w-0 flex-1 flex-col p-0">
               <div className="relative h-[14rem] w-full overflow-hidden border-b border-border/70 bg-background">
                 <div className="absolute inset-0 px-5 py-5">

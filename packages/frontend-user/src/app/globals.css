@@ -153,6 +153,21 @@
     letter-spacing: 0;
     -webkit-font-smoothing: antialiased;
   }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+  }
+
+  ::selection {
+    background-color: hsl(var(--accent) / 0.24);
+    color: hsl(var(--accent-foreground));
+  }
 }
 
 @layer components {

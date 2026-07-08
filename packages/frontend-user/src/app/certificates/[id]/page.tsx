@@ -228,8 +228,10 @@ export default function CertificateDetailPage() {
   };
 
   const openExternalShare = (url: string) => {
-    const opened = window.open(url, '_blank', 'noopener,noreferrer');
-    if (!opened) {
+    const opened = window.open(url, '_blank');
+    if (opened) {
+      opened.opener = null;
+    } else {
       toast({
         title: 'Share blocked',
         description: 'Your browser blocked the share window. Copy the certificate link instead.',

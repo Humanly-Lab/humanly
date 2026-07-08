@@ -389,7 +389,7 @@ export function TaskCard({
   }
 
   return (
-    <Card className="humanly-surface flex h-full min-h-[390px] flex-col bg-card/95 transition-colors hover:border-foreground/15">
+    <Card className="humanly-hover-pop humanly-surface flex h-full min-h-[390px] flex-col bg-card/95">
       <CardHeader className="h-[230px] shrink-0 overflow-hidden">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">

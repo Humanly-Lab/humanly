@@ -152,6 +152,21 @@
     letter-spacing: 0;
     -webkit-font-smoothing: antialiased;
   }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+  }
+
+  ::selection {
+    background-color: hsl(var(--accent) / 0.24);
+    color: hsl(var(--accent-foreground));
+  }
 }
 
 @layer components {
@@ -169,6 +184,10 @@
 
   .humanly-muted-surface {
     @apply rounded-lg border border-border/70 bg-background;
+  }
+
+  .humanly-hover-pop {
+    @apply transition-[transform,box-shadow,border-color] duration-200 ease-out hover:-translate-y-1.5 hover:scale-[1.012] hover:border-foreground/20 motion-reduce:transition-none motion-reduce:hover:translate-y-0 motion-reduce:hover:scale-100;
   }
 
   .humanly-eyebrow {
