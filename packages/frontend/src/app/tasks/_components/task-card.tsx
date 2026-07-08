@@ -47,7 +47,7 @@ import {
 } from './task-dashboard-lifecycle';
 
 export const TASK_LIST_GRID_CLASS =
-  'md:grid-cols-[minmax(0,1.4fr)_8.5rem_10rem_11rem_15rem]';
+  'md:grid-cols-[minmax(0,1.4fr)_8.5rem_10rem_14rem_15rem]';
 
 interface TaskCardProps {
   task: TaskDashboardItem;
@@ -346,7 +346,7 @@ export function TaskCard({
           <div className="hidden text-sm text-muted-foreground md:block">
             {formatCompletionCount(task)}
           </div>
-          <div className="hidden text-sm text-muted-foreground md:block">
+          <div className="hidden whitespace-nowrap text-sm text-muted-foreground md:block">
             Created {formatDateTime(task.createdAt)}
           </div>
           <div className="flex items-center justify-end gap-2">
