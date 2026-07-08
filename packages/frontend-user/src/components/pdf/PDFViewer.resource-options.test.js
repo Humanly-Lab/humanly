@@ -19,6 +19,7 @@ test('PDFViewer loads PDFs with app-hosted CMap and standard font assets', () =>
   assert.match(viewerSource, /standardFontDataUrl: '\/pdfjs\/standard_fonts\/'/);
   assert.match(viewerSource, /disableStream: true/);
   assert.match(viewerSource, /disableAutoFetch: true/);
+  assert.match(viewerSource, /PDF_RANGE_CHUNK_SIZE = 1024 \* 1024/);
   assert.match(viewerSource, /rangeChunkSize: PDF_RANGE_CHUNK_SIZE/);
   assert.match(viewerSource, /\.\.\.PDFJS_DOCUMENT_RESOURCE_OPTIONS/);
   assert.match(viewerSource, /pdfjsLib\.getDocument\(\{/);
@@ -82,6 +83,14 @@ test('PDFViewer uses a bounded visible-page render queue instead of rendering ev
   assert.match(viewerSource, /schedulePagesForRendering\(\[page, page \+ 1, page - 1\], true\)/);
   assert.match(viewerSource, /if \(Math\.abs\(scaleRef\.current - nextScale\) < 0\.001\) \{\s*return\s*\}/s);
   assert.doesNotMatch(viewerSource, /renderAllPages/);
+});
+
+test('PDFViewer does not eagerly hydrate every page layout on initial load', () => {
+  assert.match(viewerSource, /const firstPage = await pdf\.getPage\(1\)/);
+  assert.match(viewerSource, /loaded: index === 0/);
+  assert.match(viewerSource, /pageLayoutsRef\.current\[pageNum - 1\] = pageLayout/);
+  assert.doesNotMatch(viewerSource, /hydratedLayouts/);
+  assert.doesNotMatch(viewerSource, /for \(let pageNum = 2; pageNum <= pdf\.numPages; pageNum\+\+\)/);
 });
 
 test('PDFViewer includes CJK CMap and standard font assets required by PDF.js', () => {
