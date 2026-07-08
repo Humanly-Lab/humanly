@@ -18,6 +18,12 @@ server {
         root /var/www/certbot;
     }
 
+    location = /install.sh {
+        root /var/www/humanly;
+        default_type text/plain;
+        add_header Cache-Control "no-cache, no-store, must-revalidate" always;
+    }
+
     location /api/ {
         set $backend http://backend:3001;
         proxy_pass $backend;

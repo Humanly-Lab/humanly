@@ -301,3 +301,5 @@ jobs:
           curl -fsS https://admin.writehumanly.net/health >/dev/null
           curl -fsS https://api.writehumanly.net/health >/dev/null
           curl -fsS https://api.writehumanly.net/api/v1/health >/dev/null
+          test "$(curl -fsSL https://writehumanly.net/install.sh | sed -n '1p')" = '#!/usr/bin/env sh'
+          test "$(curl -fsSL https://app.writehumanly.net/install.sh | sed -n '1p')" = '#!/usr/bin/env sh'
