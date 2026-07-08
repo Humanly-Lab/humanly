@@ -5,9 +5,9 @@
 import { useEffect, useState } from 'react';
 
 const GUESSES = [
-  { label: 'AI-generated? 68%', tone: 'amber' },
-  { label: 'Human-written? 41%', tone: 'amber' },
-  { label: 'AI-generated? 87%', tone: 'red' },
+  { label: 'AI likelihood: 68%', tone: 'amber' },
+  { label: 'Human likelihood: 41%', tone: 'amber' },
+  { label: 'AI likelihood: 87%', tone: 'red' },
   { label: 'Inconclusive…', tone: 'neutral' },
 ] as const;
 
