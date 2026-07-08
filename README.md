@@ -20,7 +20,7 @@
   <a href="./LICENSE"><img alt="License" src="https://img.shields.io/badge/license-MIT-9aa77d?style=for-the-badge"></a>
 </p>
 
-**Write with AI. Prove your process.**
+**Every piece of writing has a story. Now you can prove it.**
 
 Humanly is a writing provenance platform for human-AI work. It gives writers a
 controlled workspace for drafting with configurable AI support, and it gives
