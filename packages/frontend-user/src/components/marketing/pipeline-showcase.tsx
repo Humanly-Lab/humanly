@@ -18,7 +18,16 @@ import {
 } from 'lucide-react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 
-type Kind = 'input' | 'paste' | 'blocked' | 'select' | 'ai chat' | 'ai edit';
+type Kind =
+  | 'input'
+  | 'paste'
+  | 'blocked'
+  | 'select'
+  | 'ai chat'
+  | 'ai edit'
+  | 'resource'
+  | 'focus'
+  | 'delete';
 const KIND_STYLE: Record<Kind, { bg: string; fg: string }> = {
   input: { bg: 'var(--hly-green-tint)', fg: 'var(--hly-green-strong)' },
   paste: { bg: 'var(--hly-paste-bg)', fg: 'var(--hly-paste-text)' },
@@ -26,6 +35,9 @@ const KIND_STYLE: Record<Kind, { bg: string; fg: string }> = {
   select: { bg: 'var(--hly-purple-bg)', fg: 'var(--hly-purple-text)' },
   'ai chat': { bg: 'var(--hly-ai-bg)', fg: 'var(--hly-ai-text)' },
   'ai edit': { bg: 'var(--hly-green-bg)', fg: 'var(--hly-green-text)' },
+  resource: { bg: 'var(--hly-surface-2)', fg: 'var(--hly-neutral)' },
+  focus: { bg: 'var(--hly-green-tint)', fg: 'var(--hly-green-strong)' },
+  delete: { bg: 'var(--hly-red-bg)', fg: 'var(--hly-red-text)' },
 };
 
 const STEPS = ['01 Configure', '02 Write', '03 Log', '04 Certify'] as const;
@@ -33,17 +45,26 @@ const DOC_NAME = 'On Attention';
 const LINE_1 = 'The first thing to notice about a draft is the pause before it. ';
 const ERR_SENTENCE = 'The discipline are to wait, then to choose.';
 const LOG_ROWS: Array<[string, Kind, string, string]> = [
+  ['12:41:42', 'focus', 'Writing workspace opened', ''],
+  ['12:41:44', 'resource', 'attention-sources.pdf viewed', '1'],
+  ['12:41:46', 'input', '"The first thing to notice…"', '+38'],
   ['12:41:48', 'input', '"The first thing to notice about a draft…"', '+64'],
+  ['12:41:50', 'input', '"…is the pause before it."', '+54'],
   ['12:41:52', 'input', '"…is the pause before it. Before a sentence…"', '+118'],
+  ['12:41:54', 'input', '"Before a sentence lands on the page…"', '+72'],
   ['12:41:56', 'input', '"The discipline are to wait…"', '+44'],
+  ['12:41:59', 'input', '"…then to choose."', '+16'],
   ['12:42:01', 'select', '"The discipline are to wait…"', '39'],
   ['12:42:03', 'ai chat', 'Summarize source document', '1'],
   ['12:42:06', 'ai edit', 'Grammar shortcut applied', '+1/-3'],
+  ['12:42:08', 'delete', '"are" removed from selected sentence', '-3'],
+  ['12:42:09', 'input', '"is" inserted after discipline', '+2'],
   ['12:42:11', 'blocked', 'Clipboard blocked by writing policy', '✕'],
   ['12:42:14', 'input', '"then to choose."', '+16'],
   ['12:42:18', 'paste', '"Attention reshaped how models handle…"', '+186'],
+  ['12:42:22', 'focus', 'Workspace remained active', ''],
+  ['12:42:26', 'input', '"Source evidence supports the point…"', '+52'],
 ];
-
 type WritePhase = 'typing' | 'selecting' | 'selected' | 'diff' | 'applied';
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -93,9 +114,6 @@ export function PipelineShowcase() {
   useEffect(() => {
     const id = ++runIdRef.current;
     const alive = () => runIdRef.current === id;
-    const reduced =
-      typeof window !== 'undefined' &&
-      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     const locate = (name: string, dx = 0, dy = 0) => {
       const stage = stageRef.current;
@@ -144,18 +162,6 @@ export function PipelineShowcase() {
     setPressed(null);
     if (logScrollRef.current) logScrollRef.current.scrollTop = 0;
     if (certScrollRef.current) certScrollRef.current.scrollTop = 0;
-
-    if (reduced) {
-      setDocName(DOC_NAME);
-      setText(LINE_1);
-      setWritePhase('applied');
-      setSelectionProgress(100);
-      setAiChatVisible(true);
-      setLogCount(LOG_ROWS.length);
-      setSealed(true);
-      setCursor((c) => ({ ...c, shown: false }));
-      return;
-    }
 
     const scripts: Record<number, () => Promise<void>> = {
       // 01 · fill the form, create the document
@@ -213,13 +219,23 @@ export function PipelineShowcase() {
       },
       // 03 · watch the record build
       2: async () => {
-        setLogCount(LOG_ROWS.length);
+        setLogCount(8);
         setCursor((c) => ({ ...c, shown: true }));
         await moveToEl('s2-list', 0, -45);
-        for (const top of [0, 96, 192, 276]) {
+        for (const count of [11, 14, 17, LOG_ROWS.length]) {
           if (!alive()) return;
-          logScrollRef.current?.scrollTo({ top, behavior: 'smooth' });
-          setCursor((c) => ({ ...c, y: Math.min(c.y + 34, 360) }));
+          setLogCount(count);
+          await sleep(340);
+        }
+        await sleep(120);
+        const maxLogScroll = Math.max(
+          0,
+          (logScrollRef.current?.scrollHeight || 0) - (logScrollRef.current?.clientHeight || 0)
+        );
+        for (const ratio of [0, 0.35, 0.7, 1]) {
+          if (!alive()) return;
+          logScrollRef.current?.scrollTo({ top: maxLogScroll * ratio, behavior: 'smooth' });
+          setCursor((c) => ({ ...c, y: Math.min(c.y + 24, 374) }));
           await sleep(950);
         }
         await moveToEl('s2-summary');
@@ -274,9 +290,12 @@ export function PipelineShowcase() {
     );
   };
 
+  const visibleLogRows = LOG_ROWS.slice(0, logCount);
+  const visibleAiLogCount = visibleLogRows.filter(([, kind]) => kind === 'ai chat' || kind === 'ai edit').length;
+
   return (
-    <div className="mx-auto w-full max-w-[880px]">
-      <div className="mb-5 flex flex-wrap justify-center gap-2">
+    <div className="w-full max-w-[880px]">
+      <div className="mb-5 flex flex-wrap gap-2">
         {STEPS.map((label, i) => (
           <button
             key={label}
@@ -554,37 +573,37 @@ export function PipelineShowcase() {
               </div>
               <p className="mt-1 text-[10px] text-muted-foreground">
                 Total recorded events: <span className="font-medium text-foreground">{logCount}</span> · AI actions
-                logged: <span className="font-medium text-foreground">{logCount >= 4 ? 1 : 0}</span>
+                logged: <span className="font-medium text-foreground">{visibleAiLogCount}</span>
               </p>
             </div>
             <div
               ref={logScrollRef}
               data-t="s2-list"
-              className="h-[258px] overflow-hidden rounded-md border bg-background"
+              className="h-[338px] overflow-hidden rounded-md border bg-background"
             >
-              <table className="w-full text-[10.5px]">
+              <table className="w-full text-[10px]">
                 <thead className="bg-muted/50 text-[9px] text-muted-foreground">
                   <tr>
-                    <th className="w-[72px] px-3 py-1.5 text-left font-medium">Time</th>
-                    <th className="w-[76px] px-3 py-1.5 text-left font-medium">Activity</th>
+                    <th className="w-[70px] px-3 py-1.5 text-left font-medium">Time</th>
+                    <th className="w-[78px] px-3 py-1.5 text-left font-medium">Activity</th>
                     <th className="px-3 py-1.5 text-left font-medium">Text / Detail</th>
-                    <th className="w-[52px] px-3 py-1.5 text-left font-medium">Count</th>
+                    <th className="w-[50px] px-3 py-1.5 text-left font-medium">Count</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/60">
-                  {LOG_ROWS.map(([t, kind, detail, n]) => (
-                    <tr key={`${t}-${kind}`}>
-                      <td className="px-3 py-[7px] tabular-nums text-muted-foreground">{t}</td>
-                      <td className="px-3 py-[7px]">
+                  {visibleLogRows.map(([t, kind, detail, n], index) => (
+                    <tr key={`${t}-${kind}-${index}`}>
+                      <td className="px-3 py-[5px] tabular-nums text-muted-foreground">{t}</td>
+                      <td className="px-3 py-[5px]">
                         <span
-                          className="rounded-[4px] px-1.5 py-px text-[9.5px] font-medium"
+                          className="rounded-[4px] px-1.5 py-px text-[9px] font-medium"
                           style={{ backgroundColor: KIND_STYLE[kind].bg, color: KIND_STYLE[kind].fg }}
                         >
                           {kind}
                         </span>
                       </td>
-                      <td className="truncate px-3 py-[7px] italic text-muted-foreground">{detail}</td>
-                      <td className="px-3 py-[7px] tabular-nums text-muted-foreground">{n}</td>
+                      <td className="truncate px-3 py-[5px] italic text-muted-foreground">{detail}</td>
+                      <td className="px-3 py-[5px] tabular-nums text-muted-foreground">{n}</td>
                     </tr>
                   ))}
                 </tbody>

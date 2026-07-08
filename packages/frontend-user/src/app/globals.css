@@ -337,13 +337,6 @@
     50%, 92% { transform: translateX(100%); }
     100% { transform: translateX(0); }
   }
-
-  @media (prefers-reduced-motion: reduce) {
-    .humanly-rise { opacity: 1; transform: none; transition: none; }
-    .humanly-typewriter, .humanly-seg-knob, .humanly-pulse { animation: none; }
-    .humanly-log-pop { opacity: 1; animation: none; }
-    .humanly-fill-bar { width: 100%; animation: none; }
-  }
 }
 
 @layer utilities {
@@ -354,8 +347,5 @@
   @keyframes humanly-scan {
     0%, 100% { top: -8%; }
     50% { top: 96%; }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .humanly-scanline { animation: none; opacity: 0; }
   }
 }

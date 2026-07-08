@@ -97,31 +97,30 @@ export default function HomePage() {
         id="product"
         className="relative px-5 pb-14 pt-10 sm:px-8 sm:pb-16 sm:pt-14 lg:px-14 lg:pt-[48px]"
       >
-        <div className="mx-auto grid max-w-[1280px] items-center gap-10 lg:grid-cols-[0.85fr_1.15fr] lg:gap-12">
-          <div className="mx-auto max-w-[560px] text-center lg:mx-0 lg:max-w-none lg:text-left">
-            <h1 className="text-[32px] font-light leading-[1.08] tracking-[-0.035em] sm:text-[40px] lg:text-[46px]">
-              <span className="lg:whitespace-nowrap">
-                Every piece of writing has a{' '}
-                <span className="text-[var(--hly-brand)]">story</span>.
-              </span>
+        <div className="mx-auto max-w-[1160px]">
+          {/* Cursor-style opening: left-aligned statement, full-width product shot below.
+              Text and showcase share this container, so their left edges stay aligned. */}
+          <div className="max-w-[700px]">
+            <h1 className="text-[19px] font-light leading-[1.3] tracking-[-0.015em] sm:text-[23px] lg:text-[26px]">
+              Humanly is your configurable and traceable
               <br />
-              Now you can prove it.
+              Human-AI writing platform
             </h1>
-            <p className="mx-auto mt-6 max-w-[470px] text-[14.5px] leading-[1.75] text-muted-foreground sm:text-[16px] lg:mx-0">
-              A writing workspace that records every draft step, from keystrokes
-              to AI exchanges, then signs the process with a verifiable
-              certificate.
+            <p className="mt-4 max-w-[640px] text-[18px] leading-[1.6] text-muted-foreground sm:text-[20px]">
+              Every piece of writing has a{' '}
+              <span className="text-[var(--hly-brand)]">story</span>. Now you
+              can prove it.
             </p>
-            <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row lg:justify-start">
+            <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:items-center">
               <Link
                 href={productAppHref('/register')}
-                className="humanly-landing-btn"
+                className="humanly-landing-btn justify-center sm:justify-start"
               >
                 Start writing <Arrow />
               </Link>
               <Link
                 href={fastDemoHref}
-                className="humanly-landing-btn-ghost"
+                className="humanly-landing-btn-ghost justify-center sm:justify-start"
               >
                 Try the live demo
                 <Arrow />
@@ -129,7 +128,7 @@ export default function HomePage() {
             </div>
           </div>
 
-          <div className="relative mx-auto mt-12 w-full max-w-[1100px] overflow-visible pb-8 lg:-ml-[2%] lg:mt-0 lg:w-[108%] lg:max-w-none">
+          <div className="relative mx-auto mt-10 w-full overflow-visible pb-8 sm:mt-12">
             <HeroComposition />
           </div>
         </div>
@@ -155,9 +154,7 @@ function DemoLaunchSection() {
           Humanly Demo
         </h2>
         <p className="mx-auto mt-5 max-w-[560px] text-[15px] leading-[1.7] text-muted-foreground sm:text-[17px]">
-          Try the real flow in a separate demo workspace. Configure a task,
-          write in a Humanly-style editor, inspect the activity log, and
-          generate a local certificate preview.
+          See Humanly turn writing into verifiable evidence.
         </p>
         <div className="mt-8 flex justify-center">
           <Link
@@ -189,9 +186,9 @@ function NavBar() {
         <a href="#faq" className="hover:text-foreground">
           FAQ
         </a>
-        <a href="#demo" className="hover:text-foreground">
+        <Link href={fastDemoHref} className="hover:text-foreground">
           Demo
-        </a>
+        </Link>
         <a
           href={githubHref}
           target="_blank"
@@ -205,15 +202,15 @@ function NavBar() {
       <div className="flex items-center gap-2 justify-self-end sm:gap-3">
         <Link
           href={productAppHref('/login')}
-          className="text-[13px] font-medium text-muted-foreground hover:text-foreground sm:text-sm"
+          className="inline-flex h-8 items-center text-sm font-medium text-muted-foreground hover:text-foreground"
         >
           Log in
         </Link>
         <Link
           href={productAppHref('/register')}
-          className="humanly-landing-btn px-[14px] py-[9px] text-[13px] sm:px-[18px]"
+          className="humanly-landing-btn h-8 px-3 py-0 text-sm"
         >
-          Start
+          Sign up
         </Link>
       </div>
     </header>
@@ -223,13 +220,13 @@ function NavBar() {
 function HeroComposition() {
   return (
     <div
-      className="relative mx-auto w-full max-w-[1100px] overflow-visible"
+      className="relative w-full overflow-visible"
       style={{ aspectRatio: '1100 / 720', containerType: 'inline-size' }}
     >
       <div
         className="absolute left-1/2 top-0 h-[720px] w-[1100px] origin-top"
         style={{
-          transform: 'translateX(-50%) scale(min(1, calc(100cqw / 1100px)))',
+          transform: 'translateX(-50%) scale(calc(100cqw / 1100px))',
         }}
       >
         <div
@@ -237,7 +234,7 @@ function HeroComposition() {
           style={{
             backgroundImage: "url('/brand/monet-water-lilies.png')",
             boxShadow:
-              '0 36px 80px -30px rgba(40,32,18,0.40), 0 0 0 8px #fbf9f1, 0 0 0 9px rgba(40,32,18,0.10)',
+              '0 36px 80px -30px rgba(40,32,18,0.40)',
           }}
         />
 
@@ -473,20 +470,28 @@ function CertificateCard() {
 function StatementSection() {
   return (
     <section className="px-5 py-[110px] sm:px-8 lg:px-14">
-      <div className="mx-auto max-w-[880px] text-center">
-        <div>
-          <p className="humanly-eyebrow mb-4">Problem</p>
-          <h2 className="text-[30px] font-light leading-[1.15] tracking-[-0.03em] sm:text-[40px]">
-            Did you write this,{' '}
-            <span className="text-[var(--hly-neutral)]">or did AI?</span>
-          </h2>
-          <p className="mx-auto mt-6 max-w-[620px] text-[15px] leading-[1.75] text-muted-foreground sm:text-[17px]">
-            Detectors guess from the finished text. Humanly records the work
-            as it happens, turning the writing process into reviewable evidence.
-          </p>
-          <BlurFade inView delay={0.25}>
-            <StatementVisual />
-          </BlurFade>
+      <div className="mx-auto max-w-[1160px]">
+        {/* Cursor-style alternation: visual fills the left column, text sits right —
+            no side ever reads as empty. The workflow section below flips this. */}
+        <div className="grid items-center gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:gap-14">
+          <div className="order-2 lg:order-1">
+            <BlurFade inView delay={0.1} className="w-full max-w-[600px] [&>div]:mt-0">
+              <StatementVisual />
+            </BlurFade>
+          </div>
+          <div className="order-1 lg:order-2">
+            <BlurFade inView>
+            <h2 className="text-[30px] font-light leading-[1.15] tracking-[-0.03em] sm:text-[40px]">
+              Did you write this,{' '}
+              <span className="text-[var(--hly-neutral)]">or did AI?</span>
+            </h2>
+            <p className="mt-6 max-w-[520px] text-[15px] leading-[1.75] text-muted-foreground sm:text-[17px]">
+              AI detectors estimate authenticity from the finished text.
+              Humanly records the writing process directly, showing how the
+              text was composed from typing, paste, and AI assistance.
+            </p>
+            </BlurFade>
+          </div>
         </div>
       </div>
     </section>
@@ -496,16 +501,18 @@ function StatementSection() {
 function TryItSection() {
   return (
     <section id="process" className="px-5 py-[110px] sm:px-8 lg:px-14">
-      <div className="mx-auto max-w-[1080px]">
-        <div className="mb-12 text-center">
-          <p className="humanly-eyebrow mb-4">Product flow</p>
+      <div className="mx-auto grid max-w-[1160px] items-center gap-10 lg:grid-cols-[0.72fr_1.28fr] lg:gap-12">
+        {/* text left, animation right — mirrors the Problem section above */}
+        <div>
+          <BlurFade inView>
           <h2 className="text-[28px] font-light leading-[1.1] tracking-[-0.03em] sm:text-[36px]">
-            How it works
+            How does Humanly work?
           </h2>
-          <p className="mx-auto mt-5 max-w-none text-[15px] leading-[1.7] text-muted-foreground md:whitespace-nowrap sm:text-[16px]">
-            Configure writing policy, write in Humanly, review the activity
-            log, and generate a certificate.
+          <p className="mt-5 max-w-[420px] text-[15px] leading-[1.7] text-muted-foreground sm:text-[16px]">
+            Configure a writing environment, draft under the policy, record
+            the activity log, and generate a signed certificate.
           </p>
+          </BlurFade>
         </div>
         <BlurFade inView delay={0.1}>
           <PipelineShowcase />
