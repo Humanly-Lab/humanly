@@ -412,10 +412,7 @@ export function PipelineShowcase() {
                 <div className="mt-1.5 flex h-7 items-center justify-between rounded-md border border-input bg-card px-2 text-[11.5px]">
                   Default Environment <ChevronDown className="h-3 w-3 text-[var(--hly-neutral)]" />
                 </div>
-                <div className="mt-2.5 flex items-center gap-1.5 text-[11px] font-medium">
-                  <span className="text-[var(--hly-green-text)]">✓</span> Default Environment
-                </div>
-                <dl className="mt-1.5 border-t border-border/70">
+                <dl className="mt-2.5 border-t border-border/70">
                   {[
                     ['AI assistant', 'Shortcuts on'],
                     ['Copy & paste', 'Allowed'],
