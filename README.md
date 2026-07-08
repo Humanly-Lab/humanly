@@ -20,7 +20,7 @@
   <a href="./LICENSE"><img alt="License" src="https://img.shields.io/badge/license-MIT-9aa77d?style=for-the-badge"></a>
 </p>
 
-**Every piece of writing has a story. Now you can prove it.**
+**A Configurable and Traceable Environment for Human-AI Collaborative Writing.**
 
 Humanly is a writing provenance platform for human-AI work. It gives writers a
 controlled workspace for drafting with configurable AI support, and it gives
@@ -45,7 +45,7 @@ Humanly has two first-party web apps:
 
 - **Configurable writing environments** for personal writing and assigned
   tasks, including AI access, copy-paste rules, time limits, instructions, PDF
-  access, and task attempts.
+  access, detectors, and assigned-task attempt rules.
 - **AI policy controls** that can disable AI, allow only selected-text polish,
   allow only chat, or allow full in-platform assistance.
 - **Process tracing** for typing, editing, copy/paste, focus, navigation,
@@ -55,7 +55,7 @@ Humanly has two first-party web apps:
 - **Task distribution** through invite codes and public share links, including
   account or guest participation depending on the task setting.
 - **Shareable certificates** with authorship statistics, replay, environment
-  settings, abnormal-behavior review signals, and integrity details.
+  settings, anomaly behavior review signals, and integrity seal details.
 
 ## One Command Deployment
 
@@ -72,6 +72,11 @@ writes a Docker Compose quickstart, seeds a local Publisher Portal admin
 account, and starts the services. Email is local-only with
 `EMAIL_SERVICE=console`; no SMTP, SendGrid, Resend, S3, or other third-party
 service is required for local use.
+
+The local stack also starts the inference service used by the Humanly Typing
+Detector. Private detector weights are not bundled; when `model.joblib` is not
+mounted, the stack still starts and detector requests return an inconclusive
+result instead of blocking local use.
 
 Then open:
 
@@ -93,6 +98,7 @@ cd humanly
 ./humanly status
 ./humanly stop
 ./humanly start
+./humanly restart
 ./humanly upgrade
 ./humanly uninstall
 ```
@@ -127,7 +133,7 @@ A Humanly certificate can show:
 - the writing environment and task rules active during writing;
 - authorship statistics for typed, pasted, and AI-assisted text;
 - event logs for writing, navigation, copy/paste, and AI activity;
-- replay and abnormal-behavior review signals where available;
+- replay and anomaly behavior review signals where available;
 - certificate integrity details.
 
 Certificates are evidence for review. They describe what happened inside the
@@ -135,21 +141,24 @@ Humanly workspace and do not make claims about off-platform behavior.
 
 ## Architecture
 
-Humanly is a pnpm workspace with one backend service, two Next.js apps, and
-shared packages for the writing editor, tracking, and cross-app types.
+Humanly is a pnpm workspace with an Express backend, a Python inference service,
+two Next.js apps, and shared packages for the writing editor, tracking, and
+cross-app types.
 
 ```text
 packages/backend        Express API, storage, events, certificates, AI
+packages/inference      FastAPI model inference service
 packages/frontend       Publisher Portal
 packages/frontend-user  Writer Portal and writing workspace
 packages/editor         Writing editor
 packages/tracker        External-form tracking library
 packages/shared         Shared types and utilities
+packages/create-humanly Self-host installer package
 ```
 
 Local and production deployments use PostgreSQL for durable data, Redis for
-cache and realtime support, and file/object storage for uploaded PDFs and
-attachments.
+cache and realtime support, file/object storage for uploaded PDFs and
+attachments, and optional detector weights for model inference.
 
 ## Links
 
