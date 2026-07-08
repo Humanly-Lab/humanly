@@ -17,7 +17,7 @@ export default function AuthLayout({
             <HumanlyWordmark admin size="lg" />
           </Link>
           <p className="mx-auto mt-5 max-w-sm text-sm leading-7 text-muted-foreground">
-            A verifiable workspace for human writing.
+            A Configurable and Traceable Environment for Human-AI Collaborative Writing.
           </p>
         </div>
         {children}

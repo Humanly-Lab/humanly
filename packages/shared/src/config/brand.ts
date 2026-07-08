@@ -10,7 +10,7 @@ export const BRAND = {
   name: 'Humanly',
   legalName: 'Humanly',
   taglineAdmin: 'Publisher',
-  taglineUser: 'Write with AI. Prove your process.',
+  taglineUser: 'Traceable Human-AI Writing',
 
   // Email branding
   email: {
@@ -75,7 +75,7 @@ export const getBrandText = () => ({
   // Page titles
   pageTitles: {
     admin: BRAND.name,
-    user: `${BRAND.name} - ${BRAND.taglineUser}`,
+    user: `${BRAND.name}- ${BRAND.taglineUser}`,
   },
 
   // Integration & tracking
