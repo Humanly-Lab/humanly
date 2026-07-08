@@ -82,7 +82,7 @@ export const fileApi = {
     });
 
     if (!response.ok) {
-      throw new Error('Failed to download PDF');
+      throw new Error(`Failed to download PDF: HTTP ${response.status}`);
     }
 
     return response.blob();

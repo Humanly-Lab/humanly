@@ -35,6 +35,7 @@ test('PDFViewer gives PDF.js an authenticated document source instead of a prelo
   assert.match(fileApiSource, /downloadPdf/);
   assert.match(fileApiSource, /buildFileDownloadUrl/);
   assert.match(fileApiSource, /getApiUrl\(`\/files\/\$\{fileId\}\/download`\)/);
+  assert.match(fileApiSource, /Failed to download PDF: HTTP \$\{response\.status\}/);
 
   assert.match(viewerSource, /fileApi\.getPdfDocumentSource\(fileId!, \{ viewOnly, documentId \}\)/);
   assert.match(viewerSource, /url: source\.url/);

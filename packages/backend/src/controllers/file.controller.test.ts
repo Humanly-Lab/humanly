@@ -122,7 +122,7 @@ async function testInlineContentUsesRangeDelivery(): Promise<void> {
 async function testDownloadUsesAttachmentDisposition(): Promise<void> {
   await withStreamFileStub(
     async (captured) => {
-      const req = createRequest();
+      const req = createRequest({ Range: 'bytes=0-9' });
       const res = new MockResponse();
 
       await downloadFileContent(req, res as unknown as Response);
@@ -133,6 +133,7 @@ async function testDownloadUsesAttachmentDisposition(): Promise<void> {
       });
       assert.equal(res.statusCode, 200);
       assert.equal(res.getHeader('Content-Length'), '100');
+      assert.equal(res.getHeader('Content-Range'), undefined);
       assert.match(
         String(res.getHeader('Content-Disposition')),
         /^attachment; filename="__ report\.pdf"; filename\*=UTF-8''%E4%B8%AD%E6%96%87%20report\.pdf$/
@@ -149,9 +150,36 @@ async function testDownloadUsesAttachmentDisposition(): Promise<void> {
   );
 }
 
+async function testDownloadTruncatesLongFilenames(): Promise<void> {
+  const expectedFilename = `${'a'.repeat(196)}.pdf`;
+
+  await withStreamFileStub(
+    async () => {
+      const req = createRequest();
+      const res = new MockResponse();
+
+      await downloadFileContent(req, res as unknown as Response);
+
+      assert.equal(
+        String(res.getHeader('Content-Disposition')),
+        `attachment; filename="${expectedFilename}"; filename*=UTF-8''${expectedFilename}`
+      );
+    },
+    {
+      kind: 'stream',
+      file: createAppFile(`${'a'.repeat(260)}.pdf`),
+      stream: Readable.from(['pdf']),
+      fileSize: 100,
+      contentLength: 100,
+      range: null,
+    }
+  );
+}
+
 async function run(): Promise<void> {
   await testInlineContentUsesRangeDelivery();
   await testDownloadUsesAttachmentDisposition();
+  await testDownloadTruncatesLongFilenames();
   console.log('file.controller tests passed');
 }
 
