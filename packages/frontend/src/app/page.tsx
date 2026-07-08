@@ -14,7 +14,7 @@ export default function HomePage() {
           <div className="humanly-eyebrow mb-5 inline-flex rounded-full border border-border/80 bg-muted/40 px-3 py-1">
             Publisher Portal
           </div>
-          <h1 className="mx-auto max-w-4xl font-serif text-4xl font-medium tracking-[-0.015em] sm:text-5xl lg:text-6xl">
+          <h1 className="mx-auto max-w-4xl text-4xl font-semibold tracking-[-0.035em] sm:text-5xl lg:text-6xl">
             Manage writing tasks, submissions, and AI usage.
           </h1>
           <p className="mx-auto mt-6 max-w-2xl text-base leading-7 text-muted-foreground sm:text-lg">

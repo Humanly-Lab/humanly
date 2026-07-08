@@ -141,7 +141,6 @@
   }
   body {
     @apply bg-background text-foreground;
-    --font-humanly-serif: var(--font-humanly-sans);
     font-family:
       var(--font-humanly-sans),
       ui-sans-serif,

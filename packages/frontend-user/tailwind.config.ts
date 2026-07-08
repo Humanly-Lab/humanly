@@ -18,7 +18,7 @@ const config = {
         'sans-serif',
       ],
       serif: [
-        'var(--font-humanly-serif)',
+        'var(--font-humanly-sans)',
         'ui-sans-serif',
         'system-ui',
         'sans-serif',

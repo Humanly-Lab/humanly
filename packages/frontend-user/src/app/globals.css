@@ -142,7 +142,6 @@
   }
   body {
     @apply bg-background text-foreground;
-    --font-humanly-serif: var(--font-humanly-sans);
     font-family:
       var(--font-humanly-sans),
       ui-sans-serif,
@@ -272,5 +271,91 @@
     max-width: 100%;
     display: block;
     overflow-x: auto;
+  }
+}
+
+@layer utilities {
+  /* Marketing micro-animations (How it works panels) */
+  .humanly-rise {
+    opacity: 0;
+    transform: translateY(16px);
+    transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+  }
+  .humanly-rise.is-visible {
+    opacity: 1;
+    transform: none;
+  }
+
+  .humanly-pulse {
+    animation: humanly-pulse 2s ease-in-out infinite;
+  }
+  @keyframes humanly-pulse {
+    50% { opacity: 0.35; }
+  }
+
+  .humanly-typewriter {
+    display: inline-block;
+    overflow: hidden;
+    white-space: nowrap;
+    max-width: 42ch;
+    vertical-align: bottom;
+    border-right: 2px solid var(--hly-brand);
+    animation: humanly-type 5.5s steps(42) infinite;
+  }
+  @keyframes humanly-type {
+    0% { width: 0; }
+    55%, 92% { width: 42ch; }
+    100% { width: 42ch; }
+  }
+
+  .humanly-log-pop {
+    opacity: 0;
+  }
+  .is-visible .humanly-log-pop {
+    animation: humanly-log-pop 0.45s ease-out forwards;
+  }
+  @keyframes humanly-log-pop {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: none; }
+  }
+
+  .humanly-fill-bar {
+    width: 0;
+  }
+  .is-visible .humanly-fill-bar {
+    animation: humanly-fill 1.4s 0.3s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
+  @keyframes humanly-fill {
+    to { width: 100%; }
+  }
+
+  .humanly-seg-knob {
+    animation: humanly-seg 6s ease-in-out infinite;
+  }
+  @keyframes humanly-seg {
+    0%, 42% { transform: translateX(0); }
+    50%, 92% { transform: translateX(100%); }
+    100% { transform: translateX(0); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .humanly-rise { opacity: 1; transform: none; transition: none; }
+    .humanly-typewriter, .humanly-seg-knob, .humanly-pulse { animation: none; }
+    .humanly-log-pop { opacity: 1; animation: none; }
+    .humanly-fill-bar { width: 100%; animation: none; }
+  }
+}
+
+@layer utilities {
+  .humanly-scanline {
+    top: 0;
+    animation: humanly-scan 2.6s ease-in-out infinite;
+  }
+  @keyframes humanly-scan {
+    0%, 100% { top: -8%; }
+    50% { top: 96%; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .humanly-scanline { animation: none; opacity: 0; }
   }
 }
