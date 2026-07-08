@@ -99,6 +99,8 @@ test_config.md
 DEV_LOG.md
 *.png
 !packages/frontend-user/public/brand/monet-water-lilies.png
+!assets/
+!assets/**/*.png
 
 # ── Uploads (VM local storage, not in git) ───────────────────────────────────
 uploads/
