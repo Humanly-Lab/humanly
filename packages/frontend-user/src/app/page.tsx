@@ -498,7 +498,7 @@ function CertificateCard() {
 
 function StatementSection() {
   return (
-    <section className="px-5 py-[110px] sm:px-8 lg:px-14">
+    <section className="px-5 py-[84px] sm:px-8 sm:py-[110px] lg:px-14">
       <div className="mx-auto max-w-[1160px]">
         {/* Cursor-style alternation: visual fills the left column, text sits right —
             no side ever reads as empty. The workflow section below flips this. */}
@@ -529,7 +529,7 @@ function StatementSection() {
 
 function TryItSection() {
   return (
-    <section id="process" className="px-5 py-[110px] sm:px-8 lg:px-14">
+    <section id="process" className="px-5 py-[84px] sm:px-8 sm:py-[110px] lg:px-14">
       <div className="mx-auto grid max-w-[1160px] items-center gap-10 lg:grid-cols-[0.72fr_1.28fr] lg:gap-12">
         {/* text left, animation right — mirrors the Problem section above */}
         <div>

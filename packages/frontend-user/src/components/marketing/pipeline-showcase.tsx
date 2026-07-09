@@ -110,11 +110,11 @@ const CURSOR_MS = 700; // must match the cursor's transition duration below
 
 function Chrome({ path }: { path: string }) {
   return (
-    <div className="flex items-center gap-1.5 border-b border-[var(--hly-hairline)] bg-[#FCFCFB] px-3.5 py-2">
+    <div className="flex items-center gap-1.5 border-b border-[var(--hly-hairline)] bg-[#FCFCFB] px-2.5 py-1.5 sm:px-3.5 sm:py-2">
       {[0, 1, 2].map((i) => (
-        <span key={i} className="h-2 w-2 rounded-full bg-[#e9e6df]" />
+        <span key={i} className="h-1.5 w-1.5 rounded-full bg-[#e9e6df] sm:h-2 sm:w-2" />
       ))}
-      <span className="mx-auto rounded border border-[var(--hly-hairline)] bg-white px-4 py-0.5 text-[9.5px] text-muted-foreground">
+      <span className="mx-auto max-w-[180px] truncate rounded border border-[var(--hly-hairline)] bg-white px-3 py-0.5 text-[8.5px] text-muted-foreground sm:max-w-none sm:px-4 sm:text-[9.5px]">
         humanly.ai{path}
       </span>
     </div>
@@ -377,7 +377,7 @@ export function PipelineShowcase() {
 
   return (
     <div ref={showcaseRef} className="w-full max-w-[880px]">
-      <div className="mb-5 flex flex-wrap gap-2">
+      <div className="mb-4 flex gap-1.5 overflow-x-auto pb-1 sm:mb-5 sm:flex-wrap sm:gap-2 sm:overflow-visible sm:pb-0">
         {STEPS.map((label, i) => (
           <button
             key={label}
@@ -386,7 +386,7 @@ export function PipelineShowcase() {
               if (!hasStarted) setHasStarted(true);
               setScene(i);
             }}
-            className={`rounded-md border px-3.5 py-1.5 text-[12px] font-medium transition-all duration-200 ${
+            className={`shrink-0 rounded-md border px-2.5 py-1.5 text-[11px] font-medium transition-all duration-200 sm:px-3.5 sm:text-[12px] ${
               scene === i
                 ? 'border-primary bg-primary text-primary-foreground shadow-sm'
                 : 'border-input bg-transparent text-muted-foreground hover:-translate-y-px hover:border-foreground/30 hover:text-foreground'
@@ -400,21 +400,21 @@ export function PipelineShowcase() {
       <div
         ref={stageRef}
         aria-hidden
-        className="pointer-events-none relative h-[520px] select-none overflow-hidden rounded-[14px] border border-[var(--hly-hairline)] bg-white shadow-[0_28px_70px_-32px_rgba(35,32,25,0.35)]"
+        className="pointer-events-none relative h-[430px] select-none overflow-hidden rounded-[14px] border border-[var(--hly-hairline)] bg-white shadow-[0_28px_70px_-32px_rgba(35,32,25,0.35)] sm:h-[520px]"
       >
         {/* 01 · Create Writing (/documents/new) */}
         <Scene active={scene === 0}>
           <Chrome path="/documents/new" />
-          <div className="flex flex-1 flex-col bg-background p-4">
-            <p className="text-[10px] text-muted-foreground">← Back to Workspace</p>
+          <div className="flex flex-1 flex-col bg-background p-3 sm:p-4">
+            <p className="hidden text-[10px] text-muted-foreground sm:block">← Back to Workspace</p>
             <div className="mt-1 flex items-end justify-between">
-              <h3 className="text-[18px] font-medium tracking-[-0.02em]">Create Writing</h3>
-              <span className="flex items-center gap-1 rounded-md border border-[#9E756B] bg-[#9E756B] px-3 py-1.5 text-[10.5px] font-medium text-white">
+              <h3 className="text-[16px] font-medium tracking-[-0.02em] sm:text-[18px]">Create Writing</h3>
+              <span className="flex items-center gap-1 rounded-md border border-[#9E756B] bg-[#9E756B] px-2.5 py-1.5 text-[10px] font-medium text-white sm:px-3 sm:text-[10.5px]">
                 <Eye className="h-3 w-3 text-white" /> Preview
               </span>
             </div>
-            <div className="mt-2.5 grid flex-1 grid-cols-[1fr_0.9fr] overflow-hidden rounded-lg border border-border/80 bg-card">
-              <div className="border-r border-border/60 p-3.5">
+            <div className="mt-2.5 grid flex-1 grid-cols-1 overflow-hidden rounded-lg border border-border/80 bg-card sm:grid-cols-[1fr_0.9fr]">
+              <div className="border-b border-border/60 p-3 sm:border-b-0 sm:border-r sm:p-3.5">
                 <p className="humanly-eyebrow">Basic Information</p>
                 <p className="mt-2.5 text-[11px] font-medium">Document Name</p>
                 <div
@@ -430,18 +430,18 @@ export function PipelineShowcase() {
                     <span className="humanly-cursor-blink ml-px inline-block h-3 w-0.5 bg-foreground" />
                   )}
                 </div>
-                <p className="mt-2.5 text-[11px] font-medium">Notes</p>
-                <div className="mt-1 h-9 rounded-md border border-input bg-card px-2 pt-1 text-[10px] text-[var(--hly-neutral)]">
+                <p className="mt-2.5 hidden text-[11px] font-medium sm:block">Notes</p>
+                <div className="mt-1 hidden h-9 rounded-md border border-input bg-card px-2 pt-1 text-[10px] text-[var(--hly-neutral)] sm:block">
                   Optional context for this document...
                 </div>
-                <div className="mt-2.5 rounded-md border border-dashed border-border p-2 text-[10px]">
+                <div className="mt-2.5 hidden rounded-md border border-dashed border-border p-2 text-[10px] sm:block">
                   <span className="inline-flex items-center gap-1 font-medium">
                     <Upload className="h-3 w-3 text-accent" /> PDF
                   </span>
                   <span className="ml-1.5 text-muted-foreground">attach a source file</span>
                 </div>
               </div>
-              <div className="bg-background/60 p-3.5">
+              <div className="bg-background/60 p-3 sm:p-3.5">
                 <p className="humanly-eyebrow">Environment</p>
                 <div className="mt-1.5 flex h-7 items-center justify-between rounded-md border border-input bg-card px-2 text-[11.5px]">
                   Default Environment <ChevronDown className="h-3 w-3 text-[var(--hly-neutral)]" />
@@ -476,32 +476,32 @@ export function PipelineShowcase() {
         {/* 02 · Workspace: PDF | editor | AI chat (mirrors /documents/[id]) */}
         <Scene active={scene === 1}>
           <Chrome path="/documents/on-attention" />
-          <div className="border-b border-border/70 bg-card px-4 py-2">
+          <div className="border-b border-border/70 bg-card px-3 py-2 sm:px-4">
             <div className="flex items-center justify-between gap-3">
               <div className="flex min-w-0 items-center gap-2">
                 <ArrowLeft className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                 <span className="truncate text-[12.5px] font-medium">{DOC_NAME}</span>
                 <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--hly-green-text)]" />
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-[9.5px] text-muted-foreground">{text.length.toLocaleString()} characters</span>
-                <span className="flex items-center gap-1 px-1 text-[9.5px] text-muted-foreground">
+              <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+                <span className="hidden text-[9.5px] text-muted-foreground min-[430px]:inline">{text.length.toLocaleString()} characters</span>
+                <span className="hidden items-center gap-1 px-1 text-[9.5px] text-muted-foreground sm:flex">
                   <HelpCircle className="h-3 w-3" /> Instructions
                 </span>
                 <span
                   data-t="s1-log"
-                  className={`flex items-center gap-1 rounded-md border border-[#9E756B] bg-[#9E756B] px-2 py-1 text-[9.5px] font-medium text-white transition-transform duration-150 ${press('s1-log')}`}
+                  className={`flex items-center gap-1 rounded-md border border-[#9E756B] bg-[#9E756B] px-2 py-1 text-[9px] font-medium text-white transition-transform duration-150 sm:text-[9.5px] ${press('s1-log')}`}
                 >
                   <FileText className="h-3 w-3" /> View Logs
                 </span>
-                <span className="flex items-center gap-1 rounded-md bg-primary px-2 py-1 text-[9.5px] font-medium text-primary-foreground">
+                <span className="hidden items-center gap-1 rounded-md bg-primary px-2 py-1 text-[9.5px] font-medium text-primary-foreground sm:flex">
                   <Award className="h-3 w-3" /> Generate Certificate
                 </span>
               </div>
             </div>
           </div>
-          <div className="grid flex-1 grid-cols-[0.72fr_1.45fr_0.85fr] overflow-hidden bg-background p-2.5">
-            <div className="mr-2 flex flex-col overflow-hidden rounded-lg border border-border/80 bg-card">
+          <div className="grid flex-1 grid-cols-1 grid-rows-[minmax(0,1fr)_142px] overflow-hidden bg-background p-2 sm:grid-cols-[0.72fr_1.45fr_0.85fr] sm:grid-rows-none sm:p-2.5">
+            <div className="mr-2 hidden flex-col overflow-hidden rounded-lg border border-border/80 bg-card sm:flex">
               <div className="border-b border-border/70 bg-muted/30 px-2.5 py-1.5 text-[9.5px] font-medium text-muted-foreground">
                 attention-sources.pdf
               </div>
@@ -518,9 +518,9 @@ export function PipelineShowcase() {
               </div>
             </div>
 
-            <div className="flex flex-col overflow-hidden rounded-lg border border-border/80 bg-card">
-              <div className="relative flex-1 p-4">
-                <p data-t="s1-editor" className="text-[12px] leading-[1.85] text-[var(--hly-ink)]">
+            <div className="min-h-0 overflow-hidden rounded-lg border border-border/80 bg-card">
+              <div className="relative h-full p-3 sm:p-4">
+                <p data-t="s1-editor" className="text-[11.5px] leading-[1.8] text-[var(--hly-ink)] sm:text-[12px] sm:leading-[1.85]">
                   {writePhase === 'typing' && (
                     <>
                       {text}
@@ -561,7 +561,7 @@ export function PipelineShowcase() {
 
                 {/* floating shortcut bar (appears on selection, like the real editor) */}
                 {writePhase === 'selected' && (
-                  <div className="absolute left-6 top-[56px] z-20 flex items-center gap-1.5 rounded-[9px] border border-[var(--hly-hairline)] bg-white/95 px-2 py-1.5 shadow-[0_16px_34px_-22px_rgba(35,32,25,0.55)]">
+                  <div className="absolute left-4 top-[74px] z-20 flex max-w-[calc(100%-2rem)] items-center gap-1.5 overflow-hidden rounded-[9px] border border-[var(--hly-hairline)] bg-white/95 px-2 py-1.5 shadow-[0_16px_34px_-22px_rgba(35,32,25,0.55)] sm:left-6 sm:top-[56px] sm:max-w-none">
                     <span
                       data-t="s1-fix"
                       className={`flex items-center gap-1 whitespace-nowrap rounded-md px-1.5 py-0.5 text-[9.5px] font-medium transition-transform duration-150 ${press('s1-fix')} bg-[var(--hly-green-bg)] text-[var(--hly-green-text)]`}
@@ -578,7 +578,7 @@ export function PipelineShowcase() {
 
                 {/* AI suggestion card with Apply / Discard (mirrors the real assist card) */}
                 {writePhase === 'diff' && (
-                  <div className="absolute left-6 top-[68px] z-20 w-[240px] rounded-[10px] border border-[var(--hly-hairline)] bg-white px-3 py-2.5 shadow-[0_24px_60px_-18px_rgba(35,32,25,0.4)]">
+                  <div className="absolute left-4 top-[78px] z-20 w-[calc(100%-2rem)] rounded-[10px] border border-[var(--hly-hairline)] bg-white px-3 py-2.5 shadow-[0_24px_60px_-18px_rgba(35,32,25,0.4)] sm:left-6 sm:top-[68px] sm:w-[240px]">
                     <div className="mb-1.5 flex items-center gap-1.5">
                       <span className="grid h-4 w-4 place-items-center rounded bg-foreground text-[8px] font-medium text-white">✦</span>
                       <span className="text-[9.5px] font-medium">AI Assistant</span>
@@ -608,12 +608,12 @@ export function PipelineShowcase() {
               </div>
             </div>
 
-            <div className="ml-2 flex flex-col overflow-hidden rounded-lg border border-border/80 bg-[#FCFCFB]">
+            <div className="ml-0 mt-2 flex min-h-0 flex-col overflow-hidden rounded-lg border border-border/80 bg-[#FCFCFB] sm:ml-2 sm:mt-0">
               <div className="flex items-center gap-1.5 border-b border-border/70 px-2.5 py-1.5 text-[10px] font-medium">
                 <span className="grid h-4 w-4 place-items-center rounded bg-foreground text-[8px] text-white">✦</span>
                 AI Assistant
               </div>
-              <div className="flex-1 space-y-1.5 p-2.5">
+              <div className="min-h-0 flex-1 space-y-1.5 overflow-hidden p-2 sm:p-2.5">
                 {aiChatVisible && (
                   <div className="ml-auto max-w-[82%] rounded-[10px] bg-foreground px-2 py-1 text-[9px] leading-snug text-white">
                     {CHAT_PROMPT}
@@ -653,15 +653,15 @@ export function PipelineShowcase() {
         {/* 03 · Activity log (mirrors /logs/[id]) */}
         <Scene active={scene === 2}>
           <Chrome path="/logs/on-attention" />
-          <div className="flex items-center gap-2.5 border-b border-border/70 bg-card px-4 py-2">
+          <div className="flex items-center gap-2.5 border-b border-border/70 bg-card px-3 py-2 sm:px-4">
             <ArrowLeft className="h-3.5 w-3.5 text-muted-foreground" />
             <div>
               <h4 className="text-[12px] font-medium leading-tight">{DOC_NAME}</h4>
               <p className="text-[9.5px] text-muted-foreground">Review activity timeline</p>
             </div>
           </div>
-          <div className="flex-1 space-y-2.5 overflow-hidden bg-background p-3">
-            <div data-t="s2-summary" className="rounded-lg border border-border/80 bg-card px-3.5 py-2.5">
+          <div className="flex-1 space-y-2 overflow-hidden bg-background p-2.5 sm:space-y-2.5 sm:p-3">
+            <div data-t="s2-summary" className="rounded-lg border border-border/80 bg-card px-3 py-2 sm:px-3.5 sm:py-2.5">
               <div className="flex items-center gap-1.5 text-[11px] font-medium">
                 <Clock className="h-3 w-3" /> Event Summary
               </div>
@@ -673,24 +673,24 @@ export function PipelineShowcase() {
             <div
               ref={logScrollRef}
               data-t="s2-list"
-              className="h-[338px] overflow-hidden rounded-md border bg-background"
+              className="h-[292px] overflow-hidden rounded-md border bg-background sm:h-[338px]"
             >
-              <table className="w-full text-[10px]">
+              <table className="w-full text-[9.5px] sm:text-[10px]">
                 <thead className="bg-muted/50 text-[9px] text-muted-foreground">
                   <tr>
-                    <th className="w-[70px] px-3 py-1.5 text-left font-medium">Time</th>
-                    <th className="w-[118px] px-3 py-1.5 text-left font-medium">Activity</th>
-                    <th className="px-3 py-1.5 text-left font-medium">Text / Detail</th>
-                    <th className="w-[50px] px-3 py-1.5 text-left font-medium">Count</th>
+                    <th className="w-[58px] px-2 py-1.5 text-left font-medium sm:w-[70px] sm:px-3">Time</th>
+                    <th className="w-[88px] px-2 py-1.5 text-left font-medium sm:w-[118px] sm:px-3">Activity</th>
+                    <th className="px-2 py-1.5 text-left font-medium sm:px-3">Detail</th>
+                    <th className="hidden w-[50px] px-3 py-1.5 text-left font-medium sm:table-cell">Count</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/60">
                   {visibleLogRows.map(([t, kind, detail, n], index) => (
                     <tr key={`${t}-${kind}-${index}`}>
-                      <td className="px-3 py-[5px] tabular-nums text-muted-foreground">{t}</td>
-                      <td className="px-3 py-[5px]">
+                      <td className="px-2 py-[5px] tabular-nums text-muted-foreground sm:px-3">{t}</td>
+                      <td className="px-2 py-[5px] sm:px-3">
                         <span
-                          className="inline-flex whitespace-nowrap rounded border px-1.5 py-px text-[9px] font-medium"
+                          className="inline-flex max-w-[78px] truncate whitespace-nowrap rounded border px-1.5 py-px text-[8.5px] font-medium sm:max-w-none sm:text-[9px]"
                           style={{
                             backgroundColor: KIND_STYLE[kind].bg,
                             borderColor: KIND_STYLE[kind].border,
@@ -700,8 +700,8 @@ export function PipelineShowcase() {
                           {kind}
                         </span>
                       </td>
-                      <td className="truncate px-3 py-[5px] italic text-muted-foreground">{detail}</td>
-                      <td className="px-3 py-[5px] tabular-nums text-muted-foreground">{n}</td>
+                      <td className="truncate px-2 py-[5px] italic text-muted-foreground sm:px-3">{detail}</td>
+                      <td className="hidden px-3 py-[5px] tabular-nums text-muted-foreground sm:table-cell">{n}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -719,8 +719,8 @@ export function PipelineShowcase() {
               sealed ? 'opacity-100' : 'opacity-0'
             }`}
           >
-            <div className="mx-auto max-w-[760px] space-y-4 px-5 py-4">
-              <section className="rounded-lg border border-border/80 bg-card p-4">
+            <div className="mx-auto max-w-[760px] space-y-3 px-3 py-3 sm:space-y-4 sm:px-5 sm:py-4">
+              <section className="rounded-lg border border-border/80 bg-card p-3 sm:p-4">
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
@@ -729,7 +729,7 @@ export function PipelineShowcase() {
                       </span>
                       <span className="text-[10px] text-muted-foreground">Generated just now</span>
                     </div>
-                    <h4 className="mt-2 break-words text-[22px] font-medium tracking-[-0.02em]">{DOC_NAME}</h4>
+                    <h4 className="mt-2 break-words text-[18px] font-medium tracking-[-0.02em] sm:text-[22px]">{DOC_NAME}</h4>
                     <p className="mt-1 text-[10.5px] tabular-nums text-muted-foreground">
                       Certificate 9f3a…7b2c · humanly.ai/verify/9f3a…7b2c
                     </p>
@@ -740,7 +740,7 @@ export function PipelineShowcase() {
 
               <section
                 data-t="s3-seal"
-                className="rounded-lg border border-[var(--hly-green-border)] bg-[var(--hly-green-bg)]/45 p-4"
+                className="rounded-lg border border-[var(--hly-green-border)] bg-[var(--hly-green-bg)]/45 p-3 sm:p-4"
               >
                 <div className="flex items-start gap-3">
                   <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[var(--hly-green-bg)] text-[var(--hly-green-text)]">
@@ -781,7 +781,7 @@ export function PipelineShowcase() {
                 </div>
               </section>
 
-              <section data-t="s3-stats" className="rounded-lg border border-border/80 bg-card p-4">
+              <section data-t="s3-stats" className="rounded-lg border border-border/80 bg-card p-3 sm:p-4">
                 <div>
                   <p className="text-[14px] font-medium">Authorship Statistics</p>
                   <p className="mt-1 text-[11px] text-muted-foreground">
@@ -830,7 +830,7 @@ export function PipelineShowcase() {
                 </div>
               </section>
 
-              <section className="rounded-lg border border-border/80 bg-card p-4">
+              <section className="rounded-lg border border-border/80 bg-card p-3 sm:p-4">
                 <p className="text-[14px] font-medium">Replay</p>
                 <p className="mt-1 text-[11px] text-muted-foreground">
                   Watch how this certificate was created from recorded edit history.
@@ -848,7 +848,7 @@ export function PipelineShowcase() {
                 </div>
               </section>
 
-              <section className="rounded-lg border border-border/80 bg-card p-4">
+              <section className="rounded-lg border border-border/80 bg-card p-3 sm:p-4">
                 <div className="flex items-center gap-2">
                   <p className="text-[14px] font-medium">Anomaly Behavior Review</p>
                   <HelpCircle className="h-3.5 w-3.5 text-muted-foreground" />
@@ -919,7 +919,7 @@ export function PipelineShowcase() {
                 </div>
               </section>
 
-              <section className="rounded-lg border border-border/80 bg-card p-4">
+              <section className="rounded-lg border border-border/80 bg-card p-3 sm:p-4">
                 <p className="text-[14px] font-medium">Environment</p>
                 <p className="mt-1 text-[11px] text-muted-foreground">
                   The writing policy active when this certificate was created.
