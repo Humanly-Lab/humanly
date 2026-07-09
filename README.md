@@ -11,8 +11,7 @@
   <a href="#features">Features</a> ·
   <a href="#one-command-deployment">Self-Host</a> ·
   <a href="#development">Development</a> ·
-  <a href="#architecture">Architecture</a> ·
-  <a href="#research-artifacts">Research</a>
+  <a href="#architecture">Architecture</a>
 </p>
 
 <p align="center">
@@ -176,15 +175,6 @@ packages/create-humanly Self-host installer package
 Local and production deployments use PostgreSQL for durable data, Redis for
 cache and realtime support, file/object storage for uploaded PDFs and
 attachments, and optional detector weights for model inference.
-
-## Research Artifacts
-
-The public research materials used to evaluate and document Humanly live under
-[`paper-artifacts/`](paper-artifacts/):
-
-- [User study survey questions](paper-artifacts/user-study-survey-questions.md)
-- [LLM-as-judge prompt](paper-artifacts/llm-as-judge-prompt.md)
-- [Red-team Codex prompts](paper-artifacts/red-team-codex-prompts.md)
 
 ## Links
 
