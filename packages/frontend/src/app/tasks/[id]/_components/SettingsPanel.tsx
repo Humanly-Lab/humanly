@@ -1261,7 +1261,7 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
                   ) : (
                     <div className="space-y-5 rounded-md border border-border/70 bg-background p-4">
                       <div className="grid gap-4 md:grid-cols-2">
-                        <div className="space-y-2">
+                        <div className="space-y-2 md:col-span-2">
                           <FormLabel htmlFor="ai-provider">Provider</FormLabel>
                           <select
                             id="ai-provider"
@@ -1284,7 +1284,7 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
                           </select>
                         </div>
 
-                        <div className="space-y-2">
+                        <div className="space-y-2 md:col-span-2">
                           <FormLabel htmlFor="ai-model">Model</FormLabel>
                           <select
                             id="ai-model"

@@ -1256,33 +1256,60 @@ function NewDocumentPageContent() {
 
         {environmentConfig.aiAccess !== 'off' && (
           <div className="grid gap-4 rounded-md border bg-background p-3">
-            <div className="humanly-field">
-              <div className="flex items-center gap-1.5">
-                <Label htmlFor="ai-api-key">AI API Key</Label>
-                <EnvironmentHelp title="AI API Key">
-                  {AI_API_KEY_HELP_TEXT}
-                </EnvironmentHelp>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="humanly-field">
+                <div className="flex items-center gap-1.5">
+                  <Label htmlFor="ai-api-key">AI API Key</Label>
+                  <EnvironmentHelp title="AI API Key">
+                    {AI_API_KEY_HELP_TEXT}
+                  </EnvironmentHelp>
+                </div>
+                <Input
+                  id="ai-api-key"
+                  type="password"
+                  value={aiApiKey}
+                  onChange={(event) => {
+                    setAiApiKey(event.target.value);
+                    clearAiConnectionState();
+                  }}
+                  placeholder={
+                    hasExistingAiKey
+                      ? `Current: ${maskedAiKey || 'saved key'}`
+                      : 'Enter API key'
+                  }
+                  disabled={isCreating}
+                />
+                {hasExistingAiKey && !aiApiKey && (
+                  <p className="text-xs text-muted-foreground">
+                    Leave empty to use the saved key.
+                  </p>
+                )}
               </div>
-              <Input
-                id="ai-api-key"
-                type="password"
-                value={aiApiKey}
-                onChange={(event) => {
-                  setAiApiKey(event.target.value);
-                  clearAiConnectionState();
-                }}
-                placeholder={
-                  hasExistingAiKey
-                    ? `Current: ${maskedAiKey || 'saved key'}`
-                    : 'Enter API key'
-                }
-                disabled={isCreating}
-              />
-              {hasExistingAiKey && !aiApiKey && (
-                <p className="text-xs text-muted-foreground">
-                  Leave empty to use the saved key.
-                </p>
-              )}
+
+              <div className="humanly-field">
+                <Label>Provider</Label>
+                <Select
+                  value={getProviderValueForBaseUrl(aiBaseUrl)}
+                  onValueChange={(value) => {
+                    const provider = AI_PROVIDER_OPTIONS.find(
+                      (option) => option.value === value
+                    );
+                    updateAiBaseUrl(provider?.baseUrl ?? '', true);
+                  }}
+                  disabled={isCreating}
+                >
+                  <SelectTrigger aria-label="AI provider">
+                    <SelectValue placeholder="Select provider" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {AI_PROVIDER_OPTIONS.map((provider) => (
+                      <SelectItem key={provider.value} value={provider.value}>
+                        {provider.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             <Button
@@ -1325,54 +1352,27 @@ function NewDocumentPageContent() {
               </div>
             )}
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="humanly-field">
-                <Label>Model</Label>
-                <Select
-                  value={aiModel}
-                  onValueChange={(value) => {
-                    setAiModel(value);
-                    clearAiConnectionResult();
-                    setEnvironmentAiModel(value);
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select model" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {aiModelOptions.map((model) => (
-                      <SelectItem key={model} value={model}>
-                        {model}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="humanly-field">
-                <Label>Provider</Label>
-                <Select
-                  value={getProviderValueForBaseUrl(aiBaseUrl)}
-                  onValueChange={(value) => {
-                    const provider = AI_PROVIDER_OPTIONS.find(
-                      (option) => option.value === value
-                    );
-                    updateAiBaseUrl(provider?.baseUrl ?? '', true);
-                  }}
-                  disabled={isCreating}
-                >
-                  <SelectTrigger aria-label="AI provider">
-                    <SelectValue placeholder="Select provider" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {AI_PROVIDER_OPTIONS.map((provider) => (
-                      <SelectItem key={provider.value} value={provider.value}>
-                        {provider.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className="humanly-field">
+              <Label>Model</Label>
+              <Select
+                value={aiModel}
+                onValueChange={(value) => {
+                  setAiModel(value);
+                  clearAiConnectionResult();
+                  setEnvironmentAiModel(value);
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select model" />
+                </SelectTrigger>
+                <SelectContent>
+                  {aiModelOptions.map((model) => (
+                    <SelectItem key={model} value={model}>
+                      {model}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">

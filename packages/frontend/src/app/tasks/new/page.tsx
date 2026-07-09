@@ -1543,33 +1543,61 @@ export default function NewTaskPage() {
 
         {aiAccess !== 'off' && (
           <div className="grid gap-4 rounded-md border bg-background p-3">
-            <div className="grid gap-2">
-              <div className="flex items-center gap-1.5">
-                <FormLabel htmlFor="ai-api-key">AI API Key</FormLabel>
-                <AdminEnvironmentHelp title="AI API Key">
-                  {AI_API_KEY_HELP_TEXT}
-                </AdminEnvironmentHelp>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-2">
+                <div className="flex items-center gap-1.5">
+                  <FormLabel htmlFor="ai-api-key">AI API Key</FormLabel>
+                  <AdminEnvironmentHelp title="AI API Key">
+                    {AI_API_KEY_HELP_TEXT}
+                  </AdminEnvironmentHelp>
+                </div>
+                <Input
+                  id="ai-api-key"
+                  type="password"
+                  value={aiApiKey}
+                  disabled={isSubmitting}
+                  onChange={(event) => {
+                    setAiApiKey(event.target.value);
+                    clearAiConnectionState();
+                  }}
+                  placeholder={
+                    hasExistingAiKey
+                      ? `Current: ${maskedAiKey || 'saved key'}`
+                      : 'Enter API key'
+                  }
+                />
+                {hasExistingAiKey && !aiApiKey && (
+                  <p className="text-xs text-muted-foreground">
+                    Leave empty to use the saved key.
+                  </p>
+                )}
               </div>
-              <Input
-                id="ai-api-key"
-                type="password"
-                value={aiApiKey}
-                disabled={isSubmitting}
-                onChange={(event) => {
-                  setAiApiKey(event.target.value);
-                  clearAiConnectionState();
-                }}
-                placeholder={
-                  hasExistingAiKey
-                    ? `Current: ${maskedAiKey || 'saved key'}`
-                    : 'Enter API key'
-                }
-              />
-              {hasExistingAiKey && !aiApiKey && (
-                <p className="text-xs text-muted-foreground">
-                  Leave empty to use the saved key.
-                </p>
-              )}
+
+              <div className="grid gap-2">
+                <FormLabel>Provider</FormLabel>
+                <Select
+                  value={selectedAiProvider}
+                  onValueChange={(value) => {
+                    setAiBaseUrl(value);
+                    const nextModel = getWhitelist(value)?.[0] || '';
+                    setAiModel(nextModel);
+                    setEnvironmentAiModel(nextModel);
+                    clearAiConnectionState();
+                  }}
+                  disabled={isSubmitting}
+                >
+                  <SelectTrigger aria-label="AI provider">
+                    <SelectValue placeholder="Select provider" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {AI_PROVIDER_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             <Button
@@ -1611,55 +1639,27 @@ export default function NewTaskPage() {
               </div>
             )}
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="grid gap-2">
-                <FormLabel>Model</FormLabel>
-                <Select
-                  value={aiModel}
-                  onValueChange={(value) => {
-                    setAiModel(value);
-                    clearAiConnectionResult();
-                    setEnvironmentAiModel(value);
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select model" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {aiModelOptions.map((model) => (
-                      <SelectItem key={model} value={model}>
-                        {model}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="grid gap-2">
-                <FormLabel>Provider</FormLabel>
-                <Select
-                  value={selectedAiProvider}
-                  onValueChange={(value) => {
-                    setAiBaseUrl(value);
-                    const nextModel = getWhitelist(value)?.[0] || '';
-                    setAiModel(nextModel);
-                    setEnvironmentAiModel(nextModel);
-                    clearAiConnectionState();
-                  }}
-                  disabled={isSubmitting}
-                >
-                  <SelectTrigger aria-label="AI provider">
-                    <SelectValue placeholder="Select provider" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {AI_PROVIDER_OPTIONS.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className="grid gap-2">
+              <FormLabel>Model</FormLabel>
+              <Select
+                value={aiModel}
+                onValueChange={(value) => {
+                  setAiModel(value);
+                  clearAiConnectionResult();
+                  setEnvironmentAiModel(value);
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select model" />
+                </SelectTrigger>
+                <SelectContent>
+                  {aiModelOptions.map((model) => (
+                    <SelectItem key={model} value={model}>
+                      {model}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">

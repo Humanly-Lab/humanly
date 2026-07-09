@@ -104,7 +104,7 @@ export default function HomePage() {
             <h1 className="text-[19px] font-light leading-[1.3] tracking-[-0.015em] sm:text-[23px] lg:text-[26px]">
               Humanly is your configurable and traceable
               <br />
-              Human-AI writing platform
+              Human-AI collaborative writing platform
             </h1>
             <p className="mt-4 max-w-[640px] text-[18px] leading-[1.6] text-muted-foreground sm:text-[20px]">
               Every piece of writing has a{' '}
