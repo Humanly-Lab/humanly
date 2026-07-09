@@ -16,11 +16,11 @@
 </p>
 
 <p align="center">
-  <a href="https://app.writehumanly.net/"><img alt="Writer Portal" src="https://img.shields.io/badge/writehumanly.net-app-7fa184?style=for-the-badge"></a>
-  <a href="https://github.com/ShenzheZhu/humanly/releases/latest"><img alt="Release" src="https://img.shields.io/github/v/release/ShenzheZhu/humanly?label=release&color=c49a6c&style=for-the-badge"></a>
-  <img alt="Frontend stack" src="https://img.shields.io/badge/TypeScript%20%2F%20Next.js-frontend-7b9fb8?style=for-the-badge">
-  <img alt="Backend stack" src="https://img.shields.io/badge/Express%20%2F%20PostgreSQL-backend-b79a8b?style=for-the-badge">
-  <a href="./LICENSE"><img alt="License" src="https://img.shields.io/badge/license-MIT-9aa77d?style=for-the-badge"></a>
+  <a href="https://app.writehumanly.net/"><img alt="Writer Portal" src="https://img.shields.io/badge/app-writehumanly.net-6f6a60?style=flat&logo=vercel&logoColor=white"></a>
+  <a href="https://github.com/ShenzheZhu/humanly/releases/latest"><img alt="Release" src="https://img.shields.io/github/v/release/ShenzheZhu/humanly?style=flat&logo=github&logoColor=white&color=8b7a8f"></a>
+  <img alt="Frontend stack" src="https://img.shields.io/badge/frontend-Next.js%20%2F%20TypeScript-71879b?style=flat&logo=nextdotjs&logoColor=white">
+  <img alt="Backend stack" src="https://img.shields.io/badge/backend-Express%20%2F%20PostgreSQL-9c8068?style=flat&logo=postgresql&logoColor=white">
+  <a href="./LICENSE"><img alt="License" src="https://img.shields.io/badge/license-MIT-8b8675?style=flat&logo=opensourceinitiative&logoColor=white"></a>
 </p>
 
 Humanly is a writing provenance platform for human-AI work. It gives writers a
