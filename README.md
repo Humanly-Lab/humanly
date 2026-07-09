@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <strong>Humanly: A Configurable and Traceable Environment for Human-AI Collaborative Writing.</strong>
+  <strong>A Configurable and Traceable Environment for Human-AI Collaborative Writing.</strong>
 </p>
 
 <p align="center">
