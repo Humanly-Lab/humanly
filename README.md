@@ -12,7 +12,6 @@
   <a href="#product">Product</a> ·
   <a href="#features">Features</a> ·
   <a href="#one-command-deployment">Self-Host</a> ·
-  <a href="#certificates">Certificates</a> ·
   <a href="#architecture">Architecture</a>
 </p>
 
@@ -125,19 +124,6 @@ docker compose -f docker-compose.quickstart.yml up --build
 For manual setup, environment variables, and persistent self-deployment notes,
 see [docs/SELF_DEPLOY.md](https://github.com/ShenzheZhu/humanly/blob/main/docs/SELF_DEPLOY.md).
 
-## Certificates
-
-A Humanly certificate can show:
-
-- the submitted document and final text statistics;
-- the writing environment and task rules active during writing;
-- authorship statistics for typed, pasted, and AI-assisted text;
-- event logs for writing, navigation, copy/paste, and AI activity;
-- replay and anomaly behavior review signals where available;
-- certificate integrity details.
-
-Certificates are evidence for review. They describe what happened inside the
-Humanly workspace and do not make claims about off-platform behavior.
 
 ## Architecture
 
