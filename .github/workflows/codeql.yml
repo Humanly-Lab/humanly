@@ -20,9 +20,17 @@ concurrency:
 
 jobs:
   analyze:
-    name: Analyze JavaScript and TypeScript
+    name: Analyze ${{ matrix.label }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - language: javascript-typescript
+            label: JavaScript and TypeScript
+          - language: python
+            label: Python
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -32,7 +40,7 @@ jobs:
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v4
         with:
-          languages: javascript-typescript
+          languages: ${{ matrix.language }}
 
       - name: Perform CodeQL analysis
         uses: github/codeql-action/analyze@v4
