@@ -1,5 +1,3 @@
-# Humanly
-
 <p align="center">
   <img alt="Humanly" src="./assets/humanly-readme-banner.png" width="600">
 </p>
