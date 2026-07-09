@@ -52,8 +52,6 @@ Humanly has two first-party web apps:
   allow only chat, or allow full in-platform assistance.
 - **Process tracing** for typing, editing, copy/paste, focus, navigation,
   workspace activity, and in-platform AI interactions.
-- **PDF context** so writers can draft beside source material and use approved
-  AI support over uploaded PDFs.
 - **Task distribution** through invite codes and public share links, including
   account or guest participation depending on the task setting.
 - **Shareable certificates** with authorship statistics, replay, environment
