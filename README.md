@@ -1,7 +1,7 @@
 # Humanly
 
 <p align="center">
-  <img alt="Humanly" src="./assets/humanly-readme-banner.gif" width="680">
+  <img alt="Humanly" src="./assets/humanly-readme-banner.png" width="680">
 </p>
 
 <p align="center">
