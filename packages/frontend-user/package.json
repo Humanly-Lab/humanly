@@ -1,6 +1,7 @@
 {
   "name": "@humanly/frontend-user",
   "version": "1.0.0",
+  "description": "Humanly Writer Portal and writing workspace",
   "private": true,
   "license": "MIT",
   "scripts": {

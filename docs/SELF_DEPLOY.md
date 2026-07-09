@@ -29,7 +29,7 @@ curl -fsSL https://writehumanly.net/install.sh | sh -s -- --no-start
 If the website installer endpoint is unavailable, use the repository fallback:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ShenzheZhu/humanly/main/scripts/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/Humanly-Lab/humanly/main/scripts/install.sh | sh
 ```
 
 Default local URLs:

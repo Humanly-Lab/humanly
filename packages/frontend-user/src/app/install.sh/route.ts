@@ -9,7 +9,7 @@ const bootstrapScript = `#!/usr/bin/env sh
 set -eu
 
 HUMANLY_SOURCE_REF="\${HUMANLY_SOURCE_REF:-${DEFAULT_SOURCE_REF}}"
-HUMANLY_INSTALLER_URL="\${HUMANLY_INSTALLER_URL:-https://raw.githubusercontent.com/ShenzheZhu/humanly/\${HUMANLY_SOURCE_REF}/scripts/install.sh}"
+HUMANLY_INSTALLER_URL="\${HUMANLY_INSTALLER_URL:-https://raw.githubusercontent.com/Humanly-Lab/humanly/\${HUMANLY_SOURCE_REF}/scripts/install.sh}"
 
 if command -v curl >/dev/null 2>&1; then
   curl -fsSL "$HUMANLY_INSTALLER_URL" | sh -s -- --source-ref "$HUMANLY_SOURCE_REF" "$@"

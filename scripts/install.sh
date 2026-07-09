@@ -2,7 +2,7 @@
 set -eu
 
 SCRIPT_NAME="humanly"
-DEFAULT_REPO="ShenzheZhu/humanly"
+DEFAULT_REPO="Humanly-Lab/humanly"
 DEFAULT_SOURCE_REF="main"
 DEFAULT_TARGET_DIR="humanly"
 DEFAULT_ADMIN_EMAIL="admin@mail.com"
@@ -73,7 +73,7 @@ Options:
   --source-ref <ref>        GitHub branch or tag to download (default: main)
   --source-url <url>        Full tar.gz source URL
   --source-dir <path>       Copy source from a local directory
-  --repo <owner/repo>       GitHub repository (default: ShenzheZhu/humanly)
+  --repo <owner/repo>       GitHub repository (default: Humanly-Lab/humanly)
   --no-start                Generate files without starting Docker
   --skip-docker-check       Skip Docker checks for scaffold-only automation
   --force                   Allow writing into an existing directory

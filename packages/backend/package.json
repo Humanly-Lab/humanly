@@ -1,7 +1,7 @@
 {
   "name": "@humanly/backend",
   "version": "1.0.0",
-  "description": "humanly backend API server",
+  "description": "Humanly backend API and realtime services",
   "license": "MIT",
   "main": "dist/index.js",
   "scripts": {

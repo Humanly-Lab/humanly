@@ -1,7 +1,7 @@
 {
   "name": "@humanly/tracker",
   "version": "1.0.0",
-  "description": "Lightweight JavaScript tracking library for humanly",
+  "description": "Lightweight JavaScript event tracking library for Humanly",
   "type": "module",
   "main": "dist/humanly-tracker.js",
   "module": "dist/humanly-tracker.esm.js",

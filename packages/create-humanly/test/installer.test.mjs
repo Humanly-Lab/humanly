@@ -88,15 +88,15 @@ test('preflight reports missing Docker with actionable commands', async () => {
 
 test('buildSourceUrl defaults to the selected branch ref', () => {
   assert.equal(
-    buildSourceUrl('ShenzheZhu/humanly', 'main'),
-    'https://codeload.github.com/ShenzheZhu/humanly/tar.gz/refs/heads/main',
+    buildSourceUrl('Humanly-Lab/humanly', 'main'),
+    'https://codeload.github.com/Humanly-Lab/humanly/tar.gz/refs/heads/main',
   );
 });
 
 test('buildSourceUrl treats v-prefixed refs as release tags', () => {
   assert.equal(
-    buildSourceUrl('ShenzheZhu/humanly', 'v0.4.0'),
-    'https://codeload.github.com/ShenzheZhu/humanly/tar.gz/refs/tags/v0.4.0',
+    buildSourceUrl('Humanly-Lab/humanly', 'v0.4.0'),
+    'https://codeload.github.com/Humanly-Lab/humanly/tar.gz/refs/tags/v0.4.0',
   );
 });
 

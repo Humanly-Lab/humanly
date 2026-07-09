@@ -1,6 +1,7 @@
 {
   "name": "@humanly/frontend",
   "version": "0.1.0",
+  "description": "Humanly Publisher Portal",
   "private": true,
   "license": "MIT",
   "scripts": {

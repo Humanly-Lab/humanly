@@ -1,7 +1,7 @@
 {
   "name": "humanly",
   "version": "1.0.0",
-  "description": "Text provenance service for tracking typing activities in external forms and surveys",
+  "description": "Configurable and traceable environment for human-AI collaborative writing",
   "private": true,
   "license": "MIT",
   "packageManager": "pnpm@9.0.0",
@@ -33,9 +33,9 @@
     "test:audit": "node scripts/ci/test-audit.mjs",
     "ci:quality": "pnpm script:audit && pnpm lint && pnpm type-check && pnpm test:runnable && pnpm test:audit && pnpm build:all",
     "clean": "pnpm --recursive --if-present clean && rm -rf node_modules",
-    "docker:up": "docker-compose up -d",
-    "docker:down": "docker-compose down",
-    "docker:logs": "docker-compose logs -f"
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f"
   },
   "devDependencies": {
     "@types/node": "^20.10.0",

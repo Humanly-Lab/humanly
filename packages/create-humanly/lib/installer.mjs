@@ -8,7 +8,7 @@ import { spawn } from 'node:child_process';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 
-const DEFAULT_REPO = 'ShenzheZhu/humanly';
+const DEFAULT_REPO = 'Humanly-Lab/humanly';
 const DEFAULT_SOURCE_REF = 'main';
 const DEFAULT_TARGET_DIR = 'humanly';
 const DEFAULT_ADMIN_EMAIL = 'admin@mail.com';
@@ -262,7 +262,7 @@ Options:
   --source-ref <ref>         GitHub branch or tag to download (default: main)
   --source-url <url>         Full tar.gz source URL
   --source-dir <path>        Copy source from a local directory instead of downloading
-  --repo <owner/repo>        GitHub repository to download (default: ShenzheZhu/humanly)
+  --repo <owner/repo>        GitHub repository to download (default: Humanly-Lab/humanly)
   --admin-email <email>      Default local Publisher Portal admin email
   --admin-password <pass>    Default local Publisher Portal admin password
   --publisher-url <url>      Local Publisher Portal URL (default: http://localhost:3000)

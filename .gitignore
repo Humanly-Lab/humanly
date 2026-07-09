@@ -82,6 +82,8 @@ temp/
 /AGENTS.md
 /DEPLOY.md
 /STRUCTURE.md
+/codex-hosting-instructions.md
+/design-proposals/
 
 # ── OS noise ──────────────────────────────────────────────────────────────────
 .DS_Store
@@ -104,7 +106,6 @@ DEV_LOG.md
 
 # ── Uploads (VM local storage, not in git) ───────────────────────────────────
 uploads/
-tmp/
 Design.md
 
 # ── Local-only development / QA artifacts ────────────────────────────────────
@@ -115,6 +116,7 @@ scripts/qa/
 scripts/agentic-integration-test.mjs
 scripts/backend-stress-test.mjs
 scripts/create-production-qa-issue.mjs
+/scripts/dev-db-setup.sh
 scripts/dev-mock-server.mjs
 scripts/jest/
 **/__tests__/

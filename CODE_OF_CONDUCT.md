@@ -16,7 +16,7 @@ link above.
 
 ## Reporting
 
-If you experience or witness behavior that violates this Code of Conduct, please report it privately to the maintainers through the contact information on the [project owner's GitHub profile](https://github.com/ShenzheZhu), or by opening a [private security advisory](https://github.com/ShenzheZhu/humanly/security/advisories/new) on the repository.
+If you experience or witness behavior that violates this Code of Conduct, please report it privately to the maintainers by opening a [private security advisory](https://github.com/Humanly-Lab/humanly/security/advisories/new) on the repository.
 
 Reports will be reviewed promptly and kept confidential. The maintainers may take any action deemed appropriate, up to and including a permanent ban from project spaces.
 

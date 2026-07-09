@@ -6,7 +6,7 @@ hand.
 First check and install Node/npm, Docker, Docker Compose, and the Docker daemon:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ShenzheZhu/humanly/main/packages/create-humanly/scripts/install-prereqs.sh | bash
+curl -fsSL https://raw.githubusercontent.com/Humanly-Lab/humanly/main/packages/create-humanly/scripts/install-prereqs.sh | bash
 ```
 
 Then run the installer:

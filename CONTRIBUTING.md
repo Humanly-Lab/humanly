@@ -13,9 +13,8 @@ license it.
 
 1. Fork the repository.
 2. Clone your fork: `git clone https://github.com/<your-username>/humanly.git`.
-3. Install dependencies: `pnpm install`.
-4. Follow the [Quick Start](README.md#quick-start) section in the README to set
-   up your local environment.
+3. Follow the [Development](README.md#development) section in the README to
+   install dependencies and start the local services.
 
 ## Making Changes
 
@@ -25,10 +24,9 @@ license it.
 4. Run checks for the area you changed:
 
 ```bash
+pnpm type-check
+pnpm test:runnable
 pnpm build:all
-pnpm lint
-pnpm --filter @humanly/frontend type-check
-pnpm --filter @humanly/frontend-user type-check
 ```
 
 5. If you changed the database schema, add a migration under
@@ -36,8 +34,8 @@ pnpm --filter @humanly/frontend-user type-check
 6. Commit and push your branch.
 7. Open a pull request against `main`.
 
-There is no root `pnpm test` script in the current package manifests. If you add
-or change focused tests, document the exact command you ran in the pull request.
+If you add or change focused tests, run the narrowest relevant package command
+as well and document the exact command in the pull request.
 
 ## Pull Request Guidelines
 
