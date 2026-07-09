@@ -145,7 +145,7 @@ function DocumentsLayoutInner({
   if (isDemoWorkspaceRoute) {
     return (
       <div className="min-h-screen bg-background">
-        <Navbar forceGuest />
+        <Navbar forceGuest guestLogoHref="/" />
         {children}
       </div>
     );

@@ -27,7 +27,13 @@ import { useAuthStore } from '@/stores/auth-store';
 import { adminAppHref } from '@/lib/app-origin';
 import { getUserDisplayLabel } from './user-display';
 
-export function Navbar({ forceGuest = false }: { forceGuest?: boolean }) {
+export function Navbar({
+  forceGuest = false,
+  guestLogoHref,
+}: {
+  forceGuest?: boolean;
+  guestLogoHref?: string;
+}) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, logout } = useAuthStore();
@@ -62,9 +68,15 @@ export function Navbar({ forceGuest = false }: { forceGuest?: boolean }) {
           <div className="flex h-16 items-center justify-between">
             <div className="flex items-center">
               {isGuestMode ? (
-                <div className="flex items-center">
-                  <HumanlyWordmark size="md" cursor={false} />
-                </div>
+                guestLogoHref ? (
+                  <Link href={guestLogoHref} className="flex items-center" aria-label="Go to Humanly home">
+                    <HumanlyWordmark size="md" cursor={false} />
+                  </Link>
+                ) : (
+                  <div className="flex items-center">
+                    <HumanlyWordmark size="md" cursor={false} />
+                  </div>
+                )
               ) : (
                 <Link href="/documents" className="flex items-center">
                   <HumanlyWordmark size="md" cursor={false} />

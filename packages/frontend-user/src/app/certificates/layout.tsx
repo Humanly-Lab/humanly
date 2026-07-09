@@ -48,7 +48,7 @@ export default function CertificatesLayout({
   if (isDemoCertificateRoute) {
     return (
       <div className="min-h-screen bg-background">
-        <Navbar forceGuest />
+        <Navbar forceGuest guestLogoHref="/" />
         <main className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
           {children}
         </main>

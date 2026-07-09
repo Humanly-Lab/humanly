@@ -602,21 +602,6 @@ export default function CertificateDetailPage() {
                             Copy Embed
                           </Button>
                         </div>
-                        {verificationUrl ? (
-                          <div className="mt-2 w-full max-w-56 space-y-2">
-                            <div className="rounded-md border border-border/70 bg-background px-2 py-1.5 text-center text-[11px] text-muted-foreground">
-                              <span className="select-all break-all">
-                                {verificationUrl}
-                              </span>
-                            </div>
-                            <textarea
-                              readOnly
-                              aria-label="Certificate embed snippet"
-                              value={getEmbedSnippet()}
-                              className="h-20 w-full resize-none rounded-md border border-border/70 bg-background px-2 py-1.5 font-mono text-[10px] text-muted-foreground outline-none"
-                            />
-                          </div>
-                        ) : null}
                       </div>
                     </div>
 
