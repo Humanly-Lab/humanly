@@ -66,8 +66,12 @@ services:
       PORT: 3001
       UPLOAD_DIR: /app/uploads
       INFERENCE_URL: http://inference:8000
+      # The production signer credential is mounted at runtime and never baked
+      # into the backend image or repository.
+      GCS_KEY_FILENAME: /run/secrets/gcs-pdf-signer.json
     volumes:
       - ./uploads:/app/uploads
+      - ${GCS_SIGNER_KEY_HOST_PATH:-/opt/humanly/secrets/gcs-pdf-signer.json}:/run/secrets/gcs-pdf-signer.json:ro
     depends_on:
       postgres:
         condition: service_healthy

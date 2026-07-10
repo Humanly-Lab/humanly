@@ -115,9 +115,10 @@ existing single-file view token. If signing is disabled, unavailable, or the
 browser cannot load the signed URL, the Writer Portal falls back to the
 authenticated backend range proxy.
 
-Configure bucket CORS for the Writer Portal origin so PDF.js can issue `GET`
-and byte-range requests and inspect the response headers. Replace the origin
-and bucket name before applying this example:
+Configure bucket CORS so PDF.js can issue `GET` and byte-range requests and
+inspect the response headers. The repository includes the production policy at
+`config/gcs-cors.production.json`; copy it and replace the origins for a custom
+deployment.
 
 ```json
 [
@@ -136,13 +137,23 @@ and bucket name before applying this example:
 ```
 
 ```bash
-gcloud storage buckets update gs://humanly-prod-pdfs --cors-file=cors.json
+gcloud storage buckets update gs://humanly-prod-pdfs \
+  --cors-file=config/gcs-cors.production.json
 ```
 
 The backend service account must be able to read bucket objects and sign URLs.
 With Workload Identity, grant the signer the required `iam.serviceAccounts.signBlob`
 permission, commonly through `roles/iam.serviceAccountTokenCreator` on the
 signing service account.
+
+If project policy does not allow keyless `signBlob`, use a dedicated signer
+service account with only `roles/storage.objectViewer` on the PDF bucket. Keep
+its JSON key outside the checkout and mount it read-only into the backend. The
+production Compose file expects the root-owned host file at
+`/opt/humanly/secrets/gcs-pdf-signer.json` and exposes only its container path
+through `GCS_KEY_FILENAME`. Override the host location with
+`GCS_SIGNER_KEY_HOST_PATH`; never add the key to Git, `.env`, an image, or CI
+logs.
 
 Signed URLs are bearer credentials. Humanly does not log their query strings,
 returns the view contract with `Cache-Control: private, no-store`, and limits

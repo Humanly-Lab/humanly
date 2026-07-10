@@ -32,6 +32,8 @@ nginx/certbot/
 *.crt
 *.p12
 *.pfx
+**/gcs-pdf-signer*.json
+**/humanly-pdf-signer*.json
 
 # ── Uploaded files / storage ──────────────────────────────────────────────────
 storage/

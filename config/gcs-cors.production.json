@@ -1,0 +1,20 @@
+[
+  {
+    "origin": [
+      "https://writehumanly.net",
+      "https://app.writehumanly.net",
+      "https://admin.writehumanly.net"
+    ],
+    "method": ["GET", "HEAD"],
+    "responseHeader": [
+      "Accept-Ranges",
+      "Content-Disposition",
+      "Content-Length",
+      "Content-Range",
+      "Content-Type",
+      "ETag",
+      "Last-Modified"
+    ],
+    "maxAgeSeconds": 3600
+  }
+]
