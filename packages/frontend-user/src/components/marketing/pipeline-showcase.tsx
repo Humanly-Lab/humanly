@@ -268,6 +268,8 @@ export function PipelineShowcase() {
         setSelectionProgress(100);
         await moveToEl('s1-sentence', 150, 0);
         setCursor((c) => ({ ...c, click: false }));
+        await sleep(280);
+        if (!alive()) return;
         setWritePhase('selected');
         await sleep(700);
         if (!alive()) return;
