@@ -1,3 +1,4 @@
+import Image from 'next/image';
 import { cn } from '@/lib/utils';
 
 type HumanlyWordmarkProps = {
@@ -43,10 +44,13 @@ export function HumanlyWordmark({
       }}
       aria-label={admin ? 'Humanly Publisher' : 'Humanly'}
     >
-      <img
+      <Image
         src="/brand/pencil-angled.png"
         alt=""
         aria-hidden="true"
+        width={56}
+        height={56}
+        sizes="56px"
         className={cn('block shrink-0 object-contain contrast-125', markClasses[size])}
       />
       <span className="inline-flex translate-y-[0.08em] items-baseline gap-1">

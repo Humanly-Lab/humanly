@@ -1279,6 +1279,7 @@ function DemoCertificatePreview({
             <div className="mt-2 flex flex-col items-center">
               <div className="flex h-32 w-32 items-center justify-center rounded bg-white p-2 ring-1 ring-border/70">
                 {qrCodeDataUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element -- Runtime QR data URLs cannot use the Next image optimizer.
                   <img
                     src={qrCodeDataUrl}
                     alt="Demo certificate verification QR code"

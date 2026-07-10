@@ -134,7 +134,7 @@ export const offEvent = (event: string, callback?: (data: any) => void): void =>
   }
 };
 
-export default {
+const socketClient = {
   initializeSocket,
   getSocket,
   disconnectSocket,
@@ -142,3 +142,5 @@ export default {
   onEvent,
   offEvent,
 };
+
+export default socketClient;

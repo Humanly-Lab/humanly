@@ -550,6 +550,7 @@ export default function CertificateDetailPage() {
                       </div>
                       <div className="flex flex-col items-center">
                         {qrCodeDataURL ? (
+                          // eslint-disable-next-line @next/next/no-img-element -- Runtime QR data URLs cannot use the Next image optimizer.
                           <img
                             src={qrCodeDataURL}
                             alt="Certificate QR Code"
