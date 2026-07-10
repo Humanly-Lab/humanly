@@ -7,6 +7,12 @@
 </p>
 
 <p align="center">
+  <a href="https://writehumanly.net/">
+    <img alt="writehumanly.net" src="https://img.shields.io/badge/✦_writehumanly.net_✦-6f6a60?style=for-the-badge">
+  </a>
+</p>
+
+<p align="center">
   <a href="#product">Product</a> ·
   <a href="#features">Features</a> ·
   <a href="#one-command-deployment">Self-Host</a> ·
@@ -15,7 +21,6 @@
 </p>
 
 <p align="center">
-  <a href="https://app.writehumanly.net/"><img alt="Writer Portal" src="https://img.shields.io/badge/app-writehumanly.net-6f6a60?style=flat&logo=vercel&logoColor=white"></a>
   <a href="https://github.com/Humanly-Lab/humanly/releases/latest"><img alt="Release" src="https://img.shields.io/github/v/release/Humanly-Lab/humanly?style=flat&logo=github&logoColor=white&color=8b7a8f"></a>
   <img alt="Frontend stack" src="https://img.shields.io/badge/frontend-Next.js%20%2F%20TypeScript-71879b?style=flat&logo=nextdotjs&logoColor=white">
   <img alt="Backend stack" src="https://img.shields.io/badge/backend-Express%20%2F%20PostgreSQL-9c8068?style=flat&logo=postgresql&logoColor=white">
