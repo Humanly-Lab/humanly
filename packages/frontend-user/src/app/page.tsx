@@ -7,7 +7,7 @@ import { PipelineShowcase } from '@/components/marketing/pipeline-showcase';
 import { StatementVisual } from '@/components/marketing/statement-visual';
 import { marketingHref, productAppHref } from '@/lib/app-origin';
 
-const fastDemoHref = '/documents/new?demo=1';
+const fastDemoHref = productAppHref('/documents/new?demo=1');
 const githubHref = 'https://github.com/Humanly-Lab/humanly';
 
 const logRows = [
