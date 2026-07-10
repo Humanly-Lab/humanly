@@ -15,12 +15,6 @@ if (
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
-  typescript: {
-    ignoreBuildErrors: true,
-  },
   // In production the Publisher Portal is served at /admin via nginx.
   // Set NEXT_PUBLIC_BASE_PATH=/admin as a Docker build arg before building.
   basePath: process.env.NEXT_PUBLIC_BASE_PATH || '',

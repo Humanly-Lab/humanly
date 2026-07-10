@@ -2,14 +2,6 @@
 const nextConfig = {
   reactStrictMode: true,
   transpilePackages: ['@humanly/shared', '@humanly/editor'],
-  eslint: {
-    // Disable ESLint during build for now
-    ignoreDuringBuilds: true,
-  },
-  typescript: {
-    // Allow build to succeed even with type errors for now
-    ignoreBuildErrors: true,
-  },
   env: {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
   },
