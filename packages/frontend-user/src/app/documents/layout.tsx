@@ -46,11 +46,6 @@ function DocumentsLayoutInner({
   const isWorkspacePreviewRoute = pathname === '/documents/preview';
   const documentIdMatch = pathname.match(/^\/documents\/([^/]+)/);
   const publicDocumentId = documentIdMatch?.[1] || '';
-  const isDocumentWorkspaceRoute = Boolean(
-    publicDocumentId &&
-      publicDocumentId !== 'new' &&
-      publicDocumentId !== 'preview'
-  );
   const isDemoWorkspaceRoute =
     (pathname === '/documents/new' && searchParams.get('demo') === '1') ||
     isDemoDocumentId(publicDocumentId);
@@ -148,17 +143,6 @@ function DocumentsLayoutInner({
   }
 
   if (isDemoWorkspaceRoute) {
-    if (isDocumentWorkspaceRoute) {
-      return (
-        <div className="flex h-screen flex-col overflow-hidden bg-background">
-          <div className="shrink-0">
-            <Navbar forceGuest guestLogoHref="/" />
-          </div>
-          <main className="min-h-0 flex-1 overflow-hidden">{children}</main>
-        </div>
-      );
-    }
-
     return (
       <div className="min-h-screen bg-background">
         <Navbar forceGuest guestLogoHref="/" />
@@ -173,17 +157,6 @@ function DocumentsLayoutInner({
 
   if ((!isAuthenticated && !isPublicGuestDocumentRoute) || isGuestWorkspaceRoute) {
     return null;
-  }
-
-  if (isDocumentWorkspaceRoute) {
-    return (
-      <div className="flex h-screen flex-col overflow-hidden bg-background">
-        <div className="shrink-0">
-          <Navbar forceGuest={isPublicGuestDocumentRoute} />
-        </div>
-        <main className="min-h-0 flex-1 overflow-hidden">{children}</main>
-      </div>
-    );
   }
 
   return (
