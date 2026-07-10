@@ -23,7 +23,10 @@ import {
   normalizeCopyPastePolicy,
   normalizeResourceAccessPolicy,
   normalizeWritingAiAccess,
+  WORKSPACE_SETUP_PREVIEW_ACK_MESSAGE_TYPE,
   WORKSPACE_SETUP_PREVIEW_MESSAGE_TYPE,
+  WORKSPACE_SETUP_PREVIEW_READY_MESSAGE_TYPE,
+  WORKSPACE_SETUP_PREVIEW_TRANSFER_TIMEOUT_MS,
   type WorkspaceSetupPreviewPayload,
   type WritingEnvironmentConfig,
 } from '@humanly/shared';
@@ -180,6 +183,16 @@ function getPreviewStorageKey(): string | null {
   return getWorkspaceSetupPreviewStorageHashValue(window.location.hash);
 }
 
+function getPreviewOpenerOrigin(): string | null {
+  if (typeof document === 'undefined' || !document.referrer) return null;
+
+  try {
+    return new URL(document.referrer).origin;
+  } catch {
+    return null;
+  }
+}
+
 function getTaskWindowLabel(
   payload: WorkspaceSetupPreviewPayload
 ): string | null {
@@ -312,23 +325,38 @@ export default function WorkspacePreviewPage() {
 
   useEffect(() => {
     const parsedPayload = getPreviewPayload();
+    const storageKey = getPreviewStorageKey();
+    if (!storageKey) {
+      setPayload(parsedPayload);
+      setParseFailed(!parsedPayload);
+      return undefined;
+    }
+
     if (parsedPayload) {
       setPayload(parsedPayload);
       setParseFailed(false);
+    }
+
+    const openerWindow = window.opener;
+    if (!openerWindow) {
+      if (!parsedPayload) {
+        setParseFailed(true);
+      }
       return undefined;
     }
 
-    const storageKey = getPreviewStorageKey();
-    if (!storageKey) {
-      setParseFailed(true);
-      return undefined;
-    }
-
+    const openerOrigin = getPreviewOpenerOrigin();
     const timeoutId = window.setTimeout(() => {
-      setParseFailed(true);
-    }, 3000);
+      if (!parsedPayload) {
+        setParseFailed(true);
+      }
+      window.removeEventListener('message', handleMessage);
+    }, WORKSPACE_SETUP_PREVIEW_TRANSFER_TIMEOUT_MS);
 
     const handleMessage = (event: MessageEvent) => {
+      if (event.source !== openerWindow) return;
+      if (openerOrigin && event.origin !== openerOrigin) return;
+
       const data = event.data as {
         payload?: WorkspaceSetupPreviewPayload;
         storageKey?: string;
@@ -347,9 +375,25 @@ export default function WorkspacePreviewPage() {
       window.clearTimeout(timeoutId);
       setPayload(data.payload);
       setParseFailed(false);
+      openerWindow.postMessage(
+        {
+          type: WORKSPACE_SETUP_PREVIEW_ACK_MESSAGE_TYPE,
+          storageKey,
+        },
+        event.origin
+      );
+      window.removeEventListener('message', handleMessage);
     };
 
     window.addEventListener('message', handleMessage);
+    openerWindow.postMessage(
+      {
+        type: WORKSPACE_SETUP_PREVIEW_READY_MESSAGE_TYPE,
+        storageKey,
+      },
+      openerOrigin || '*'
+    );
+
     return () => {
       window.clearTimeout(timeoutId);
       window.removeEventListener('message', handleMessage);

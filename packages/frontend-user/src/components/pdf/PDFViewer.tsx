@@ -21,6 +21,10 @@ import {
   getPublicDocumentAuthConfig,
   waitForDocumentScopedAccessTokenReady,
 } from '@/lib/api-client'
+import {
+  getHumanlyPerformanceTimestamp,
+  recordHumanlyPerformanceMetric,
+} from '@/lib/performance-metrics'
 import { extractCompatiblePDFTextContent } from './pdf-text-content'
 
 type PDFJSModule = typeof import('pdfjs-dist')
@@ -184,6 +188,8 @@ export default function PDFViewer({ fileId, documentId, previewUrl, viewOnly = f
   const scrollDirectionRef = useRef<'up' | 'down'>('down')
   const lastScrollTopRef = useRef(0)
   const scheduleRafRef = useRef<number | null>(null)
+  const pdfLoadStartedAtRef = useRef<number | null>(null)
+  const firstPagePaintRecordedRef = useRef(false)
 
   // Keep scaleRef in sync
   useEffect(() => {
@@ -336,6 +342,20 @@ export default function PDFViewer({ fileId, documentId, previewUrl, viewOnly = f
       if (generation !== renderGenerationRef.current) return false
       renderedPagesRef.current.add(pageNum)
       publishRenderedPages()
+      if (pageNum === 1 && !firstPagePaintRecordedRef.current) {
+        firstPagePaintRecordedRef.current = true
+        recordHumanlyPerformanceMetric(
+          'humanly.pdf.first_page_paint',
+          pdfLoadStartedAtRef.current,
+          {
+            documentId: documentId || null,
+            fileId: fileId || null,
+            pageCount: numPagesRef.current,
+            preview: Boolean(previewUrl),
+            viewOnly,
+          }
+        )
+      }
       return true
     } catch (err) {
       if (isRenderCancelledError(err)) return false
@@ -346,7 +366,7 @@ export default function PDFViewer({ fileId, documentId, previewUrl, viewOnly = f
         renderTasksRef.current.delete(pageNum)
       }
     }
-  }, [cancelPageRenderTask, publishRenderedPages])
+  }, [cancelPageRenderTask, documentId, fileId, previewUrl, publishRenderedPages, viewOnly])
 
   const pumpRenderQueue = useCallback(() => {
     if (!pdfDocRef.current) return
@@ -441,6 +461,8 @@ export default function PDFViewer({ fileId, documentId, previewUrl, viewOnly = f
 
     const loadPDF = async () => {
       try {
+        pdfLoadStartedAtRef.current = getHumanlyPerformanceTimestamp()
+        firstPagePaintRecordedRef.current = false
         cancelCurrentRenderGeneration()
         pdfDocRef.current = null
         textContentCache.current.clear()
@@ -509,6 +531,7 @@ export default function PDFViewer({ fileId, documentId, previewUrl, viewOnly = f
         }
 
         let pdf: any
+        let usedFallback = false
         try {
           pdf = await loadDocumentSource(source)
         } catch (primaryError) {
@@ -521,11 +544,29 @@ export default function PDFViewer({ fileId, documentId, previewUrl, viewOnly = f
           if (cancelled || !source.fallback) {
             throw primaryError
           }
+          usedFallback = true
           pdf = await loadDocumentSource(source.fallback)
         }
         if (cancelled) return
         pdfDocRef.current = pdf
         loadingTask = null
+        recordHumanlyPerformanceMetric(
+          'humanly.pdf.document_load',
+          pdfLoadStartedAtRef.current,
+          {
+            delivery: previewUrl
+              ? 'preview'
+              : usedFallback
+                ? 'proxy-fallback'
+                : source.httpHeaders
+                  ? 'authenticated-proxy'
+                  : 'signed-url',
+            documentId: documentId || null,
+            fileId: fileId || null,
+            pageCount: pdf.numPages,
+            viewOnly,
+          }
+        )
 
         const firstPage = await pdf.getPage(1)
         if (cancelled) return
@@ -577,6 +618,8 @@ export default function PDFViewer({ fileId, documentId, previewUrl, viewOnly = f
         }
       }
       pdfDocRef.current = null
+      pdfLoadStartedAtRef.current = null
+      firstPagePaintRecordedRef.current = false
     }
   }, [fileId, documentId, previewUrl, viewOnly, loadAttempt, cancelCurrentRenderGeneration, getFitToWidthScale])
 

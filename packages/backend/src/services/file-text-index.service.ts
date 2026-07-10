@@ -273,14 +273,27 @@ export class FileTextIndexService {
       return attempt.record;
     }
 
+    const indexingStartedAt = Date.now();
     try {
       const buffer = await FileStorageService.getBuffer(appFile);
       const pages = await extractPdfPages(buffer);
       const plan = buildFileTextIndexPublicationPlan(pages);
       const published = await this.publishIndex(fileId, attempt.generationId, plan);
-      return published || await this.getOrCreateRecord(fileId);
+      const record = published || await this.getOrCreateRecord(fileId);
+      logger.info('File text indexing completed', {
+        fileId,
+        durationMs: Date.now() - indexingStartedAt,
+        pageCount: record.pageCount,
+        status: record.status,
+        textPageCount: record.textPageCount,
+      });
+      return record;
     } catch (error) {
-      logger.error('Failed to index file text', { fileId, error });
+      logger.error('Failed to index file text', {
+        fileId,
+        durationMs: Date.now() - indexingStartedAt,
+        error,
+      });
       const failed = await this.markIndexFailed(fileId, attempt.generationId, error);
       throw new AppError(500, failed?.lastError || 'Failed to extract file text');
     }

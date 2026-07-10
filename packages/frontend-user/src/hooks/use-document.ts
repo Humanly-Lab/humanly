@@ -12,6 +12,10 @@ import {
   startDemoWritingSession,
   updateDemoDocument,
 } from '@/lib/demo-workspace';
+import {
+  getHumanlyPerformanceTimestamp,
+  recordHumanlyPerformanceMetric,
+} from '@/lib/performance-metrics';
 import type {
   AppFile,
   Document,
@@ -82,6 +86,7 @@ export function useDocument(documentId: string) {
 
   const fetchDocument = useCallback(async (options: FetchDocumentOptions = {}) => {
     const showLoading = options.showLoading !== false;
+    const hydrationStartedAt = getHumanlyPerformanceTimestamp();
 
     if (isDemoDocument) {
       if (showLoading) {
@@ -101,6 +106,15 @@ export function useDocument(documentId: string) {
           source: demo?.linkedFile ? 'document_source_pdf' : null,
         },
       });
+      recordHumanlyPerformanceMetric(
+        'humanly.workspace.hydration',
+        hydrationStartedAt,
+        {
+          documentId,
+          expectedPdf: Boolean(demo?.linkedFile),
+          mode: 'demo',
+        }
+      );
       setError(demo ? null : 'Demo document not found');
       if (showLoading) {
         setIsLoading(false);
@@ -119,7 +133,43 @@ export function useDocument(documentId: string) {
         `/documents/${documentId}/workspace`,
         getPublicDocumentAuthConfig(documentId)
       );
-      applyWorkspacePayload(response.data.data || {});
+      const workspacePayload = (response.data.data || {}) as Partial<DocumentWorkspacePayload>;
+      applyWorkspacePayload(workspacePayload);
+
+      const taskInstructionFiles = Array.isArray(workspacePayload.taskInstructionFiles)
+        ? workspacePayload.taskInstructionFiles
+        : workspacePayload.taskInstructionFile
+          ? [workspacePayload.taskInstructionFile]
+          : [];
+      const linkedFiles = Array.isArray(workspacePayload.linkedFiles)
+        ? workspacePayload.linkedFiles
+        : workspacePayload.linkedFile
+          ? [workspacePayload.linkedFile]
+          : [];
+      const pdfFiles = [...taskInstructionFiles, ...linkedFiles];
+      const primaryPdf = pdfFiles[0] || null;
+
+      recordHumanlyPerformanceMetric(
+        'humanly.workspace.hydration',
+        hydrationStartedAt,
+        {
+          documentId,
+          expectedPdf: Boolean(workspacePayload.pdfPanel?.expected),
+          fileCount: pdfFiles.length,
+          mode: workspacePayload.taskEnrollment ? 'task' : 'personal',
+        }
+      );
+      if (primaryPdf?.textIndexStatus) {
+        recordHumanlyPerformanceMetric(
+          'humanly.pdf.text_index_readiness',
+          hydrationStartedAt,
+          {
+            documentId,
+            fileId: primaryPdf.id,
+            status: primaryPdf.textIndexStatus,
+          }
+        );
+      }
     } catch (err: any) {
       if (showLoading) {
         setError(err.response?.data?.message || 'Failed to fetch document');

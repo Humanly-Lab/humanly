@@ -83,6 +83,8 @@ function run() {
   assert.match(serviceSource, /current\.rows\[0\]\.generationId !== generationId/);
   assert.match(serviceSource, /DELETE FROM file_pages[\s\S]*DELETE FROM file_sections[\s\S]*DELETE FROM file_text_chunks/);
   assert.match(serviceSource, /status = 'failed'/);
+  assert.match(serviceSource, /File text indexing completed/);
+  assert.match(serviceSource, /durationMs: Date\.now\(\) - indexingStartedAt/);
 
   const migrationSource = fs.readFileSync(
     path.join(__dirname, '../db/migrations/053_file_text_indexes.sql'),

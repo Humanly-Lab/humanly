@@ -49,8 +49,11 @@ import {
   validateWritingEnvironmentImportTemplate,
   buildWorkspaceSetupPreviewStorageHash,
   buildWritingAiConnectionTestRequest,
+  WORKSPACE_SETUP_PREVIEW_ACK_MESSAGE_TYPE,
   WORKSPACE_SETUP_PREVIEW_MESSAGE_TYPE,
+  WORKSPACE_SETUP_PREVIEW_READY_MESSAGE_TYPE,
   WORKSPACE_SETUP_PREVIEW_STORAGE_PREFIX,
+  WORKSPACE_SETUP_PREVIEW_TRANSFER_TIMEOUT_MS,
   type UserAISettings,
   type WritingAiConnectionTestResult,
   type WritingAiAccess,
@@ -1206,29 +1209,58 @@ function NewDocumentPageContent() {
   const openWorkspacePreview = () => {
     const payload = getWorkspacePreviewPayload();
     const storageKey = `${WORKSPACE_SETUP_PREVIEW_STORAGE_PREFIX}${crypto.randomUUID()}`;
-    sessionStorage.setItem(storageKey, JSON.stringify(payload));
+    try {
+      sessionStorage.setItem(storageKey, JSON.stringify(payload));
+    } catch {
+      // Large PDF data URLs can exceed session storage; the handshake remains authoritative.
+    }
     const previewWindow = window.open(
       `/documents/preview${buildWorkspaceSetupPreviewStorageHash(storageKey)}`,
       '_blank'
     );
 
-    if (!previewWindow) return;
+    if (!previewWindow) {
+      sessionStorage.removeItem(storageKey);
+      return;
+    }
 
     const message = {
       type: WORKSPACE_SETUP_PREVIEW_MESSAGE_TYPE,
       storageKey,
       payload,
+    } as const;
+    const targetOrigin = window.location.origin;
+    let timeoutId: number | undefined;
+
+    const cleanupTransfer = () => {
+      window.removeEventListener('message', handlePreviewMessage);
+      if (timeoutId !== undefined) {
+        window.clearTimeout(timeoutId);
+      }
+      window.sessionStorage.removeItem(storageKey);
+    };
+    const handlePreviewMessage = (event: MessageEvent) => {
+      if (event.source !== previewWindow || event.origin !== targetOrigin) return;
+
+      const data = event.data as { storageKey?: string; type?: string };
+      if (data.storageKey !== storageKey) return;
+
+      if (data.type === WORKSPACE_SETUP_PREVIEW_READY_MESSAGE_TYPE) {
+        previewWindow.postMessage(message, targetOrigin);
+      } else if (data.type === WORKSPACE_SETUP_PREVIEW_ACK_MESSAGE_TYPE) {
+        cleanupTransfer();
+      }
     };
 
-    previewWindow.postMessage(message, window.location.origin);
-    window.setTimeout(
-      () => previewWindow.postMessage(message, window.location.origin),
-      250
-    );
-    window.setTimeout(
-      () => previewWindow.postMessage(message, window.location.origin),
-      1000
-    );
+    window.addEventListener('message', handlePreviewMessage);
+    timeoutId = window.setTimeout(() => {
+      cleanupTransfer();
+      toast({
+        title: 'Preview connection timed out',
+        description: 'Close the preview window and try again.',
+        variant: 'destructive',
+      });
+    }, WORKSPACE_SETUP_PREVIEW_TRANSFER_TIMEOUT_MS);
   };
 
   const customEnvironmentControls = (

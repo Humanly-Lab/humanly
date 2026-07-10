@@ -96,8 +96,11 @@ import {
   validateWritingEnvironmentImportTemplate,
   buildWorkspaceSetupPreviewStorageHash,
   buildWritingAiConnectionTestRequest,
+  WORKSPACE_SETUP_PREVIEW_ACK_MESSAGE_TYPE,
   WORKSPACE_SETUP_PREVIEW_MESSAGE_TYPE,
+  WORKSPACE_SETUP_PREVIEW_READY_MESSAGE_TYPE,
   WORKSPACE_SETUP_PREVIEW_STORAGE_PREFIX,
+  WORKSPACE_SETUP_PREVIEW_TRANSFER_TIMEOUT_MS,
   type Task,
   type UserAISettings,
   type WritingAiConnectionTestResult,
@@ -1505,18 +1508,39 @@ export default function NewTaskPage() {
       type: WORKSPACE_SETUP_PREVIEW_MESSAGE_TYPE,
       storageKey,
       payload,
-    };
+    } as const;
     const targetOrigin = new URL(frontendUserUrl).origin;
+    let timeoutId: number | undefined;
 
-    previewWindow.postMessage(message, targetOrigin);
-    window.setTimeout(
-      () => previewWindow.postMessage(message, targetOrigin),
-      250
-    );
-    window.setTimeout(
-      () => previewWindow.postMessage(message, targetOrigin),
-      1000
-    );
+    const cleanupTransfer = () => {
+      window.removeEventListener('message', handlePreviewMessage);
+      if (timeoutId !== undefined) {
+        window.clearTimeout(timeoutId);
+      }
+      window.sessionStorage.removeItem(storageKey);
+    };
+    const handlePreviewMessage = (event: MessageEvent) => {
+      if (event.source !== previewWindow || event.origin !== targetOrigin) return;
+
+      const data = event.data as { storageKey?: string; type?: string };
+      if (data.storageKey !== storageKey) return;
+
+      if (data.type === WORKSPACE_SETUP_PREVIEW_READY_MESSAGE_TYPE) {
+        previewWindow.postMessage(message, targetOrigin);
+      } else if (data.type === WORKSPACE_SETUP_PREVIEW_ACK_MESSAGE_TYPE) {
+        cleanupTransfer();
+      }
+    };
+
+    window.addEventListener('message', handlePreviewMessage);
+    timeoutId = window.setTimeout(() => {
+      cleanupTransfer();
+      toast({
+        title: 'Preview connection timed out',
+        description: 'Close the preview window and try again.',
+        variant: 'destructive',
+      });
+    }, WORKSPACE_SETUP_PREVIEW_TRANSFER_TIMEOUT_MS);
   };
   const customEnvironmentControls = (
     <div className="grid gap-4 xl:grid-cols-2">

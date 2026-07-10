@@ -10,6 +10,14 @@ const fileApiPath = path.join(__dirname, '../../lib/file-api.ts');
 const fileApiSource = fs.readFileSync(fileApiPath, 'utf8');
 const newDocumentPagePath = path.join(__dirname, '../../app/documents/new/page.tsx');
 const newDocumentPageSource = fs.readFileSync(newDocumentPagePath, 'utf8');
+const previewPagePath = path.join(__dirname, '../../app/documents/preview/page.tsx');
+const previewPageSource = fs.readFileSync(previewPagePath, 'utf8');
+const adminNewTaskPagePath = path.join(__dirname, '../../../../frontend/src/app/tasks/new/page.tsx');
+const adminNewTaskPageSource = fs.readFileSync(adminNewTaskPagePath, 'utf8');
+const performanceMetricsPath = path.join(__dirname, '../../lib/performance-metrics.ts');
+const performanceMetricsSource = fs.readFileSync(performanceMetricsPath, 'utf8');
+const useDocumentPath = path.join(__dirname, '../../hooks/use-document.ts');
+const useDocumentSource = fs.readFileSync(useDocumentPath, 'utf8');
 
 test('PDFViewer loads PDFs with app-hosted CMap and standard font assets', () => {
   assert.match(viewerSource, /import\('pdfjs-dist'\)/);
@@ -101,6 +109,17 @@ test('PDFViewer does not eagerly hydrate every page layout on initial load', () 
   assert.doesNotMatch(viewerSource, /for \(let pageNum = 2; pageNum <= pdf\.numPages; pageNum\+\+\)/);
 });
 
+test('PDF workspace performance timings are exposed to browser QA', () => {
+  assert.match(performanceMetricsSource, /HUMANLY_PERFORMANCE_METRIC_EVENT = 'humanly:performance-metric'/);
+  assert.match(performanceMetricsSource, /window\.performance\.measure/);
+  assert.match(performanceMetricsSource, /window\.dispatchEvent/);
+  assert.match(viewerSource, /'humanly\.pdf\.document_load'/);
+  assert.match(viewerSource, /'humanly\.pdf\.first_page_paint'/);
+  assert.match(viewerSource, /firstPagePaintRecordedRef/);
+  assert.match(useDocumentSource, /'humanly\.workspace\.hydration'/);
+  assert.match(useDocumentSource, /'humanly\.pdf\.text_index_readiness'/);
+});
+
 test('PDFViewer includes CJK CMap and standard font assets required by PDF.js', () => {
   const publicDir = path.join(__dirname, '../../../public/pdfjs');
 
@@ -175,26 +194,34 @@ test('PDF text extraction uses direct getTextContent when available', async () =
   assert.equal(await extractCompatiblePDFTextContent(page), expected);
 });
 
-test('personal document workspace preview sends its payload to the opened preview window', () => {
+test('workspace preview transfers payload only after a validated ready message and acknowledges receipt', () => {
   assert.match(newDocumentPageSource, /WORKSPACE_SETUP_PREVIEW_MESSAGE_TYPE/);
+  assert.match(newDocumentPageSource, /WORKSPACE_SETUP_PREVIEW_READY_MESSAGE_TYPE/);
+  assert.match(newDocumentPageSource, /WORKSPACE_SETUP_PREVIEW_ACK_MESSAGE_TYPE/);
   assert.match(newDocumentPageSource, /const payload = getWorkspacePreviewPayload\(\)/);
   assert.match(newDocumentPageSource, /sessionStorage\.setItem\(storageKey, JSON\.stringify\(payload\)\)/);
-  assert.match(
-    newDocumentPageSource,
-    /const previewWindow = window\.open\(\s*`\/documents\/preview\$\{buildWorkspaceSetupPreviewStorageHash\(storageKey\)\}`,\s*'_blank'\s*\)/s
-  );
-  assert.match(
-    newDocumentPageSource,
-    /const message = \{\s*type: WORKSPACE_SETUP_PREVIEW_MESSAGE_TYPE,\s*storageKey,\s*payload,\s*\}/s
-  );
-  assert.match(newDocumentPageSource, /previewWindow\.postMessage\(message, window\.location\.origin\)/);
-  assert.match(
-    newDocumentPageSource,
-    /window\.setTimeout\(\s*\(\) => previewWindow\.postMessage\(message, window\.location\.origin\),\s*250\s*\)/s
-  );
-  assert.match(
-    newDocumentPageSource,
-    /window\.setTimeout\(\s*\(\) => previewWindow\.postMessage\(message, window\.location\.origin\),\s*1000\s*\)/s
-  );
+  assert.match(newDocumentPageSource, /Large PDF data URLs can exceed session storage/);
+  assert.match(newDocumentPageSource, /if \(!previewWindow\) \{\s*sessionStorage\.removeItem\(storageKey\)/s);
+  assert.match(newDocumentPageSource, /event\.source !== previewWindow \|\| event\.origin !== targetOrigin/);
+  assert.match(newDocumentPageSource, /data\.type === WORKSPACE_SETUP_PREVIEW_READY_MESSAGE_TYPE/);
+  assert.match(newDocumentPageSource, /previewWindow\.postMessage\(message, targetOrigin\)/);
+  assert.match(newDocumentPageSource, /data\.type === WORKSPACE_SETUP_PREVIEW_ACK_MESSAGE_TYPE/);
+  assert.match(newDocumentPageSource, /WORKSPACE_SETUP_PREVIEW_TRANSFER_TIMEOUT_MS/);
+  assert.doesNotMatch(newDocumentPageSource, /,\s*250\s*\)/);
+  assert.doesNotMatch(newDocumentPageSource, /,\s*1000\s*\)/);
+
+  assert.match(adminNewTaskPageSource, /WORKSPACE_SETUP_PREVIEW_READY_MESSAGE_TYPE/);
+  assert.match(adminNewTaskPageSource, /WORKSPACE_SETUP_PREVIEW_ACK_MESSAGE_TYPE/);
+  assert.match(adminNewTaskPageSource, /event\.source !== previewWindow \|\| event\.origin !== targetOrigin/);
+  assert.match(adminNewTaskPageSource, /previewWindow\.postMessage\(message, targetOrigin\)/);
+  assert.doesNotMatch(adminNewTaskPageSource, /,\s*250\s*\)/);
+  assert.doesNotMatch(adminNewTaskPageSource, /,\s*1000\s*\)/);
+
+  assert.match(previewPageSource, /if \(!openerWindow\)/);
+  assert.match(previewPageSource, /openerWindow\.postMessage/);
+  assert.match(previewPageSource, /type: WORKSPACE_SETUP_PREVIEW_READY_MESSAGE_TYPE/);
+  assert.match(previewPageSource, /event\.source !== openerWindow/);
+  assert.match(previewPageSource, /event\.origin !== openerOrigin/);
+  assert.match(previewPageSource, /type: WORKSPACE_SETUP_PREVIEW_ACK_MESSAGE_TYPE/);
   assert.doesNotMatch(newDocumentPageSource, /noopener|noreferrer/);
 });

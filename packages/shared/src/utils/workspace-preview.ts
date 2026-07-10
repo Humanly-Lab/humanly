@@ -2,8 +2,11 @@ import type { WritingEnvironmentConfig } from '../types';
 
 export const WORKSPACE_SETUP_PREVIEW_HASH_KEY = 'workspacePreview';
 export const WORKSPACE_SETUP_PREVIEW_MESSAGE_TYPE = 'humanly:workspace-preview-payload';
+export const WORKSPACE_SETUP_PREVIEW_READY_MESSAGE_TYPE = 'humanly:workspace-preview-ready';
+export const WORKSPACE_SETUP_PREVIEW_ACK_MESSAGE_TYPE = 'humanly:workspace-preview-ack';
 export const WORKSPACE_SETUP_PREVIEW_STORAGE_HASH_KEY = 'workspacePreviewStorageKey';
 export const WORKSPACE_SETUP_PREVIEW_STORAGE_PREFIX = 'humanly:workspace-preview:';
+export const WORKSPACE_SETUP_PREVIEW_TRANSFER_TIMEOUT_MS = 5000;
 
 export interface WorkspaceSetupPreviewTaskWindow {
   enabled: boolean;
@@ -22,6 +25,22 @@ export interface WorkspaceSetupPreviewPayload {
   selectedAiModel?: string;
   taskWindow?: WorkspaceSetupPreviewTaskWindow;
   title?: string;
+}
+
+export interface WorkspaceSetupPreviewPayloadMessage {
+  type: typeof WORKSPACE_SETUP_PREVIEW_MESSAGE_TYPE;
+  storageKey: string;
+  payload: WorkspaceSetupPreviewPayload;
+}
+
+export interface WorkspaceSetupPreviewReadyMessage {
+  type: typeof WORKSPACE_SETUP_PREVIEW_READY_MESSAGE_TYPE;
+  storageKey: string;
+}
+
+export interface WorkspaceSetupPreviewAckMessage {
+  type: typeof WORKSPACE_SETUP_PREVIEW_ACK_MESSAGE_TYPE;
+  storageKey: string;
 }
 
 function encodeBase64(value: string): string {
