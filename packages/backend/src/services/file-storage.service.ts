@@ -10,6 +10,7 @@ import type {
   FileStorageStreamOptions,
   ListStorageObjectsOptions,
   NormalizedFileStorageLocator,
+  SignedStorageReadUrl,
   StoredFile,
   StorageObjectMetadata,
 } from './file-storage/types';
@@ -36,6 +37,19 @@ export class FileStorageService {
   static async getBuffer(locator: FileStorageLocator): Promise<Buffer> {
     const normalized = this.normalizeLocator(locator);
     return this.readAdapter(normalized.storageProvider).getBuffer(normalized);
+  }
+
+  static async getSignedReadUrl(
+    locator: FileStorageLocator,
+    expiresAt: Date
+  ): Promise<SignedStorageReadUrl | null> {
+    const normalized = this.normalizeLocator(locator);
+    const adapter = this.readAdapter(normalized.storageProvider);
+    if (!adapter.getSignedReadUrl) {
+      return null;
+    }
+
+    return adapter.getSignedReadUrl(normalized, expiresAt);
   }
 
   static async delete(locator: FileStorageLocator): Promise<void> {

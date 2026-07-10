@@ -96,6 +96,67 @@ can derive a stable signing key from `JWT_SECRET`. For production, set
 `CERTIFICATE_ED25519_KEY_ID` so new certificates remain publicly verifiable
 across deployments.
 
+## Production PDF Delivery
+
+Local storage serves authenticated PDF range requests through the backend. A
+production GCS deployment can authorize the viewer once, then let PDF.js read
+the file directly from a short-lived GCS V4 signed URL:
+
+```bash
+FILE_STORAGE_PROVIDER=gcs
+GCS_BUCKET_NAME=humanly-prod-pdfs
+GCS_SIGNED_URLS_ENABLED=true
+GCS_SIGNED_URL_TTL_SECONDS=900
+```
+
+The backend still performs the normal user, document-scoped guest, enrollment,
+and view-only checks before issuing a URL. View-only files also require the
+existing single-file view token. If signing is disabled, unavailable, or the
+browser cannot load the signed URL, the Writer Portal falls back to the
+authenticated backend range proxy.
+
+Configure bucket CORS for the Writer Portal origin so PDF.js can issue `GET`
+and byte-range requests and inspect the response headers. Replace the origin
+and bucket name before applying this example:
+
+```json
+[
+  {
+    "origin": ["https://app.writehumanly.net"],
+    "method": ["GET", "HEAD"],
+    "responseHeader": [
+      "Accept-Ranges",
+      "Content-Length",
+      "Content-Range",
+      "Content-Type"
+    ],
+    "maxAgeSeconds": 3600
+  }
+]
+```
+
+```bash
+gcloud storage buckets update gs://humanly-prod-pdfs --cors-file=cors.json
+```
+
+The backend service account must be able to read bucket objects and sign URLs.
+With Workload Identity, grant the signer the required `iam.serviceAccounts.signBlob`
+permission, commonly through `roles/iam.serviceAccountTokenCreator` on the
+signing service account.
+
+Signed URLs are bearer credentials. Humanly does not log their query strings,
+returns the view contract with `Cache-Control: private, no-store`, and limits
+the configured lifetime to 60-3600 seconds. Removing application access stops
+new URLs from being issued, but an already-issued URL remains usable until it
+expires. Keep the TTL short enough for that revocation window and long enough
+for normal PDF reading sessions.
+
+Before enabling signed delivery broadly, compare the signed path with the API
+proxy in browser network tools using the same PDF. Record time to first page,
+request TTFB, range-request count, and bytes transferred. Confirm `206 Partial
+Content` responses, test an enrolled writer and a document-scoped guest, test a
+view-only PDF, and temporarily disable bucket CORS to verify the proxy fallback.
+
 ## Install
 
 ```bash

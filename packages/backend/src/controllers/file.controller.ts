@@ -81,6 +81,24 @@ export async function issueFileViewToken(req: Request, res: Response): Promise<v
   });
 }
 
+function getFileViewToken(req: Request): string | undefined {
+  return typeof req.query.viewToken === 'string'
+    ? req.query.viewToken
+    : req.get('X-File-View-Token') || undefined;
+}
+
+export async function getFileViewSource(req: Request, res: Response): Promise<void> {
+  const source = await FileService.getFileViewSource(req.params.fileId, req.user!.userId, {
+    viewToken: getFileViewToken(req),
+  });
+
+  res.setHeader('Cache-Control', 'private, no-store');
+  res.json({
+    success: true,
+    data: source,
+  });
+}
+
 function encodeRFC5987Value(value: string): string {
   return encodeURIComponent(value)
     .replace(/['()]/g, (char) => `%${char.charCodeAt(0).toString(16).toUpperCase()}`)
@@ -124,11 +142,8 @@ async function streamFileResponse(
   disposition: 'inline' | 'attachment',
   rangeHeader: string | undefined
 ): Promise<void> {
-  const viewToken = typeof req.query.viewToken === 'string'
-    ? req.query.viewToken
-    : req.get('X-File-View-Token') || undefined;
   const result = await FileService.streamFile(req.params.fileId, req.user!.userId, {
-    viewToken,
+    viewToken: getFileViewToken(req),
     rangeHeader,
   });
 

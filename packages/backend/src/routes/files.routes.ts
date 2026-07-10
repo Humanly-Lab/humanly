@@ -9,11 +9,13 @@ import {
   listDocumentFiles,
   listTaskInstructionFiles,
   downloadFileContent,
+  getFileViewSource,
   issueFileViewToken,
   streamFileContent,
   uploadDocumentFile,
   uploadTaskInstructionFiles,
 } from '../controllers/file.controller';
+import { generalRateLimiter } from '../middleware/rate-limit';
 
 const router: Router = Router();
 
@@ -40,6 +42,7 @@ router.post('/tasks/:taskId/files', upload.array('pdf', TASK_INSTRUCTION_PDF_MAX
 router.get('/tasks/:taskId/files', asyncHandler(listTaskInstructionFiles));
 router.get('/tasks/enrollments/:taskId/instruction-files', asyncHandler(listAccessibleTaskInstructionFiles));
 router.get('/files/:fileId/view-token', asyncHandler(issueFileViewToken));
+router.get('/files/:fileId/view-url', generalRateLimiter, asyncHandler(getFileViewSource));
 router.get('/files/:fileId/download', asyncHandler(downloadFileContent));
 router.get('/files/:fileId/content', asyncHandler(streamFileContent));
 router.delete('/files/:fileId', asyncHandler(deleteFile));

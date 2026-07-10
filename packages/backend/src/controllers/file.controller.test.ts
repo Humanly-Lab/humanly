@@ -2,12 +2,13 @@ import assert from 'node:assert/strict';
 import { Readable, Writable } from 'node:stream';
 import type { Request, Response } from 'express';
 import type { AppFile } from '@humanly/shared';
-import { downloadFileContent, streamFileContent } from './file.controller';
+import { downloadFileContent, getFileViewSource, streamFileContent } from './file.controller';
 import { FileService } from '../services/file.service';
 
 class MockResponse extends Writable {
   readonly headers = new Map<string, number | string | readonly string[]>();
   statusCode = 200;
+  body: unknown;
 
   setHeader(name: string, value: number | string | readonly string[]): this {
     this.headers.set(name.toLowerCase(), value);
@@ -20,6 +21,11 @@ class MockResponse extends Writable {
 
   status(code: number): this {
     this.statusCode = code;
+    return this;
+  }
+
+  json(body: unknown): this {
+    this.body = body;
     return this;
   }
 
@@ -119,6 +125,46 @@ async function testInlineContentUsesRangeDelivery(): Promise<void> {
   );
 }
 
+async function testViewSourceForwardsTokenAndDisablesResponseCaching(): Promise<void> {
+  const originalGetFileViewSource = FileService.getFileViewSource;
+  let captured: { fileId?: string; userId?: string; viewToken?: string } = {};
+
+  FileService.getFileViewSource = (async (fileId, userId, options) => {
+    captured = { fileId, userId, viewToken: options.viewToken };
+    return {
+      delivery: 'signed-url',
+      url: 'https://storage.googleapis.com/example/source.pdf?signature=redacted',
+      expiresAt: '2026-01-01T00:15:00.000Z',
+      expiresInSeconds: 900,
+    };
+  }) as typeof FileService.getFileViewSource;
+
+  try {
+    const req = createRequest({ 'X-File-View-Token': 'view-token' });
+    const res = new MockResponse();
+
+    await getFileViewSource(req, res as unknown as Response);
+
+    assert.deepEqual(captured, {
+      fileId: 'file-1',
+      userId: 'user-1',
+      viewToken: 'view-token',
+    });
+    assert.equal(res.getHeader('Cache-Control'), 'private, no-store');
+    assert.deepEqual(res.body, {
+      success: true,
+      data: {
+        delivery: 'signed-url',
+        url: 'https://storage.googleapis.com/example/source.pdf?signature=redacted',
+        expiresAt: '2026-01-01T00:15:00.000Z',
+        expiresInSeconds: 900,
+      },
+    });
+  } finally {
+    FileService.getFileViewSource = originalGetFileViewSource;
+  }
+}
+
 async function testDownloadUsesAttachmentDisposition(): Promise<void> {
   await withStreamFileStub(
     async (captured) => {
@@ -177,6 +223,7 @@ async function testDownloadTruncatesLongFilenames(): Promise<void> {
 }
 
 async function run(): Promise<void> {
+  await testViewSourceForwardsTokenAndDisablesResponseCaching();
   await testInlineContentUsesRangeDelivery();
   await testDownloadUsesAttachmentDisposition();
   await testDownloadTruncatesLongFilenames();

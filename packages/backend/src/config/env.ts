@@ -55,6 +55,10 @@ interface EnvConfig {
   // Rate Limiting
   rateLimitEnabled: boolean;
 
+  // Signed PDF delivery
+  gcsSignedUrlsEnabled: boolean;
+  gcsSignedUrlTtlSeconds: number;
+
   // Background jobs
   taskAutoSubmitEnabled: boolean;
   taskAutoSubmitIntervalMs: number;
@@ -259,6 +263,13 @@ export const env: EnvConfig = {
 
   // Rate Limiting
   rateLimitEnabled: getEnvBoolean('RATE_LIMIT_ENABLED', true),
+
+  // Signed PDF delivery. Local storage continues to use the API proxy.
+  gcsSignedUrlsEnabled: getEnvBoolean('GCS_SIGNED_URLS_ENABLED', true),
+  gcsSignedUrlTtlSeconds: Math.min(
+    3600,
+    Math.max(60, getEnvNumber('GCS_SIGNED_URL_TTL_SECONDS', 900))
+  ),
 
   // Background jobs
   taskAutoSubmitEnabled: getEnvBoolean('TASK_AUTO_SUBMIT_ENABLED', true),

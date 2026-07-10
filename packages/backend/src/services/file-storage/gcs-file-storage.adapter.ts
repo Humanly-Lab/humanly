@@ -6,6 +6,7 @@ import type {
   FileStorageStreamOptions,
   ListStorageObjectsOptions,
   NormalizedFileStorageLocator,
+  SignedStorageReadUrl,
   StoredFile,
   StorageObjectMetadata,
 } from './types';
@@ -26,6 +27,8 @@ export class GcsFileStorageAdapter implements FileStorageAdapter {
       contentType: 'application/pdf',
       resumable: false,
       metadata: {
+        cacheControl: 'private, max-age=300',
+        contentDisposition: 'inline',
         metadata: {
           checksum,
         },
@@ -61,6 +64,21 @@ export class GcsFileStorageAdapter implements FileStorageAdapter {
     const gcsFile = await this.getExistingGcsFile(locator);
     const [buffer] = await gcsFile.download();
     return buffer;
+  }
+
+  async getSignedReadUrl(
+    locator: NormalizedFileStorageLocator,
+    expiresAt: Date
+  ): Promise<SignedStorageReadUrl> {
+    const [url] = await this.getGcsFile(locator).getSignedUrl({
+      version: 'v4',
+      action: 'read',
+      expires: expiresAt,
+      responseDisposition: 'inline',
+      responseType: 'application/pdf',
+    });
+
+    return { url, expiresAt };
   }
 
   async delete(locator: NormalizedFileStorageLocator): Promise<void> {

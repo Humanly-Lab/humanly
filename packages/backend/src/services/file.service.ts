@@ -1,4 +1,9 @@
-import type { AppFile, FileTextIndexStatus, ResourceAccessPolicy } from '@humanly/shared';
+import type {
+  AppFile,
+  FileTextIndexStatus,
+  FileViewSource,
+  ResourceAccessPolicy,
+} from '@humanly/shared';
 import { TASK_INSTRUCTION_PDF_MAX_FILES } from '@humanly/shared';
 import { normalizeResourceAccessPolicy } from '@humanly/shared';
 import crypto from 'crypto';
@@ -297,6 +302,55 @@ export class FileService {
       range,
       contentRange: parsedRange.kind === 'partial' ? parsedRange.contentRange : undefined,
     };
+  }
+
+  static async getFileViewSource(
+    fileId: string,
+    userId: string,
+    options: { viewToken?: string } = {}
+  ): Promise<FileViewSource> {
+    const appFile = await FileModel.findById(fileId);
+    if (!appFile) {
+      throw new AppError(404, 'File not found');
+    }
+
+    await this.assertCanRead(appFile, userId);
+    const resourceAccess = await this.getResourceAccess(appFile);
+    if (resourceAccess === 'view-only') {
+      this.assertValidViewOnlyToken(options.viewToken, fileId, userId);
+    }
+
+    if (!env.gcsSignedUrlsEnabled || appFile.storageProvider !== 'gcs') {
+      return { delivery: 'proxy' };
+    }
+
+    const expiresAt = new Date(Date.now() + env.gcsSignedUrlTtlSeconds * 1000);
+    try {
+      const signedSource = await FileStorageService.getSignedReadUrl(appFile, expiresAt);
+      if (!signedSource) {
+        return { delivery: 'proxy' };
+      }
+
+      logger.info('Issued signed PDF view URL', {
+        fileId,
+        userId,
+        expiresAt: signedSource.expiresAt.toISOString(),
+      });
+
+      return {
+        delivery: 'signed-url',
+        url: signedSource.url,
+        expiresAt: signedSource.expiresAt.toISOString(),
+        expiresInSeconds: env.gcsSignedUrlTtlSeconds,
+      };
+    } catch (error) {
+      logger.warn('Signed PDF URL unavailable; using API proxy', {
+        fileId,
+        userId,
+        errorType: error instanceof Error ? error.name : typeof error,
+      });
+      return { delivery: 'proxy' };
+    }
   }
 
   static async deleteFile(fileId: string, userId: string): Promise<void> {

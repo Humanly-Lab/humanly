@@ -479,28 +479,49 @@ export default function PDFViewer({ fileId, documentId, previewUrl, viewOnly = f
           : await fileApi.getPdfDocumentSource(fileId!, { viewOnly, documentId })
         if (cancelled) return
 
-        loadingTask = pdfjsLib.getDocument({
-          url: source.url,
-          httpHeaders: source.httpHeaders,
-          withCredentials: source.withCredentials,
-          ...PDFJS_DOCUMENT_RESOURCE_OPTIONS,
-        })
+        const loadDocumentSource = async (candidate: PdfDocumentSource) => {
+          loadingTask = pdfjsLib.getDocument({
+            url: candidate.url,
+            httpHeaders: candidate.httpHeaders,
+            withCredentials: candidate.withCredentials,
+            ...PDFJS_DOCUMENT_RESOURCE_OPTIONS,
+          })
 
-        const timeoutPromise = new Promise<never>((_, reject) => {
-          timeoutId = setTimeout(() => {
-            try {
-              loadingTask?.destroy?.()
-            } catch {
-              // Ignore PDF.js teardown races; the timeout error owns the UI state.
+          const timeoutPromise = new Promise<never>((_, reject) => {
+            timeoutId = setTimeout(() => {
+              try {
+                loadingTask?.destroy?.()
+              } catch {
+                // Ignore PDF.js teardown races; the timeout error owns the UI state.
+              }
+              reject(new Error('PDF loading timed out. Please try again.'))
+            }, PDF_LOAD_TIMEOUT_MS)
+          })
+
+          try {
+            return await Promise.race([loadingTask.promise, timeoutPromise])
+          } finally {
+            if (timeoutId) {
+              clearTimeout(timeoutId)
+              timeoutId = null
             }
-            reject(new Error('PDF loading timed out. Please try again.'))
-          }, PDF_LOAD_TIMEOUT_MS)
-        })
+          }
+        }
 
-        const pdf = await Promise.race([loadingTask.promise, timeoutPromise])
-        if (timeoutId) {
-          clearTimeout(timeoutId)
-          timeoutId = null
+        let pdf: any
+        try {
+          pdf = await loadDocumentSource(source)
+        } catch (primaryError) {
+          try {
+            await loadingTask?.destroy?.()
+          } catch {
+            // Ignore teardown races before the proxy retry.
+          }
+          loadingTask = null
+          if (cancelled || !source.fallback) {
+            throw primaryError
+          }
+          pdf = await loadDocumentSource(source.fallback)
         }
         if (cancelled) return
         pdfDocRef.current = pdf
@@ -542,6 +563,7 @@ export default function PDFViewer({ fileId, documentId, previewUrl, viewOnly = f
         // Ignore cleanup errors from interrupted PDF.js loading tasks.
       }
       source?.cleanup?.()
+      source?.fallback?.cleanup?.()
       cancelCurrentRenderGeneration()
       if (scheduleRafRef.current !== null) {
         window.cancelAnimationFrame(scheduleRafRef.current)

@@ -5,12 +5,13 @@ import {
   TokenManager,
   waitForDocumentScopedAccessTokenReady,
 } from '@/lib/api-client';
-import type { AppFile } from '@humanly/shared';
+import type { AppFile, FileViewSource } from '@humanly/shared';
 
 export interface PdfDocumentSource {
   url: string;
   httpHeaders?: Record<string, string>;
   withCredentials?: boolean;
+  fallback?: PdfDocumentSource;
   cleanup?: () => void;
 }
 
@@ -20,6 +21,38 @@ function buildFileContentUrl(fileId: string): string {
 
 function buildFileDownloadUrl(fileId: string): string {
   return new URL(getApiUrl(`/files/${fileId}/download`), window.location.origin).toString();
+}
+
+function buildProxyDocumentSource(
+  fileId: string,
+  headers: Record<string, string>
+): PdfDocumentSource {
+  return {
+    url: buildFileContentUrl(fileId),
+    httpHeaders: headers,
+    withCredentials: true,
+  };
+}
+
+function isValidSignedPdfUrl(value: unknown): value is string {
+  if (typeof value !== 'string') {
+    return false;
+  }
+
+  try {
+    return new URL(value).protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
+function isAuthorizationError(error: unknown): boolean {
+  if (!error || typeof error !== 'object' || !('response' in error)) {
+    return false;
+  }
+
+  const status = (error as { response?: { status?: number } }).response?.status;
+  return status === 401 || status === 403;
 }
 
 async function getFileAccessHeaders(
@@ -59,12 +92,26 @@ export const fileApi = {
     options: { viewOnly?: boolean; documentId?: string } = {}
   ): Promise<PdfDocumentSource> {
     const headers = await getFileAccessHeaders(fileId, options);
+    const proxySource = buildProxyDocumentSource(fileId, headers);
 
-    return {
-      url: buildFileContentUrl(fileId),
-      httpHeaders: headers,
-      withCredentials: true,
-    };
+    try {
+      const response = await apiClient.get(`/files/${fileId}/view-url`, { headers });
+      const source = response.data.data as FileViewSource | undefined;
+      if (source?.delivery === 'signed-url' && isValidSignedPdfUrl(source.url)) {
+        return {
+          url: source.url,
+          withCredentials: false,
+          fallback: proxySource,
+        };
+      }
+    } catch (error) {
+      if (isAuthorizationError(error)) {
+        throw error;
+      }
+      // Older backends and storage-signing failures continue through the proxy.
+    }
+
+    return proxySource;
   },
 
   async downloadPdf(

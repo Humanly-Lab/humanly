@@ -42,12 +42,21 @@ export interface FileStorageStreamOptions {
   end?: number;
 }
 
+export interface SignedStorageReadUrl {
+  url: string;
+  expiresAt: Date;
+}
+
 export interface FileStorageAdapter {
   readonly provider: FileStorageProvider;
   init(): Promise<void>;
   store(file: Buffer, storageKey: string, checksum: string): Promise<StoredFile>;
   getStream(locator: NormalizedFileStorageLocator, options?: FileStorageStreamOptions): Promise<Readable>;
   getBuffer(locator: NormalizedFileStorageLocator): Promise<Buffer>;
+  getSignedReadUrl?(
+    locator: NormalizedFileStorageLocator,
+    expiresAt: Date
+  ): Promise<SignedStorageReadUrl>;
   delete(locator: NormalizedFileStorageLocator): Promise<void>;
   listObjects(options?: ListStorageObjectsOptions): AsyncIterable<StorageObjectMetadata>;
 }

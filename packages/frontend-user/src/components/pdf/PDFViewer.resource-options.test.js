@@ -31,7 +31,12 @@ test('PDFViewer gives PDF.js an authenticated document source instead of a prelo
   assert.match(fileApiSource, /getPdfDocumentSource/);
   assert.match(fileApiSource, /httpHeaders\?: Record<string, string>/);
   assert.match(fileApiSource, /withCredentials\?: boolean/);
+  assert.match(fileApiSource, /fallback\?: PdfDocumentSource/);
   assert.match(fileApiSource, /headers\['X-File-View-Token'\] = viewToken/);
+  assert.match(fileApiSource, /apiClient\.get\(`\/files\/\$\{fileId\}\/view-url`, \{ headers \}\)/);
+  assert.match(fileApiSource, /source\?\.delivery === 'signed-url'/);
+  assert.match(fileApiSource, /new URL\(value\)\.protocol === 'https:'/);
+  assert.match(fileApiSource, /fallback: proxySource/);
   assert.match(fileApiSource, /withCredentials: true/);
   assert.match(fileApiSource, /downloadPdf/);
   assert.match(fileApiSource, /buildFileDownloadUrl/);
@@ -39,9 +44,12 @@ test('PDFViewer gives PDF.js an authenticated document source instead of a prelo
   assert.match(fileApiSource, /Failed to download PDF: HTTP \$\{response\.status\}/);
 
   assert.match(viewerSource, /fileApi\.getPdfDocumentSource\(fileId!, \{ viewOnly, documentId \}\)/);
-  assert.match(viewerSource, /url: source\.url/);
-  assert.match(viewerSource, /httpHeaders: source\.httpHeaders/);
-  assert.match(viewerSource, /withCredentials: source\.withCredentials/);
+  assert.match(viewerSource, /url: candidate\.url/);
+  assert.match(viewerSource, /httpHeaders: candidate\.httpHeaders/);
+  assert.match(viewerSource, /withCredentials: candidate\.withCredentials/);
+  assert.match(viewerSource, /const loadDocumentSource = async \(candidate: PdfDocumentSource\)/);
+  assert.match(viewerSource, /if \(cancelled \|\| !source\.fallback\)/);
+  assert.match(viewerSource, /pdf = await loadDocumentSource\(source\.fallback\)/);
   assert.match(viewerSource, /fileApi\.downloadPdf\(fileId, \{ documentId \}\)/);
   assert.match(viewerSource, /function getSafePreviewDownloadUrl\(previewUrl: string\): string \| null/);
   assert.match(viewerSource, /parsed\.origin !== window\.location\.origin/);
