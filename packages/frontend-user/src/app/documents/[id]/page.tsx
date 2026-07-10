@@ -1629,7 +1629,7 @@ export default function DocumentEditorPage() {
   const effectiveSaveStatus: SaveStatus = isSaving ? 'saving' : saveStatus;
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-background">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-background">
       {/* Header */}
       <div className="shrink-0 border-b border-border/70 bg-background">
         <div className={`${CANVAS} py-3`}>
@@ -1863,7 +1863,7 @@ export default function DocumentEditorPage() {
       </div>
 
       {/* Main content */}
-      <div className="flex-1 overflow-hidden">
+      <div className="min-h-0 flex-1 overflow-hidden">
         <div className={`${CANVAS} h-full py-3`}>
           {/* ✅ Resizable like Overleaf */}
           <ResizablePanelGroup
@@ -1938,12 +1938,12 @@ export default function DocumentEditorPage() {
               }
               minSize={30}
             >
-              <div className="h-full overflow-auto bg-background">
+              <div className="flex h-full min-h-0 flex-col overflow-hidden bg-background">
                 <div
-                  className={`${hasPdfPanel || isAIPanelVisible ? 'px-4 py-4' : 'px-6 py-6'} h-full`}
+                  className={`${hasPdfPanel || isAIPanelVisible ? 'px-4 py-4' : 'px-6 py-6'} flex min-h-0 flex-1 flex-col overflow-hidden`}
                 >
                   {!hasPdfPanel && (
-                    <div className="mb-4 rounded-lg border border-dashed border-border/80 bg-background p-4">
+                    <div className="mb-4 shrink-0 rounded-lg border border-dashed border-border/80 bg-background p-4">
                       <div>
                         <div>
                           <h2 className="text-sm font-medium">
@@ -1959,7 +1959,7 @@ export default function DocumentEditorPage() {
                     </div>
                   )}
                   {isEditorReadOnly && (
-                    <div className="mb-4 rounded-lg border border-border/70 bg-background p-4 text-sm text-muted-foreground">
+                    <div className="mb-4 shrink-0 rounded-lg border border-border/70 bg-background p-4 text-sm text-muted-foreground">
                       {taskLifecycleReadOnlyMessage || (
                         <>
                           The writing time limit has ended. This document is now
@@ -1971,77 +1971,79 @@ export default function DocumentEditorPage() {
                       )}
                     </div>
                   )}
-                  <LexicalEditor
-                    documentId={documentId}
-                    userId={user?.id}
-                    initialContent={editorInitialContent}
-                    placeholder={
-                      hasPdfPanel
-                        ? 'Start writing with your PDF open...'
-                        : 'Start typing your document...'
-                    }
-                    editable={!isEditorReadOnly}
-                    trackingEnabled={!isEditorReadOnly}
-                    copyPastePolicy={currentEnvironmentConfig.copyPastePolicy}
-                    maxCharacters={maximumSubmissionCharacters}
-                    onCharacterLimitReached={handleCharacterLimitReached}
-                    autoSaveEnabled={!isEditorReadOnly}
-                    autoSaveInterval={EDITOR_AUTO_SAVE_INTERVAL_MS}
-                    onContentChange={handleContentChange}
-                    onEventsBuffer={handleEventsBuffer}
-                    onEmergencyEventsBuffer={handleEmergencyEventsBuffer}
-                    onEventFlushReady={handleEventFlushReady}
-                    onWorkspaceExitReady={handleWorkspaceExitReady}
-                    trackingBatchSize={EDITOR_EVENT_BATCH_SIZE}
-                    trackingFlushInterval={EDITOR_EVENT_FLUSH_INTERVAL_MS}
-                    onAutoSave={handleAutoSave}
-                    className="h-full"
-                    renderSelectionPopup={
-                      aiEnabled && !isEditorReadOnly
-                        ? ({
-                            selection,
-                            onClose,
-                            replaceSelection,
-                            cancelAIAction,
-                            undoLastAction,
-                          }) => (
-                            <AISelectionMenu
-                              documentId={documentId}
-                              selection={selection}
-                              onClose={onClose}
-                              replaceSelection={replaceSelection}
-                              cancelAIAction={cancelAIAction}
-                              undoLastAction={undoLastAction}
-                              onActionApplied={handleAISelectionAction}
-                              onAskAI={(text) => {
-                                onClose();
-                                handleAskAI(text);
-                              }}
-                              taskManaged={isEnvironmentManagedDocument}
-                              getDocumentPlainText={() =>
-                                document?.plainText || ''
-                              }
-                              documentTitle={document?.title || ''}
-                              registerActionTrigger={(trigger) => {
-                                quickActionTriggerRef.current = trigger;
-                              }}
-                              allowPolishActions={aiPolishEnabled}
-                              allowAskAI={aiChatEnabled}
-                            />
-                          )
-                        : undefined
-                    }
-                    renderAIBridge={({ insertAtCursor }) => (
-                      <EditorAIBridgeCapture
-                        insertAtCursor={
-                          isEditorReadOnly ? null : insertAtCursor
-                        }
-                        onInsertAtCursorChange={
-                          handleEditorInsertAtCursorChange
-                        }
-                      />
-                    )}
-                  />
+                  <div className="min-h-0 flex-1">
+                    <LexicalEditor
+                      documentId={documentId}
+                      userId={user?.id}
+                      initialContent={editorInitialContent}
+                      placeholder={
+                        hasPdfPanel
+                          ? 'Start writing with your PDF open...'
+                          : 'Start typing your document...'
+                      }
+                      editable={!isEditorReadOnly}
+                      trackingEnabled={!isEditorReadOnly}
+                      copyPastePolicy={currentEnvironmentConfig.copyPastePolicy}
+                      maxCharacters={maximumSubmissionCharacters}
+                      onCharacterLimitReached={handleCharacterLimitReached}
+                      autoSaveEnabled={!isEditorReadOnly}
+                      autoSaveInterval={EDITOR_AUTO_SAVE_INTERVAL_MS}
+                      onContentChange={handleContentChange}
+                      onEventsBuffer={handleEventsBuffer}
+                      onEmergencyEventsBuffer={handleEmergencyEventsBuffer}
+                      onEventFlushReady={handleEventFlushReady}
+                      onWorkspaceExitReady={handleWorkspaceExitReady}
+                      trackingBatchSize={EDITOR_EVENT_BATCH_SIZE}
+                      trackingFlushInterval={EDITOR_EVENT_FLUSH_INTERVAL_MS}
+                      onAutoSave={handleAutoSave}
+                      className="h-full"
+                      renderSelectionPopup={
+                        aiEnabled && !isEditorReadOnly
+                          ? ({
+                              selection,
+                              onClose,
+                              replaceSelection,
+                              cancelAIAction,
+                              undoLastAction,
+                            }) => (
+                              <AISelectionMenu
+                                documentId={documentId}
+                                selection={selection}
+                                onClose={onClose}
+                                replaceSelection={replaceSelection}
+                                cancelAIAction={cancelAIAction}
+                                undoLastAction={undoLastAction}
+                                onActionApplied={handleAISelectionAction}
+                                onAskAI={(text) => {
+                                  onClose();
+                                  handleAskAI(text);
+                                }}
+                                taskManaged={isEnvironmentManagedDocument}
+                                getDocumentPlainText={() =>
+                                  document?.plainText || ''
+                                }
+                                documentTitle={document?.title || ''}
+                                registerActionTrigger={(trigger) => {
+                                  quickActionTriggerRef.current = trigger;
+                                }}
+                                allowPolishActions={aiPolishEnabled}
+                                allowAskAI={aiChatEnabled}
+                              />
+                            )
+                          : undefined
+                      }
+                      renderAIBridge={({ insertAtCursor }) => (
+                        <EditorAIBridgeCapture
+                          insertAtCursor={
+                            isEditorReadOnly ? null : insertAtCursor
+                          }
+                          onInsertAtCursorChange={
+                            handleEditorInsertAtCursorChange
+                          }
+                        />
+                      )}
+                    />
+                  </div>
                 </div>
               </div>
             </ResizablePanel>
