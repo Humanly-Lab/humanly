@@ -100,7 +100,7 @@ export default function HomePage() {
         <div className="mx-auto max-w-[1160px]">
           {/* Cursor-style opening: left-aligned statement, full-width product shot below.
               Text and showcase share this container, so their left edges stay aligned. */}
-          <div className="max-w-[700px]">
+          <div className="max-w-[700px] lg:-ml-2">
             <h1 className="text-[19px] font-light leading-[1.3] tracking-[-0.015em] sm:text-[23px] lg:text-[26px]">
               Humanly is your configurable and traceable
               <br />
