@@ -1,4 +1,4 @@
-import { TrackerConfig, TrackerEvent, EventType } from './types';
+import { TrackerConfig, TrackerEvent } from './types';
 import { initSession, sendEvents, submitSession } from './api-client';
 import { EventBuffer } from './event-buffer';
 import {
@@ -6,7 +6,6 @@ import {
   getElementSelector,
   getUserId,
   observeDynamicElements,
-  getElementText,
   getCursorPosition,
   getSelectionRange,
   safeGetElementValue,
