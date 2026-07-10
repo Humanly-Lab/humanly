@@ -66,8 +66,9 @@ services:
       PORT: 3001
       UPLOAD_DIR: /app/uploads
       INFERENCE_URL: http://inference:8000
-      # The production signer credential is mounted at runtime and never baked
-      # into the backend image or repository.
+      # This credential is used for upload/read/delete and signed URLs, so it
+      # requires roles/storage.objectUser on the production bucket. It is
+      # mounted at runtime and never baked into the image or repository.
       GCS_KEY_FILENAME: /run/secrets/gcs-pdf-signer.json
     volumes:
       - ./uploads:/app/uploads

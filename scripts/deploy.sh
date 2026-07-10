@@ -178,6 +178,58 @@ else
 fi
 docker compose -f "$COMPOSE_FILE" up -d --no-deps --force-recreate nginx
 
+echo "==> Verify backend GCS write/delete access"
+docker compose -f "$COMPOSE_FILE" exec -T -w /app/packages/backend backend node <<'NODE'
+const { Storage } = require('@google-cloud/storage');
+
+async function main() {
+  if ((process.env.FILE_STORAGE_PROVIDER || '').toLowerCase() !== 'gcs') {
+    console.log('    Skipped: FILE_STORAGE_PROVIDER is not gcs.');
+    return;
+  }
+
+  const bucketName = process.env.GCS_BUCKET_NAME;
+  if (!bucketName) {
+    throw new Error('GCS_BUCKET_NAME is required when FILE_STORAGE_PROVIDER=gcs');
+  }
+
+  const options = {};
+  if (process.env.GCS_PROJECT_ID) {
+    options.projectId = process.env.GCS_PROJECT_ID;
+  }
+  if (process.env.GCS_KEY_FILENAME) {
+    options.keyFilename = process.env.GCS_KEY_FILENAME;
+  }
+
+  const storage = new Storage(options);
+  const objectName = `healthchecks/deploy-${Date.now()}-${Math.random()
+    .toString(16)
+    .slice(2)}.txt`;
+  const file = storage.bucket(bucketName).file(objectName);
+  let uploaded = false;
+
+  try {
+    await file.save('ok', {
+      contentType: 'text/plain',
+      resumable: false,
+    });
+    uploaded = true;
+    await file.delete();
+    uploaded = false;
+    console.log(`    GCS write/delete smoke passed for gs://${bucketName}.`);
+  } finally {
+    if (uploaded) {
+      await file.delete({ ignoreNotFound: true }).catch(() => undefined);
+    }
+  }
+}
+
+main().catch((error) => {
+  console.error('GCS write/delete smoke failed:', error.message || error);
+  process.exit(1);
+});
+NODE
+
 echo "==> Ensure production TLS certificate covers supported hostnames"
 disable_conflicting_host_certbot
 bash scripts/ensure-production-cert.sh
