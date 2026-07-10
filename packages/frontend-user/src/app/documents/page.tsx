@@ -77,15 +77,23 @@ import {
 } from '@humanly/shared';
 
 type SortOption = 'lastEdited' | 'title' | 'characterCount';
+type TaskSortOption = 'recentlyJoined' | 'title' | 'deadline';
 type WorkspaceTab = 'documents' | 'tasks';
 type DocumentViewMode = 'cards' | 'list';
 
 const DOCUMENT_VIEW_MODE_STORAGE_KEY = 'humanly:documents:view-mode';
+const TASK_VIEW_MODE_STORAGE_KEY = 'humanly:assigned-tasks:view-mode';
 
 const SORT_LABELS: Record<SortOption, string> = {
   lastEdited: 'Last edited',
   title: 'Title',
   characterCount: 'Character count',
+};
+
+const TASK_SORT_LABELS: Record<TaskSortOption, string> = {
+  recentlyJoined: 'Recently joined',
+  title: 'Task name',
+  deadline: 'Deadline',
 };
 
 const DOCUMENT_SORT_PARAMS: Record<
@@ -334,6 +342,10 @@ export default function DocumentsPage() {
   const { toast } = useToast();
   const [documentViewMode, setDocumentViewMode] =
     useState<DocumentViewMode>('list');
+  const [taskViewMode, setTaskViewMode] =
+    useState<DocumentViewMode>('cards');
+  const [taskSortBy, setTaskSortBy] =
+    useState<TaskSortOption>('recentlyJoined');
   const [activeWorkspaceTab, setActiveWorkspaceTab] =
     useState<WorkspaceTab>('documents');
   const [taskSearchQuery, setTaskSearchQuery] = useState('');
@@ -361,12 +373,27 @@ export default function DocumentsPage() {
     if (isDocumentViewMode(storedViewMode)) {
       setDocumentViewMode(storedViewMode);
     }
+
+    const storedTaskViewMode = window.localStorage.getItem(
+      TASK_VIEW_MODE_STORAGE_KEY
+    );
+    if (isDocumentViewMode(storedTaskViewMode)) {
+      setTaskViewMode(storedTaskViewMode);
+    }
   }, []);
 
   const handleDocumentViewModeChange = useCallback(
     (nextViewMode: DocumentViewMode) => {
       setDocumentViewMode(nextViewMode);
       window.localStorage.setItem(DOCUMENT_VIEW_MODE_STORAGE_KEY, nextViewMode);
+    },
+    []
+  );
+
+  const handleTaskViewModeChange = useCallback(
+    (nextViewMode: DocumentViewMode) => {
+      setTaskViewMode(nextViewMode);
+      window.localStorage.setItem(TASK_VIEW_MODE_STORAGE_KEY, nextViewMode);
     },
     []
   );
@@ -593,6 +620,21 @@ export default function DocumentsPage() {
       task.inviteCode
     )
   );
+  const sortedTaskEnrollments = [...filteredTaskEnrollments].sort((a, b) => {
+    if (taskSortBy === 'title') {
+      return getDisplayTaskName(a).localeCompare(getDisplayTaskName(b));
+    }
+
+    if (taskSortBy === 'deadline') {
+      const aDeadline = getTimestampMs(a.endDate) ?? Number.POSITIVE_INFINITY;
+      const bDeadline = getTimestampMs(b.endDate) ?? Number.POSITIVE_INFINITY;
+      return aDeadline - bDeadline;
+    }
+
+    const aJoinedAt = getTimestampMs(a.joinedAt) ?? 0;
+    const bJoinedAt = getTimestampMs(b.joinedAt) ?? 0;
+    return bJoinedAt - aJoinedAt;
+  });
   const hasStartedWritingTimer = [
     ...validTaskEnrollments,
     ...personalDocuments,
@@ -956,15 +998,73 @@ export default function DocumentsPage() {
               {!isLoadingTaskEnrollments &&
               !taskEnrollmentsError &&
               (validTaskEnrollments.length > 0 || hasTaskSearchQuery) ? (
-                <div className="relative w-full sm:max-w-sm">
-                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    type="search"
-                    placeholder="Search assigned tasks..."
-                    className="pl-10"
-                    value={taskSearchQuery}
-                    onChange={(event) => setTaskSearchQuery(event.target.value)}
-                  />
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="relative w-full sm:max-w-sm">
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      type="search"
+                      placeholder="Search assigned tasks..."
+                      className="pl-10"
+                      value={taskSearchQuery}
+                      onChange={(event) =>
+                        setTaskSearchQuery(event.target.value)
+                      }
+                    />
+                  </div>
+                  <div className="flex items-center justify-end gap-2">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-10 w-10 text-muted-foreground hover:text-foreground"
+                      aria-label={
+                        taskViewMode === 'cards' ? 'List view' : 'Card view'
+                      }
+                      onClick={() =>
+                        handleTaskViewModeChange(
+                          taskViewMode === 'cards' ? 'list' : 'cards'
+                        )
+                      }
+                    >
+                      {taskViewMode === 'cards' ? (
+                        <List className="h-6 w-6" />
+                      ) : (
+                        <LayoutGrid className="h-6 w-6" />
+                      )}
+                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-10 w-10 text-muted-foreground hover:text-foreground"
+                          aria-label={`Sort by ${TASK_SORT_LABELS[taskSortBy]}`}
+                        >
+                          <ArrowDownAZ className="h-6 w-6" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        {(
+                          Object.keys(TASK_SORT_LABELS) as TaskSortOption[]
+                        ).map((option) => (
+                          <DropdownMenuItem
+                            key={option}
+                            onClick={() => setTaskSortBy(option)}
+                          >
+                            <Check
+                              className={
+                                taskSortBy === option
+                                  ? 'mr-2 h-4 w-4 opacity-100'
+                                  : 'mr-2 h-4 w-4 opacity-0'
+                              }
+                            />
+                            {TASK_SORT_LABELS[option]}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
                 </div>
               ) : null}
 
@@ -998,7 +1098,7 @@ export default function DocumentsPage() {
                     Retry
                   </Button>
                 </div>
-              ) : filteredTaskEnrollments.length === 0 ? (
+              ) : sortedTaskEnrollments.length === 0 ? (
                 <div className="humanly-surface flex min-h-[360px] flex-col items-center justify-center px-6 text-center">
                   <BookOpen className="h-10 w-10 text-accent" />
                   <h3 className="mt-4 text-lg font-medium">
@@ -1021,9 +1121,9 @@ export default function DocumentsPage() {
                     </Button>
                   ) : null}
                 </div>
-              ) : (
+              ) : taskViewMode === 'cards' ? (
                 <div className="grid min-w-0 gap-6 md:grid-cols-2 lg:grid-cols-3">
-                  {filteredTaskEnrollments.map((task) => {
+                  {sortedTaskEnrollments.map((task) => {
                     const taskName = getDisplayTaskName(task);
                     const taskDescription = getDisplayTaskDescription(task);
                     const timerState = getWritingTimerState(
@@ -1184,6 +1284,131 @@ export default function DocumentsPage() {
                       </Card>
                     );
                   })}
+                </div>
+              ) : (
+                <div>
+                  <div className="hidden grid-cols-[minmax(0,1fr)_8rem_12rem_auto] gap-4 border-b border-border/70 px-3 pb-2 text-xs font-medium uppercase tracking-normal text-muted-foreground md:grid">
+                    <span>Task name</span>
+                    <span>Status</span>
+                    <span>Deadline</span>
+                    <span className="text-right">Actions</span>
+                  </div>
+                  <div className="divide-y divide-border/70">
+                    {sortedTaskEnrollments.map((task) => {
+                      const taskName = getDisplayTaskName(task);
+                      const timerState = getWritingTimerState(
+                        task,
+                        dashboardNowMs,
+                        {
+                          expiredDetail:
+                            'Submission opens in read-only mode.',
+                        }
+                      );
+                      const statusBadge = getTaskStatusBadge(
+                        task,
+                        dashboardNowMs,
+                        timerState
+                      );
+                      const latestCertificateId =
+                        task.latestCertificateId || null;
+
+                      return (
+                        <div
+                          key={`${task.id}-${task.documentId}`}
+                          data-testid="task-submission-row"
+                          className="grid gap-3 px-3 py-4 md:grid-cols-[minmax(0,1fr)_8rem_12rem_auto] md:items-center md:gap-4"
+                        >
+                          <div className="min-w-0">
+                            <button
+                              type="button"
+                              className="block max-w-full truncate text-left font-medium hover:text-muted-foreground"
+                              title={taskName}
+                              onClick={() =>
+                                router.push(`/documents/${task.documentId}`)
+                              }
+                            >
+                              {taskName}
+                            </button>
+                            <p className="mt-1 truncate text-sm text-muted-foreground">
+                              {getTaskAttemptLabel(task)}
+                            </p>
+                          </div>
+                          <div>
+                            <span className="mr-2 text-xs text-muted-foreground md:hidden">
+                              Status
+                            </span>
+                            <Badge
+                              variant="outline"
+                              className={`${statusBadge.className} whitespace-nowrap rounded-full px-3`}
+                            >
+                              {statusBadge.label}
+                            </Badge>
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            <span className="mr-2 text-xs md:hidden">
+                              Deadline
+                            </span>
+                            {formatTaskDateLabel(task.endDate, 'No deadline')}
+                          </div>
+                          <div className="flex items-center justify-end gap-1.5">
+                            {latestCertificateId ? (
+                              <Button
+                                type="button"
+                                size="icon"
+                                className="h-9 w-9"
+                                title="View certificate"
+                                aria-label={`View certificate for ${taskName}`}
+                                onClick={() =>
+                                  router.push(
+                                    `/certificates/${latestCertificateId}`
+                                  )
+                                }
+                              >
+                                <Award className="h-4 w-4" />
+                              </Button>
+                            ) : null}
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon"
+                              className="h-9 w-9"
+                              title="Open assigned task"
+                              aria-label={`Open ${taskName}`}
+                              onClick={() =>
+                                router.push(`/documents/${task.documentId}`)
+                              }
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            {canStartNewTaskAttempt(task) ? (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                className="h-9 w-9"
+                                title="Start new attempt"
+                                aria-label={`Start a new attempt for ${taskName}`}
+                                onClick={() => setTaskToRestart(task)}
+                              >
+                                <RotateCcw className="h-4 w-4" />
+                              </Button>
+                            ) : null}
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-9 w-9 text-muted-foreground hover:text-destructive"
+                              title="Remove task from dashboard"
+                              aria-label={`Remove ${taskName} from dashboard`}
+                              onClick={() => setTaskToDelete(task)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
             </TabsContent>
