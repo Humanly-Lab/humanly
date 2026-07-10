@@ -488,7 +488,7 @@ function CertificateCard() {
             </div>
           </div>
           <span className="shrink-0 rounded-full bg-[var(--hly-green-bg)] px-2 py-0.5 text-[8.5px] font-medium text-[var(--hly-green-text)]">
-            93% human
+            95% human likelihood
           </span>
         </div>
       </div>
