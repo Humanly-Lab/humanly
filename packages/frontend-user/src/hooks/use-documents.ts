@@ -1,44 +1,122 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { apiClient } from '@/lib/api-client';
 import { uploadPdfForDocument } from '@/lib/document-pdf';
-import type { Document, WritingEnvironmentConfig } from '@humanly/shared';
+import type {
+  DocumentListItem,
+  WritingEnvironmentConfig,
+} from '@humanly/shared';
 
 interface UseDocumentsOptions {
   skip?: boolean;
+  search?: string;
+  sortBy?: 'createdAt' | 'updatedAt' | 'title' | 'characterCount';
+  sortOrder?: 'asc' | 'desc';
+  pageSize?: number;
 }
 
 export function useDocuments(options: UseDocumentsOptions = {}) {
-  const [documents, setDocuments] = useState<Document[]>([]);
+  const [documents, setDocuments] = useState<DocumentListItem[]>([]);
   const [isLoading, setIsLoading] = useState(!options.skip);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [total, setTotal] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const requestSequenceRef = useRef(0);
+  const hasLoadedOnceRef = useRef(false);
 
-  const fetchDocuments = useCallback(async () => {
+  const search = options.search?.trim() || '';
+  const sortBy = options.sortBy || 'updatedAt';
+  const sortOrder = options.sortOrder || 'desc';
+  const pageSize = Math.min(Math.max(options.pageSize || 24, 1), 100);
+
+  const requestDocuments = useCallback(async (
+    offset: number,
+    mode: 'replace' | 'append'
+  ) => {
     if (options.skip) {
       setDocuments([]);
+      setTotal(0);
+      setHasMore(false);
       setIsLoading(false);
+      setIsLoadingMore(false);
       setError(null);
+      hasLoadedOnceRef.current = false;
       return;
     }
 
+    const requestSequence = ++requestSequenceRef.current;
     try {
-      setIsLoading(true);
+      if (mode === 'replace') {
+        if (!hasLoadedOnceRef.current) {
+          setIsLoading(true);
+        }
+      } else {
+        setIsLoadingMore(true);
+      }
       setError(null);
-      const response = await apiClient.get<any>('/documents');
-      // Backend returns documents directly in data array
-      const docs = Array.isArray(response.data.data) ? response.data.data : [];
-      setDocuments(docs);
+      const response = await apiClient.get<any>('/documents', {
+        params: {
+          limit: pageSize,
+          offset,
+          sortBy,
+          sortOrder,
+          ...(search ? { search } : {}),
+        },
+      });
+
+      if (requestSequence !== requestSequenceRef.current) return;
+
+      const nextDocuments: DocumentListItem[] = Array.isArray(
+        response.data.data
+      )
+        ? response.data.data
+        : [];
+      const pagination = response.data.pagination;
+
+      setDocuments((currentDocuments) => {
+        if (mode === 'replace') return nextDocuments;
+
+        const knownIds = new Set(
+          currentDocuments.map((document) => document.id)
+        );
+        return [
+          ...currentDocuments,
+          ...nextDocuments.filter((document) => !knownIds.has(document.id)),
+        ];
+      });
+      setTotal(pagination?.total ?? nextDocuments.length);
+      setHasMore(Boolean(pagination?.hasMore));
+      hasLoadedOnceRef.current = true;
     } catch (err: any) {
+      if (requestSequence !== requestSequenceRef.current) return;
       setError(err.response?.data?.message || 'Failed to fetch documents');
-      setDocuments([]); // Set empty array on error
+      if (mode === 'replace') {
+        setDocuments([]);
+        setTotal(0);
+        setHasMore(false);
+      }
       console.error('Error fetching documents:', err);
     } finally {
-      setIsLoading(false);
+      if (requestSequence === requestSequenceRef.current) {
+        setIsLoading(false);
+        setIsLoadingMore(false);
+      }
     }
-  }, [options.skip]);
+  }, [options.skip, pageSize, search, sortBy, sortOrder]);
+
+  const fetchDocuments = useCallback(
+    async () => requestDocuments(0, 'replace'),
+    [requestDocuments]
+  );
 
   useEffect(() => {
-    fetchDocuments();
+    void fetchDocuments();
   }, [fetchDocuments]);
+
+  const loadMoreDocuments = useCallback(async () => {
+    if (isLoading || isLoadingMore || !hasMore) return;
+    await requestDocuments(documents.length, 'append');
+  }, [documents.length, hasMore, isLoading, isLoadingMore, requestDocuments]);
 
   const createDocument = useCallback(async (
     title: string,
@@ -87,8 +165,12 @@ export function useDocuments(options: UseDocumentsOptions = {}) {
   return {
     documents,
     isLoading,
+    isLoadingMore,
     error,
+    total,
+    hasMore,
     fetchDocuments,
+    loadMoreDocuments,
     createDocument,
     deleteDocument,
   };

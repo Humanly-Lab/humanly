@@ -232,6 +232,7 @@ export async function generateCertificate(req: Request, res: Response): Promise<
     includeFullText,
     includeEditHistory,
     accessCode,
+    returnReferenceOnly,
   } = req.body;
 
   if (!documentId) {
@@ -258,7 +259,10 @@ export async function generateCertificate(req: Request, res: Response): Promise<
 
   res.status(201).json({
     success: true,
-    data: { certificate },
+    data: {
+      certificate:
+        returnReferenceOnly === true ? { id: certificate.id } : certificate,
+    },
     message: 'Certificate generated successfully',
   });
 }

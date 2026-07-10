@@ -31,6 +31,24 @@ export interface Document {
   lastEditedAt: Date;
 }
 
+export interface DocumentListItem {
+  id: string;
+  userId: string;
+  title: string;
+  description?: string | null;
+  previewText?: string | null;
+  status: DocumentStatus;
+  version: number;
+  wordCount: number;
+  characterCount: number;
+  finalTextCharacterCount?: number | null;
+  environmentConfig?: WritingEnvironmentConfig | null;
+  writingStartedAt?: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+  lastEditedAt: Date;
+}
+
 export interface DocumentWorkspaceTaskContext {
   id: string;
   name: string;
@@ -98,7 +116,7 @@ export interface DocumentFilters {
   search?: string;
   limit?: number;
   offset?: number;
-  sortBy?: 'createdAt' | 'updatedAt' | 'title';
+  sortBy?: 'createdAt' | 'updatedAt' | 'title' | 'characterCount';
   sortOrder?: 'asc' | 'desc';
 }
 

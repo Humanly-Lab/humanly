@@ -2,6 +2,7 @@
 
 import { useEffect, useCallback } from 'react';
 import { useAIStore } from '@/stores/ai-store';
+import { shallow } from 'zustand/shallow';
 import { waitForDocumentScopedAccessTokenReady } from '@/lib/api-client';
 import { AISuggestion, AIChatRequest } from '@humanly/shared';
 
@@ -55,7 +56,43 @@ export function useAI(documentId: string) {
     cleanupSocketListeners,
     clearError,
     reset,
-  } = useAIStore();
+  } = useAIStore(
+    (state) => ({
+      currentSession: state.currentSession,
+      messages: state.messages,
+      isStreaming: state.isStreaming,
+      streamingContent: state.streamingContent,
+      streamingMessageId: state.streamingMessageId,
+      activeSuggestions: state.activeSuggestions,
+      toolCallTimelines: state.toolCallTimelines,
+      thinkingByMessageId: state.thinkingByMessageId,
+      isPanelOpen: state.isPanelOpen,
+      activeTab: state.activeTab,
+      isLoading: state.isLoading,
+      error: state.error,
+      openPanel: state.openPanel,
+      closePanel: state.closePanel,
+      setActiveTab: state.setActiveTab,
+      sendMessage: state.sendMessage,
+      sendMessageViaSocket: state.sendMessageViaSocket,
+      cancelStream: state.cancelStream,
+      clearMessages: state.clearMessages,
+      startNewChat: state.startNewChat,
+      initSession: state.initSession,
+      loadSession: state.loadSession,
+      viewLogsAsMessages: state.viewLogsAsMessages,
+      closeSession: state.closeSession,
+      deleteSession: state.deleteSession,
+      applySuggestion: state.applySuggestion,
+      dismissSuggestion: state.dismissSuggestion,
+      clearSuggestions: state.clearSuggestions,
+      setupSocketListeners: state.setupSocketListeners,
+      cleanupSocketListeners: state.cleanupSocketListeners,
+      clearError: state.clearError,
+      reset: state.reset,
+    }),
+    shallow
+  );
 
   // Initialize socket listeners on mount
   useEffect(() => {
@@ -170,7 +207,18 @@ export function useAILogs(documentId: string) {
     loadLogs,
     loadMoreLogs,
     clearError,
-  } = useAIStore();
+  } = useAIStore(
+    (state) => ({
+      logs: state.logs,
+      logsTotal: state.logsTotal,
+      isLoading: state.isLoading,
+      error: state.error,
+      loadLogs: state.loadLogs,
+      loadMoreLogs: state.loadMoreLogs,
+      clearError: state.clearError,
+    }),
+    shallow
+  );
 
   // Load logs when documentId changes
   useEffect(() => {

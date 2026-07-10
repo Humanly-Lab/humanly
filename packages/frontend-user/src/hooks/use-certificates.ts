@@ -15,6 +15,48 @@ interface UseCertificatesOptions {
   skip?: boolean;
 }
 
+export interface GenerateCertificateOptions {
+  certificateType?: 'full_authorship' | 'partial_authorship';
+  signerName?: string;
+  includeFullText?: boolean;
+  includeEditHistory?: boolean;
+  accessCode?: string;
+}
+
+export interface GeneratedCertificateReference {
+  id: string;
+}
+
+export async function generateCertificateForDocument(
+  documentId: string,
+  options?: GenerateCertificateOptions
+): Promise<GeneratedCertificateReference | undefined> {
+  try {
+    const response = await apiClient.post<any>('/certificates', {
+      documentId,
+      certificateType: options?.certificateType || 'full_authorship',
+      signerName: options?.signerName,
+      includeFullText:
+        options?.includeFullText !== undefined ? options.includeFullText : true,
+      includeEditHistory:
+        options?.includeEditHistory !== undefined
+          ? options.includeEditHistory
+          : true,
+      accessCode: options?.accessCode,
+      returnReferenceOnly: true,
+    });
+
+    const certificateId = response.data.data?.certificate?.id;
+    return typeof certificateId === 'string'
+      ? { id: certificateId }
+      : undefined;
+  } catch (err: any) {
+    throw new Error(
+      err.response?.data?.message || 'Failed to generate certificate'
+    );
+  }
+}
+
 export function useCertificates(filters?: CertificatesFilters, options: UseCertificatesOptions = {}) {
   const [certificates, setCertificates] = useState<Certificate[]>([]);
   const [isLoading, setIsLoading] = useState(!options.skip);
@@ -68,34 +110,31 @@ export function useCertificates(filters?: CertificatesFilters, options: UseCerti
 
   const generateCertificate = useCallback(async (
     documentId: string,
-    options?: {
-      certificateType?: 'full_authorship' | 'partial_authorship';
-      signerName?: string;
-      includeFullText?: boolean;
-      includeEditHistory?: boolean;
-      accessCode?: string;
-    }
+    generateOptions?: GenerateCertificateOptions
   ) => {
-    try {
-      const response = await apiClient.post<any>('/certificates', {
-        documentId,
-        certificateType: options?.certificateType || 'full_authorship',
-        signerName: options?.signerName,
-        includeFullText: options?.includeFullText !== undefined ? options.includeFullText : true,
-        includeEditHistory: options?.includeEditHistory !== undefined ? options.includeEditHistory : true,
-        accessCode: options?.accessCode,
-      });
-
-      const newCertificate = response.data.data?.certificate;
-      if (newCertificate) {
-        setCertificates(prev => [newCertificate, ...prev]);
-        setTotal(prev => prev + 1);
-      }
-
-      return newCertificate;
-    } catch (err: any) {
-      throw new Error(err.response?.data?.message || 'Failed to generate certificate');
+    const response = await apiClient.post<any>('/certificates', {
+      documentId,
+      certificateType:
+        generateOptions?.certificateType || 'full_authorship',
+      signerName: generateOptions?.signerName,
+      includeFullText:
+        generateOptions?.includeFullText !== undefined
+          ? generateOptions.includeFullText
+          : true,
+      includeEditHistory:
+        generateOptions?.includeEditHistory !== undefined
+          ? generateOptions.includeEditHistory
+          : true,
+      accessCode: generateOptions?.accessCode,
+    });
+    const newCertificate: Certificate | undefined =
+      response.data.data?.certificate;
+    if (newCertificate) {
+      setCertificates(prev => [newCertificate, ...prev]);
+      setTotal(prev => prev + 1);
     }
+
+    return newCertificate;
   }, []);
 
   const deleteCertificate = useCallback(async (certificateId: string) => {

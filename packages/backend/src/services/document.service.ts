@@ -9,6 +9,7 @@ import { buildDocumentEventTimeline } from './document-event-timeline.service';
 import type {
   AppFile,
   Document,
+  DocumentListItem,
   DocumentInsertData,
   DocumentUpdateData,
   DocumentFilters,
@@ -322,7 +323,7 @@ export class DocumentService {
   static async listDocuments(
     userId: string,
     filters: DocumentFilters
-  ): Promise<PaginatedResult<Document>> {
+  ): Promise<PaginatedResult<DocumentListItem>> {
     try {
       const result = await DocumentModel.findByUserId(userId, filters);
       return result;

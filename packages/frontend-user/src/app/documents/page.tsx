@@ -1,8 +1,15 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import {
+  useCallback,
+  useDeferredValue,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 import { useRouter } from 'next/navigation';
 import {
+  AlertCircle,
   Award,
   BookOpen,
   Calendar,
@@ -64,9 +71,8 @@ import { apiClient } from '@/lib/api-client';
 import { formatDateTime } from '@/lib/utils';
 import {
   getMaxWritingAttempts,
-  getDocumentDisplayCharacterCount,
   isWritingRestartAllowed,
-  type Document,
+  type DocumentListItem,
   type WritingEnvironmentConfig,
 } from '@humanly/shared';
 
@@ -80,6 +86,18 @@ const SORT_LABELS: Record<SortOption, string> = {
   lastEdited: 'Last edited',
   title: 'Title',
   characterCount: 'Character count',
+};
+
+const DOCUMENT_SORT_PARAMS: Record<
+  SortOption,
+  {
+    sortBy: 'updatedAt' | 'title' | 'characterCount';
+    sortOrder: 'asc' | 'desc';
+  }
+> = {
+  lastEdited: { sortBy: 'updatedAt', sortOrder: 'desc' },
+  title: { sortBy: 'title', sortOrder: 'asc' },
+  characterCount: { sortBy: 'characterCount', sortOrder: 'desc' },
 };
 
 const isDocumentViewMode = (value: string | null): value is DocumentViewMode =>
@@ -294,21 +312,31 @@ const canStartNewTaskAttempt = (task: TaskEnrollment): boolean =>
 
 export default function DocumentsPage() {
   const router = useRouter();
+  const [sortBy, setSortBy] = useState<SortOption>('lastEdited');
+  const [documentSearchQuery, setDocumentSearchQuery] = useState('');
+  const deferredDocumentSearchQuery = useDeferredValue(documentSearchQuery);
+  const documentSortParams = DOCUMENT_SORT_PARAMS[sortBy];
   const {
     documents,
     isLoading,
+    isLoadingMore,
     error,
+    hasMore,
     fetchDocuments,
+    loadMoreDocuments,
     createDocument,
     deleteDocument,
-  } = useDocuments();
+  } = useDocuments({
+    search: deferredDocumentSearchQuery,
+    sortBy: documentSortParams.sortBy,
+    sortOrder: documentSortParams.sortOrder,
+  });
   const { toast } = useToast();
-  const [sortBy, setSortBy] = useState<SortOption>('lastEdited');
   const [documentViewMode, setDocumentViewMode] =
     useState<DocumentViewMode>('list');
   const [activeWorkspaceTab, setActiveWorkspaceTab] =
     useState<WorkspaceTab>('documents');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [taskSearchQuery, setTaskSearchQuery] = useState('');
   const [showJoinDialog, setShowJoinDialog] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState<TaskEnrollment | null>(null);
   const [taskToRestart, setTaskToRestart] = useState<TaskEnrollment | null>(
@@ -319,11 +347,12 @@ export default function DocumentsPage() {
   const [isStartingNewAttempt, setIsStartingNewAttempt] = useState(false);
   const [taskEnrollments, setTaskEnrollments] = useState<TaskEnrollment[]>([]);
   const [isLoadingTaskEnrollments, setIsLoadingTaskEnrollments] =
-    useState(true);
+    useState(false);
   const [taskEnrollmentsError, setTaskEnrollmentsError] = useState<
     string | null
   >(null);
   const [dashboardNowMs, setDashboardNowMs] = useState(() => Date.now());
+  const taskEnrollmentsRequestedRef = useRef(false);
 
   useEffect(() => {
     const storedViewMode = window.localStorage.getItem(
@@ -343,6 +372,7 @@ export default function DocumentsPage() {
   );
 
   const fetchTaskEnrollments = useCallback(async () => {
+    taskEnrollmentsRequestedRef.current = true;
     try {
       setIsLoadingTaskEnrollments(true);
       setTaskEnrollmentsError(null);
@@ -359,8 +389,13 @@ export default function DocumentsPage() {
   }, []);
 
   useEffect(() => {
-    fetchTaskEnrollments();
-  }, [fetchTaskEnrollments]);
+    if (
+      activeWorkspaceTab === 'tasks' &&
+      !taskEnrollmentsRequestedRef.current
+    ) {
+      void fetchTaskEnrollments();
+    }
+  }, [activeWorkspaceTab, fetchTaskEnrollments]);
 
   const handleDeleteDocument = async (documentId: string) => {
     try {
@@ -541,37 +576,16 @@ export default function DocumentsPage() {
   const validTaskEnrollments = taskEnrollments.filter(
     (task) => !!task.documentId
   );
-  const taskDocumentIds = new Set(
-    validTaskEnrollments.map((task) => task.documentId)
-  );
-  const normalizedSearchQuery = searchQuery.trim().toLowerCase();
-  const hasSearchQuery = normalizedSearchQuery.length > 0;
+  const normalizedTaskSearchQuery = taskSearchQuery.trim().toLowerCase();
+  const hasDocumentSearchQuery = documentSearchQuery.trim().length > 0;
+  const hasTaskSearchQuery = normalizedTaskSearchQuery.length > 0;
   const matchesSearchQuery = (...values: Array<string | null | undefined>) => {
-    if (!hasSearchQuery) return true;
+    if (!hasTaskSearchQuery) return true;
     return values.some((value) =>
-      (value || '').toLowerCase().includes(normalizedSearchQuery)
+      (value || '').toLowerCase().includes(normalizedTaskSearchQuery)
     );
   };
-  const allPersonalDocuments = (documents || [])
-    .filter((document) => !taskDocumentIds.has(document.id))
-    .sort((a, b) => {
-      if (sortBy === 'title') {
-        return (a.title || '').localeCompare(b.title || '');
-      }
-      if (sortBy === 'characterCount') {
-        return (
-          getDocumentDisplayCharacterCount(b) -
-          getDocumentDisplayCharacterCount(a)
-        );
-      }
-      return (
-        new Date(b.updatedAt || b.createdAt).getTime() -
-        new Date(a.updatedAt || a.createdAt).getTime()
-      );
-    });
-  const personalDocuments = allPersonalDocuments.filter((document) =>
-    matchesSearchQuery(document.title, document.description, document.plainText)
-  );
+  const personalDocuments = documents || [];
   const filteredTaskEnrollments = validTaskEnrollments.filter((task) =>
     matchesSearchQuery(
       getDisplayTaskName(task),
@@ -581,7 +595,7 @@ export default function DocumentsPage() {
   );
   const hasStartedWritingTimer = [
     ...validTaskEnrollments,
-    ...allPersonalDocuments,
+    ...personalDocuments,
   ].some(
     (source) =>
       getWritingTimeLimitSeconds(source) !== null &&
@@ -600,7 +614,7 @@ export default function DocumentsPage() {
     return () => window.clearInterval(intervalId);
   }, [hasStartedWritingTimer]);
 
-  if (isLoading || isLoadingTaskEnrollments) {
+  if (isLoading) {
     return (
       <main className={containerClass}>
         <div className="mb-8 space-y-3">
@@ -628,12 +642,12 @@ export default function DocumentsPage() {
     );
   }
 
-  if (error || taskEnrollmentsError) {
+  if (error) {
     return (
       <main className={containerClass}>
         <div className="flex min-h-[400px] items-center justify-center">
           <div className="text-center">
-            <p className="text-destructive">{error || taskEnrollmentsError}</p>
+            <p className="text-destructive">{error}</p>
             <Button onClick={() => window.location.reload()} className="mt-4">
               Retry
             </Button>
@@ -719,7 +733,7 @@ export default function DocumentsPage() {
                 </div>
               </section>
 
-              {allPersonalDocuments.length > 0 || hasSearchQuery ? (
+              {personalDocuments.length > 0 || hasDocumentSearchQuery ? (
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="relative w-full sm:max-w-sm">
                     <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -727,8 +741,10 @@ export default function DocumentsPage() {
                       type="search"
                       placeholder="Search documents..."
                       className="pl-10"
-                      value={searchQuery}
-                      onChange={(event) => setSearchQuery(event.target.value)}
+                      value={documentSearchQuery}
+                      onChange={(event) =>
+                        setDocumentSearchQuery(event.target.value)
+                      }
                     />
                   </div>
                   <div className="flex items-center justify-end gap-2">
@@ -792,20 +808,20 @@ export default function DocumentsPage() {
                 <div className="humanly-surface flex min-h-[360px] flex-col items-center justify-center px-6 text-center">
                   <FileText className="h-10 w-10 text-accent" />
                   <h3 className="mt-4 text-lg font-medium">
-                    {hasSearchQuery
+                    {hasDocumentSearchQuery
                       ? 'No documents found'
                       : 'No personal documents yet'}
                   </h3>
                   <p className="mt-2 max-w-sm text-center text-sm text-muted-foreground">
-                    {hasSearchQuery
+                    {hasDocumentSearchQuery
                       ? 'No personal writing documents match your search.'
                       : 'Start a personal writing document when you want authorship tracking and certificate generation.'}
                   </p>
-                  {hasSearchQuery ? (
+                  {hasDocumentSearchQuery ? (
                     <Button
                       variant="outline"
                       className="mt-4"
-                      onClick={() => setSearchQuery('')}
+                      onClick={() => setDocumentSearchQuery('')}
                     >
                       Clear Search
                     </Button>
@@ -823,7 +839,7 @@ export default function DocumentsPage() {
                 <>
                   {documentViewMode === 'cards' ? (
                     <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                      {personalDocuments.map((document: Document) => (
+                      {personalDocuments.map((document: DocumentListItem) => (
                         <DocumentCard
                           key={document.id}
                           document={document}
@@ -845,7 +861,7 @@ export default function DocumentsPage() {
                         <span />
                       </div>
                       <div>
-                        {personalDocuments.map((document: Document) => (
+                        {personalDocuments.map((document: DocumentListItem) => (
                           <DocumentCard
                             key={document.id}
                             document={document}
@@ -862,6 +878,19 @@ export default function DocumentsPage() {
                   )}
                 </>
               )}
+
+              {hasMore ? (
+                <div className="flex justify-center pt-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={isLoadingMore}
+                    onClick={() => void loadMoreDocuments()}
+                  >
+                    {isLoadingMore ? 'Loading...' : 'Load More'}
+                  </Button>
+                </div>
+              ) : null}
             </TabsContent>
 
             <TabsContent value="tasks" className="mt-0 space-y-6">
@@ -924,37 +953,69 @@ export default function DocumentsPage() {
                 </Dialog>
               </section>
 
-              {validTaskEnrollments.length > 0 || hasSearchQuery ? (
+              {!isLoadingTaskEnrollments &&
+              !taskEnrollmentsError &&
+              (validTaskEnrollments.length > 0 || hasTaskSearchQuery) ? (
                 <div className="relative w-full sm:max-w-sm">
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
                     type="search"
                     placeholder="Search assigned tasks..."
                     className="pl-10"
-                    value={searchQuery}
-                    onChange={(event) => setSearchQuery(event.target.value)}
+                    value={taskSearchQuery}
+                    onChange={(event) => setTaskSearchQuery(event.target.value)}
                   />
                 </div>
               ) : null}
 
-              {filteredTaskEnrollments.length === 0 ? (
+              {isLoadingTaskEnrollments ? (
+                <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+                  {[1, 2, 3].map((item) => (
+                    <Card key={item} className="min-h-[390px]">
+                      <CardHeader className="space-y-3">
+                        <Skeleton className="h-6 w-3/4" />
+                        <Skeleton className="h-4 w-full" />
+                        <Skeleton className="h-4 w-2/3" />
+                      </CardHeader>
+                    </Card>
+                  ))}
+                </div>
+              ) : taskEnrollmentsError ? (
+                <div className="humanly-surface flex min-h-[360px] flex-col items-center justify-center px-6 text-center">
+                  <AlertCircle className="h-10 w-10 text-destructive" />
+                  <h3 className="mt-4 text-lg font-medium">
+                    Assigned tasks could not be loaded
+                  </h3>
+                  <p className="mt-2 max-w-sm text-sm text-muted-foreground">
+                    {taskEnrollmentsError}
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="mt-4"
+                    onClick={() => void fetchTaskEnrollments()}
+                  >
+                    Retry
+                  </Button>
+                </div>
+              ) : filteredTaskEnrollments.length === 0 ? (
                 <div className="humanly-surface flex min-h-[360px] flex-col items-center justify-center px-6 text-center">
                   <BookOpen className="h-10 w-10 text-accent" />
                   <h3 className="mt-4 text-lg font-medium">
-                    {hasSearchQuery
+                    {hasTaskSearchQuery
                       ? 'No assigned tasks found'
                       : 'No assigned tasks yet'}
                   </h3>
                   <p className="mt-2 max-w-sm text-center text-sm text-muted-foreground">
-                    {hasSearchQuery
+                    {hasTaskSearchQuery
                       ? 'No assigned tasks match your search.'
                       : 'Use an invite code when an instructor or organization asks you to complete a Humanly task.'}
                   </p>
-                  {hasSearchQuery ? (
+                  {hasTaskSearchQuery ? (
                     <Button
                       variant="outline"
                       className="mt-4"
-                      onClick={() => setSearchQuery('')}
+                      onClick={() => setTaskSearchQuery('')}
                     >
                       Clear Search
                     </Button>

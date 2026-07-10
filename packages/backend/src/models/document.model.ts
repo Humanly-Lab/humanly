@@ -1,6 +1,7 @@
 import { query, queryOne } from '../config/database';
 import {
   Document,
+  DocumentListItem,
   DocumentInsertData,
   DocumentUpdateData,
   DocumentFilters,
@@ -208,7 +209,7 @@ export class DocumentModel {
   static async findByUserId(
     userId: string,
     filters: DocumentFilters = {}
-  ): Promise<PaginatedResult<Document>> {
+  ): Promise<PaginatedResult<DocumentListItem>> {
     const {
       status,
       search,
@@ -218,22 +219,21 @@ export class DocumentModel {
       sortOrder = 'desc',
     } = filters;
 
-    let whereClauses = [
+    const whereClauses = [
       'user_id = $1',
-	      `NOT EXISTS (
-	        SELECT 1
-	        FROM task_enrollments te
-	        WHERE te.submission_document_id = documents.id
-	          AND te.user_id = documents.user_id
-	          AND te.dashboard_hidden_at IS NOT NULL
-	      )`,
-	      `NOT EXISTS (
-	        SELECT 1
-	        FROM task_attempts ta
-	        WHERE ta.document_id = documents.id
-	          AND ta.user_id = documents.user_id
-	      )`,
-	    ];
+      `NOT EXISTS (
+        SELECT 1
+        FROM task_enrollments te
+        WHERE te.submission_document_id = documents.id
+          AND te.user_id = documents.user_id
+      )`,
+      `NOT EXISTS (
+        SELECT 1
+        FROM task_attempts ta
+        WHERE ta.document_id = documents.id
+          AND ta.user_id = documents.user_id
+      )`,
+    ];
     const params: any[] = [userId];
     let paramIndex = 2;
 
@@ -247,10 +247,11 @@ export class DocumentModel {
     // Add search filter (searches title and plain_text)
     if (search) {
       whereClauses.push(`(
-        title ILIKE $${paramIndex} OR
+        title ILIKE '%' || $${paramIndex} || '%' OR
+        description ILIKE '%' || $${paramIndex} || '%' OR
         to_tsvector('english', plain_text) @@ plainto_tsquery('english', $${paramIndex})
       )`);
-      params.push(`%${search}%`);
+      params.push(search);
       paramIndex++;
     }
 
@@ -261,6 +262,7 @@ export class DocumentModel {
       createdAt: 'created_at',
       updatedAt: 'updated_at',
       title: 'title',
+      characterCount: 'character_count',
     };
     const sortColumn = sortColumnMap[sortBy] || 'updated_at';
     const sortDirection = sortOrder.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
@@ -281,8 +283,7 @@ export class DocumentModel {
         user_id as "userId",
         title,
         description,
-        content,
-        plain_text as "plainText",
+        LEFT(plain_text, 480) as "previewText",
         status,
         version,
         word_count as "wordCount",
@@ -299,7 +300,11 @@ export class DocumentModel {
       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
     `;
 
-    const documents = await query<Document>(sql, [...params, limit, offset]);
+    const documents = await query<DocumentListItem>(sql, [
+      ...params,
+      limit,
+      offset,
+    ]);
 
     return {
       data: documents,

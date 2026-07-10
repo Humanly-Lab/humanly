@@ -137,7 +137,12 @@ export async function listDocuments(req: Request, res: Response): Promise<void> 
   const offset = parseInt(req.query.offset as string) || 0;
   const status = req.query.status as 'draft' | 'published' | 'archived' | undefined;
   const search = req.query.search as string | undefined;
-  const sortBy = (req.query.sortBy as 'createdAt' | 'updatedAt' | 'title') || 'updatedAt';
+  const sortBy =
+    (req.query.sortBy as
+      | 'createdAt'
+      | 'updatedAt'
+      | 'title'
+      | 'characterCount') || 'updatedAt';
   const sortOrder = (req.query.sortOrder as 'asc' | 'desc') || 'desc';
 
   const result = await DocumentService.listDocuments(userId, {

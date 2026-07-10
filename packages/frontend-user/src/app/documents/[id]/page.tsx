@@ -25,18 +25,16 @@ import {
   type WorkspaceExitMarker,
 } from '@humanly/editor';
 import { useDocument } from '@/hooks/use-document';
-import { useCertificates } from '@/hooks/use-certificates';
+import { generateCertificateForDocument } from '@/hooks/use-certificates';
 import { useAuthStore } from '@/stores/auth-store';
 import { useToast } from '@/components/ui/use-toast';
 import { downloadBlob } from '@/lib/download';
 import { TaskRulesDialog } from '@/components/documents/task-rules-dialog';
+import { AIAssistantButton } from '@/components/ai/ai-assistant-button';
 import {
-  AIAssistantButton,
-  AIAssistantPanel,
   AISelectionMenu,
   type ActionType,
-} from '@/components/ai';
-import { useAI } from '@/hooks/use-ai';
+} from '@/components/ai/ai-selection-menu';
 import { useAIStore } from '@/stores/ai-store';
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import dynamic from 'next/dynamic';
@@ -87,6 +85,22 @@ import {
   ResizablePanel,
   ResizableHandle,
 } from '@/components/ui/resizable';
+
+const AIAssistantPanel = dynamic(
+  () =>
+    import('@/components/ai/ai-assistant-panel').then(
+      (module) => module.AIAssistantPanel
+    ),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+        Loading AI Assistant...
+      </div>
+    ),
+  }
+);
 
 // Dynamically import PDFViewer with SSR disabled because PDF.js is browser-only.
 const PDFViewer = dynamic(() => import('@/components/pdf/PDFViewer'), {
@@ -325,10 +339,6 @@ export default function DocumentEditorPage() {
     trackEvents,
     refetch: refetchWorkspace,
   } = useDocument(documentId);
-  const { generateCertificate } = useCertificates(undefined, {
-    skip: isDemoDocument,
-  });
-
   const [title, setTitle] = useState('');
   const [isTitleEditing, setIsTitleEditing] = useState(false);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('saved');
@@ -381,12 +391,16 @@ export default function DocumentEditorPage() {
   const checkedWritingRulesDismissalKeyRef = useRef<string | null>(null);
 
   // AI Assistant
-  const {
-    isPanelOpen: isAIPanelOpen,
-    openPanel: openAIPanel,
-    togglePanel: toggleAIPanel,
-    closePanel: closeAIPanel,
-  } = useAI(documentId);
+  const isAIPanelOpen = useAIStore((state) => state.isPanelOpen);
+  const openAIPanel = useAIStore((state) => state.openPanel);
+  const closeAIPanel = useAIStore((state) => state.closePanel);
+  const toggleAIPanel = useCallback(() => {
+    if (isAIPanelOpen) {
+      closeAIPanel();
+    } else {
+      openAIPanel();
+    }
+  }, [closeAIPanel, isAIPanelOpen, openAIPanel]);
 
   // Store document metrics for the editor UI. AI full-document retrieval happens server-side.
   const [characterCount, setCharacterCount] = useState<number>(0);
@@ -733,12 +747,6 @@ export default function DocumentEditorPage() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [aiChatEnabled, toggleAIPanel]);
-
-  useEffect(() => {
-    if (aiChatEnabled) {
-      openAIPanel();
-    }
-  }, [aiChatEnabled, documentId, openAIPanel]);
 
   useEffect(() => {
     if (!aiChatEnabled && isAIPanelOpen) {
@@ -1427,18 +1435,13 @@ export default function DocumentEditorPage() {
         return;
       }
 
-      const certificate = await generateCertificate(documentId, {
+      const certificate = await generateCertificateForDocument(documentId, {
         certificateType: 'full_authorship',
         includeFullText: true,
         includeEditHistory: true,
       });
-      const publicDocumentAccessToken =
-        TokenManager.getPublicDocumentAccessToken(documentId);
-      if (certificate?.id && publicDocumentAccessToken) {
-        TokenManager.setPublicCertificateAccessToken(
-          certificate.id,
-          publicDocumentAccessToken
-        );
+      if (!certificate?.id) {
+        throw new Error('Certificate generation returned no certificate');
       }
 
       toast({
@@ -1485,14 +1488,6 @@ export default function DocumentEditorPage() {
           getPublicDocumentAuthConfig(documentId)
         );
         const certificate = response.data.data?.certificate;
-        const publicDocumentAccessToken =
-          TokenManager.getPublicDocumentAccessToken(documentId);
-        if (certificate?.id && publicDocumentAccessToken) {
-          TokenManager.setPublicCertificateAccessToken(
-            certificate.id,
-            publicDocumentAccessToken
-          );
-        }
         toast({
           title: options.automatic ? 'Auto-submitted' : 'Submitted',
           description: options.automatic

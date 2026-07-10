@@ -265,6 +265,7 @@ const initialState = {
 // Track whether socket listeners have been set up (singleton pattern to prevent duplicates)
 let listenersSetup = false;
 const ignoredClientRequestIds = new Set<string>();
+const sessionInitializationRequests = new Map<string, Promise<void>>();
 
 function createClientRequestId(prefix: string): string {
   return typeof crypto !== 'undefined' && 'randomUUID' in crypto
@@ -667,81 +668,113 @@ export const useAIStore = create<AIState>()(
 
       // Session actions
       initSession: async (documentId) => {
-        set((state) => ({
-          ...(state.currentSession?.documentId && state.currentSession.documentId !== documentId
-            ? clearConversationState()
-            : {}),
-          isLoading: true,
-          error: null,
-        }));
+        const existingRequest = sessionInitializationRequests.get(documentId);
+        if (existingRequest) {
+          await existingRequest;
+          return;
+        }
 
-        try {
-          await ensureDocumentScopedAuthReady(documentId);
-
-          // Guest shared-link documents must join the AI room with the
-          // document-scoped token before any first-load chat or log action.
-          const socket = initializeDocumentSocket(documentId);
-
-          // Ensure socket listeners are registered now that socket exists
-          // (setupSocketListeners may have been called before socket was created)
-          get().setupSocketListeners();
+        const initializationRequest = (async () => {
+          set((state) => ({
+            ...(state.currentSession?.documentId &&
+            state.currentSession.documentId !== documentId
+              ? clearConversationState()
+              : {}),
+            isLoading: true,
+            error: null,
+          }));
 
           try {
-            await waitForSocketConnection(socket);
-            emitEvent('ai:join-session', { documentId });
-          } catch (socketError) {
-            console.warn('Failed to join AI socket session:', socketError);
-          }
+            await ensureDocumentScopedAuthReady(documentId);
 
-          // Also try to load existing sessions
-          const response = await api.get<{
-            success: boolean;
-            data: AIChatSession[];
-          }>(`/ai/sessions/${documentId}`, getPublicDocumentAuthConfig(documentId));
+            // Guest shared-link documents must join the AI room with the
+            // document-scoped token before any first-load chat or log action.
+            const socket = initializeDocumentSocket(documentId);
 
-          const sessions = response.data;
-          const activeSession = sessions.find((s) => s.status === 'active');
+            // Ensure socket listeners are registered now that socket exists
+            // (setupSocketListeners may have been called before socket was created)
+            get().setupSocketListeners();
 
-          if (activeSession) {
-            // Load messages for active session
-            const sessionResponse = await api.get<{
+            try {
+              await waitForSocketConnection(socket);
+              emitEvent('ai:join-session', { documentId });
+            } catch (socketError) {
+              console.warn('Failed to join AI socket session:', socketError);
+            }
+
+            if (get().currentSession?.documentId === documentId) {
+              set({ isLoading: false, error: null });
+              return;
+            }
+
+            // Also try to load existing sessions
+            const response = await api.get<{
               success: boolean;
-              data: AIChatSession;
-            }>(`/ai/sessions/detail/${activeSession.id}`, getPublicDocumentAuthConfig(documentId));
+              data: AIChatSession[];
+            }>(
+              `/ai/sessions/${documentId}`,
+              getPublicDocumentAuthConfig(documentId)
+            );
 
-            const loadedMessages = sessionResponse.data.messages || [];
+            const sessions = response.data;
+            const activeSession = sessions.find((s) => s.status === 'active');
+
+            if (activeSession) {
+              // Load messages for active session
+              const sessionResponse = await api.get<{
+                success: boolean;
+                data: AIChatSession;
+              }>(
+                `/ai/sessions/detail/${activeSession.id}`,
+                getPublicDocumentAuthConfig(documentId)
+              );
+
+              const loadedMessages = sessionResponse.data.messages || [];
+              set({
+                currentSession: sessionResponse.data,
+                sessions,
+                messages: loadedMessages,
+                // Rehydrate the tool-call timeline from each assistant
+                // message's persisted metadata so reopening the panel shows
+                // the agent trail, not just the final answer (#94).
+                toolCallTimelines: rehydrateToolCallTimelines(loadedMessages),
+                thinkingByMessageId: {},
+                streamingMessageId: null,
+                activeStreamSessionId: null,
+                activeStreamClientRequestId: null,
+                activeStreamDocumentId: null,
+                isStreaming: false,
+                streamingContent: '',
+                activeSuggestions: [],
+                pendingNewSession: false,
+                isLoading: false,
+              });
+            } else {
+              set({
+                ...clearConversationState(),
+                sessions,
+                pendingNewSession: false,
+                isLoading: false,
+              });
+            }
+          } catch (error: any) {
             set({
-              currentSession: sessionResponse.data,
-              sessions,
-              messages: loadedMessages,
-              // Rehydrate the tool-call timeline from each assistant
-              // message's persisted metadata so reopening the panel shows
-              // the agent trail, not just the final answer (#94).
-              toolCallTimelines: rehydrateToolCallTimelines(loadedMessages),
-              thinkingByMessageId: {},
-              streamingMessageId: null,
-              activeStreamSessionId: null,
-              activeStreamClientRequestId: null,
-              activeStreamDocumentId: null,
-              isStreaming: false,
-              streamingContent: '',
-              activeSuggestions: [],
-              pendingNewSession: false,
               isLoading: false,
-            });
-          } else {
-            set({
-              ...clearConversationState(),
-              sessions,
-              pendingNewSession: false,
-              isLoading: false,
+              error: error.message || 'Failed to initialize session',
             });
           }
-        } catch (error: any) {
-          set({
-            isLoading: false,
-            error: error.message || 'Failed to initialize session',
-          });
+        })();
+
+        sessionInitializationRequests.set(documentId, initializationRequest);
+        try {
+          await initializationRequest;
+        } finally {
+          if (
+            sessionInitializationRequests.get(documentId) ===
+            initializationRequest
+          ) {
+            sessionInitializationRequests.delete(documentId);
+          }
         }
       },
 

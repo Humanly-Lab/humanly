@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import {
   getDocumentDisplayCharacterCount,
-  type Document,
+  type DocumentListItem,
 } from '@humanly/shared';
 
 interface WritingTimerCardState {
@@ -29,7 +29,7 @@ interface WritingTimerCardState {
 }
 
 interface DocumentCardProps {
-  document: Document & { displayTitle?: string };
+  document: DocumentListItem & { displayTitle?: string };
   timerState?: WritingTimerCardState | null;
   onDelete: (id: string) => Promise<void>;
   variant?: 'card' | 'list';
@@ -67,7 +67,7 @@ export function DocumentCard({
   };
 
   const characterCount = getDocumentDisplayCharacterCount(document);
-  const previewText = document.plainText?.trim();
+  const previewText = document.previewText?.trim();
   const displayTitle =
     document.displayTitle || document.title || 'Untitled Document';
   const documentHref = `/documents/${document.id}`;
