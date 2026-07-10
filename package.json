@@ -28,6 +28,7 @@
     "type-check": "pnpm build:shared && pnpm build:editor && pnpm --filter @humanly/backend lint && pnpm --filter @humanly/frontend type-check && pnpm --filter @humanly/frontend-user type-check",
     "test:backend": "pnpm --filter @humanly/backend test:runnable",
     "test:frontend-user": "pnpm --filter @humanly/frontend-user test:runnable",
+    "test:e2e:workspace": "pnpm build:shared && pnpm build:editor && playwright test e2e/document-workspace-scroll.spec.ts",
     "test:create-humanly": "pnpm --filter create-humanly test",
     "test:runnable": "pnpm build:shared && pnpm test:backend && pnpm test:frontend-user && pnpm test:create-humanly",
     "test:audit": "node scripts/ci/test-audit.mjs",
@@ -38,6 +39,7 @@
     "docker:logs": "docker compose logs -f"
   },
   "devDependencies": {
+    "@playwright/test": "1.61.1",
     "@types/node": "^20.10.0",
     "eslint": "^8.55.0",
     "prettier": "^3.1.0",

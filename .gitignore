@@ -8,6 +8,7 @@ test-results/
 dist/
 build/
 .next/
+.next-e2e/
 out/
 *.tsbuildinfo
 
@@ -125,6 +126,7 @@ scripts/jest/
 **/__mocks__/
 **/*.test.*
 **/*.spec.*
+!/e2e/**/*.spec.ts
 !packages/backend/src/services/certificate-detector-seal.service.test.ts
 !packages/backend/src/services/writing-detector-config.test.ts
 **/jest.config.js

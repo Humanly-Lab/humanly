@@ -130,6 +130,37 @@ jobs:
       - name: Audit discovered tests
         run: pnpm test:audit
 
+  workspace-scroll-regression:
+    name: Workspace scroll regression
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 9.0.0
+          run_install: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20.19.0
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Chromium
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run workspace scroll regression
+        run: pnpm test:e2e:workspace
+
   build:
     name: Build all packages
     runs-on: ubuntu-24.04
