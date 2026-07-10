@@ -20,18 +20,12 @@ export default function HomePage() {
           <p className="mx-auto mt-6 max-w-2xl text-base leading-7 text-muted-foreground sm:text-lg">
             Create invite-code tasks, upload instructions, configure model access, and monitor student writing activity from one publisher workspace.
           </p>
-          <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
+          <div className="mt-8 flex justify-center">
             <Link
               href="/login"
               className="inline-flex items-center justify-center rounded-md bg-primary px-6 py-3 text-sm font-medium text-primary-foreground transition-transform hover:-translate-y-0.5"
             >
               Publisher Login
-            </Link>
-            <Link
-              href="/tasks/new"
-              className="inline-flex items-center justify-center rounded-md border border-border bg-transparent px-6 py-3 text-sm font-medium text-foreground transition-colors hover:bg-white/60"
-            >
-              Create Task
             </Link>
           </div>
         </div>
