@@ -76,7 +76,6 @@ import {
   normalizeResourceAccessPolicy,
   serializeEnvironmentConfig,
   type AIChatCopyEventMetadata,
-  type AppFile,
   type EnvironmentConfigFileFormat,
   type WritingAiProviderConfig,
   type WritingEnvironmentConfig,
@@ -98,25 +97,6 @@ const PDFViewer = dynamic(() => import('@/components/pdf/PDFViewer'), {
     </div>
   ),
 });
-
-interface TaskEnrollment {
-  id: string;
-  taskId?: string;
-  enrollmentId?: string;
-  name: string;
-  inviteCode: string;
-  documentId: string | null;
-  lifecycleStatus?: 'draft' | 'active' | 'paused' | 'ended';
-  joinedAt: string;
-  description?: string;
-  startDate?: string;
-  endDate?: string;
-  environmentConfig?: WritingEnvironmentConfig | null;
-  instructionFile?: TaskInstructionFile | null;
-  instructionFiles?: TaskInstructionFile[];
-}
-
-type TaskInstructionFile = AppFile;
 
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL ||
@@ -183,6 +163,11 @@ const getTimestampMs = (value?: string | Date | null): number | null => {
   if (!value) return null;
   const timestamp = new Date(value).getTime();
   return Number.isFinite(timestamp) ? timestamp : null;
+};
+
+const getDateString = (value?: string | Date | null): string | undefined => {
+  if (!value) return undefined;
+  return value instanceof Date ? value.toISOString() : value;
 };
 
 const getAiProviderConfigForBaseUrl = (
@@ -328,12 +313,17 @@ export default function DocumentEditorPage() {
   const {
     document,
     linkedFile,
+    taskEnrollment,
+    taskInstructionFile: hydratedTaskInstructionFile,
+    taskInstructionFiles: hydratedTaskInstructionFiles,
+    workspacePdfPanel,
     isLoading,
     error,
     isSaving,
     updateDocument,
     startWritingSession,
     trackEvents,
+    refetch: refetchWorkspace,
   } = useDocument(documentId);
   const { generateCertificate } = useCertificates(undefined, {
     skip: isDemoDocument,
@@ -348,23 +338,15 @@ export default function DocumentEditorPage() {
   const [taskRulesDialogOpen, setTaskRulesDialogOpen] = useState(false);
   const [writingRulesAcknowledged, setWritingRulesAcknowledged] =
     useState(false);
-  const [taskInstructionFile, setTaskInstructionFile] =
-    useState<TaskInstructionFile | null>(null);
-  const [taskInstructionFiles, setTaskInstructionFiles] = useState<
-    TaskInstructionFile[]
-  >([]);
-  const [isTaskInstructionFilesLoading, setIsTaskInstructionFilesLoading] =
-    useState(false);
+  const taskInstructionFiles = hydratedTaskInstructionFiles;
+  const taskInstructionFile =
+    hydratedTaskInstructionFile || taskInstructionFiles[0] || null;
   const [selectedInstructionFileId, setSelectedInstructionFileId] = useState<
     string | null
   >(null);
   const [submissionSessionId, setSubmissionSessionId] = useState<string | null>(
     null
   );
-  const [taskEnrollment, setTaskEnrollment] = useState<TaskEnrollment | null>(
-    null
-  );
-  const [isTaskEnrollmentLoading, setIsTaskEnrollmentLoading] = useState(true);
   const [taskAccessError, setTaskAccessError] = useState<string | null>(null);
   const [editorInsertAtCursor, setEditorInsertAtCursor] = useState<
     EditorAIBridgeAPI['insertAtCursor'] | null
@@ -411,6 +393,7 @@ export default function DocumentEditorPage() {
   const [timerStartedAtMs, setTimerStartedAtMs] = useState<number | null>(null);
   const [timerNowMs, setTimerNowMs] = useState(() => Date.now());
   const isTaskDocument = Boolean(taskEnrollment);
+  const taskEnrollmentId = taskEnrollment?.id;
   const isGuestUser = isGuestUserEmail(user?.email);
   const hasPublicDocumentAccessToken = Boolean(
     TokenManager.getPublicDocumentAccessToken(documentId)
@@ -481,7 +464,7 @@ export default function DocumentEditorPage() {
     ? Math.max(1, Math.floor(currentEnvironmentConfig.time.timeLimitSeconds))
     : null;
   const hasLoadedDocument = Boolean(document?.id);
-  const writingRulesAvailable = hasLoadedDocument && !isTaskEnrollmentLoading;
+  const writingRulesAvailable = hasLoadedDocument && !isLoading;
   const writingRulesDismissalKey = taskEnrollment
     ? getTaskRulesDismissalKey(taskEnrollment.id, documentId)
     : writingRulesAvailable
@@ -608,7 +591,7 @@ export default function DocumentEditorPage() {
   useEffect(() => {
     if (
       !hasLoadedDocument ||
-      isTaskEnrollmentLoading ||
+      isLoading ||
       !writingRulesDismissalKey
     ) {
       setWritingRulesAcknowledged(false);
@@ -633,7 +616,7 @@ export default function DocumentEditorPage() {
     if (!dismissed) {
       setTaskRulesDialogOpen(true);
     }
-  }, [hasLoadedDocument, isTaskEnrollmentLoading, writingRulesDismissalKey]);
+  }, [hasLoadedDocument, isLoading, writingRulesDismissalKey]);
 
   const handleTaskRulesDialogOpenChange = useCallback(
     (open: boolean) => {
@@ -764,161 +747,51 @@ export default function DocumentEditorPage() {
   }, [aiChatEnabled, closeAIPanel, isAIPanelOpen]);
 
   useEffect(() => {
-    let cancelled = false;
-    let refreshInterval: number | null = null;
-
     if (isDemoDocument) {
-      setTaskEnrollment(null);
       setTaskAccessError(null);
-      setIsTaskEnrollmentLoading(false);
       taskDocumentKnownRef.current = false;
+      return;
+    }
+
+    if (taskEnrollmentId) {
+      taskDocumentKnownRef.current = true;
+      setTaskAccessError(null);
+    } else if (!isLoading && taskDocumentKnownRef.current) {
+      setTaskAccessError('Task link not found or inactive');
+    }
+  }, [isDemoDocument, isLoading, taskEnrollmentId]);
+
+  useEffect(() => {
+    if (
+      isDemoDocument ||
+      (!taskEnrollmentId && !taskDocumentKnownRef.current)
+    ) {
       return undefined;
     }
 
-    const fetchTaskEnrollment = async (showLoading = false) => {
-      try {
-        if (showLoading) {
-          setIsTaskEnrollmentLoading(true);
-        }
-        await waitForDocumentScopedAccessTokenReady(documentId);
-
-        const response = await apiClient.get(
-          '/tasks/my-enrollments',
-          getPublicDocumentAuthConfig(documentId)
-        );
-        if (cancelled) return;
-
-        const enrollments = response.data.data?.enrollments || [];
-        const enrollment =
-          enrollments.find(
-            (task: TaskEnrollment) => task.documentId === documentId
-          ) || null;
-        if (enrollment) {
-          taskDocumentKnownRef.current = true;
-          setTaskAccessError(null);
-          if (refreshInterval === null) {
-            refreshInterval = window.setInterval(
-              () => fetchTaskEnrollment(false),
-              TASK_ENROLLMENT_REFRESH_INTERVAL_MS
-            );
-          }
-        } else if (taskDocumentKnownRef.current) {
-          setTaskAccessError('Task link not found or inactive');
-        }
-        setTaskEnrollment(enrollment);
-      } catch {
-        if (!cancelled) {
-          if (taskDocumentKnownRef.current) {
-            setTaskAccessError('Task link not found or inactive');
-          }
-          setTaskEnrollment(null);
-        }
-      } finally {
-        if (!cancelled && showLoading) {
-          setIsTaskEnrollmentLoading(false);
-        }
-      }
-    };
-
-    fetchTaskEnrollment(true);
+    const refreshInterval = window.setInterval(() => {
+      void refetchWorkspace({ showLoading: false });
+    }, TASK_ENROLLMENT_REFRESH_INTERVAL_MS);
 
     return () => {
-      cancelled = true;
-      if (refreshInterval !== null) {
-        window.clearInterval(refreshInterval);
-      }
+      window.clearInterval(refreshInterval);
     };
-  }, [documentId, isDemoDocument]);
+  }, [isDemoDocument, refetchWorkspace, taskEnrollmentId]);
 
   useEffect(() => {
-    let cancelled = false;
-
-    const applyInstructionFiles = (
-      files: TaskInstructionFile[],
-      preferredFile: TaskInstructionFile | null = null
-    ) => {
-      const file = preferredFile || files[0] || null;
-      setTaskInstructionFile(file);
-      setTaskInstructionFiles(files);
-      setSelectedInstructionFileId((currentId) => {
-        if (currentId && files.some((item) => item.id === currentId)) {
-          return currentId;
-        }
-        return file?.id || null;
-      });
-    };
-
-    const fetchTaskInstructionFiles = async () => {
-      const enrollment = taskEnrollment;
-      if (!enrollment) {
-        setTaskInstructionFile(null);
-        setTaskInstructionFiles([]);
-        setIsTaskInstructionFilesLoading(false);
-        setSelectedInstructionFileId(null);
-        return;
+    setSelectedInstructionFileId((currentId) => {
+      if (
+        currentId &&
+        taskInstructionFiles.some((item) => item.id === currentId)
+      ) {
+        return currentId;
       }
-
-      const hydratedFiles = Array.isArray(enrollment.instructionFiles)
-        ? enrollment.instructionFiles
-        : null;
-      if (hydratedFiles) {
-        applyInstructionFiles(
-          hydratedFiles,
-          enrollment.instructionFile || hydratedFiles[0] || null
-        );
-        setIsTaskInstructionFilesLoading(false);
-        if (enrollment.documentId === documentId) {
-          return;
-        }
-      }
-
-      try {
-        setIsTaskInstructionFilesLoading(true);
-        await waitForDocumentScopedAccessTokenReady(documentId);
-
-        if (enrollment.documentId !== documentId) {
-          await apiClient.put(
-            `/tasks/enrollments/${enrollment.id}/submission-document`,
-            { documentId },
-            getPublicDocumentAuthConfig(documentId)
-          );
-        }
-
-        if (hydratedFiles) {
-          return;
-        }
-
-        const response = await apiClient.get(
-          `/tasks/enrollments/${enrollment.id}/instruction-files`,
-          getPublicDocumentAuthConfig(documentId)
-        );
-        if (cancelled) return;
-        const files = response.data.data?.files || [];
-        const file = response.data.data?.file || files[0] || null;
-        applyInstructionFiles(files, file);
-      } catch {
-        if (!cancelled) {
-          setTaskInstructionFile(null);
-          setTaskInstructionFiles([]);
-          setSelectedInstructionFileId(null);
-        }
-      } finally {
-        if (!cancelled) {
-          setIsTaskInstructionFilesLoading(false);
-        }
-      }
-    };
-
-    fetchTaskInstructionFiles();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [documentId, taskEnrollment]);
+      return taskInstructionFile?.id || null;
+    });
+  }, [taskInstructionFile, taskInstructionFiles]);
 
   useEffect(() => {
-    const enrollment = taskEnrollment;
-    if (!enrollment) {
+    if (!taskEnrollmentId) {
       setSubmissionSessionId(null);
       submissionSessionRef.current = null;
       lastSubmissionSessionRef.current = null;
@@ -953,7 +826,7 @@ export default function DocumentEditorPage() {
         await waitForDocumentScopedAccessTokenReady(documentId);
 
         const response = await apiClient.post(
-          `/tasks/enrollments/${enrollment.id}/submission-sessions`,
+          `/tasks/enrollments/${taskEnrollmentId}/submission-sessions`,
           { documentId },
           getPublicDocumentAuthConfig(documentId)
         );
@@ -963,7 +836,7 @@ export default function DocumentEditorPage() {
           if (sessionId) {
             const token = getDocumentScopedAccessToken(documentId);
             await fetch(
-              `${API_URL}/tasks/enrollments/${enrollment.id}/submission-sessions/${sessionId}/end`,
+              `${API_URL}/tasks/enrollments/${taskEnrollmentId}/submission-sessions/${sessionId}/end`,
               {
                 method: 'PUT',
                 keepalive: true,
@@ -981,11 +854,11 @@ export default function DocumentEditorPage() {
         if (!sessionId) return;
 
         submissionSessionRef.current = {
-          taskId: enrollment.id,
+          taskId: taskEnrollmentId,
           sessionId,
         };
         lastSubmissionSessionRef.current = {
-          taskId: enrollment.id,
+          taskId: taskEnrollmentId,
           sessionId,
         };
         setSubmissionSessionId(sessionId);
@@ -1011,7 +884,7 @@ export default function DocumentEditorPage() {
       window.removeEventListener('beforeunload', endSubmissionSession);
       endSubmissionSession();
     };
-  }, [documentId, taskEnrollment]);
+  }, [documentId, taskEnrollmentId]);
 
   const handleTitleSave = async () => {
     if (!document) return;
@@ -1670,7 +1543,7 @@ export default function DocumentEditorPage() {
     timerStartedAtMs,
   ]);
 
-  if (isLoading || isTaskEnrollmentLoading) {
+  if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-center">
@@ -1727,7 +1600,7 @@ export default function DocumentEditorPage() {
       ? displayFile.storageKey || undefined
       : undefined;
   const isPdfPanelPending =
-    !displayFile && Boolean(taskEnrollment && isTaskInstructionFilesLoading);
+    !displayFile && workspacePdfPanel.expected;
   const hasPdfPanel = Boolean(displayFile) || isPdfPanelPending;
   const isResourceViewOnly =
     normalizeResourceAccessPolicy(currentEnvironmentConfig.resourceAccess) ===
@@ -2213,8 +2086,8 @@ export default function DocumentEditorPage() {
           onOpenChange={handleTaskRulesDialogOpenChange}
           config={currentEnvironmentConfig}
           taskName={taskEnrollment?.name ?? 'Personal writing'}
-          taskStartDate={taskEnrollment?.startDate}
-          taskEndDate={taskEnrollment?.endDate}
+          taskStartDate={getDateString(taskEnrollment?.startDate)}
+          taskEndDate={getDateString(taskEnrollment?.endDate)}
         />
       ) : null}
     </div>

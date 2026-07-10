@@ -12,52 +12,125 @@ import {
   startDemoWritingSession,
   updateDemoDocument,
 } from '@/lib/demo-workspace';
-import type { AppFile, Document, DocumentEvent } from '@humanly/shared';
+import type {
+  AppFile,
+  Document,
+  DocumentEvent,
+  DocumentWorkspacePayload,
+} from '@humanly/shared';
 
 interface TrackEventsOptions {
   throwOnError?: boolean;
+}
+
+interface FetchDocumentOptions {
+  showLoading?: boolean;
 }
 
 export function useDocument(documentId: string) {
   const isDemoDocument = isDemoDocumentId(documentId);
   const [document, setDocument] = useState<Document | null>(null);
   const [linkedFile, setLinkedFile] = useState<AppFile | null>(null);
+  const [linkedFiles, setLinkedFiles] = useState<AppFile[]>([]);
+  const [taskEnrollment, setTaskEnrollment] = useState<
+    DocumentWorkspacePayload['taskEnrollment']
+  >(null);
+  const [taskInstructionFile, setTaskInstructionFile] = useState<AppFile | null>(null);
+  const [taskInstructionFiles, setTaskInstructionFiles] = useState<AppFile[]>([]);
+  const [workspacePdfPanel, setWorkspacePdfPanel] = useState<
+    DocumentWorkspacePayload['pdfPanel']
+  >({ expected: false, source: null });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
-  const fetchDocument = useCallback(async () => {
+  const applyWorkspacePayload = useCallback(
+    (payload: Partial<DocumentWorkspacePayload>) => {
+      const files = Array.isArray(payload.linkedFiles)
+        ? payload.linkedFiles
+        : payload.linkedFile
+          ? [payload.linkedFile]
+          : [];
+      const instructionFiles = Array.isArray(payload.taskInstructionFiles)
+        ? payload.taskInstructionFiles
+        : payload.taskInstructionFile
+          ? [payload.taskInstructionFile]
+          : [];
+      const linkedFile = payload.linkedFile || files[0] || null;
+      const taskInstructionFile =
+        payload.taskInstructionFile || instructionFiles[0] || null;
+
+      setDocument(payload.document || null);
+      setLinkedFiles(files);
+      setLinkedFile(linkedFile);
+      setTaskEnrollment(payload.taskEnrollment || null);
+      setTaskInstructionFiles(instructionFiles);
+      setTaskInstructionFile(taskInstructionFile);
+      setWorkspacePdfPanel(
+        payload.pdfPanel || {
+          expected: Boolean(taskInstructionFile || linkedFile),
+          source: taskInstructionFile
+            ? 'task_instruction_pdf'
+            : linkedFile
+              ? 'document_source_pdf'
+              : null,
+        }
+      );
+    },
+    []
+  );
+
+  const fetchDocument = useCallback(async (options: FetchDocumentOptions = {}) => {
+    const showLoading = options.showLoading !== false;
+
     if (isDemoDocument) {
-      setIsLoading(true);
+      if (showLoading) {
+        setIsLoading(true);
+      }
       setError(null);
       const demo = getDemoDocument(documentId);
-      setDocument(demo?.document || null);
-      setLinkedFile(demo?.linkedFile || null);
+      applyWorkspacePayload({
+        document: demo?.document,
+        linkedFile: demo?.linkedFile || null,
+        linkedFiles: demo?.linkedFile ? [demo.linkedFile] : [],
+        taskEnrollment: null,
+        taskInstructionFile: null,
+        taskInstructionFiles: [],
+        pdfPanel: {
+          expected: Boolean(demo?.linkedFile),
+          source: demo?.linkedFile ? 'document_source_pdf' : null,
+        },
+      });
       setError(demo ? null : 'Demo document not found');
-      setIsLoading(false);
+      if (showLoading) {
+        setIsLoading(false);
+      }
       return;
     }
 
     try {
-      setIsLoading(true);
+      if (showLoading) {
+        setIsLoading(true);
+      }
       setError(null);
       await waitForDocumentScopedAccessTokenReady(documentId);
 
       const response = await apiClient.get(
-        `/documents/${documentId}`,
+        `/documents/${documentId}/workspace`,
         getPublicDocumentAuthConfig(documentId)
       );
-      const data = response.data.data || {};
-      const doc = data.document || null;
-      setDocument(doc);
-      setLinkedFile(data.linkedFile || data.linkedFiles?.[0] || null);
+      applyWorkspacePayload(response.data.data || {});
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch document');
+      if (showLoading) {
+        setError(err.response?.data?.message || 'Failed to fetch document');
+      }
       console.error('Error fetching document:', err);
     } finally {
-      setIsLoading(false);
+      if (showLoading) {
+        setIsLoading(false);
+      }
     }
-  }, [documentId, isDemoDocument]);
+  }, [applyWorkspacePayload, documentId, isDemoDocument]);
 
   useEffect(() => {
     if (documentId) {
@@ -167,6 +240,11 @@ export function useDocument(documentId: string) {
   return {
     document,
     linkedFile,
+    linkedFiles,
+    taskEnrollment,
+    taskInstructionFile,
+    taskInstructionFiles,
+    workspacePdfPanel,
     isLoading,
     error,
     isSaving,

@@ -163,6 +163,13 @@ export class FileService {
       throw new AppError(404, 'Document not found');
     }
 
+    return this.listFilesForAuthorizedDocument(documentId);
+  }
+
+  /**
+   * List document files after the caller has already verified document access.
+   */
+  static async listFilesForAuthorizedDocument(documentId: string): Promise<AppFile[]> {
     return this.withTextIndexStatuses(await FileModel.findByDocument(documentId));
   }
 

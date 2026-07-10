@@ -1,8 +1,14 @@
 import { Request, Response } from 'express';
 import { DocumentService } from '../services/document.service';
 import { FileService } from '../services/file.service';
+import { TaskService } from '../services/task.service';
 import { AppError } from '../middleware/error-handler';
-import { DocumentEventInsertData, EventType } from '@humanly/shared';
+import {
+  EventType,
+  normalizeResourceAccessPolicy,
+  type DocumentEventInsertData,
+  type DocumentWorkspacePayload,
+} from '@humanly/shared';
 
 /**
  * Create a new document
@@ -43,7 +49,7 @@ export async function getDocument(req: Request, res: Response): Promise<void> {
   }
 
   const document = await DocumentService.getDocument(documentId, userId);
-  const files = await FileService.listDocumentFiles(documentId, userId);
+  const files = await FileService.listFilesForAuthorizedDocument(documentId);
 
   res.json({
     success: true,
@@ -52,6 +58,71 @@ export async function getDocument(req: Request, res: Response): Promise<void> {
       linkedFile: files[0] || null,
       linkedFiles: files,
     },
+  });
+}
+
+/**
+ * Get the authoritative Writer workspace payload for one document.
+ */
+export async function getDocumentWorkspace(req: Request, res: Response): Promise<void> {
+  const userId = req.user!.userId;
+  const documentId = req.params.id;
+
+  if (!documentId) {
+    throw new AppError(400, 'Document ID is required');
+  }
+
+  const document = await DocumentService.getDocument(documentId, userId);
+  const [linkedFiles, taskEnrollment] = await Promise.all([
+    FileService.listFilesForAuthorizedDocument(documentId),
+    TaskService.getDocumentWorkspaceEnrollment(userId, documentId),
+  ]);
+
+  const linkedFile = linkedFiles[0] || null;
+  const taskInstructionFiles = taskEnrollment?.instructionFiles || [];
+  const taskInstructionFile =
+    taskEnrollment?.instructionFile || taskInstructionFiles[0] || null;
+  const environmentConfig =
+    taskEnrollment?.environmentConfig || document.environmentConfig || null;
+  const resourceAccessPolicy = normalizeResourceAccessPolicy(
+    environmentConfig?.resourceAccess
+  );
+  const pdfPanelSource = taskInstructionFile
+    ? 'task_instruction_pdf'
+    : linkedFile
+      ? 'document_source_pdf'
+      : null;
+
+  const payload: DocumentWorkspacePayload = {
+    document,
+    linkedFile,
+    linkedFiles,
+    task: taskEnrollment
+      ? {
+          id: taskEnrollment.taskId,
+          name: taskEnrollment.name,
+          description: taskEnrollment.description,
+          inviteCode: taskEnrollment.inviteCode,
+          startDate: taskEnrollment.startDate,
+          endDate: taskEnrollment.endDate,
+          environmentConfig: taskEnrollment.environmentConfig,
+          lifecycleStatus: taskEnrollment.lifecycleStatus,
+        }
+      : null,
+    taskEnrollment,
+    taskInstructionFile,
+    taskInstructionFiles,
+    environmentConfig,
+    resourceAccessPolicy,
+    pdfPanel: {
+      expected: Boolean(pdfPanelSource),
+      source: pdfPanelSource,
+    },
+  };
+
+  res.json({
+    success: true,
+    data: payload,
   });
 }
 

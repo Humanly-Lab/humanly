@@ -2,8 +2,13 @@
  * Document types for user-created documents
  */
 
-import { EventType } from './event.types';
-import { WritingEnvironmentConfig } from './environment.types';
+import type { EventType } from './event.types';
+import type {
+  ResourceAccessPolicy,
+  WritingEnvironmentConfig,
+} from './environment.types';
+import type { AppFile } from './file.types';
+import type { TaskLifecycleStatus } from './task.types';
 
 export type DocumentStatus = 'draft' | 'published' | 'archived';
 
@@ -24,6 +29,45 @@ export interface Document {
   createdAt: Date;
   updatedAt: Date;
   lastEditedAt: Date;
+}
+
+export interface DocumentWorkspaceTaskContext {
+  id: string;
+  name: string;
+  description?: string | null;
+  inviteCode: string;
+  startDate: Date | string;
+  endDate: Date | string;
+  environmentConfig?: WritingEnvironmentConfig | null;
+  lifecycleStatus?: TaskLifecycleStatus;
+}
+
+export interface DocumentWorkspaceTaskEnrollment extends DocumentWorkspaceTaskContext {
+  taskId: string;
+  enrollmentId: string;
+  documentId: string;
+  writingStartedAt?: Date | string | null;
+  joinedAt: Date | string;
+  instructionFile?: AppFile | null;
+  instructionFiles?: AppFile[];
+}
+
+export interface DocumentWorkspacePdfPanelState {
+  expected: boolean;
+  source: 'document_source_pdf' | 'task_instruction_pdf' | null;
+}
+
+export interface DocumentWorkspacePayload {
+  document: Document;
+  linkedFile: AppFile | null;
+  linkedFiles: AppFile[];
+  task: DocumentWorkspaceTaskContext | null;
+  taskEnrollment: DocumentWorkspaceTaskEnrollment | null;
+  taskInstructionFile: AppFile | null;
+  taskInstructionFiles: AppFile[];
+  environmentConfig: WritingEnvironmentConfig | null;
+  resourceAccessPolicy: ResourceAccessPolicy;
+  pdfPanel: DocumentWorkspacePdfPanelState;
 }
 
 export interface DocumentInsertData {

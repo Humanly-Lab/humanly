@@ -529,6 +529,30 @@ export class TaskService {
   }
 
   /**
+   * Resolve only the task context required to hydrate one Writer workspace.
+   */
+  static async getDocumentWorkspaceEnrollment(userId: string, documentId: string) {
+    const enrollment = await TaskModel.findWorkspaceEnrollmentByDocument(
+      userId,
+      documentId
+    );
+    if (!enrollment) {
+      return null;
+    }
+
+    const instructionFilesByTaskId = await FileService.listTaskInstructionFilesForTasks([
+      enrollment.taskId,
+    ]);
+    const instructionFiles = instructionFilesByTaskId.get(enrollment.taskId) || [];
+
+    return {
+      ...enrollment,
+      instructionFile: instructionFiles[0] || null,
+      instructionFiles,
+    };
+  }
+
+  /**
    * Join task lookup for Writer Portal invite-code enrollment.
    */
   static async joinTaskByInviteCode(

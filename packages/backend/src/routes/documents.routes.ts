@@ -1,9 +1,11 @@
 import { Router } from 'express';
 import { authenticate } from '../middleware/auth.middleware';
 import { asyncHandler } from '../middleware/error-handler';
+import { generalRateLimiter } from '../middleware/rate-limit';
 import {
   createDocument,
   getDocument,
+  getDocumentWorkspace,
   listDocuments,
   updateDocument,
   deleteDocument,
@@ -40,10 +42,16 @@ router.get('/', asyncHandler(listDocuments));
 router.post('/', asyncHandler(createDocument));
 
 /**
+ * GET /api/v1/documents/:id/workspace
+ * Hydrate the Writer workspace for a specific document.
+ */
+router.get('/:id/workspace', generalRateLimiter, asyncHandler(getDocumentWorkspace));
+
+/**
  * GET /api/v1/documents/:id
  * Get document by ID
  */
-router.get('/:id', asyncHandler(getDocument));
+router.get('/:id', generalRateLimiter, asyncHandler(getDocument));
 
 /**
  * PUT /api/v1/documents/:id

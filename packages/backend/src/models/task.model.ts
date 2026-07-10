@@ -128,6 +128,22 @@ export interface CurrentUserTaskEnrollment {
   certificateCount: number;
 }
 
+export interface DocumentTaskWorkspaceEnrollment {
+  id: string;
+  taskId: string;
+  enrollmentId: string;
+  name: string;
+  description?: string | null;
+  inviteCode: string;
+  documentId: string;
+  writingStartedAt?: Date | null;
+  joinedAt: Date;
+  startDate: Date;
+  endDate: Date;
+  environmentConfig?: WritingEnvironmentConfig | null;
+  lifecycleStatus: TaskLifecycleStatus;
+}
+
 export interface TaskAttemptRecord {
   id: string;
   taskId: string;
@@ -839,6 +855,56 @@ export class TaskModel {
     `;
 
     return queryOne<TaskAttemptRecord>(sql, [taskId, userId, documentId]);
+  }
+
+  /**
+   * Resolve the active task enrollment associated with one Writer document.
+   * This intentionally omits dashboard-only submission and certificate stats.
+   */
+  static async findWorkspaceEnrollmentByDocument(
+    userId: string,
+    documentId: string
+  ): Promise<DocumentTaskWorkspaceEnrollment | null> {
+    const sql = `
+      SELECT
+        t.id,
+        t.id as "taskId",
+        te.id as "enrollmentId",
+        t.name,
+        t.description,
+        UPPER(SUBSTRING(t.task_token FROM 1 FOR 6)) as "inviteCode",
+        $2::uuid as "documentId",
+        d.writing_started_at as "writingStartedAt",
+        te.joined_at as "joinedAt",
+        t.start_date as "startDate",
+        t.end_date as "endDate",
+        t.environment_config as "environmentConfig",
+        COALESCE(t.lifecycle_status, 'active') as "lifecycleStatus"
+      FROM task_enrollments te
+      JOIN tasks t ON t.id = te.task_id
+      JOIN documents d
+        ON d.id = $2
+       AND d.user_id = te.user_id
+      WHERE te.user_id = $1
+        AND te.dashboard_hidden_at IS NULL
+        AND t.deleted_at IS NULL
+        AND t.is_active = TRUE
+        AND COALESCE(t.lifecycle_status, 'active') = 'active'
+        AND (
+          te.submission_document_id = $2
+          OR EXISTS (
+            SELECT 1
+            FROM task_attempts ta
+            WHERE ta.task_id = te.task_id
+              AND ta.user_id = te.user_id
+              AND ta.document_id = $2
+          )
+        )
+      ORDER BY (te.submission_document_id = $2) DESC, te.joined_at DESC
+      LIMIT 1
+    `;
+
+    return queryOne<DocumentTaskWorkspaceEnrollment>(sql, [userId, documentId]);
   }
 
   /**
