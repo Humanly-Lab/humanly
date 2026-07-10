@@ -9,6 +9,7 @@ dist/
 build/
 .next/
 .next-e2e/
+.swc/
 out/
 *.tsbuildinfo
 
