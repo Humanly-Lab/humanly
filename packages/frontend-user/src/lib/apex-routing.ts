@@ -1,6 +1,16 @@
-import { productAppHref } from './app-origin';
+import { marketingHref, productAppHref } from './app-origin';
 
-const MARKETING_HOSTS = new Set(['writehumanly.net']);
+const MARKETING_HOST = 'writehumanly.net';
+const PRODUCT_APP_HOST = 'app.writehumanly.net';
+const MARKETING_PATHS = [
+  '/',
+  '/about',
+  '/blog',
+  '/docs',
+  '/privacy',
+  '/research',
+  '/terms',
+] as const;
 const PASS_THROUGH_PREFIXES = [
   '/_next',
   '/api',
@@ -8,7 +18,6 @@ const PASS_THROUGH_PREFIXES = [
   '/health',
 ];
 const PASS_THROUGH_PATHS = new Set([
-  '/',
   '/favicon.ico',
   '/icon.svg',
   '/apple-icon.png',
@@ -17,16 +26,38 @@ const PASS_THROUGH_PATHS = new Set([
   '/sitemap.xml',
 ]);
 
-function isMarketingAssetPath(pathname: string): boolean {
+function isPassThroughPath(pathname: string): boolean {
   return PASS_THROUGH_PATHS.has(pathname)
-    || PASS_THROUGH_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+    || PASS_THROUGH_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))
+    || /\/[^/]+\.[^/]+$/.test(pathname);
 }
 
-export function getApexRedirectLocation(host: string | null | undefined, pathname: string, search = ''): string | null {
+function isMarketingPath(pathname: string): boolean {
+  return MARKETING_PATHS.some((path) => (
+    path === '/'
+      ? pathname === path
+      : pathname === path || pathname.startsWith(`${path}/`)
+  ));
+}
+
+export function getCanonicalRedirectLocation(
+  host: string | null | undefined,
+  pathname: string,
+  search = ''
+): string | null {
   const normalizedHost = host?.split(':')[0].toLowerCase();
-  if (!normalizedHost || !MARKETING_HOSTS.has(normalizedHost) || isMarketingAssetPath(pathname)) {
+  if (!normalizedHost || isPassThroughPath(pathname)) {
     return null;
   }
 
-  return productAppHref(`${pathname}${search}`, { allowRelativeInNonProduction: false });
+  const targetPath = `${pathname}${search}`;
+  if (normalizedHost === MARKETING_HOST && !isMarketingPath(pathname)) {
+    return productAppHref(targetPath, { allowRelativeInNonProduction: false });
+  }
+
+  if (normalizedHost === PRODUCT_APP_HOST && isMarketingPath(pathname)) {
+    return marketingHref(targetPath, { allowRelativeInNonProduction: false });
+  }
+
+  return null;
 }

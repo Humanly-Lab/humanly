@@ -303,3 +303,7 @@ jobs:
           curl -fsS https://api.writehumanly.net/api/v1/health >/dev/null
           test "$(curl -fsSL https://writehumanly.net/install.sh | sed -n '1p')" = '#!/usr/bin/env sh'
           test "$(curl -fsSL https://app.writehumanly.net/install.sh | sed -n '1p')" = '#!/usr/bin/env sh'
+          test "$(curl -sS -o /dev/null -w '%{http_code}' https://writehumanly.net/about)" = '200'
+          test "$(curl -sS -o /dev/null -w '%{redirect_url}' https://app.writehumanly.net/)" = 'https://writehumanly.net/'
+          test "$(curl -sS -o /dev/null -w '%{redirect_url}' https://app.writehumanly.net/about)" = 'https://writehumanly.net/about'
+          test "$(curl -sS -o /dev/null -w '%{redirect_url}' https://writehumanly.net/documents)" = 'https://app.writehumanly.net/documents'

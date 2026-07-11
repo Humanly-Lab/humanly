@@ -119,8 +119,8 @@ const en = {
         'Finished text cannot show how it was produced. Humanly preserves the process so instructors, researchers, and readers can review evidence instead of guessing from the output.',
       ],
       [
-        'How we work',
-        'We combine research, engineering, and product development in one loop: test ideas in real writing workflows, measure what works, and improve the system from evidence.',
+        'How Humanly is available',
+        'Humanly is available as a managed SaaS product and an institution-ready self-hosted deployment. The current research release is open source. Future commercial offerings may include enterprise licensing, deployment support, and custom integrations.',
       ],
     ] as ReadonlyArray<readonly [string, string]>,
     teamTitle: 'Meet our Humanly team',

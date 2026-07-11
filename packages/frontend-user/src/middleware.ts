@@ -1,8 +1,8 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { getApexRedirectLocation } from '@/lib/apex-routing';
+import { getCanonicalRedirectLocation } from '@/lib/apex-routing';
 
 export function middleware(request: NextRequest) {
-  const location = getApexRedirectLocation(
+  const location = getCanonicalRedirectLocation(
     request.headers.get('host'),
     request.nextUrl.pathname,
     request.nextUrl.search
