@@ -10,7 +10,7 @@ export const BRAND = {
   name: 'Humanly',
   legalName: 'Humanly',
   taglineAdmin: 'Publisher',
-  taglineUser: 'Traceable Human-AI Writing',
+  taglineUser: 'Configurable and Traceable Human-AI Writing',
 
   // Email branding
   email: {

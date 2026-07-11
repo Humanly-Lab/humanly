@@ -159,7 +159,7 @@ export default function RegisterPage() {
     return (
       <AuthCard
         title="Registration Successful!"
-        description="A Configurable and Traceable Environment for Human-AI Collaborative Writing."
+        description="Every piece of writing has a story. Now you can prove it."
       >
         <div className="space-y-4">
           <Alert variant="success">

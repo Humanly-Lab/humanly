@@ -1,14 +1,23 @@
 import Link from 'next/link';
+import { cookies } from 'next/headers';
 import { BookOpen, Check, MessageSquare, Sparkles, Wand2 } from 'lucide-react';
 import { AuthenticatedRedirect } from '@/components/auth/authenticated-redirect';
-import { HumanlyWordmark } from '@/components/brand/humanly-wordmark';
 import { BlurFade } from '@/components/magicui/blur-fade';
 import { PipelineShowcase } from '@/components/marketing/pipeline-showcase';
+import { SiteFooter } from '@/components/marketing/site-footer';
+import { SiteNav } from '@/components/marketing/site-nav';
 import { StatementVisual } from '@/components/marketing/statement-visual';
-import { marketingHref, productAppHref } from '@/lib/app-origin';
+import { productAppHref } from '@/lib/app-origin';
+import {
+  MARKETING_LOCALE_COOKIE,
+  getMarketingDict,
+  normalizeMarketingLocale,
+  type MarketingDict,
+} from '@/lib/marketing-i18n';
 
 const fastDemoHref = productAppHref('/documents/new?demo=1');
-const githubHref = 'https://github.com/Humanly-Lab/humanly';
+
+type HomeDict = MarketingDict['home'];
 
 const logRows = [
   [
@@ -64,34 +73,16 @@ const quickActions = [
 
 
 
-const faqs = [
-  [
-    'Why is final text not enough?',
-    'A final document cannot show whether it came from human typing, AI generation, or mixed human-AI writing. Humanly records the writing process itself.',
-  ],
-  [
-    'What does Humanly record?',
-    'Humanly records in-platform writing activity, including text edits, clipboard actions, workspace status, and AI assistance, then turns them into logs and replay.',
-  ],
-  [
-    'Who controls the writing rules?',
-    'The owner configures the writing environment before drafting starts, including AI access, copy-paste rules, resources, timing, length bounds, and detectors.',
-  ],
-  [
-    'What does a certificate show?',
-    'A certificate packages authorship statistics, environment settings, activity log, replay, anomaly behavior review, and signature verification.',
-  ],
-  [
-    'How does Humanly help prevent cheating?',
-    'Humanly uses two-layer anomaly detection: statistic-based anomaly patterns and model-based human typing detection. These signals surface suspicious behavior for review, rather than making an automatic verdict.',
-  ],
-] as const;
-
 export default function HomePage() {
+  const locale = normalizeMarketingLocale(
+    cookies().get(MARKETING_LOCALE_COOKIE)?.value
+  );
+  const t = getMarketingDict(locale).home;
+
   return (
     <main className="min-h-screen overflow-hidden bg-background text-foreground">
       <AuthenticatedRedirect />
-      <NavBar />
+      <SiteNav homeAnchors locale={locale} />
 
       <section
         id="product"
@@ -102,27 +93,29 @@ export default function HomePage() {
               Text and showcase share this container, so their left edges stay aligned. */}
           <div className="max-w-[700px] lg:-ml-2">
             <h1 className="text-[19px] font-light leading-[1.3] tracking-[-0.015em] sm:text-[23px] lg:text-[26px]">
-              Humanly is your configurable and traceable
+              {t.heroTitleLine1}
               <br />
-              Human-AI collaborative writing platform
+              {t.heroTitleLine2}
             </h1>
             <p className="mt-4 max-w-[640px] text-[18px] leading-[1.6] text-muted-foreground sm:text-[20px]">
-              Every piece of writing has a{' '}
-              <span className="text-[var(--hly-brand)]">story</span>. Now you
-              can prove it.
+              {t.heroSubtitlePre}
+              <span className="text-[var(--hly-brand)]">
+                {t.heroSubtitleStory}
+              </span>
+              {t.heroSubtitlePost}
             </p>
             <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:items-center">
               <Link
                 href={productAppHref('/register')}
                 className="humanly-landing-btn justify-center sm:justify-start"
               >
-                Start writing <Arrow />
+                {t.startWriting} <Arrow />
               </Link>
               <Link
                 href={fastDemoHref}
                 className="humanly-landing-btn-ghost justify-center sm:justify-start"
               >
-                Try the live demo
+                {t.tryLiveDemo}
                 <Arrow />
               </Link>
             </div>
@@ -134,16 +127,16 @@ export default function HomePage() {
         </div>
       </section>
 
-      <StatementSection />
-      <TryItSection />
-      <FAQSection />
-      <DemoLaunchSection />
-      <Footer />
+      <StatementSection t={t} />
+      <TryItSection t={t} />
+      <FAQSection t={t} />
+      <DemoLaunchSection t={t} />
+      <SiteFooter locale={locale} />
     </main>
   );
 }
 
-function DemoLaunchSection() {
+function DemoLaunchSection({ t }: { t: HomeDict }) {
   return (
     <section
       id="demo"
@@ -151,69 +144,21 @@ function DemoLaunchSection() {
     >
       <div className="mx-auto max-w-[720px] text-center">
         <h2 className="text-[28px] font-light leading-[1.1] tracking-[-0.03em] sm:text-[36px]">
-          Humanly Demo
+          {t.demoTitle}
         </h2>
         <p className="mx-auto mt-5 max-w-[560px] text-[15px] leading-[1.7] text-muted-foreground sm:text-[17px]">
-          See Humanly turn writing into verifiable evidence.
+          {t.demoBody}
         </p>
         <div className="mt-8 flex justify-center">
           <Link
             href={fastDemoHref}
             className="humanly-landing-btn bg-[var(--hly-brand)] hover:bg-[var(--hly-brand-hover)]"
           >
-            Open Demo <Arrow />
+            {t.openDemo} <Arrow />
           </Link>
         </div>
       </div>
     </section>
-  );
-}
-
-function NavBar() {
-  return (
-    <header className="grid grid-cols-[1fr_auto] items-center bg-background px-5 py-2.5 sm:px-8 lg:grid-cols-[1fr_auto_1fr] lg:px-14 lg:py-3">
-      <Link href={marketingHref('/')} className="justify-self-start">
-        <HumanlyWordmark
-          size="md"
-          className="max-[380px]:text-xl max-[380px]:[&_img]:h-9 max-[380px]:[&_img]:w-9"
-        />
-      </Link>
-
-      <nav className="hidden items-center gap-9 text-sm font-medium text-muted-foreground lg:flex">
-        <a href="#process" className="hover:text-foreground">
-          How it works
-        </a>
-        <a href="#faq" className="hover:text-foreground">
-          FAQ
-        </a>
-        <Link href={fastDemoHref} className="hover:text-foreground">
-          Demo
-        </Link>
-        <a
-          href={githubHref}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="hover:text-foreground"
-        >
-          GitHub
-        </a>
-      </nav>
-
-      <div className="flex items-center gap-2 justify-self-end sm:gap-3">
-        <Link
-          href={productAppHref('/login')}
-          className="inline-flex h-8 items-center text-sm font-medium text-muted-foreground hover:text-foreground"
-        >
-          Log in
-        </Link>
-        <Link
-          href={productAppHref('/register')}
-          className="humanly-landing-btn h-8 px-3 py-0 text-sm"
-        >
-          Sign up
-        </Link>
-      </div>
-    </header>
   );
 }
 
@@ -496,9 +441,9 @@ function CertificateCard() {
   );
 }
 
-function StatementSection() {
+function StatementSection({ t }: { t: HomeDict }) {
   return (
-    <section className="px-5 py-[84px] sm:px-8 sm:py-[110px] lg:px-14">
+    <section id="learn-more" className="px-5 py-[84px] sm:px-8 sm:py-[110px] lg:px-14">
       <div className="mx-auto max-w-[1160px]">
         {/* Cursor-style alternation: visual fills the left column, text sits right —
             no side ever reads as empty. The workflow section below flips this. */}
@@ -511,13 +456,13 @@ function StatementSection() {
           <div className="order-1 lg:order-2">
             <BlurFade inView>
             <h2 className="text-[30px] font-light leading-[1.15] tracking-[-0.03em] sm:text-[40px]">
-              Did you write this,{' '}
-              <span className="text-[var(--hly-neutral)]">or did AI?</span>
+              {t.statementTitlePre}
+              <span className="text-[var(--hly-neutral)]">
+                {t.statementTitleMuted}
+              </span>
             </h2>
             <p className="mt-6 max-w-[520px] text-[15px] leading-[1.75] text-muted-foreground sm:text-[17px]">
-              AI detectors estimate authenticity from the finished text.
-              Humanly records the writing process directly, showing how the
-              text was composed from typing, paste, and AI assistance.
+              {t.statementBody}
             </p>
             </BlurFade>
           </div>
@@ -527,7 +472,7 @@ function StatementSection() {
   );
 }
 
-function TryItSection() {
+function TryItSection({ t }: { t: HomeDict }) {
   return (
     <section id="process" className="px-5 py-[84px] sm:px-8 sm:py-[110px] lg:px-14">
       <div className="mx-auto grid max-w-[1160px] items-center gap-10 lg:grid-cols-[0.72fr_1.28fr] lg:gap-12">
@@ -535,11 +480,10 @@ function TryItSection() {
         <div>
           <BlurFade inView>
           <h2 className="text-[28px] font-light leading-[1.1] tracking-[-0.03em] sm:text-[36px]">
-            How does Humanly work?
+            {t.tryItTitle}
           </h2>
           <p className="mt-5 max-w-[420px] text-[15px] leading-[1.7] text-muted-foreground sm:text-[16px]">
-            Configure a writing environment, draft under the policy, record
-            the activity log, and generate a signed certificate.
+            {t.tryItBody}
           </p>
           </BlurFade>
         </div>
@@ -551,17 +495,17 @@ function TryItSection() {
   );
 }
 
-function FAQSection() {
+function FAQSection({ t }: { t: HomeDict }) {
   return (
     <section id="faq" className="px-5 py-[120px] sm:px-8 lg:px-14">
       <div className="mx-auto grid max-w-[980px] gap-12 md:grid-cols-[1fr_2fr] md:gap-20">
         <div>
           <h2 className="text-[28px] font-light leading-[1.1] tracking-[-0.03em] sm:text-[36px]">
-            Common Q&amp;A
+            {t.faqTitle}
           </h2>
         </div>
         <div>
-          {faqs.map(([question, answer]) => (
+          {t.faqs.map(([question, answer]) => (
             <details
               key={question}
               className="group border-t border-[var(--hly-hairline)] py-[22px]"
@@ -582,34 +526,6 @@ function FAQSection() {
         </div>
       </div>
     </section>
-  );
-}
-
-function Footer() {
-  return (
-    <footer className="border-t border-[var(--hly-hairline)] px-5 py-9 sm:px-8 lg:px-14">
-      <div className="mx-auto flex max-w-[1168px] items-center justify-between gap-4">
-        <Link href={marketingHref('/')}>
-          <HumanlyWordmark size="sm" />
-        </Link>
-        <div className="flex shrink-0 flex-wrap justify-end gap-5 text-xs font-medium text-muted-foreground">
-          <Link href="/privacy" className="hover:text-foreground">
-            Privacy
-          </Link>
-          <Link href="/terms" className="hover:text-foreground">
-            Terms
-          </Link>
-          <a
-            href={githubHref}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hover:text-foreground"
-          >
-            GitHub
-          </a>
-        </div>
-      </div>
-    </footer>
   );
 }
 

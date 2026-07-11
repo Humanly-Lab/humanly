@@ -22,7 +22,7 @@ export default function AuthLayout({
             <HumanlyWordmark size="lg" />
           </Link>
           <p className="mx-auto mt-5 max-w-sm text-sm leading-7 text-muted-foreground">
-            A Configurable and Traceable Environment for Human-AI Collaborative Writing.
+            Every piece of writing has a story. Now you can prove it.
           </p>
         </div>
         <Suspense fallback={
