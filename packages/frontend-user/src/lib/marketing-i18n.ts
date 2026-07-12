@@ -37,7 +37,7 @@ const en = {
     resources: 'Resources',
     github: 'GitHub',
     help: 'Help',
-    about: 'About',
+    about: 'About Us',
     logIn: 'Log in',
     signUp: 'Create Account',
   },
@@ -54,7 +54,7 @@ const en = {
     docs: 'Docs',
     help: 'Help',
     blog: 'Research',
-    about: 'About',
+    about: 'About Us',
     contact: 'Contact',
     privacy: 'Privacy policy',
     terms: 'Terms of service',
@@ -103,32 +103,33 @@ const en = {
     openDemo: 'Open Demo',
   },
   about: {
-    metaTitle: 'About — Humanly',
+    metaTitle: 'About Us — Humanly',
     metaDescription:
-      'Humanly Lab is a research-led team from UT Austin, University of Toronto, and Stanford building configurable, traceable infrastructure for human-AI writing.',
-    heroTitle: 'Making human-AI writing configurable and traceable',
+      'Humanly Lab studies how human authenticity, agency, and authorship can remain visible in the age of AI agents, then turns that research into practical systems.',
+    heroTitle: 'Human authenticity in the age of AI agents',
     heroBody:
-      'Humanly is a configurable writing platform that records how a document is created, including human editing and AI assistance. It turns that process into an activity log and signed certificate.',
-    researchTitle: 'Who we are',
-    researchBody:
-      'Humanly Lab is a research-led team building practical infrastructure for writing in the age of AI. Humanly began as a research project and is becoming a product for everyone. We work across UT Austin, University of Toronto, and Stanford University.',
-    beliefs: [
+      'Humanly Lab studies how human agency, authorship, and responsibility remain visible when people work with AI. We turn that research into configurable, traceable, and verifiable systems.',
+    philosophyTitle: 'Human authenticity is not the absence of AI.',
+    philosophyBody:
+      'It is the ability to understand how work was produced, what people contributed, and how AI participated.',
+    principles: [
       [
-        "What we're building",
-        'An end-to-end, configurable and traceable environment for human-AI collaborative writing, available as both a self-hosted local deployment and a managed SaaS product.',
+        'Evidence over inference',
+        'Outputs alone cannot reliably reveal how work was produced. We build systems that preserve process evidence instead of relying on post-hoc guesses.',
       ],
       [
-        'Why it matters',
-        'Finished text cannot show how it was produced. Humanly preserves the process so instructors, researchers, and readers can review evidence instead of guessing from the output.',
+        'Transparency over prohibition',
+        'AI will be part of more creative and intellectual work. Its role should be visible and governed, not hidden or treated as automatically disqualifying.',
       ],
       [
-        'How Humanly is available',
-        'Humanly is available as a managed SaaS product and an institution-ready self-hosted deployment. The current research release is open source. Future commercial offerings may include enterprise licensing, deployment support, and custom integrations.',
+        'Human agency at the center',
+        "Technology should make people's decisions, revisions, and responsibility legible, even when AI contributes to the result.",
       ],
     ] as ReadonlyArray<readonly [string, string]>,
-    teamTitle: 'Meet our Humanly team',
-    teamBody:
-      'Researchers working on writing provenance, human-AI collaboration, and behavioral analysis.',
+    whoTitle: 'Who we are',
+    whoBody:
+      'We are a research-led team working across UT Austin, University of Toronto, and Stanford University. We combine research and engineering to turn this mission into systems people can use.',
+    teamTitle: 'Meet our Humanly Lab team',
     roleTeamLead: 'Team Lead',
     roleEngineer: 'Engineer',
   },
@@ -176,7 +177,7 @@ const en = {
         name: 'Open Source',
         environment: 'Local',
         description:
-          'Run the current Humanly research release on your own infrastructure.',
+          'Run the current open-source version of Humanly on your own infrastructure.',
         price: 'Free',
         features: [
           'Self-host on your infrastructure',
@@ -314,29 +315,31 @@ const zhCN: MarketingDict = {
   about: {
     metaTitle: '关于我们 — Humanly',
     metaDescription:
-      'Humanly Lab 是来自 UT Austin、多伦多大学与斯坦福的研究型团队，为人机协作写作构建可配置、可追溯的基础设施。',
-    heroTitle: '让人机协作写作可配置、可追溯',
+      'Humanly Lab 研究在 AI 智能体时代如何让人类真实性、能动性与作者身份保持可见，并将研究转化为实用系统。',
+    heroTitle: 'AI 智能体时代的人类真实性',
     heroBody:
-      'Humanly 是一个可配置的写作平台，记录文档的创作过程——包括人工编辑与 AI 协助——并将其转化为活动日志和带签名的证书。',
-    researchTitle: '我们是谁',
-    researchBody:
-      'Humanly Lab 是一支研究驱动的团队，为 AI 时代的写作构建实用的基础设施。Humanly 始于一个研究项目，正在成长为面向所有人的产品。我们的成员来自 UT Austin、多伦多大学与斯坦福大学。',
-    beliefs: [
+      'Humanly Lab 研究当人们与 AI 协作时，如何让人的能动性、作者身份与责任保持可见，并将研究转化为可配置、可追溯、可验证的实用系统。',
+    philosophyTitle: '人类真实性并不意味着没有使用 AI。',
+    philosophyBody:
+      '它意味着我们能够理解一项工作如何形成、人贡献了什么，以及 AI 如何参与其中。',
+    principles: [
       [
-        '我们在做什么',
-        '一个端到端、可配置、可追溯的人机协作写作环境，同时提供自部署的本地方案与托管的 SaaS 产品。',
+        '证据，而非推测',
+        '最终结果无法可靠地说明工作如何完成。我们构建保留过程证据的系统，而不是依赖事后推测。',
       ],
       [
-        '为什么重要',
-        '成稿无法说明它是如何产生的。Humanly 保留写作过程，让教师、研究者与读者审阅证据，而不是对着结果猜测。',
+        '透明，而非禁止',
+        'AI 将参与更多创造性与智力工作。它的作用应当可见、可治理，而不是被隐藏或自动视为不合格。',
       ],
       [
-        '如何获取 Humanly',
-        'Humanly 提供托管 SaaS 产品与面向机构的自部署方案。当前研究版本完全开源。未来的商业形态可能包括企业授权、部署支持与定制集成。',
+        '以人的能动性为中心',
+        '即使 AI 参与了结果，技术也应让人的决策、修改与责任清晰可见。',
       ],
     ],
-    teamTitle: '认识 Humanly 团队',
-    teamBody: '专注写作溯源、人机协作与行为分析的研究者。',
+    whoTitle: '我们是谁',
+    whoBody:
+      '我们是一支研究驱动的团队，成员来自 UT Austin、多伦多大学与斯坦福大学。我们结合研究与工程，将这一使命转化为人们真正能够使用的系统。',
+    teamTitle: '认识 Humanly Lab 团队',
     roleTeamLead: '团队负责人',
     roleEngineer: '工程师',
   },
@@ -379,7 +382,7 @@ const zhCN: MarketingDict = {
       openSource: {
         name: '开源版',
         environment: '本地部署',
-        description: '在自有基础设施上运行当前 Humanly 研究版本。',
+        description: '在自有基础设施上运行当前的 Humanly 开源版本。',
         price: '免费',
         features: [
           '在自有基础设施上部署',
@@ -513,30 +516,31 @@ const ja: MarketingDict = {
   about: {
     metaTitle: '私たちについて — Humanly',
     metaDescription:
-      'Humanly Lab は UT Austin、トロント大学、スタンフォードの研究主導チーム。人間と AI の執筆のための設定可能で追跡可能な基盤を構築しています。',
-    heroTitle: '人間と AI の執筆を、設定可能で追跡可能に',
+      'Humanly Lab は、AI エージェント時代に人間の真正性、主体性、著者性をどう可視化できるかを研究し、実用的なシステムへとつなげています。',
+    heroTitle: 'AI エージェント時代の人間の真正性',
     heroBody:
-      'Humanly は、人間による編集と AI 支援を含む文書の作成過程を記録する、設定可能な執筆プラットフォームです。その過程を活動ログと署名付き証明書に変換します。',
-    researchTitle: '私たちについて',
-    researchBody:
-      'Humanly Lab は、AI 時代の執筆のための実用的な基盤を構築する研究主導のチームです。Humanly は研究プロジェクトとして始まり、誰もが使える製品へと成長しています。UT Austin、トロント大学、スタンフォード大学を拠点に活動しています。',
-    beliefs: [
+      'Humanly Lab は、人が AI と協働するときにも、人間の主体性、著者性、責任をどう可視化できるかを研究し、その成果を設定可能・追跡可能・検証可能な実用システムへと変えます。',
+    philosophyTitle: '人間の真正性とは、AI を使わないことではありません。',
+    philosophyBody:
+      '仕事がどのように作られ、人が何を担い、AI がどのように関与したかを理解できることです。',
+    principles: [
       [
-        '何を作っているか',
-        'エンドツーエンドで設定可能・追跡可能な、人間と AI の共同執筆環境。セルフホストのローカル展開と、マネージド SaaS 製品の両方で提供します。',
+        '推測ではなく証拠',
+        '最終的な成果物だけでは、それがどう作られたかを確かに示せません。私たちは、事後的な推測ではなく、過程の証拠を残すシステムを構築します。',
       ],
       [
-        'なぜ重要か',
-        '完成した文章は、それがどう作られたかを示せません。Humanly は過程を保存し、教員・研究者・読者が結果から推測するのではなく、証拠を確認できるようにします。',
+        '禁止ではなく透明性',
+        'AI はより多くの創造的・知的な仕事に関わります。その役割は隠されたり自動的に失格とされたりするのではなく、可視化され管理されるべきです。',
       ],
       [
-        '提供形態',
-        'Humanly はマネージド SaaS 製品と、機関向けのセルフホスト展開で利用できます。現在の研究リリースはオープンソースです。将来的には、エンタープライズライセンス、導入支援、カスタム統合などの商用提供も検討しています。',
+        '人間の主体性を中心に',
+        'AI が成果に関与していても、技術は人の意思決定、修正、責任を明確に示すべきです。',
       ],
     ],
-    teamTitle: 'Humanly チームの紹介',
-    teamBody:
-      '執筆の来歴、人間と AI の協働、行動分析に取り組む研究者たち。',
+    whoTitle: '私たちについて',
+    whoBody:
+      '私たちは UT Austin、トロント大学、スタンフォード大学を拠点とする研究主導のチームです。研究とエンジニアリングを組み合わせ、この使命を人々が実際に使えるシステムへと変えています。',
+    teamTitle: 'Humanly Lab チームの紹介',
     roleTeamLead: 'チームリード',
     roleEngineer: 'エンジニア',
   },
@@ -583,7 +587,7 @@ const ja: MarketingDict = {
         name: 'オープンソース',
         environment: 'ローカル',
         description:
-          '現在の Humanly 研究リリースを独自インフラで実行できます。',
+          '現在の Humanly オープンソース版を独自インフラで実行できます。',
         price: '無料',
         features: [
           '独自インフラでセルフホスト',
@@ -718,30 +722,31 @@ const es: MarketingDict = {
   about: {
     metaTitle: 'Nosotros — Humanly',
     metaDescription:
-      'Humanly Lab es un equipo de investigación de UT Austin, la Universidad de Toronto y Stanford que construye infraestructura configurable y trazable para la escritura humano-IA.',
-    heroTitle: 'Escritura humano-IA configurable y trazable',
+      'Humanly Lab estudia cómo mantener visibles la autenticidad, la agencia y la autoría humanas en la era de los agentes de IA, y convierte esa investigación en sistemas prácticos.',
+    heroTitle: 'La autenticidad humana en la era de los agentes de IA',
     heroBody:
-      'Humanly es una plataforma de escritura configurable que registra cómo se crea un documento, incluida la edición humana y la asistencia de IA, y convierte ese proceso en un registro de actividad y un certificado firmado.',
-    researchTitle: 'Quiénes somos',
-    researchBody:
-      'Humanly Lab es un equipo liderado por la investigación que construye infraestructura práctica para escribir en la era de la IA. Humanly comenzó como un proyecto de investigación y se está convirtiendo en un producto para todos. Trabajamos entre UT Austin, la Universidad de Toronto y la Universidad de Stanford.',
-    beliefs: [
+      'Humanly Lab estudia cómo mantener visibles la agencia, la autoría y la responsabilidad humanas al trabajar con IA. Convertimos esa investigación en sistemas configurables, trazables y verificables.',
+    philosophyTitle: 'La autenticidad humana no significa ausencia de IA.',
+    philosophyBody:
+      'Es la capacidad de entender cómo se produjo un trabajo, qué aportaron las personas y cómo participó la IA.',
+    principles: [
       [
-        'Qué construimos',
-        'Un entorno integral, configurable y trazable para la escritura colaborativa humano-IA, disponible como despliegue local autoalojado y como producto SaaS gestionado.',
+        'Evidencia en lugar de inferencia',
+        'Los resultados por sí solos no pueden revelar de forma fiable cómo se produjo el trabajo. Construimos sistemas que conservan evidencia del proceso en lugar de depender de conjeturas posteriores.',
       ],
       [
-        'Por qué importa',
-        'El texto final no puede mostrar cómo se produjo. Humanly preserva el proceso para que docentes, investigadores y lectores revisen evidencia en lugar de adivinar a partir del resultado.',
+        'Transparencia en lugar de prohibición',
+        'La IA formará parte de más trabajo creativo e intelectual. Su papel debe ser visible y gobernable, no oculto ni tratado automáticamente como descalificador.',
       ],
       [
-        'Cómo obtener Humanly',
-        'Humanly está disponible como producto SaaS gestionado y como despliegue autoalojado para instituciones. La versión de investigación actual es de código abierto. Las futuras ofertas comerciales pueden incluir licencias empresariales, soporte de despliegue e integraciones a medida.',
+        'La agencia humana en el centro',
+        'La tecnología debe hacer legibles las decisiones, revisiones y responsabilidades de las personas, incluso cuando la IA contribuye al resultado.',
       ],
     ],
-    teamTitle: 'Conoce al equipo de Humanly',
-    teamBody:
-      'Investigadores dedicados a la procedencia de la escritura, la colaboración humano-IA y el análisis de comportamiento.',
+    whoTitle: 'Quiénes somos',
+    whoBody:
+      'Somos un equipo guiado por la investigación que trabaja entre UT Austin, la Universidad de Toronto y la Universidad de Stanford. Combinamos investigación e ingeniería para convertir esta misión en sistemas que las personas puedan usar.',
+    teamTitle: 'Conoce al equipo de Humanly Lab',
     roleTeamLead: 'Líder del equipo',
     roleEngineer: 'Ingeniero',
   },
@@ -789,7 +794,7 @@ const es: MarketingDict = {
         name: 'Código abierto',
         environment: 'Local',
         description:
-          'Ejecuta la versión de investigación actual de Humanly en tu propia infraestructura.',
+          'Ejecuta la versión actual de código abierto de Humanly en tu propia infraestructura.',
         price: 'Gratis',
         features: [
           'Autoalojamiento en tu infraestructura',
@@ -927,30 +932,31 @@ const fr: MarketingDict = {
   about: {
     metaTitle: 'À propos — Humanly',
     metaDescription:
-      "Humanly Lab est une équipe de recherche d'UT Austin, de l'Université de Toronto et de Stanford qui construit une infrastructure configurable et traçable pour l'écriture humain-IA.",
-    heroTitle: "Rendre l'écriture humain-IA configurable et traçable",
+      "Humanly Lab étudie comment préserver la visibilité de l'authenticité, de l'action et de la paternité humaines à l'ère des agents d'IA, puis transforme cette recherche en systèmes concrets.",
+    heroTitle: "L'authenticité humaine à l'ère des agents d'IA",
     heroBody:
-      "Humanly est une plateforme d'écriture configurable qui enregistre la création d'un document, y compris l'édition humaine et l'assistance IA, puis transforme ce processus en journal d'activité et en certificat signé.",
-    researchTitle: 'Qui nous sommes',
-    researchBody:
-      "Humanly Lab est une équipe portée par la recherche qui construit une infrastructure concrète pour l'écriture à l'ère de l'IA. Humanly a débuté comme projet de recherche et devient un produit pour tous. Nous travaillons entre UT Austin, l'Université de Toronto et l'Université Stanford.",
-    beliefs: [
+      "Humanly Lab étudie comment préserver la visibilité de l'action, de la paternité et de la responsabilité humaines dans le travail avec l'IA. Nous transformons cette recherche en systèmes configurables, traçables et vérifiables.",
+    philosophyTitle: "L'authenticité humaine ne signifie pas l'absence d'IA.",
+    philosophyBody:
+      "C'est la capacité de comprendre comment un travail a été produit, ce que les personnes ont apporté et comment l'IA y a participé.",
+    principles: [
       [
-        'Ce que nous construisons',
-        "Un environnement complet, configurable et traçable pour l'écriture collaborative humain-IA, disponible en déploiement local auto-hébergé comme en produit SaaS géré.",
+        "La preuve plutôt que l'inférence",
+        "Les résultats seuls ne peuvent pas révéler de manière fiable comment un travail a été produit. Nous construisons des systèmes qui conservent les preuves du processus plutôt que de dépendre d'hypothèses a posteriori.",
       ],
       [
-        "Pourquoi c'est important",
-        'Le texte final ne peut pas montrer comment il a été produit. Humanly préserve le processus pour que les enseignants, chercheurs et lecteurs examinent des preuves au lieu de deviner à partir du résultat.',
+        "La transparence plutôt que l'interdiction",
+        "L'IA participera à davantage de travaux créatifs et intellectuels. Son rôle doit être visible et gouverné, non caché ou considéré automatiquement comme disqualifiant.",
       ],
       [
-        'Comment obtenir Humanly',
-        "Humanly est disponible en produit SaaS géré et en déploiement auto-hébergé pour les institutions. La version de recherche actuelle est open source. Les offres commerciales futures pourront inclure des licences entreprise, un accompagnement au déploiement et des intégrations sur mesure.",
+        "L'action humaine au centre",
+        "La technologie doit rendre lisibles les décisions, les révisions et la responsabilité des personnes, même lorsque l'IA contribue au résultat.",
       ],
     ],
-    teamTitle: "L'équipe Humanly",
-    teamBody:
-      "Des chercheurs travaillant sur la provenance de l'écriture, la collaboration humain-IA et l'analyse comportementale.",
+    whoTitle: 'Qui nous sommes',
+    whoBody:
+      "Nous sommes une équipe portée par la recherche, active entre UT Austin, l'Université de Toronto et l'Université Stanford. Nous combinons recherche et ingénierie pour transformer cette mission en systèmes que chacun peut utiliser.",
+    teamTitle: "L'équipe de Humanly Lab",
     roleTeamLead: "Responsable d'équipe",
     roleEngineer: 'Ingénieur',
   },
@@ -998,7 +1004,7 @@ const fr: MarketingDict = {
         name: 'Open Source',
         environment: 'Local',
         description:
-          'Exécutez la version de recherche actuelle de Humanly sur votre propre infrastructure.',
+          'Exécutez la version open source actuelle de Humanly sur votre propre infrastructure.',
         price: 'Gratuit',
         features: [
           'Auto-hébergement sur votre infrastructure',

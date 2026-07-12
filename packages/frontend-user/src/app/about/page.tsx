@@ -80,49 +80,32 @@ export default function AboutPage() {
     <main className="min-h-screen bg-background text-foreground">
       <SiteNav locale={locale} />
 
-      <section className="px-5 pb-16 pt-14 sm:px-8 sm:pt-20 lg:px-14">
+      <section className="px-5 pb-10 pt-14 sm:px-8 sm:pt-16 lg:px-14">
         <div className="mx-auto max-w-[880px]">
           <h1 className="text-[32px] font-light leading-[1.12] tracking-[-0.03em] sm:text-[44px]">
             {t.heroTitle}
           </h1>
-          <p className="mt-6 max-w-[640px] text-[16px] leading-[1.75] text-muted-foreground sm:text-[18px]">
+          <p className="mt-6 max-w-[780px] text-[16px] leading-[1.75] text-muted-foreground sm:text-[18px]">
             {t.heroBody}
           </p>
         </div>
       </section>
 
-      <section className="px-5 py-16 sm:px-8 lg:px-14">
+      <section className="px-5 py-10 sm:px-8 lg:px-14">
         <div className="mx-auto max-w-[880px]">
           <BlurFade inView>
             <h2 className="text-[24px] font-light leading-[1.15] tracking-[-0.02em] sm:text-[30px]">
-              {t.researchTitle}
+              {t.philosophyTitle}
             </h2>
             <p className="mt-5 max-w-[680px] text-[15px] leading-[1.75] text-muted-foreground sm:text-[16px]">
-              {t.researchBody}
+              {t.philosophyBody}
             </p>
-
-            <div className="mt-9 grid max-w-[820px] grid-cols-2 items-center gap-x-8 gap-y-7 sm:-ml-[10px] sm:grid-cols-4 sm:gap-x-5">
-              {institutions.map(({ name, src, className }) => (
-                <div
-                  className="flex h-20 items-center justify-center sm:h-[88px]"
-                  key={name}
-                >
-                  <Image
-                    alt={name}
-                    className={`object-contain object-center ${className}`}
-                    height={80}
-                    src={src}
-                    width={200}
-                  />
-                </div>
-              ))}
-            </div>
           </BlurFade>
 
-          <div className="mt-12 grid gap-8 sm:grid-cols-3">
-            {t.beliefs.map(([title, body], index) => (
+          <div className="mt-9 grid gap-8 sm:grid-cols-3">
+            {t.principles.map(([title, body], index) => (
               <BlurFade inView delay={0.06 * index} key={title}>
-                <div className="border-t border-[var(--hly-hairline)] pt-5">
+                <div>
                   <h3 className="text-[15px] font-medium tracking-[-0.005em]">
                     {title}
                   </h3>
@@ -136,7 +119,39 @@ export default function AboutPage() {
         </div>
       </section>
 
-      <section className="px-5 py-16 sm:px-8 lg:px-14">
+      <section className="px-5 py-10 sm:px-8 lg:px-14">
+        <div className="mx-auto max-w-[880px]">
+          <BlurFade inView>
+            <div>
+              <h2 className="text-[24px] font-light leading-[1.15] tracking-[-0.02em] sm:text-[30px]">
+                {t.whoTitle}
+              </h2>
+              <p className="mt-5 max-w-[680px] text-[15px] leading-[1.75] text-muted-foreground sm:text-[16px]">
+                {t.whoBody}
+              </p>
+
+              <div className="mt-9 grid max-w-[820px] grid-cols-2 items-center gap-x-8 gap-y-7 sm:-ml-[10px] sm:grid-cols-4 sm:gap-x-5">
+                {institutions.map(({ name, src, className }) => (
+                  <div
+                    className="flex h-20 items-center justify-center sm:h-[88px]"
+                    key={name}
+                  >
+                    <Image
+                      alt={name}
+                      className={`object-contain object-center ${className}`}
+                      height={80}
+                      src={src}
+                      width={200}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </BlurFade>
+        </div>
+      </section>
+
+      <section className="px-5 pb-14 pt-10 sm:px-8 lg:px-14">
         <div className="mx-auto max-w-[880px]">
           <BlurFade inView>
             <h2 className="text-[24px] font-light leading-[1.15] tracking-[-0.02em] sm:text-[30px]">
@@ -144,7 +159,7 @@ export default function AboutPage() {
             </h2>
           </BlurFade>
 
-          <div className="mt-10 grid grid-cols-2 gap-x-8 gap-y-8 sm:grid-cols-4">
+          <div className="mt-8 grid grid-cols-2 gap-x-8 gap-y-8 sm:grid-cols-4">
             {team.map(({ name, roleKey, affiliation, href }, index) => (
               <BlurFade inView delay={0.04 * index} key={name}>
                 <div>
