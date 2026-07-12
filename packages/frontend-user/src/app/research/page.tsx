@@ -11,11 +11,13 @@ import {
   normalizeMarketingLocale,
 } from '@/lib/marketing-i18n';
 
-export const metadata: Metadata = {
-  title: 'Research - Humanly',
-  description:
-    'Humanly is research infrastructure as much as product. Read the Humanly technical report and explore the system overview.',
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = normalizeMarketingLocale(
+    cookies().get(MARKETING_LOCALE_COOKIE)?.value
+  );
+  const t = getMarketingDict(locale).blog;
+  return { title: t.metaTitle, description: t.metaDescription };
+}
 
 const paperAuthorLines = [
   'Shenzhe Zhu*, Haoqian Zhang*, Xu Yang*, Jingyu Tang, Yi Nian,',
@@ -23,6 +25,17 @@ const paperAuthorLines = [
 ] as const;
 
 const paperHref = '/research/humanly-tech-report.pdf';
+
+const paperBibtex = `@misc{zhu2026humanly,
+  title  = {Humanly: A Configurable and Traceable Environment
+            for Human-AI Collaborative Writing},
+  author = {Zhu, Shenzhe and Zhang, Haoqian and Yang, Xu and
+            Tang, Jingyu and Nian, Yi and Du, Xiaoxue and
+            Yang, Shu and Pentland, Alex and Baumann, Joachim
+            and Pei, Jiaxin},
+  year   = {2026},
+  url    = {https://writehumanly.net/research/humanly-tech-report.pdf}
+}`;
 
 export default function ResearchPage() {
   const locale = normalizeMarketingLocale(
@@ -74,11 +87,22 @@ export default function ResearchPage() {
                   ))}
                 </p>
                 <p className="mt-1 text-[11px] text-muted-foreground">
-                  * Equal contribution. † Corresponding author.
+                  {t.authorsNote}
                 </p>
                 <p className="mt-3 text-[13px] italic text-muted-foreground">
                   {t.paperSummary}
                 </p>
+                <details className="mt-3">
+                  <summary className="inline-flex cursor-pointer list-none items-center gap-1 text-[12.5px] font-medium text-muted-foreground hover:text-foreground">
+                    {t.cite}
+                    <span aria-hidden="true" className="text-[10px]">
+                      ▾
+                    </span>
+                  </summary>
+                  <pre className="mt-2 overflow-x-auto rounded-md border border-[var(--hly-hairline)] bg-[var(--hly-surface)] p-4 text-[11px] leading-[1.6] text-[var(--hly-ink)]">
+                    {paperBibtex}
+                  </pre>
+                </details>
               </div>
 
               <figure className="mx-auto mt-8 max-w-[760px] sm:mt-10">
@@ -95,7 +119,7 @@ export default function ResearchPage() {
                     width={2978}
                     height={1430}
                     className="h-auto w-full"
-                    priority
+                    sizes="(max-width: 768px) calc(100vw - 80px), 760px"
                   />
                 </a>
               </figure>

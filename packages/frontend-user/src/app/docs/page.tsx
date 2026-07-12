@@ -8,10 +8,13 @@ import {
   normalizeMarketingLocale,
 } from '@/lib/marketing-i18n';
 
-export const metadata: Metadata = {
-  title: 'Docs — Humanly',
-  description: 'Humanly documentation.',
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = normalizeMarketingLocale(
+    cookies().get(MARKETING_LOCALE_COOKIE)?.value
+  );
+  const t = getMarketingDict(locale).docs;
+  return { title: t.metaTitle, description: t.metaDescription };
+}
 
 // Placeholder while the documentation site is being written.
 export default function DocsPage() {

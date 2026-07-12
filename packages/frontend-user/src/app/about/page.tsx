@@ -11,34 +11,36 @@ import {
   normalizeMarketingLocale,
 } from '@/lib/marketing-i18n';
 
-export const metadata: Metadata = {
-  title: 'About — Humanly',
-  description:
-    'Humanly Lab builds provenance infrastructure for human-AI collaborative writing, led by researchers from UT Austin, University of Toronto, and Stanford.',
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = normalizeMarketingLocale(
+    cookies().get(MARKETING_LOCALE_COOKIE)?.value
+  );
+  const t = getMarketingDict(locale).about;
+  return { title: t.metaTitle, description: t.metaDescription };
+}
 
 const team = [
   {
     name: 'Jiaxin Pei',
-    role: 'Team Lead',
+    roleKey: 'roleTeamLead',
     affiliation: 'UT Austin · Stanford',
     href: 'https://jiaxin-pei.github.io/',
   },
   {
     name: 'Shenzhe Zhu',
-    role: 'Team Lead',
+    roleKey: 'roleTeamLead',
     affiliation: 'UT Austin',
     href: 'https://shenzhezhu.github.io/',
   },
   {
     name: 'Xu Yang',
-    role: 'Engineer',
+    roleKey: 'roleEngineer',
     affiliation: 'UT Austin',
     href: 'https://github.com/xyimatvoid',
   },
   {
     name: 'Haoqian Zhang',
-    role: 'Engineer',
+    roleKey: 'roleEngineer',
     affiliation: 'University of Toronto',
     href: 'https://www.linkedin.com/in/haoqian-zhang2131/',
   },
@@ -143,11 +145,11 @@ export default function AboutPage() {
           </BlurFade>
 
           <div className="mt-10 grid grid-cols-2 gap-x-8 gap-y-8 sm:grid-cols-4">
-            {team.map(({ name, role, affiliation, href }, index) => (
+            {team.map(({ name, roleKey, affiliation, href }, index) => (
               <BlurFade inView delay={0.04 * index} key={name}>
                 <div>
                   <a
-                    className="group inline-flex items-center gap-1 text-[15px] font-medium tracking-[-0.005em] hover:text-[var(--hly-rose)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--hly-rose)]"
+                    className="group inline-flex items-center gap-1 text-[15px] font-medium tracking-[-0.005em] hover:text-[var(--hly-brand)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--hly-brand)]"
                     href={href}
                     rel="noreferrer"
                     target="_blank"
@@ -159,7 +161,7 @@ export default function AboutPage() {
                     />
                   </a>
                   <div className="mt-1.5 text-[12.5px] text-[var(--hly-ink-muted)]">
-                    {role}
+                    {t[roleKey]}
                   </div>
                   <div className="mt-1 text-[12px] leading-[1.5] text-muted-foreground">
                     {affiliation}

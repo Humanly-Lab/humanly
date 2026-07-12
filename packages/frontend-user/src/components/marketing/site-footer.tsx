@@ -22,6 +22,7 @@ export function SiteFooter({ locale = 'en' }: { locale?: MarketingLocale }) {
       links: [
         { label: t.startWriting, href: productAppHref('/register') },
         { label: t.liveDemo, href: fastDemoHref },
+        { label: t.pricing, href: marketingHref('/pricing') },
       ],
     },
     {

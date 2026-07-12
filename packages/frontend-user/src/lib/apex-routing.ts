@@ -8,6 +8,7 @@ const MARKETING_PATHS = [
   '/blog',
   '/docs',
   '/privacy',
+  '/pricing',
   '/research',
   '/terms',
 ] as const;

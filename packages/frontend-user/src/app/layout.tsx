@@ -43,7 +43,9 @@ const courierPrime = Courier_Prime({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL('http://localhost:3002'),
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_MARKETING_ORIGIN || 'https://writehumanly.net'
+  ),
 
   title: getBrandText().pageTitles.user,
   description:
@@ -67,6 +69,9 @@ export const metadata: Metadata = {
     title: getBrandText().pageTitles.user,
     description: 'Trustworthy environment for human-ai collaborative writing',
     type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
   },
 };
 

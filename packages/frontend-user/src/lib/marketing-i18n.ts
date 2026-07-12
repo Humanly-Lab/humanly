@@ -33,6 +33,7 @@ const en = {
     learnMore: 'Learn More',
     blog: 'Research',
     docs: 'Docs',
+    pricing: 'Pricing',
     resources: 'Resources',
     github: 'GitHub',
     help: 'Help',
@@ -48,6 +49,7 @@ const en = {
     company: 'Company',
     startWriting: 'Start writing',
     liveDemo: 'Live demo',
+    pricing: 'Pricing',
     github: 'GitHub',
     docs: 'Docs',
     help: 'Help',
@@ -102,7 +104,8 @@ const en = {
   },
   about: {
     metaTitle: 'About — Humanly',
-    eyebrow: 'About',
+    metaDescription:
+      'Humanly Lab is a research-led team from UT Austin, University of Toronto, and Stanford building configurable, traceable infrastructure for human-AI writing.',
     heroTitle: 'Making human-AI writing configurable and traceable',
     heroBody:
       'Humanly is a configurable writing platform that records how a document is created, including human editing and AI assistance. It turns that process into an activity log and signed certificate.',
@@ -125,40 +128,21 @@ const en = {
     ] as ReadonlyArray<readonly [string, string]>,
     teamTitle: 'Meet our Humanly team',
     teamBody:
-      'Researchers across six institutions, working on writing provenance, human-AI collaboration, and behavioral analysis.',
-    ctaTitle: 'See the platform behind the research',
-    ctaDemo: 'Try the live demo',
-    ctaResearch: 'Read our research',
+      'Researchers working on writing provenance, human-AI collaboration, and behavioral analysis.',
+    roleTeamLead: 'Team Lead',
+    roleEngineer: 'Engineer',
   },
   blog: {
     metaTitle: 'Research — Humanly',
-    eyebrow: 'Research',
+    metaDescription:
+      'Humanly is research infrastructure as much as product. Read the Humanly technical report on configurable, traceable human-AI collaborative writing.',
     heroTitle: 'Research',
     heroBody:
       'Humanly is research infrastructure as much as product. We study how human authenticity can be understood and verified in the age of AI agents.',
-    publicationsTitle: 'Publications',
-    underReview: 'Under review',
-    venue: 'EMNLP 2026 System Demonstrations',
     paperSummary: 'Humanly Tech Report',
     codeLink: 'Paper',
-    demoLink: 'Live demo',
-    seriesNote:
-      'This is the first paper in a series. Follow-up work built on the platform is in progress.',
-    directionsTitle: 'Directions we are pursuing',
-    directions: [
-      [
-        'Behavioral AI-use detection',
-        'Writing trajectories carry signals that finished text does not. We study how typing behavior separates compliant in-platform AI use from covert external AI use.',
-      ],
-      [
-        'Provenance standards for writing',
-        'What should count as evidence of authorship? We work on certificate formats, signing, and verification flows that third parties can trust without trusting us.',
-      ],
-      [
-        'Human-AI collaboration at scale',
-        'The platform records how people actually draft, revise, and delegate to AI. This process data enables studies of collaborative writing that final documents cannot support.',
-      ],
-    ] as ReadonlyArray<readonly [string, string]>,
+    authorsNote: '* Equal contribution. † Corresponding author.',
+    cite: 'Cite',
     ctaTitle: 'Interested in collaborating?',
     ctaBody:
       'We work with researchers, instructors, and institutions studying human writing authenticity in the age of AI.',
@@ -166,10 +150,88 @@ const en = {
   },
   docs: {
     metaTitle: 'Docs — Humanly',
+    metaDescription:
+      'Guides for writers, publishers, and self-hosters of Humanly.',
     eyebrow: 'Docs',
     title: 'Documentation is on its way.',
     body: 'We are writing guides for writers, publishers, and self-hosters. In the meantime, the README covers setup and self-deployment.',
     readme: 'View the README ↗',
+  },
+  pricing: {
+    metaTitle: 'Pricing — Humanly',
+    metaDescription:
+      'Compare Humanly Open Source, Free, Pro, and Enterprise options for personal writing, task assignment, and institutional deployment.',
+    title: 'Pricing',
+    subtitle:
+      'Start free. Choose a managed workspace or run Humanly on your own infrastructure.',
+    billingCycleLabel: 'Billing cycle',
+    monthly: 'Monthly',
+    yearly: 'Yearly',
+    period: {
+      monthly: '/ month',
+      yearly: '/ year',
+    },
+    plans: {
+      openSource: {
+        name: 'Open Source',
+        environment: 'Local',
+        description:
+          'Run the current Humanly research release on your own infrastructure.',
+        price: 'Free',
+        features: [
+          'Self-host on your infrastructure',
+          'Source code and deployment tools',
+          'Bring your own AI provider',
+          'Community releases on GitHub',
+        ],
+        actionLabel: 'View on GitHub',
+      },
+      free: {
+        name: 'Free',
+        environment: 'SaaS',
+        description:
+          'For individuals who want a managed personal writing workspace.',
+        price: '$0',
+        features: [
+          'Personal Writing',
+          '100 included AI requests per account',
+          'Up to 10 personal writing projects',
+          'Activity logs, replay, and signed certificates',
+        ],
+        actionLabel: 'Get started',
+      },
+      pro: {
+        name: 'Pro',
+        environment: 'SaaS',
+        description: 'For instructors managing writing assignments and writers.',
+        price: 'Coming soon',
+        features: [
+          'Everything in Free',
+          'Personal Writing and Task Assignment',
+          'Writer and Publisher portals',
+          '1,000 included AI requests per account',
+          'Allocate AI requests across assignments',
+          'Manage up to 100 assignments',
+          'API access',
+        ],
+        actionLabel: 'Coming soon',
+      },
+      enterprise: {
+        name: 'Enterprise',
+        environment: 'SaaS or self-hosted',
+        description:
+          'For institutions that need tailored deployment, governance, and support.',
+        price: 'Coming soon',
+        features: [
+          'Everything in Pro',
+          'Managed or institution-ready self-hosting',
+          'Custom usage and assignment limits',
+          'Deployment support',
+          'Custom integrations',
+        ],
+        actionLabel: 'Coming soon',
+      },
+    },
   },
 };
 
@@ -180,6 +242,7 @@ const zhCN: MarketingDict = {
     learnMore: '了解更多',
     blog: '研究',
     docs: '文档',
+    pricing: '价格',
     resources: '资源',
     github: 'GitHub',
     help: '帮助',
@@ -195,6 +258,7 @@ const zhCN: MarketingDict = {
     company: '公司',
     startWriting: '开始写作',
     liveDemo: '在线演示',
+    pricing: '价格',
     github: 'GitHub',
     docs: '文档',
     help: '帮助',
@@ -249,70 +313,126 @@ const zhCN: MarketingDict = {
   },
   about: {
     metaTitle: '关于我们 — Humanly',
-    eyebrow: '关于我们',
-    heroTitle: '每一次写作，都值得可验证的故事。',
+    metaDescription:
+      'Humanly Lab 是来自 UT Austin、多伦多大学与斯坦福的研究型团队，为人机协作写作构建可配置、可追溯的基础设施。',
+    heroTitle: '让人机协作写作可配置、可追溯',
     heroBody:
-      'Humanly Lab 为 AI 辅助写作时代构建溯源基础设施。我们不去猜测成稿是否出自人手，而是记录写作过程本身——每一次键入、粘贴与 AI 交互——并将其转化为可验证的作者证据。',
-    researchTitle: '源于研究',
+      'Humanly 是一个可配置的写作平台，记录文档的创作过程——包括人工编辑与 AI 协助——并将其转化为活动日志和带签名的证书。',
+    researchTitle: '我们是谁',
     researchBody:
-      'Humanly 始于一项关于大模型时代写作真实性的研究项目，由来自 UT Austin、多伦多大学、斯坦福、MIT、USC 与 KAUST 的研究者共同构建。我们的首篇论文——介绍该平台及其基于写作轨迹的作者认证方法——正在 EMNLP 2026 System Demonstrations 评审中，平台本身完全开源。我们是研究驱动的团队：研究验证什么，产品就交付什么。',
+      'Humanly Lab 是一支研究驱动的团队，为 AI 时代的写作构建实用的基础设施。Humanly 始于一个研究项目，正在成长为面向所有人的产品。我们的成员来自 UT Austin、多伦多大学与斯坦福大学。',
     beliefs: [
       [
-        '溯源优于检测',
-        '事后 AI 检测器只能从成稿猜测，且双向都会出错。记录文本的写作过程，得到的是证据而非估计。',
+        '我们在做什么',
+        '一个端到端、可配置、可追溯的人机协作写作环境，同时提供自部署的本地方案与托管的 SaaS 产品。',
       ],
       [
-        '透明优于禁止',
-        'AI 已经是写作的一部分。答案不是禁用它，而是让它的参与可见、可配置，让每个场景都能设定自己的规则。',
+        '为什么重要',
+        '成稿无法说明它是如何产生的。Humanly 保留写作过程，让教师、研究者与读者审阅证据，而不是对着结果猜测。',
       ],
       [
-        '研究进入生产',
-        'Humanly 既是产品也是研究工具。为写作签发证书的同一套基础设施，也支撑着我们对人们如何与 AI 协作写作的研究。',
+        '如何获取 Humanly',
+        'Humanly 提供托管 SaaS 产品与面向机构的自部署方案。当前研究版本完全开源。未来的商业形态可能包括企业授权、部署支持与定制集成。',
       ],
     ],
-    teamTitle: '团队',
-    teamBody: '来自六所机构的研究者，专注写作溯源、人机协作与行为分析。',
-    ctaTitle: '看看研究背后的平台',
-    ctaDemo: '体验在线演示',
-    ctaResearch: '阅读我们的研究',
+    teamTitle: '认识 Humanly 团队',
+    teamBody: '专注写作溯源、人机协作与行为分析的研究者。',
+    roleTeamLead: '团队负责人',
+    roleEngineer: '工程师',
   },
   blog: {
     metaTitle: '研究 — Humanly',
-    eyebrow: '研究',
+    metaDescription:
+      'Humanly 既是产品，也是研究基础设施。阅读 Humanly 技术报告，了解可配置、可追溯的人机协作写作。',
     heroTitle: '研究',
     heroBody: 'Humanly 既是产品，也是研究基础设施。',
-    publicationsTitle: '论文',
-    underReview: '评审中',
-    venue: 'EMNLP 2026 System Demonstrations',
     paperSummary: 'Humanly 技术报告',
     codeLink: '论文',
-    demoLink: '在线演示',
-    seriesNote: '这是系列研究的第一篇。基于该平台的后续工作正在进行中。',
-    directionsTitle: '我们正在探索的方向',
-    directions: [
-      [
-        '基于行为的 AI 使用检测',
-        '写作轨迹携带着成稿所没有的信号。我们研究打字行为如何区分合规的平台内 AI 使用与隐蔽的外部 AI 使用。',
-      ],
-      [
-        '写作溯源标准',
-        '什么才算作者身份的证据？我们研究证书格式、签名与验证流程，让第三方无需信任我们也能信任证书。',
-      ],
-      [
-        '规模化的人机协作研究',
-        '平台记录了人们实际的起草、修改与 AI 委托过程。这些过程数据支撑着仅靠成稿无法开展的协作写作研究。',
-      ],
-    ],
+    authorsNote: '* 同等贡献。† 通讯作者。',
+    cite: '引用',
     ctaTitle: '有兴趣合作吗？',
     ctaBody: '我们与研究 AI 时代人类写作真实性的研究者、教师与机构合作。',
     ctaButton: '联系我们',
   },
   docs: {
     metaTitle: '文档 — Humanly',
+    metaDescription: '面向写作者、发布者与自部署用户的 Humanly 指南。',
     eyebrow: '文档',
     title: '文档正在编写中。',
     body: '我们正在为写作者、发布者与自部署用户编写指南。在此之前，README 涵盖了安装与自部署说明。',
     readme: '查看 README ↗',
+  },
+  pricing: {
+    metaTitle: '价格 — Humanly',
+    metaDescription:
+      '比较 Humanly 开源版、免费版、专业版与企业版在个人写作、任务分配和机构部署方面的方案。',
+    title: '价格',
+    subtitle: '免费开始。选择托管工作区，或在自有基础设施上运行 Humanly。',
+    billingCycleLabel: '计费周期',
+    monthly: '月付',
+    yearly: '年付',
+    period: {
+      monthly: '/ 月',
+      yearly: '/ 年',
+    },
+    plans: {
+      openSource: {
+        name: '开源版',
+        environment: '本地部署',
+        description: '在自有基础设施上运行当前 Humanly 研究版本。',
+        price: '免费',
+        features: [
+          '在自有基础设施上部署',
+          '源代码与部署工具',
+          '使用自己的 AI 服务商',
+          '通过 GitHub 获取社区版本',
+        ],
+        actionLabel: '在 GitHub 查看',
+      },
+      free: {
+        name: '免费版',
+        environment: 'SaaS',
+        description: '适合需要托管式个人写作空间的个人用户。',
+        price: '$0',
+        features: [
+          '个人写作',
+          '每个账户包含 100 次 AI 请求',
+          '最多 10 个个人写作项目',
+          '活动日志、轨迹回放与签名证书',
+        ],
+        actionLabel: '开始使用',
+      },
+      pro: {
+        name: '专业版',
+        environment: 'SaaS',
+        description: '适合管理写作任务和写作者的教师。',
+        price: '即将推出',
+        features: [
+          '包含免费版全部功能',
+          '个人写作与任务分配',
+          '写作者与发布者双门户',
+          '每个账户包含 1,000 次 AI 请求',
+          '可将 AI 请求额度分配给不同任务',
+          '最多管理 100 个任务',
+          'API 访问权限',
+        ],
+        actionLabel: '即将推出',
+      },
+      enterprise: {
+        name: '企业版',
+        environment: 'SaaS 或自部署',
+        description: '适合需要定制部署、治理与支持的机构。',
+        price: '即将推出',
+        features: [
+          '包含专业版全部功能',
+          '托管部署或面向机构的自部署',
+          '定制使用量与任务上限',
+          '部署支持',
+          '定制集成',
+        ],
+        actionLabel: '即将推出',
+      },
+    },
   },
 };
 
@@ -321,6 +441,7 @@ const ja: MarketingDict = {
     learnMore: '詳しく見る',
     blog: '研究',
     docs: 'ドキュメント',
+    pricing: '料金',
     resources: 'リソース',
     github: 'GitHub',
     help: 'ヘルプ',
@@ -336,6 +457,7 @@ const ja: MarketingDict = {
     company: '会社',
     startWriting: '執筆を始める',
     liveDemo: 'ライブデモ',
+    pricing: '料金',
     github: 'GitHub',
     docs: 'ドキュメント',
     help: 'ヘルプ',
@@ -390,62 +512,44 @@ const ja: MarketingDict = {
   },
   about: {
     metaTitle: '私たちについて — Humanly',
-    eyebrow: '私たちについて',
-    heroTitle: 'すべての執筆に、検証可能な物語を。',
+    metaDescription:
+      'Humanly Lab は UT Austin、トロント大学、スタンフォードの研究主導チーム。人間と AI の執筆のための設定可能で追跡可能な基盤を構築しています。',
+    heroTitle: '人間と AI の執筆を、設定可能で追跡可能に',
     heroBody:
-      'Humanly Lab は、AI 支援執筆時代のための来歴（プロベナンス）基盤を構築しています。完成した文章が人間の手によるものかを推測するのではなく、執筆プロセスそのもの——すべてのキー入力、貼り付け、AI とのやり取り——を記録し、検証可能な著者性の証拠に変えます。',
-    researchTitle: '研究から生まれた',
+      'Humanly は、人間による編集と AI 支援を含む文書の作成過程を記録する、設定可能な執筆プラットフォームです。その過程を活動ログと署名付き証明書に変換します。',
+    researchTitle: '私たちについて',
     researchBody:
-      'Humanly は、LLM 時代の執筆の真正性に関する研究プロジェクトとして始まり、UT Austin、トロント大学、スタンフォード、MIT、USC、KAUST の研究者によって構築されました。プラットフォームとその執筆軌跡に基づく著者性へのアプローチを紹介する最初の論文は、EMNLP 2026 System Demonstrations で査読中であり、プラットフォーム自体はオープンソースです。私たちは研究主導のチームです。研究が検証したものを、製品として届けます。',
+      'Humanly Lab は、AI 時代の執筆のための実用的な基盤を構築する研究主導のチームです。Humanly は研究プロジェクトとして始まり、誰もが使える製品へと成長しています。UT Austin、トロント大学、スタンフォード大学を拠点に活動しています。',
     beliefs: [
       [
-        '検出よりも来歴',
-        '事後的な AI 検出器は完成文から推測するため、双方向に誤ります。文章がどう書かれたかを記録すれば、推定ではなく証拠が得られます。',
+        '何を作っているか',
+        'エンドツーエンドで設定可能・追跡可能な、人間と AI の共同執筆環境。セルフホストのローカル展開と、マネージド SaaS 製品の両方で提供します。',
       ],
       [
-        '禁止よりも透明性',
-        'AI はすでに執筆の一部です。答えは禁止ではなく、その役割を可視化・設定可能にし、それぞれの場面が独自のルールを設定できるようにすることです。',
+        'なぜ重要か',
+        '完成した文章は、それがどう作られたかを示せません。Humanly は過程を保存し、教員・研究者・読者が結果から推測するのではなく、証拠を確認できるようにします。',
       ],
       [
-        '研究を実運用へ',
-        'Humanly は製品であると同時に研究装置です。執筆を証明するのと同じ基盤が、人々が実際に AI とどう書くかについての研究を支えています。',
+        '提供形態',
+        'Humanly はマネージド SaaS 製品と、機関向けのセルフホスト展開で利用できます。現在の研究リリースはオープンソースです。将来的には、エンタープライズライセンス、導入支援、カスタム統合などの商用提供も検討しています。',
       ],
     ],
-    teamTitle: 'チーム',
+    teamTitle: 'Humanly チームの紹介',
     teamBody:
-      '6 つの機関にまたがる研究者が、執筆の来歴、人間と AI の協働、行動分析に取り組んでいます。',
-    ctaTitle: '研究を支えるプラットフォームを見る',
-    ctaDemo: 'ライブデモを試す',
-    ctaResearch: '研究を読む',
+      '執筆の来歴、人間と AI の協働、行動分析に取り組む研究者たち。',
+    roleTeamLead: 'チームリード',
+    roleEngineer: 'エンジニア',
   },
   blog: {
     metaTitle: '研究 — Humanly',
-    eyebrow: '研究',
+    metaDescription:
+      'Humanly は製品であると同時に研究基盤です。Humanly テクニカルレポートをご覧ください。',
     heroTitle: '研究',
     heroBody: 'Humanly は製品であると同時に研究基盤です。',
-    publicationsTitle: '論文',
-    underReview: '査読中',
-    venue: 'EMNLP 2026 System Demonstrations',
     paperSummary: 'Humanly テクニカルレポート',
     codeLink: '論文',
-    demoLink: 'ライブデモ',
-    seriesNote:
-      'これはシリーズ最初の論文です。プラットフォームを基盤とした後続研究が進行中です。',
-    directionsTitle: '探求している方向性',
-    directions: [
-      [
-        '行動ベースの AI 利用検出',
-        '執筆の軌跡には、完成文にはないシグナルが含まれます。タイピング行動が、プラットフォーム内での適切な AI 利用と、隠れた外部 AI 利用をどう区別するかを研究しています。',
-      ],
-      [
-        '執筆来歴の標準',
-        '何が著者性の証拠となるべきか。第三者が私たちを信頼しなくても信頼できる、証明書のフォーマット、署名、検証フローに取り組んでいます。',
-      ],
-      [
-        '大規模な人間と AI の協働',
-        'プラットフォームは、人々が実際にどう起草し、修正し、AI に委ねるかを記録します。このプロセスデータは、完成文だけでは不可能な協働執筆の研究を可能にします。',
-      ],
-    ],
+    authorsNote: '* 同等貢献。† 責任著者。',
+    cite: '引用',
     ctaTitle: '共同研究に興味がありますか？',
     ctaBody:
       'AI 時代の人間による執筆の真正性を研究する研究者、教育者、機関と協力しています。',
@@ -453,10 +557,87 @@ const ja: MarketingDict = {
   },
   docs: {
     metaTitle: 'ドキュメント — Humanly',
+    metaDescription:
+      'ライター、パブリッシャー、セルフホスト向けの Humanly ガイド。',
     eyebrow: 'ドキュメント',
     title: 'ドキュメントは準備中です。',
     body: 'ライター、パブリッシャー、セルフホスト向けのガイドを執筆中です。それまでは、README にセットアップとセルフデプロイの説明があります。',
     readme: 'README を見る ↗',
+  },
+  pricing: {
+    metaTitle: '料金 — Humanly',
+    metaDescription:
+      '個人執筆、課題管理、組織導入に対応する Humanly のオープンソース、Free、Pro、Enterprise プランを比較できます。',
+    title: '料金',
+    subtitle:
+      '無料で始めましょう。マネージド環境を選ぶか、ご自身のインフラで Humanly を実行できます。',
+    billingCycleLabel: '請求サイクル',
+    monthly: '月払い',
+    yearly: '年払い',
+    period: {
+      monthly: '/ 月',
+      yearly: '/ 年',
+    },
+    plans: {
+      openSource: {
+        name: 'オープンソース',
+        environment: 'ローカル',
+        description:
+          '現在の Humanly 研究リリースを独自インフラで実行できます。',
+        price: '無料',
+        features: [
+          '独自インフラでセルフホスト',
+          'ソースコードとデプロイツール',
+          '任意の AI プロバイダーを利用',
+          'GitHub でコミュニティリリースを提供',
+        ],
+        actionLabel: 'GitHub で見る',
+      },
+      free: {
+        name: 'Free',
+        environment: 'SaaS',
+        description: 'マネージドな個人執筆環境を求める方向けです。',
+        price: '$0',
+        features: [
+          '個人執筆',
+          'アカウントごとに AI リクエスト 100 回',
+          '個人執筆プロジェクト最大 10 件',
+          'アクティビティログ、リプレイ、署名付き証明書',
+        ],
+        actionLabel: '始める',
+      },
+      pro: {
+        name: 'Pro',
+        environment: 'SaaS',
+        description: '執筆課題とライターを管理する教育者向けです。',
+        price: '近日公開',
+        features: [
+          'Free の全機能',
+          '個人執筆と課題管理',
+          'ライターおよびパブリッシャーポータル',
+          'アカウントごとに AI リクエスト 1,000 回',
+          '課題ごとに AI リクエストを配分',
+          '課題を最大 100 件管理',
+          'API アクセス',
+        ],
+        actionLabel: '近日公開',
+      },
+      enterprise: {
+        name: 'Enterprise',
+        environment: 'SaaS またはセルフホスト',
+        description:
+          'カスタム導入、ガバナンス、サポートが必要な組織向けです。',
+        price: '近日公開',
+        features: [
+          'Pro の全機能',
+          'マネージド導入または組織向けセルフホスト',
+          '利用量と課題上限のカスタマイズ',
+          '導入支援',
+          'カスタム連携',
+        ],
+        actionLabel: '近日公開',
+      },
+    },
   },
 };
 
@@ -465,6 +646,7 @@ const es: MarketingDict = {
     learnMore: 'Saber más',
     blog: 'Investigación',
     docs: 'Documentación',
+    pricing: 'Precios',
     resources: 'Recursos',
     github: 'GitHub',
     help: 'Ayuda',
@@ -480,6 +662,7 @@ const es: MarketingDict = {
     company: 'Compañía',
     startWriting: 'Empezar a escribir',
     liveDemo: 'Demo en vivo',
+    pricing: 'Precios',
     github: 'GitHub',
     docs: 'Documentación',
     help: 'Ayuda',
@@ -534,63 +717,45 @@ const es: MarketingDict = {
   },
   about: {
     metaTitle: 'Nosotros — Humanly',
-    eyebrow: 'Nosotros',
-    heroTitle: 'La escritura merece una historia verificable.',
+    metaDescription:
+      'Humanly Lab es un equipo de investigación de UT Austin, la Universidad de Toronto y Stanford que construye infraestructura configurable y trazable para la escritura humano-IA.',
+    heroTitle: 'Escritura humano-IA configurable y trazable',
     heroBody:
-      'Humanly Lab construye infraestructura de procedencia para la era de la escritura asistida por IA. En lugar de adivinar si un texto terminado fue escrito por un humano, registramos el proceso de escritura en sí — cada tecleo, pegado e interacción con IA — y lo convertimos en evidencia verificable de autoría.',
-    researchTitle: 'Nacido de la investigación',
+      'Humanly es una plataforma de escritura configurable que registra cómo se crea un documento, incluida la edición humana y la asistencia de IA, y convierte ese proceso en un registro de actividad y un certificado firmado.',
+    researchTitle: 'Quiénes somos',
     researchBody:
-      'Humanly comenzó como un proyecto de investigación sobre la autenticidad de la escritura en la era de los LLM, construido por investigadores de UT Austin, la Universidad de Toronto, Stanford, MIT, USC y KAUST. Nuestro primer artículo — que presenta la plataforma y su enfoque de autoría basado en trayectorias — está en revisión en EMNLP 2026 System Demonstrations, y la plataforma es de código abierto. Somos un equipo basado en investigación: el producto entrega lo que la investigación valida.',
+      'Humanly Lab es un equipo liderado por la investigación que construye infraestructura práctica para escribir en la era de la IA. Humanly comenzó como un proyecto de investigación y se está convirtiendo en un producto para todos. Trabajamos entre UT Austin, la Universidad de Toronto y la Universidad de Stanford.',
     beliefs: [
       [
-        'Procedencia sobre detección',
-        'Los detectores de IA a posteriori adivinan a partir del texto final y fallan en ambas direcciones. Registrar cómo se escribió un texto produce evidencia en lugar de estimaciones.',
+        'Qué construimos',
+        'Un entorno integral, configurable y trazable para la escritura colaborativa humano-IA, disponible como despliegue local autoalojado y como producto SaaS gestionado.',
       ],
       [
-        'Transparencia sobre prohibición',
-        'La IA ya es parte de cómo escribimos. La respuesta no es prohibirla, sino hacer visible y configurable su papel, para que cada contexto defina sus propias reglas.',
+        'Por qué importa',
+        'El texto final no puede mostrar cómo se produjo. Humanly preserva el proceso para que docentes, investigadores y lectores revisen evidencia en lugar de adivinar a partir del resultado.',
       ],
       [
-        'Investigación en producción',
-        'Humanly es a la vez producto e instrumento de investigación. La misma infraestructura que certifica la escritura impulsa nuestros estudios sobre cómo la gente escribe realmente con IA.',
+        'Cómo obtener Humanly',
+        'Humanly está disponible como producto SaaS gestionado y como despliegue autoalojado para instituciones. La versión de investigación actual es de código abierto. Las futuras ofertas comerciales pueden incluir licencias empresariales, soporte de despliegue e integraciones a medida.',
       ],
     ],
-    teamTitle: 'Equipo',
+    teamTitle: 'Conoce al equipo de Humanly',
     teamBody:
-      'Investigadores de seis instituciones trabajando en procedencia de la escritura, colaboración humano-IA y análisis de comportamiento.',
-    ctaTitle: 'Conoce la plataforma detrás de la investigación',
-    ctaDemo: 'Probar la demo en vivo',
-    ctaResearch: 'Leer nuestra investigación',
+      'Investigadores dedicados a la procedencia de la escritura, la colaboración humano-IA y el análisis de comportamiento.',
+    roleTeamLead: 'Líder del equipo',
+    roleEngineer: 'Ingeniero',
   },
   blog: {
     metaTitle: 'Investigación — Humanly',
-    eyebrow: 'Investigación',
+    metaDescription:
+      'Humanly es tanto infraestructura de investigación como producto. Lee el informe técnico de Humanly.',
     heroTitle: 'Investigación',
     heroBody:
       'Humanly es tanto infraestructura de investigación como producto.',
-    publicationsTitle: 'Publicaciones',
-    underReview: 'En revisión',
-    venue: 'EMNLP 2026 System Demonstrations',
     paperSummary: 'Informe técnico de Humanly',
     codeLink: 'Artículo',
-    demoLink: 'Demo en vivo',
-    seriesNote:
-      'Este es el primer artículo de una serie. El trabajo posterior construido sobre la plataforma está en curso.',
-    directionsTitle: 'Direcciones que exploramos',
-    directions: [
-      [
-        'Detección conductual del uso de IA',
-        'Las trayectorias de escritura contienen señales que el texto final no tiene. Estudiamos cómo el comportamiento de tecleo separa el uso conforme de IA dentro de la plataforma del uso encubierto de IA externa.',
-      ],
-      [
-        'Estándares de procedencia para la escritura',
-        '¿Qué debería contar como evidencia de autoría? Trabajamos en formatos de certificado, firma y flujos de verificación en los que terceros puedan confiar sin confiar en nosotros.',
-      ],
-      [
-        'Colaboración humano-IA a escala',
-        'La plataforma registra cómo la gente realmente redacta, revisa y delega en la IA. Estos datos de proceso permiten estudios de escritura colaborativa que los documentos finales no pueden sostener.',
-      ],
-    ],
+    authorsNote: '* Contribución equitativa. † Autor de correspondencia.',
+    cite: 'Citar',
     ctaTitle: '¿Interesado en colaborar?',
     ctaBody:
       'Trabajamos con investigadores, docentes e instituciones que estudian la autenticidad de la escritura humana en la era de la IA.',
@@ -598,10 +763,89 @@ const es: MarketingDict = {
   },
   docs: {
     metaTitle: 'Documentación — Humanly',
+    metaDescription:
+      'Guías de Humanly para escritores, editores y autoalojamiento.',
     eyebrow: 'Documentación',
     title: 'La documentación está en camino.',
     body: 'Estamos escribiendo guías para escritores, editores y autoalojamiento. Mientras tanto, el README cubre la instalación y el autodespliegue.',
     readme: 'Ver el README ↗',
+  },
+  pricing: {
+    metaTitle: 'Precios — Humanly',
+    metaDescription:
+      'Compara las opciones Open Source, Free, Pro y Enterprise de Humanly para escritura personal, asignación de tareas y despliegues institucionales.',
+    title: 'Precios',
+    subtitle:
+      'Empieza gratis. Elige un espacio gestionado o ejecuta Humanly en tu propia infraestructura.',
+    billingCycleLabel: 'Ciclo de facturación',
+    monthly: 'Mensual',
+    yearly: 'Anual',
+    period: {
+      monthly: '/ mes',
+      yearly: '/ año',
+    },
+    plans: {
+      openSource: {
+        name: 'Código abierto',
+        environment: 'Local',
+        description:
+          'Ejecuta la versión de investigación actual de Humanly en tu propia infraestructura.',
+        price: 'Gratis',
+        features: [
+          'Autoalojamiento en tu infraestructura',
+          'Código fuente y herramientas de despliegue',
+          'Tu propio proveedor de IA',
+          'Versiones de la comunidad en GitHub',
+        ],
+        actionLabel: 'Ver en GitHub',
+      },
+      free: {
+        name: 'Free',
+        environment: 'SaaS',
+        description:
+          'Para personas que quieren un espacio gestionado de escritura personal.',
+        price: '$0',
+        features: [
+          'Escritura personal',
+          '100 solicitudes de IA incluidas por cuenta',
+          'Hasta 10 proyectos de escritura personal',
+          'Registros de actividad, reproducción y certificados firmados',
+        ],
+        actionLabel: 'Empezar',
+      },
+      pro: {
+        name: 'Pro',
+        environment: 'SaaS',
+        description:
+          'Para docentes que gestionan tareas de escritura y escritores.',
+        price: 'Próximamente',
+        features: [
+          'Todo lo incluido en Free',
+          'Escritura personal y asignación de tareas',
+          'Portales para escritores y publicadores',
+          '1.000 solicitudes de IA incluidas por cuenta',
+          'Distribución de solicitudes de IA entre tareas',
+          'Gestión de hasta 100 tareas',
+          'Acceso a la API',
+        ],
+        actionLabel: 'Próximamente',
+      },
+      enterprise: {
+        name: 'Enterprise',
+        environment: 'SaaS o autoalojado',
+        description:
+          'Para instituciones que necesitan despliegue, gobernanza y soporte a medida.',
+        price: 'Próximamente',
+        features: [
+          'Todo lo incluido en Pro',
+          'Despliegue gestionado o autoalojamiento institucional',
+          'Límites de uso y tareas personalizados',
+          'Soporte de despliegue',
+          'Integraciones personalizadas',
+        ],
+        actionLabel: 'Próximamente',
+      },
+    },
   },
 };
 
@@ -610,6 +854,7 @@ const fr: MarketingDict = {
     learnMore: 'En savoir plus',
     blog: 'Recherche',
     docs: 'Documentation',
+    pricing: 'Tarifs',
     resources: 'Ressources',
     github: 'GitHub',
     help: 'Aide',
@@ -625,6 +870,7 @@ const fr: MarketingDict = {
     company: 'Entreprise',
     startWriting: 'Commencer à écrire',
     liveDemo: 'Démo en direct',
+    pricing: 'Tarifs',
     github: 'GitHub',
     docs: 'Documentation',
     help: 'Aide',
@@ -680,63 +926,45 @@ const fr: MarketingDict = {
   },
   about: {
     metaTitle: 'À propos — Humanly',
-    eyebrow: 'À propos',
-    heroTitle: "L'écriture mérite une histoire vérifiable.",
+    metaDescription:
+      "Humanly Lab est une équipe de recherche d'UT Austin, de l'Université de Toronto et de Stanford qui construit une infrastructure configurable et traçable pour l'écriture humain-IA.",
+    heroTitle: "Rendre l'écriture humain-IA configurable et traçable",
     heroBody:
-      "Humanly Lab construit une infrastructure de provenance pour l'ère de l'écriture assistée par IA. Plutôt que de deviner si un texte final a été écrit par un humain, nous enregistrons le processus d'écriture lui-même — chaque frappe, collage et interaction avec l'IA — et le transformons en preuve vérifiable d'auteur.",
-    researchTitle: 'Né de la recherche',
+      "Humanly est une plateforme d'écriture configurable qui enregistre la création d'un document, y compris l'édition humaine et l'assistance IA, puis transforme ce processus en journal d'activité et en certificat signé.",
+    researchTitle: 'Qui nous sommes',
     researchBody:
-      "Humanly a débuté comme un projet de recherche sur l'authenticité de l'écriture à l'ère des LLM, construit par des chercheurs d'UT Austin, de l'Université de Toronto, de Stanford, du MIT, d'USC et de KAUST. Notre premier article — présentant la plateforme et son approche de l'auteur fondée sur les trajectoires — est en cours d'évaluation à EMNLP 2026 System Demonstrations, et la plateforme est open source. Nous sommes une équipe fondée sur la recherche : le produit livre ce que la recherche valide.",
+      "Humanly Lab est une équipe portée par la recherche qui construit une infrastructure concrète pour l'écriture à l'ère de l'IA. Humanly a débuté comme projet de recherche et devient un produit pour tous. Nous travaillons entre UT Austin, l'Université de Toronto et l'Université Stanford.",
     beliefs: [
       [
-        'La provenance plutôt que la détection',
-        "Les détecteurs d'IA a posteriori devinent à partir du texte final et se trompent dans les deux sens. Enregistrer comment un texte a été écrit produit des preuves plutôt que des estimations.",
+        'Ce que nous construisons',
+        "Un environnement complet, configurable et traçable pour l'écriture collaborative humain-IA, disponible en déploiement local auto-hébergé comme en produit SaaS géré.",
       ],
       [
-        "La transparence plutôt que l'interdiction",
-        "L'IA fait déjà partie de l'écriture. La réponse n'est pas de l'interdire, mais de rendre son rôle visible et configurable, pour que chaque contexte définisse ses propres règles.",
+        "Pourquoi c'est important",
+        'Le texte final ne peut pas montrer comment il a été produit. Humanly préserve le processus pour que les enseignants, chercheurs et lecteurs examinent des preuves au lieu de deviner à partir du résultat.',
       ],
       [
-        'La recherche en production',
-        "Humanly est à la fois un produit et un instrument de recherche. La même infrastructure qui certifie l'écriture alimente nos études sur la façon dont les gens écrivent réellement avec l'IA.",
+        'Comment obtenir Humanly',
+        "Humanly est disponible en produit SaaS géré et en déploiement auto-hébergé pour les institutions. La version de recherche actuelle est open source. Les offres commerciales futures pourront inclure des licences entreprise, un accompagnement au déploiement et des intégrations sur mesure.",
       ],
     ],
-    teamTitle: 'Équipe',
+    teamTitle: "L'équipe Humanly",
     teamBody:
-      "Des chercheurs de six institutions travaillant sur la provenance de l'écriture, la collaboration humain-IA et l'analyse comportementale.",
-    ctaTitle: 'Découvrez la plateforme derrière la recherche',
-    ctaDemo: 'Essayer la démo',
-    ctaResearch: 'Lire nos recherches',
+      "Des chercheurs travaillant sur la provenance de l'écriture, la collaboration humain-IA et l'analyse comportementale.",
+    roleTeamLead: "Responsable d'équipe",
+    roleEngineer: 'Ingénieur',
   },
   blog: {
     metaTitle: 'Recherche — Humanly',
-    eyebrow: 'Recherche',
+    metaDescription:
+      "Humanly est autant une infrastructure de recherche qu'un produit. Lisez le rapport technique Humanly.",
     heroTitle: 'Recherche',
     heroBody:
       "Humanly est autant une infrastructure de recherche qu'un produit.",
-    publicationsTitle: 'Publications',
-    underReview: 'En cours d’évaluation',
-    venue: 'EMNLP 2026 System Demonstrations',
     paperSummary: 'Rapport technique Humanly',
     codeLink: 'Article',
-    demoLink: 'Démo en direct',
-    seriesNote:
-      "C'est le premier article d'une série. Les travaux suivants fondés sur la plateforme sont en cours.",
-    directionsTitle: 'Pistes que nous explorons',
-    directions: [
-      [
-        "Détection comportementale de l'usage d'IA",
-        "Les trajectoires d'écriture portent des signaux que le texte final n'a pas. Nous étudions comment le comportement de frappe distingue l'usage conforme d'IA sur la plateforme de l'usage dissimulé d'IA externe.",
-      ],
-      [
-        "Normes de provenance pour l'écriture",
-        "Qu'est-ce qui devrait compter comme preuve d'auteur ? Nous travaillons sur des formats de certificats, des signatures et des flux de vérification auxquels des tiers peuvent se fier sans nous faire confiance.",
-      ],
-      [
-        'Collaboration humain-IA à grande échelle',
-        "La plateforme enregistre comment les gens rédigent, révisent et délèguent réellement à l'IA. Ces données de processus permettent des études d'écriture collaborative impossibles à partir des seuls documents finaux.",
-      ],
-    ],
+    authorsNote: '* Contribution égale. † Auteur correspondant.',
+    cite: 'Citer',
     ctaTitle: 'Envie de collaborer ?',
     ctaBody:
       "Nous travaillons avec des chercheurs, des enseignants et des institutions qui étudient l'authenticité de l'écriture humaine à l'ère de l'IA.",
@@ -744,10 +972,89 @@ const fr: MarketingDict = {
   },
   docs: {
     metaTitle: 'Documentation — Humanly',
+    metaDescription:
+      "Guides Humanly pour les auteurs, les éditeurs et l'auto-hébergement.",
     eyebrow: 'Documentation',
     title: 'La documentation arrive.',
     body: "Nous rédigeons des guides pour les auteurs, les éditeurs et l'auto-hébergement. En attendant, le README couvre l'installation et l'auto-déploiement.",
     readme: 'Voir le README ↗',
+  },
+  pricing: {
+    metaTitle: 'Tarifs — Humanly',
+    metaDescription:
+      "Comparez les offres Open Source, Free, Pro et Enterprise de Humanly pour l'écriture personnelle, l'attribution de tâches et les déploiements institutionnels.",
+    title: 'Tarifs',
+    subtitle:
+      'Commencez gratuitement. Choisissez un espace géré ou exécutez Humanly sur votre propre infrastructure.',
+    billingCycleLabel: 'Cycle de facturation',
+    monthly: 'Mensuel',
+    yearly: 'Annuel',
+    period: {
+      monthly: '/ mois',
+      yearly: '/ an',
+    },
+    plans: {
+      openSource: {
+        name: 'Open Source',
+        environment: 'Local',
+        description:
+          'Exécutez la version de recherche actuelle de Humanly sur votre propre infrastructure.',
+        price: 'Gratuit',
+        features: [
+          'Auto-hébergement sur votre infrastructure',
+          'Code source et outils de déploiement',
+          "Votre propre fournisseur d'IA",
+          'Versions communautaires sur GitHub',
+        ],
+        actionLabel: 'Voir sur GitHub',
+      },
+      free: {
+        name: 'Free',
+        environment: 'SaaS',
+        description:
+          "Pour les personnes qui souhaitent un espace géré d'écriture personnelle.",
+        price: '$0',
+        features: [
+          'Écriture personnelle',
+          "100 requêtes d'IA incluses par compte",
+          "Jusqu'à 10 projets d'écriture personnelle",
+          "Journaux d'activité, replay et certificats signés",
+        ],
+        actionLabel: 'Commencer',
+      },
+      pro: {
+        name: 'Pro',
+        environment: 'SaaS',
+        description:
+          "Pour les enseignants qui gèrent des travaux d'écriture et leurs auteurs.",
+        price: 'Bientôt disponible',
+        features: [
+          'Toutes les fonctionnalités de Free',
+          'Écriture personnelle et attribution de tâches',
+          'Portails Auteur et Éditeur',
+          "1 000 requêtes d'IA incluses par compte",
+          "Répartition des requêtes d'IA entre les tâches",
+          "Gestion de jusqu'à 100 tâches",
+          "Accès à l'API",
+        ],
+        actionLabel: 'Bientôt disponible',
+      },
+      enterprise: {
+        name: 'Enterprise',
+        environment: 'SaaS ou auto-hébergé',
+        description:
+          "Pour les institutions qui ont besoin d'un déploiement, d'une gouvernance et d'un accompagnement sur mesure.",
+        price: 'Bientôt disponible',
+        features: [
+          'Toutes les fonctionnalités de Pro',
+          'Déploiement géré ou auto-hébergement institutionnel',
+          "Limites d'utilisation et de tâches personnalisées",
+          'Accompagnement au déploiement',
+          'Intégrations personnalisées',
+        ],
+        actionLabel: 'Bientôt disponible',
+      },
+    },
   },
 };
 

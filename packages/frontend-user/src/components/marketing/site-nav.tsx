@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { ChevronDown } from 'lucide-react';
 import { HumanlyWordmark } from '@/components/brand/humanly-wordmark';
+import { MobileNav } from '@/components/marketing/mobile-nav';
 import { marketingHref, productAppHref } from '@/lib/app-origin';
 import { getMarketingDict, type MarketingLocale } from '@/lib/marketing-i18n';
 
@@ -25,6 +26,7 @@ export function SiteNav({
     : marketingHref('/#learn-more');
 
   const resourceLinks = [
+    { label: t.docs, href: marketingHref('/docs'), external: false },
     { label: t.github, href: GITHUB_HREF, external: true },
     { label: t.help, href: `mailto:${SUPPORT_EMAIL}`, external: false },
     { label: t.about, href: marketingHref('/about'), external: false },
@@ -43,8 +45,8 @@ export function SiteNav({
         <a href={learnMoreHref} className="hover:text-foreground">
           {t.learnMore}
         </a>
-        <Link href={marketingHref('/docs')} className="hover:text-foreground">
-          {t.docs}
+        <Link href={marketingHref('/pricing')} className="hover:text-foreground">
+          {t.pricing}
         </Link>
         <Link
           href={marketingHref('/research')}
@@ -52,7 +54,6 @@ export function SiteNav({
         >
           {t.blog}
         </Link>
-
         <div className="group relative">
           <button
             type="button"
@@ -93,7 +94,7 @@ export function SiteNav({
       <div className="flex items-center gap-2 justify-self-end sm:gap-3">
         <Link
           href={productAppHref('/login')}
-          className="inline-flex h-8 items-center text-sm font-medium text-muted-foreground hover:text-foreground"
+          className="hidden h-8 items-center text-sm font-medium text-muted-foreground hover:text-foreground sm:inline-flex"
         >
           {t.logIn}
         </Link>
@@ -103,6 +104,20 @@ export function SiteNav({
         >
           {t.signUp}
         </Link>
+        <MobileNav
+          menuLabel={t.resources}
+          links={[
+            { label: t.learnMore, href: learnMoreHref },
+            { label: t.pricing, href: marketingHref('/pricing') },
+            { label: t.blog, href: marketingHref('/research') },
+            ...resourceLinks.map(({ label, href, external }) => ({
+              label,
+              href,
+              external,
+            })),
+          ]}
+          authLinks={[{ label: t.logIn, href: productAppHref('/login') }]}
+        />
       </div>
     </header>
   );
