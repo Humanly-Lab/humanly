@@ -51,7 +51,14 @@ export const metadata: Metadata = {
     'survey tracking',
   ],
   authors: [{ name: `${BRAND.name} Team` }],
-  icons: { icon: '/icon.svg' },
+  icons: {
+    icon: [
+      { url: '/favicon.ico', sizes: 'any' },
+      { url: '/favicon.png', type: 'image/png' },
+      { url: '/icon.svg', type: 'image/svg+xml' },
+    ],
+    shortcut: '/favicon.ico',
+  },
   openGraph: {
     title: getBrandText().pageTitles.admin,
     description:

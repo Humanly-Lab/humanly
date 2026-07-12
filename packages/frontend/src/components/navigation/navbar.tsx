@@ -43,7 +43,7 @@ export function Navbar() {
   return (
     <>
       <nav className="bg-background">
-        <div className="mx-auto w-full max-w-7xl px-5 sm:px-8 lg:px-10">
+        <div className="w-full px-5 sm:px-8 lg:px-10">
           <div className="flex h-16 items-center justify-between">
             <div className="flex items-center">
               <Link href="/tasks" className="flex items-center rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
