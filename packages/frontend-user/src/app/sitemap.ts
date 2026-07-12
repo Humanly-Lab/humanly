@@ -10,6 +10,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: '/', priority: 1 },
     { path: '/about', priority: 0.8 },
     { path: '/research', priority: 0.8 },
+    { path: '/research/beyond-post-hoc-detection', priority: 0.7 },
     { path: '/pricing', priority: 0.8 },
     { path: '/docs', priority: 0.5 },
     { path: '/privacy', priority: 0.3 },

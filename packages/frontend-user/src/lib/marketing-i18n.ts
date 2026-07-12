@@ -30,7 +30,7 @@ export const normalizeMarketingLocale = (
 
 const en = {
   nav: {
-    learnMore: 'Learn More',
+    learnMore: 'Product',
     blog: 'Research',
     docs: 'Docs',
     pricing: 'Pricing',
@@ -136,12 +136,21 @@ const en = {
   blog: {
     metaTitle: 'Research — Humanly',
     metaDescription:
-      'Humanly is research infrastructure as much as product. Read the Humanly technical report on configurable, traceable human-AI collaborative writing.',
+      'Research from Humanly Lab on writing provenance, human authenticity, and human-AI collaboration.',
     heroTitle: 'Research',
     heroBody:
       'Humanly is research infrastructure as much as product. We study how human authenticity can be understood and verified in the age of AI agents.',
+    paperTag: 'Paper',
+    blogTag: 'Blog',
+    articleTitle: 'Beyond Post-hoc Detection',
+    articleExcerpt:
+      'Finished text can suggest that AI was involved. It cannot show how AI entered the writing process. Our 240-sample stress test shows why those are different questions.',
+    articleMeta: 'Shenzhe Zhu · 8 min read',
+    readArticle: 'Read article',
+    articlePreviewTitle: 'Same output, different histories',
+    articlePreviewMetric: 'Best policy accuracy',
     paperSummary: 'Humanly Tech Report',
-    codeLink: 'Paper',
+    paperLink: 'Read paper',
     authorsNote: '* Equal contribution. † Corresponding author.',
     cite: 'Cite',
     ctaTitle: 'Interested in collaborating?',
@@ -240,7 +249,7 @@ export type MarketingDict = typeof en;
 
 const zhCN: MarketingDict = {
   nav: {
-    learnMore: '了解更多',
+    learnMore: '产品',
     blog: '研究',
     docs: '文档',
     pricing: '价格',
@@ -346,11 +355,20 @@ const zhCN: MarketingDict = {
   blog: {
     metaTitle: '研究 — Humanly',
     metaDescription:
-      'Humanly 既是产品，也是研究基础设施。阅读 Humanly 技术报告，了解可配置、可追溯的人机协作写作。',
+      'Humanly Lab 关于写作溯源、人类真实性与人机协作的研究。',
     heroTitle: '研究',
     heroBody: 'Humanly 既是产品，也是研究基础设施。',
+    paperTag: '论文',
+    blogTag: '博客',
+    articleTitle: 'Beyond Post-hoc Detection',
+    articleExcerpt:
+      '最终文本可以提示 AI 是否参与，却无法说明 AI 如何进入写作过程。我们的 240 个样本压力测试展示了这两个问题为何不同。',
+    articleMeta: 'Shenzhe Zhu · 阅读约 8 分钟',
+    readArticle: '阅读文章',
+    articlePreviewTitle: '相同文本，不同过程',
+    articlePreviewMetric: '最佳策略准确率',
     paperSummary: 'Humanly 技术报告',
-    codeLink: '论文',
+    paperLink: '阅读论文',
     authorsNote: '* 同等贡献。† 通讯作者。',
     cite: '引用',
     ctaTitle: '有兴趣合作吗？',
@@ -441,7 +459,7 @@ const zhCN: MarketingDict = {
 
 const ja: MarketingDict = {
   nav: {
-    learnMore: '詳しく見る',
+    learnMore: 'プロダクト',
     blog: '研究',
     docs: 'ドキュメント',
     pricing: '料金',
@@ -547,11 +565,20 @@ const ja: MarketingDict = {
   blog: {
     metaTitle: '研究 — Humanly',
     metaDescription:
-      'Humanly は製品であると同時に研究基盤です。Humanly テクニカルレポートをご覧ください。',
+      'Humanly Lab による、文章の来歴、人間の真正性、人間と AI の協働に関する研究。',
     heroTitle: '研究',
     heroBody: 'Humanly は製品であると同時に研究基盤です。',
+    paperTag: '論文',
+    blogTag: 'ブログ',
+    articleTitle: 'Beyond Post-hoc Detection',
+    articleExcerpt:
+      '完成した文章から AI の関与を推測することはできても、AI が執筆過程にどう入ったかは分かりません。240 サンプルのストレステストで、その違いを検証しました。',
+    articleMeta: 'Shenzhe Zhu · 8分で読めます',
+    readArticle: '記事を読む',
+    articlePreviewTitle: '同じ文章、異なる過程',
+    articlePreviewMetric: '最高ポリシー精度',
     paperSummary: 'Humanly テクニカルレポート',
-    codeLink: '論文',
+    paperLink: '論文を読む',
     authorsNote: '* 同等貢献。† 責任著者。',
     cite: '引用',
     ctaTitle: '共同研究に興味がありますか？',
@@ -647,7 +674,7 @@ const ja: MarketingDict = {
 
 const es: MarketingDict = {
   nav: {
-    learnMore: 'Saber más',
+    learnMore: 'Producto',
     blog: 'Investigación',
     docs: 'Documentación',
     pricing: 'Precios',
@@ -753,12 +780,21 @@ const es: MarketingDict = {
   blog: {
     metaTitle: 'Investigación — Humanly',
     metaDescription:
-      'Humanly es tanto infraestructura de investigación como producto. Lee el informe técnico de Humanly.',
+      'Investigación de Humanly Lab sobre procedencia de la escritura, autenticidad humana y colaboración entre personas e IA.',
     heroTitle: 'Investigación',
     heroBody:
       'Humanly es tanto infraestructura de investigación como producto.',
+    paperTag: 'Artículo',
+    blogTag: 'Blog',
+    articleTitle: 'Beyond Post-hoc Detection',
+    articleExcerpt:
+      'El texto final puede sugerir que intervino la IA, pero no muestra cómo entró en el proceso de escritura. Nuestro estudio de 240 muestras explica por qué son preguntas distintas.',
+    articleMeta: 'Shenzhe Zhu · 8 min de lectura',
+    readArticle: 'Leer artículo',
+    articlePreviewTitle: 'Mismo resultado, historias distintas',
+    articlePreviewMetric: 'Mejor precisión de política',
     paperSummary: 'Informe técnico de Humanly',
-    codeLink: 'Artículo',
+    paperLink: 'Leer artículo',
     authorsNote: '* Contribución equitativa. † Autor de correspondencia.',
     cite: 'Citar',
     ctaTitle: '¿Interesado en colaborar?',
@@ -856,7 +892,7 @@ const es: MarketingDict = {
 
 const fr: MarketingDict = {
   nav: {
-    learnMore: 'En savoir plus',
+    learnMore: 'Produit',
     blog: 'Recherche',
     docs: 'Documentation',
     pricing: 'Tarifs',
@@ -963,12 +999,21 @@ const fr: MarketingDict = {
   blog: {
     metaTitle: 'Recherche — Humanly',
     metaDescription:
-      "Humanly est autant une infrastructure de recherche qu'un produit. Lisez le rapport technique Humanly.",
+      "Les recherches de Humanly Lab sur la provenance de l'écriture, l'authenticité humaine et la collaboration humain-IA.",
     heroTitle: 'Recherche',
     heroBody:
       "Humanly est autant une infrastructure de recherche qu'un produit.",
+    paperTag: 'Article',
+    blogTag: 'Blog',
+    articleTitle: 'Beyond Post-hoc Detection',
+    articleExcerpt:
+      "Le texte final peut suggérer qu'une IA est intervenue, mais il ne montre pas comment elle est entrée dans le processus d'écriture. Notre test de 240 échantillons montre pourquoi ces questions diffèrent.",
+    articleMeta: 'Shenzhe Zhu · 8 min de lecture',
+    readArticle: "Lire l'article",
+    articlePreviewTitle: 'Même résultat, histoires différentes',
+    articlePreviewMetric: 'Meilleure précision de politique',
     paperSummary: 'Rapport technique Humanly',
-    codeLink: 'Article',
+    paperLink: "Lire l'article",
     authorsNote: '* Contribution égale. † Auteur correspondant.',
     cite: 'Citer',
     ctaTitle: 'Envie de collaborer ?',
