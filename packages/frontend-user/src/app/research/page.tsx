@@ -159,8 +159,15 @@ export default function ResearchPage() {
                   </time>
                 </div>
                 <h2 className="mt-5 min-w-0 text-[18px] font-medium leading-[1.45]">
-                  Humanly: A Configurable and Traceable Environment for Human-AI
-                  Collaborative Writing
+                  <a
+                    href={paperHref}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="rounded-sm transition-colors hover:text-[var(--hly-brand-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--hly-brand)] focus-visible:ring-offset-2"
+                  >
+                    Humanly: A Configurable and Traceable Environment for Human-AI
+                    Collaborative Writing
+                  </a>
                 </h2>
                 <p className="mt-2 text-[12.5px] leading-[1.7] text-muted-foreground sm:text-[13px]">
                   {paperAuthorLines.map((line) => (
