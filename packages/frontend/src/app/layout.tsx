@@ -1,8 +1,9 @@
 import type { Metadata } from 'next';
 import { Courier_Prime } from 'next/font/google';
 import localFont from 'next/font/local';
-import { BRAND, getBrandText } from '@humanly/shared';
+import { BRAND, getBrandText, hasFeature } from '@humanly/shared';
 import './globals.css';
+import { getEdition } from '@/lib/edition';
 
 const cursorGothic = localFont({
   src: [
@@ -72,9 +73,22 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const edition = getEdition();
+
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${cursorGothic.variable} ${courierPrime.variable}`}>
+      <body
+        className={`${cursorGothic.variable} ${courierPrime.variable}`}
+        data-humanly-edition={edition}
+      >
+        {process.env.NEXT_PUBLIC_EDITION === 'cloud' &&
+        hasFeature(edition, 'billing') ? (
+          <span
+            aria-hidden="true"
+            data-humanly-cloud-ui="HUMANLY_CLOUD_UI_MARKER"
+            hidden
+          />
+        ) : null}
         {children}
       </body>
     </html>
