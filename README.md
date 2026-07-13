@@ -27,10 +27,11 @@
   <a href="./LICENSE"><img alt="License" src="https://img.shields.io/badge/license-MIT-8b8675?style=flat&logo=opensourceinitiative&logoColor=white"></a>
 </p>
 
-Humanly is a writing provenance platform for human-AI collaboration. Writers
-draft inside an owner-configured environment while Humanly records the process
-as it happens. The resulting certificate lets readers inspect how the document
-was produced instead of inferring authorship from the final text alone.
+Humanly Community is the open-source, self-hostable distribution of Humanly, a
+writing provenance platform for human-AI collaboration. Writers draft inside
+an owner-configured environment while Humanly records the process as it happens.
+The resulting certificate lets readers inspect how the document was produced
+instead of inferring authorship from the final text alone.
 
 <p align="center">
   <img src="./assets/humanly-product-hero.png" alt="Humanly writing workspace with PDF context, editor, and AI assistant" width="960" />
@@ -49,6 +50,12 @@ Humanly has two first-party web apps and a public certificate surface:
 - **Certificate verification:** shareable certificate URLs expose only the
   display fields selected by the certificate owner and verify the integrity
   seal attached to the record.
+
+Humanly Community contains the complete Writer, Publisher, and Verifier
+workflow plus the tools needed to run it on your own infrastructure. The
+managed service at `writehumanly.net` is operated through a separate private
+Humanly Cloud control plane. Production credentials and managed-service
+deployment automation are intentionally not stored in this public repository.
 
 ## Features
 
@@ -177,7 +184,7 @@ packages/shared         Shared types and utilities
 packages/create-humanly Self-host installer package
 ```
 
-Local and production deployments use PostgreSQL for durable data, Redis for
+Self-hosted and managed deployments use PostgreSQL for durable data, Redis for
 cache and realtime support, file/object storage for uploaded PDFs and
 attachments, and optional detector weights for model inference.
 
