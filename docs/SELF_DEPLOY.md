@@ -116,14 +116,14 @@ browser cannot load the signed URL, the Writer Portal falls back to the
 authenticated backend range proxy.
 
 Configure bucket CORS so PDF.js can issue `GET` and byte-range requests and
-inspect the response headers. The repository includes the production policy at
-`config/gcs-cors.production.json`; copy it and replace the origins for a custom
-deployment.
+inspect the response headers. The repository includes a domain-neutral policy
+at `config/gcs-cors.example.json`. Copy it and replace the example origins with
+the Writer and Publisher Portal origins for your deployment.
 
 ```json
 [
   {
-    "origin": ["https://app.writehumanly.net"],
+    "origin": ["https://writer.example.com", "https://publisher.example.com"],
     "method": ["GET", "HEAD"],
     "responseHeader": [
       "Accept-Ranges",
@@ -137,8 +137,8 @@ deployment.
 ```
 
 ```bash
-gcloud storage buckets update gs://humanly-prod-pdfs \
-  --cors-file=config/gcs-cors.production.json
+gcloud storage buckets update gs://your-humanly-pdf-bucket \
+  --cors-file=config/gcs-cors.example.json
 ```
 
 The backend service account must be able to read bucket objects and sign URLs.
@@ -148,11 +148,9 @@ signing service account.
 
 If project policy does not allow keyless `signBlob`, use a dedicated signer
 service account with only `roles/storage.objectViewer` on the PDF bucket. Keep
-its JSON key outside the checkout and mount it read-only into the backend. The
-production Compose file expects the root-owned host file at
-`/opt/humanly/secrets/gcs-pdf-signer.json` and exposes only its container path
-through `GCS_KEY_FILENAME`. Override the host location with
-`GCS_SIGNER_KEY_HOST_PATH`; never add the key to Git, `.env`, an image, or CI
+its JSON key outside the checkout and mount it read-only into the backend using
+your deployment tooling. Set `GCS_KEY_FILENAME` to the credential file's path
+inside the backend container. Never add the key to Git, `.env`, an image, or CI
 logs.
 
 Signed URLs are bearer credentials. Humanly does not log their query strings,

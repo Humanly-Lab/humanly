@@ -1,11 +1,11 @@
 #!/bin/bash
-# Run pending production SQL migrations through the postgres Compose service.
+# Run pending Community SQL migrations through the postgres Compose service.
 set -euo pipefail
 
-COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.prod.yml}"
+COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.quickstart.yml}"
 MIGRATIONS_DIR="${MIGRATIONS_DIR:-packages/backend/src/db/migrations}"
 POSTGRES_SERVICE="${POSTGRES_SERVICE:-postgres}"
-POSTGRES_DB="${POSTGRES_DB:-humanly_prod}"
+POSTGRES_DB="${POSTGRES_DB:-humanly_dev}"
 POSTGRES_USER="${POSTGRES_USER:-humanly_user}"
 BASELINE_EXISTING_DB="${BASELINE_EXISTING_DB:-true}"
 

@@ -1,9 +1,8 @@
 [
   {
     "origin": [
-      "https://writehumanly.net",
-      "https://app.writehumanly.net",
-      "https://admin.writehumanly.net"
+      "https://writer.example.com",
+      "https://publisher.example.com"
     ],
     "method": ["GET", "HEAD"],
     "responseHeader": [

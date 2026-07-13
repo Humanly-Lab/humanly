@@ -1,5 +1,4 @@
 # Publisher Portal (packages/frontend)
-# Served at / on admin.writehumanly.net via nginx.
 
 # ── Build stage ───────────────────────────────────────────────────────────────
 FROM node:20-alpine AS builder
