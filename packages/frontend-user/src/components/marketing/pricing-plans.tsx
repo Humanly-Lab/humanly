@@ -98,11 +98,7 @@ function PlanCard({
         {plan.description}
       </p>
 
-      <div
-        className={`mt-5 flex min-h-[50px] gap-2 ${
-          isComingSoon ? 'flex-1 items-center' : 'items-end'
-        }`}
-      >
+      <div className="mt-5 flex min-h-[50px] items-end gap-2">
         <span
           className={`leading-none ${
             isComingSoon
