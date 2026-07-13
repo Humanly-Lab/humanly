@@ -3,6 +3,8 @@ import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
 import cookieParser from 'cookie-parser';
+import { hasFeature } from '@humanly/shared';
+import type { Edition } from '@humanly/shared';
 import { env } from './config/env';
 import { logger } from './utils/logger';
 import {
@@ -26,7 +28,22 @@ import aiRoutes from './routes/ai.routes';
 import fileRoutes from './routes/files.routes';
 import detectorRoutes from './routes/detector.routes';
 
-export function createApp(): Express {
+export interface BillingRouteModule {
+  registerBillingRoutes(app: Express): void | Promise<void>;
+}
+
+export interface CreateAppOptions {
+  edition?: Edition;
+  loadBillingModule?: () => Promise<BillingRouteModule>;
+}
+
+async function loadBillingModule(): Promise<BillingRouteModule> {
+  const packageName = '@humanly-ee/billing';
+  return import(packageName) as Promise<BillingRouteModule>;
+}
+
+export async function createApp(options: CreateAppOptions = {}): Promise<Express> {
+  const edition = options.edition ?? env.edition;
   const app = express();
 
   // Trust proxy - required for HTTPS detection behind nginx
@@ -104,6 +121,7 @@ export function createApp(): Express {
   const healthHandler = (_req: Request, res: Response) => {
     res.json({
       status: 'ok',
+      edition,
       timestamp: new Date().toISOString(),
       uptime: process.uptime(),
     });
@@ -132,9 +150,15 @@ export function createApp(): Express {
   app.use('/api/v1/certificates', certificateRoutes);
   app.use('/api/v1/track', trackingRoutes);
   app.use('/api/v1/tasks', exportRoutes);
-  app.use('/api/v1', detectorRoutes);
   app.use('/api/v1/tasks', analyticsRoutes);
   app.use('/api/v1/ai', aiRoutes);
+
+  if (hasFeature(edition, 'billing')) {
+    const billingModule = await (options.loadBillingModule ?? loadBillingModule)();
+    await billingModule.registerBillingRoutes(app);
+  }
+
+  app.use('/api/v1', detectorRoutes);
   app.use('/api/v1', fileRoutes);
 
   // 404 handler

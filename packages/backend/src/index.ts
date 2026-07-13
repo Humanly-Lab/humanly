@@ -17,7 +17,7 @@ async function main() {
     await createRedisClient();
 
     // Create Express app
-    const app = createApp();
+    const app = await createApp();
 
     // Create HTTP server with Socket.IO
     const { httpServer, io } = createServer(app);

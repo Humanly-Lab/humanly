@@ -1,5 +1,5 @@
 #!/bin/bash
-# Run pending Community SQL migrations through the postgres Compose service.
+# Run pending Community and optional edition SQL migrations through Compose.
 set -euo pipefail
 
 COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.quickstart.yml}"
@@ -9,10 +9,14 @@ POSTGRES_DB="${POSTGRES_DB:-humanly_dev}"
 POSTGRES_USER="${POSTGRES_USER:-humanly_user}"
 BASELINE_EXISTING_DB="${BASELINE_EXISTING_DB:-true}"
 
-if [[ ! -d "$MIGRATIONS_DIR" ]]; then
-  echo "ERROR: Migration directory not found: $MIGRATIONS_DIR" >&2
-  exit 1
-fi
+IFS=':' read -r -a migration_dirs <<< "$MIGRATIONS_DIR"
+
+for migration_dir in "${migration_dirs[@]}"; do
+  if [[ -z "$migration_dir" || ! -d "$migration_dir" ]]; then
+    echo "ERROR: Migration directory not found: ${migration_dir:-<empty>}" >&2
+    exit 1
+  fi
+done
 
 checksum_file() {
   if command -v sha256sum >/dev/null 2>&1; then
@@ -162,9 +166,20 @@ CREATE TABLE IF NOT EXISTS schema_migrations (
 SQL
 
 migration_files=()
-while IFS= read -r file; do
-  migration_files+=("$file")
-done < <(find "$MIGRATIONS_DIR" -maxdepth 1 -type f -name '*.sql' | sort)
+for migration_dir in "${migration_dirs[@]}"; do
+  while IFS= read -r file; do
+    filename="$(basename "$file")"
+    if [[ -n "${migration_files[*]-}" ]]; then
+      for existing_file in "${migration_files[@]}"; do
+        if [[ "$(basename "$existing_file")" == "$filename" ]]; then
+          echo "ERROR: Duplicate migration filename across directories: $filename" >&2
+          exit 1
+        fi
+      done
+    fi
+    migration_files+=("$file")
+  done < <(find "$migration_dir" -maxdepth 1 -type f -name '*.sql' | sort)
+done
 
 if [[ "${#migration_files[@]}" -eq 0 ]]; then
   echo "==> No migration files found"
