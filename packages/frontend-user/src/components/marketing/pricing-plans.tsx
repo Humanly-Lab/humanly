@@ -19,12 +19,12 @@ const planOrder: readonly PlanKey[] = [
 
 const planActions: Record<
   PlanKey,
-  { href?: string; external?: boolean; disabled?: boolean }
+  { href?: string; external?: boolean }
 > = {
   openSource: { href: GITHUB_HREF, external: true },
   free: { href: productAppHref('/register') },
-  pro: { disabled: true },
-  enterprise: { disabled: true },
+  pro: {},
+  enterprise: {},
 };
 
 export function PricingPlans({ copy }: { copy: PricingCopy }) {
@@ -98,7 +98,11 @@ function PlanCard({
         {plan.description}
       </p>
 
-      <div className="mt-5 flex min-h-[50px] items-end gap-2">
+      <div
+        className={`mt-5 flex min-h-[50px] gap-2 ${
+          isComingSoon ? 'flex-1 items-center' : 'items-end'
+        }`}
+      >
         <span
           className={`leading-none ${
             isComingSoon
@@ -113,27 +117,29 @@ function PlanCard({
         ) : null}
       </div>
 
-      <ul className="mt-7 space-y-3.5">
-        {plan.features.map((feature) => (
-          <li
-            className="flex gap-2.5 text-[13px] leading-[1.5] text-muted-foreground"
-            key={feature}
-          >
-            <Check
-              aria-hidden="true"
-              className="mt-0.5 h-4 w-4 shrink-0 text-foreground"
-              strokeWidth={1.8}
-            />
-            <span>{feature}</span>
-          </li>
-        ))}
-      </ul>
+      {plan.features.length > 0 ? (
+        <ul className="mt-7 space-y-3.5">
+          {plan.features.map((feature) => (
+            <li
+              className="flex gap-2.5 text-[13px] leading-[1.5] text-muted-foreground"
+              key={feature}
+            >
+              <Check
+                aria-hidden="true"
+                className="mt-0.5 h-4 w-4 shrink-0 text-foreground"
+                strokeWidth={1.8}
+              />
+              <span>{feature}</span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
 
-      <div className="mt-auto flex justify-center pt-8">
-        {action.href ? (
+      {!isComingSoon ? (
+        <div className="mt-auto flex justify-center pt-8">
           <a
             className={actionClass}
-            href={action.href}
+            href={action.href!}
             {...(action.external
               ? { target: '_blank', rel: 'noopener noreferrer' }
               : {})}
@@ -143,16 +149,8 @@ function PlanCard({
               <ArrowUpRight aria-hidden="true" className="h-4 w-4" />
             ) : null}
           </a>
-        ) : (
-          <button
-            className={`${actionClass} cursor-not-allowed opacity-40`}
-            disabled={action.disabled}
-            type="button"
-          >
-            {plan.actionLabel}
-          </button>
-        )}
-      </div>
+        </div>
+      ) : null}
     </article>
   );
 }

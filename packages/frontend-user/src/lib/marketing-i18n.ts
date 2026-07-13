@@ -202,12 +202,7 @@ const en = {
         description:
           'For individuals who want a managed personal writing workspace.',
         price: '$0',
-        features: [
-          'Personal Writing',
-          '100 included AI requests per account',
-          'Up to 10 personal writing projects',
-          'Activity logs, replay, and signed certificates',
-        ],
+        features: [] as string[],
         actionLabel: 'Get started',
       },
       pro: {
@@ -215,15 +210,7 @@ const en = {
         environment: 'SaaS',
         description: 'For instructors managing writing assignments and writers.',
         price: 'Coming soon',
-        features: [
-          'Everything in Free',
-          'Personal Writing and Task Assignment',
-          'Writer and Publisher portals',
-          '1,000 included AI requests per account',
-          'Allocate AI requests across assignments',
-          'Manage up to 100 assignments',
-          'API access',
-        ],
+        features: [] as string[],
         actionLabel: 'Coming soon',
       },
       enterprise: {
@@ -232,13 +219,7 @@ const en = {
         description:
           'For institutions that need tailored deployment, governance, and support.',
         price: 'Coming soon',
-        features: [
-          'Everything in Pro',
-          'Managed or institution-ready self-hosting',
-          'Custom usage and assignment limits',
-          'Deployment support',
-          'Custom integrations',
-        ],
+        features: [] as string[],
         actionLabel: 'Coming soon',
       },
     },
@@ -415,12 +396,7 @@ const zhCN: MarketingDict = {
         environment: 'SaaS',
         description: '适合需要托管式个人写作空间的个人用户。',
         price: '$0',
-        features: [
-          '个人写作',
-          '每个账户包含 100 次 AI 请求',
-          '最多 10 个个人写作项目',
-          '活动日志、轨迹回放与签名证书',
-        ],
+        features: [],
         actionLabel: '开始使用',
       },
       pro: {
@@ -428,15 +404,7 @@ const zhCN: MarketingDict = {
         environment: 'SaaS',
         description: '适合管理写作任务和写作者的教师。',
         price: '即将推出',
-        features: [
-          '包含免费版全部功能',
-          '个人写作与任务分配',
-          '写作者与发布者双门户',
-          '每个账户包含 1,000 次 AI 请求',
-          '可将 AI 请求额度分配给不同任务',
-          '最多管理 100 个任务',
-          'API 访问权限',
-        ],
+        features: [],
         actionLabel: '即将推出',
       },
       enterprise: {
@@ -444,13 +412,7 @@ const zhCN: MarketingDict = {
         environment: 'SaaS 或自部署',
         description: '适合需要定制部署、治理与支持的机构。',
         price: '即将推出',
-        features: [
-          '包含专业版全部功能',
-          '托管部署或面向机构的自部署',
-          '定制使用量与任务上限',
-          '部署支持',
-          '定制集成',
-        ],
+        features: [],
         actionLabel: '即将推出',
       },
     },
@@ -629,12 +591,7 @@ const ja: MarketingDict = {
         environment: 'SaaS',
         description: 'マネージドな個人執筆環境を求める方向けです。',
         price: '$0',
-        features: [
-          '個人執筆',
-          'アカウントごとに AI リクエスト 100 回',
-          '個人執筆プロジェクト最大 10 件',
-          'アクティビティログ、リプレイ、署名付き証明書',
-        ],
+        features: [],
         actionLabel: '始める',
       },
       pro: {
@@ -642,15 +599,7 @@ const ja: MarketingDict = {
         environment: 'SaaS',
         description: '執筆課題とライターを管理する教育者向けです。',
         price: '近日公開',
-        features: [
-          'Free の全機能',
-          '個人執筆と課題管理',
-          'ライターおよびパブリッシャーポータル',
-          'アカウントごとに AI リクエスト 1,000 回',
-          '課題ごとに AI リクエストを配分',
-          '課題を最大 100 件管理',
-          'API アクセス',
-        ],
+        features: [],
         actionLabel: '近日公開',
       },
       enterprise: {
@@ -659,13 +608,7 @@ const ja: MarketingDict = {
         description:
           'カスタム導入、ガバナンス、サポートが必要な組織向けです。',
         price: '近日公開',
-        features: [
-          'Pro の全機能',
-          'マネージド導入または組織向けセルフホスト',
-          '利用量と課題上限のカスタマイズ',
-          '導入支援',
-          'カスタム連携',
-        ],
+        features: [],
         actionLabel: '近日公開',
       },
     },
@@ -846,12 +789,7 @@ const es: MarketingDict = {
         description:
           'Para personas que quieren un espacio gestionado de escritura personal.',
         price: '$0',
-        features: [
-          'Escritura personal',
-          '100 solicitudes de IA incluidas por cuenta',
-          'Hasta 10 proyectos de escritura personal',
-          'Registros de actividad, reproducción y certificados firmados',
-        ],
+        features: [],
         actionLabel: 'Empezar',
       },
       pro: {
@@ -860,15 +798,7 @@ const es: MarketingDict = {
         description:
           'Para docentes que gestionan tareas de escritura y escritores.',
         price: 'Próximamente',
-        features: [
-          'Todo lo incluido en Free',
-          'Escritura personal y asignación de tareas',
-          'Portales para escritores y publicadores',
-          '1.000 solicitudes de IA incluidas por cuenta',
-          'Distribución de solicitudes de IA entre tareas',
-          'Gestión de hasta 100 tareas',
-          'Acceso a la API',
-        ],
+        features: [],
         actionLabel: 'Próximamente',
       },
       enterprise: {
@@ -877,13 +807,7 @@ const es: MarketingDict = {
         description:
           'Para instituciones que necesitan despliegue, gobernanza y soporte a medida.',
         price: 'Próximamente',
-        features: [
-          'Todo lo incluido en Pro',
-          'Despliegue gestionado o autoalojamiento institucional',
-          'Límites de uso y tareas personalizados',
-          'Soporte de despliegue',
-          'Integraciones personalizadas',
-        ],
+        features: [],
         actionLabel: 'Próximamente',
       },
     },
@@ -1065,12 +989,7 @@ const fr: MarketingDict = {
         description:
           "Pour les personnes qui souhaitent un espace géré d'écriture personnelle.",
         price: '$0',
-        features: [
-          'Écriture personnelle',
-          "100 requêtes d'IA incluses par compte",
-          "Jusqu'à 10 projets d'écriture personnelle",
-          "Journaux d'activité, replay et certificats signés",
-        ],
+        features: [],
         actionLabel: 'Commencer',
       },
       pro: {
@@ -1079,15 +998,7 @@ const fr: MarketingDict = {
         description:
           "Pour les enseignants qui gèrent des travaux d'écriture et leurs auteurs.",
         price: 'Bientôt disponible',
-        features: [
-          'Toutes les fonctionnalités de Free',
-          'Écriture personnelle et attribution de tâches',
-          'Portails Auteur et Éditeur',
-          "1 000 requêtes d'IA incluses par compte",
-          "Répartition des requêtes d'IA entre les tâches",
-          "Gestion de jusqu'à 100 tâches",
-          "Accès à l'API",
-        ],
+        features: [],
         actionLabel: 'Bientôt disponible',
       },
       enterprise: {
@@ -1096,13 +1007,7 @@ const fr: MarketingDict = {
         description:
           "Pour les institutions qui ont besoin d'un déploiement, d'une gouvernance et d'un accompagnement sur mesure.",
         price: 'Bientôt disponible',
-        features: [
-          'Toutes les fonctionnalités de Pro',
-          'Déploiement géré ou auto-hébergement institutionnel',
-          "Limites d'utilisation et de tâches personnalisées",
-          'Accompagnement au déploiement',
-          'Intégrations personnalisées',
-        ],
+        features: [],
         actionLabel: 'Bientôt disponible',
       },
     },
