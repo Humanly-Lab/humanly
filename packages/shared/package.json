@@ -8,6 +8,7 @@
   "scripts": {
     "build": "tsc --build",
     "dev": "tsc --watch",
+    "test": "pnpm build && node dist/config/edition.test.js && node dist/utils/event-metadata.test.js",
     "clean": "rm -rf dist"
   },
   "dependencies": {

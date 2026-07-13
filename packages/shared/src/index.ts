@@ -3,6 +3,7 @@ export * from './types';
 
 // Export brand configuration
 export * from './config/brand';
+export * from './config/edition';
 
 // Export utilities
 export * from './utils/constants';
