@@ -3,10 +3,11 @@
   "version": "1.0.0",
   "description": "Configurable and traceable environment for human-AI collaborative writing",
   "private": true,
-  "license": "MIT",
+  "license": "SEE LICENSE IN LICENSE",
   "packageManager": "pnpm@9.0.0",
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "ee/packages/*"
   ],
   "scripts": {
     "dev:backend": "pnpm --filter @humanly/backend dev",

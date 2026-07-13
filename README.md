@@ -24,7 +24,7 @@
   <a href="https://github.com/Humanly-Lab/humanly/releases/latest"><img alt="Release" src="https://img.shields.io/github/v/release/Humanly-Lab/humanly?style=flat&logo=github&logoColor=white&color=8b7a8f"></a>
   <img alt="Frontend stack" src="https://img.shields.io/badge/frontend-Next.js%20%2F%20TypeScript-71879b?style=flat&logo=nextdotjs&logoColor=white">
   <img alt="Backend stack" src="https://img.shields.io/badge/backend-Express%20%2F%20PostgreSQL-9c8068?style=flat&logo=postgresql&logoColor=white">
-  <a href="./LICENSE"><img alt="License" src="https://img.shields.io/badge/license-MIT-8b8675?style=flat&logo=opensourceinitiative&logoColor=white"></a>
+  <a href="./LICENSE"><img alt="License" src="https://img.shields.io/badge/license-MIT%20%2B%20Enterprise-8b8675?style=flat&logo=opensourceinitiative&logoColor=white"></a>
 </p>
 
 Humanly Community is the open-source, self-hostable distribution of Humanly, a
@@ -56,6 +56,22 @@ workflow plus the tools needed to run it on your own infrastructure. The
 managed service at `writehumanly.net` is operated through a separate private
 Humanly Cloud control plane. Production credentials and managed-service
 deployment automation are intentionally not stored in this public repository.
+
+## Editions
+
+Humanly ships Community and Cloud from one public codebase. The core product
+under `packages/` is shared by both editions; Cloud-only implementations live
+under `ee/` so the two editions do not drift into separate application forks.
+
+| Edition | Distribution | Source license |
+| --- | --- | --- |
+| Humanly Community | Self-hosted with the quickstart or manual deployment guide | MIT for all content outside `ee/` |
+| Humanly Cloud | Managed SaaS at [writehumanly.net](https://writehumanly.net/) | MIT core plus separately licensed, source-available code under `ee/` |
+
+The private `Humanly-Lab/humanly-cloud` repository is a deployment control
+plane only. It contains managed infrastructure, production configuration, and
+private artifacts such as model weights; it does not contain a second copy of
+the Humanly application source.
 
 ## Features
 
@@ -195,4 +211,4 @@ attachments, and optional detector weights for model inference.
 - Latest release: [GitHub Releases](https://github.com/Humanly-Lab/humanly/releases/latest)
 - Contributing: [CONTRIBUTING.md](CONTRIBUTING.md)
 - Code of conduct: [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
-- License: [MIT](LICENSE)
+- License: [MIT core with a separately licensed Enterprise Edition directory](LICENSE)
