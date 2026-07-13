@@ -2,10 +2,11 @@ import type { Metadata } from 'next';
 import { Courier_Prime } from 'next/font/google';
 import localFont from 'next/font/local';
 import Script from 'next/script';
-import { BRAND, getBrandText } from '@humanly/shared';
+import { BRAND, getBrandText, hasFeature } from '@humanly/shared';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { PolyfillProvider } from '@/components/polyfill-provider';
+import { getEdition } from '@/lib/edition';
 
 const GOOGLE_ANALYTICS_MEASUREMENT_ID = 'G-3NKG61B682';
 
@@ -80,9 +81,22 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const edition = getEdition();
+
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${cursorGothic.variable} ${courierPrime.variable}`}>
+      <body
+        className={`${cursorGothic.variable} ${courierPrime.variable}`}
+        data-humanly-edition={edition}
+      >
+        {process.env.NEXT_PUBLIC_EDITION === 'cloud' &&
+        hasFeature(edition, 'billing') ? (
+          <span
+            aria-hidden="true"
+            data-humanly-cloud-ui="HUMANLY_CLOUD_UI_MARKER"
+            hidden
+          />
+        ) : null}
         <Script
           src={`https://www.googletagmanager.com/gtag/js?id=${GOOGLE_ANALYTICS_MEASUREMENT_ID}`}
           strategy="afterInteractive"
