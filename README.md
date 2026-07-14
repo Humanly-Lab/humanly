@@ -74,7 +74,7 @@ requires a commercial license. See the
 [Humanly Enterprise Server README](ee/README.md) for the exact boundary and
 current contents.
 
-The private `Humanly-Lab/humanly-cloud` repository is a deployment control
+The private `Humanly-Lab/humanly-cloud-infra` repository is a deployment control
 plane only. It contains managed infrastructure, production configuration, and
 private artifacts such as model weights; it does not contain a second copy of
 the Humanly application source.

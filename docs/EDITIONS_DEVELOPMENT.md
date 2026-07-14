@@ -10,7 +10,7 @@ operational runbooks and production config live in the private infra repo.
 |---|---|---|
 | Code evolution | Does product code ever fork? | Never — all product code in this repo |
 | Licensing | Who may use which code for free? | `packages/*` = MIT; `ee/` = PolyForm Free Trial 1.0.0 |
-| Operations/secrets | What does our production look like? | Private infra repo (`humanly-cloud`, renaming to `humanly-cloud-infra`) — deployment only, zero app code |
+| Operations/secrets | What does our production look like? | Private infra repo (`humanly-cloud-infra`) — deployment only, zero app code |
 
 **The edition boundary is a commercial-value boundary, not a deployment boundary.**
 If something differs between self-host and our SaaS only by *configuration* (SMTP

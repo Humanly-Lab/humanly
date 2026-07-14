@@ -1,7 +1,7 @@
 # Editions: Post-Refactor Work Order
 
-**Status:** editions refactor landed (integration PR #1050 + PolyForm license #1052);
-deep review completed 2026-07-14 — see findings below.
+**Status:** editions refactor landed (integration PR #1050 + PolyForm license
+#1052); review Tasks 1-3 completed 2026-07-14.
 **Audience:** implementation agent (Codex). Self-contained; do not assume chat context.
 
 ## Deep-review verdict (2026-07-14)
@@ -22,25 +22,21 @@ The edition seam is sound and matches industry practice. Verified:
 
 **Findings to address (ordered; updated after the line-level second pass):**
 
-1. **Production still runs pre-editions code.** `humanly-cloud`'s `community.lock`
-   pins `67555e75` (before #1050). The Cloud-edition deploy PR (humanly-cloud #11)
-   is `CONFLICTING` — full-diff review shows the conflict is **only the one-line
-   `community.lock`** (both branches moved it), so the rebase is trivial. However
-   the PR pins `23754da5`, which predates the PolyForm license swap (#1052): a
-   deploy from that pin ships a placeholder `ee/LICENSE` inside Cloud images.
-   **Advance the lock to `d500df8f` or later during the rebase.** → Task 1.
-2. **`AI_ENCRYPTION_KEY` has an all-zeros default with no production guard**
+1. **Resolved: production now runs the Cloud edition.** Infra PR #11 was rebased
+   with `community.lock` advanced past `d500df8f`, the Cloud images passed edition
+   purity checks, and production health reports `edition: "cloud"` with the
+   billing route mounted.
+2. **Resolved: `AI_ENCRYPTION_KEY` production guard.** It previously had an
+   all-zeros default with no production guard
    (`packages/backend/src/config/env.ts`). Email config has a production-boot
    validation pattern (`getEmailConfigurationErrors`); the encryption key — which
-   protects user-owned AI provider keys at rest — does not. Add the same guard:
-   refuse production boot when the key is unset/all-zeros. Community-security fix,
-   not edition-related.
-3. **Hardcoded managed hostname in Community-facing copy.**
+   protects user-owned AI provider keys at rest — now follows the same pattern and
+   refuses production boot when unset or all-zero (#1054).
+3. **Resolved: hardcoded managed hostname in Community-facing copy.**
    `packages/backend/src/controllers/tracker.controller.ts` (~line 425) tells
-   admins to open "developer.writehumanly.net" inside the generated tracking-code
-   instructions. Wrong for self-hosters; derive from `env.frontendAdminUrl`. Note:
-   the boundary audit's hostname pattern deliberately scans only workflow files, so
-   this is out of its scope by design — fix the copy, don't widen the audit blindly.
+   admins where to open generated tracking-code instructions. It now derives the
+   URL from `env.frontendAdminUrl`; the intentionally workflow-only hostname audit
+   was not widened (#1054).
 4. **`ee/docker/*.Dockerfile` duplication drift.** The three cloud Dockerfiles are
    near-copies of `docker/*.Dockerfile`. Add a comment header in both pointing at the
    counterpart, and a CI reminder (e.g., checksum-diff warning) or accept the drift
@@ -81,8 +77,8 @@ framework.
 
 ## Tasks
 
-### Task 1 — Land Cloud-edition deploy in the infra repo (highest priority)
-In `Humanly-Lab/humanly-cloud` (to be renamed, Task 3):
+### Task 1 — Land Cloud-edition deploy in the infra repo (completed)
+In `Humanly-Lab/humanly-cloud-infra`:
 1. Rebase PR #11 (`feat/1043-cloud-edition-deploy`) onto current main. The only
    conflict is the single-line `community.lock` (both sides moved it); everything
    else in the PR (ee dockerfiles, `-cloud` tags, edition env, ee-migrations bundle,
@@ -96,14 +92,16 @@ In `Humanly-Lab/humanly-cloud` (to be renamed, Task 3):
    responds. Verify the Community quickstart still boots independently
    (`edition: "community"`).
 
-### Task 2 — Community hardening fixes (findings 2 and 3)
+### Task 2 — Community hardening fixes (completed)
 Production-boot guard for `AI_ENCRYPTION_KEY` (mirror the email-config pattern) and
 replace the hardcoded `developer.writehumanly.net` in the tracker instructions with
 the env-derived admin URL. One small PR in the product repo.
 
-### Task 3 — Rename `humanly-cloud` → `humanly-cloud-infra`
-After Task 1 lands (avoid renaming under an open conflicted PR). GitHub redirects,
-but update explicit references: VM git remote, workflow references, docs in both repos.
+### Task 3 — Rename the Cloud control plane to `humanly-cloud-infra` (completed)
+The GitHub repository, local checkout, and explicit references now use
+`Humanly-Lab/humanly-cloud-infra`. The production VM has no checkout of the old
+infra repository, so no VM remote required migration; its existing Git checkouts
+correctly remain Community repositories.
 
 ### Task 4 — `ee/LICENSE` final read-through (maintainer)
 PolyForm Free Trial 1.0.0 replaced the placeholder — better than homemade. Maintainer

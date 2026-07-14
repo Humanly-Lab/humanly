@@ -107,7 +107,7 @@ if (
   || referenceViolations.length > 0
   || editionImportViolations.length > 0
 ) {
-  console.error('Community boundary audit failed. Managed Cloud deployment belongs in humanly-cloud.');
+  console.error('Community boundary audit failed. Managed Cloud deployment belongs in humanly-cloud-infra.');
   for (const violation of pathViolations) {
     console.error(`- forbidden path: ${violation}`);
   }

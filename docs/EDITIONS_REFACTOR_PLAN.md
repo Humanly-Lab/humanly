@@ -13,12 +13,15 @@ Ship two editions from **one codebase** in this repository:
 | | Humanly Community | Humanly Cloud |
 |---|---|---|
 | License | MIT (everything outside `ee/`) | PolyForm Free Trial License 1.0.0 (`ee/` only) |
-| Distribution | Self-hosted (quickstart / SELF_DEPLOY) | Managed SaaS at writehumanly.net, deployed from `Humanly-Lab/humanly-cloud` |
+| Distribution | Self-hosted (quickstart / SELF_DEPLOY) | Managed SaaS at writehumanly.net, deployed from `Humanly-Lab/humanly-cloud-infra` |
 | Code visibility | Public | **Public (source-available)** — visible in this repo, paid to use |
 
 Model to imitate: **OpenHands** (MIT repo, `enterprise/` directory source-available under a paid license) and **PostHog** (MIT repo, `ee/` directory under `ee/LICENSE`). Anti-goal: the pre-2019 GitLab setup (two repos, EE forked from CE) — GitLab abandoned it because of constant merge conflicts and release desync; we will not maintain cloud application code in a second repo.
 
-The `Humanly-Lab/humanly-cloud` repo **stays deploy-only** (compose files, nginx, deploy workflow, secrets, private artifacts such as model weights). Recent PRs #1034/#1035/#1037 already moved managed-production infra there. No application code lives in humanly-cloud.
+The `Humanly-Lab/humanly-cloud-infra` repo **stays deploy-only** (compose files,
+nginx, deploy workflow, secrets, private artifacts such as model weights).
+Recent PRs #1034/#1035/#1037 already moved managed-production infra there. No
+application code lives in the infra repository.
 
 ## 2. Feature policy (what goes where)
 
@@ -26,11 +29,12 @@ The `Humanly-Lab/humanly-cloud` repo **stays deploy-only** (compose files, nginx
 |---|---|---|---|
 | Writing environment, tracking, certificates, replay, anomaly-pattern detector | ✅ | ✅ | stays in `packages/*` (MIT) |
 | Typing-detector **framework** (interfaces, config keys, `packages/inference` service) | ✅ (bring-your-own inference endpoint) | ✅ | stays MIT — the paper describes this component; the OSS release must keep it |
-| Typing-detector **managed model** (Humanly-hosted weights + serving) | ❌ | ✅ | weights/serving config live in humanly-cloud; `ee/` carries the managed-client glue |
+| Typing-detector **managed model** (Humanly-hosted weights + serving) | ❌ | ✅ | weights/serving config live in `humanly-cloud-infra`; `ee/` carries the managed-client glue |
 | Billing (Stripe, plans, usage limits) | ❌ | ✅ | new `ee/packages/billing` |
-| Managed-hosting glue (multi-tenant config, hostname audit exceptions) | ❌ | ✅ | `ee/` + humanly-cloud |
+| Managed-hosting glue (multi-tenant config, hostname audit exceptions) | ❌ | ✅ | `ee/` + `humanly-cloud-infra` |
 
-Rule of thumb: **interfaces and defaults in MIT core; paid implementations in `ee/`; secrets and weights in humanly-cloud.**
+Rule of thumb: **interfaces and defaults in MIT core; paid implementations in
+`ee/`; secrets and weights in `humanly-cloud-infra`.**
 
 ## 3. Target layout
 
@@ -125,7 +129,9 @@ Prove the seam end-to-end with a minimal package:
 1. Extend `.github/workflows/ci.yml` (jobs: script-audit, lint, typecheck, test-runnable) to a **matrix over `EDITION=community|cloud`** for typecheck + tests; lint once.
 2. Add a **boundary lint**: fail CI if anything under `packages/` imports from `ee/` (simple grep or eslint no-restricted-imports).
 3. Add a **community purity check**: build the community Docker images and assert `ee/` content is absent from the image filesystem and bundles.
-4. Docker: community Dockerfiles do not `COPY ee/`; add cloud build args (`EDITION=cloud`) — the cloud deploy workflow in humanly-cloud consumes them.
+4. Docker: community Dockerfiles do not `COPY ee/`; add cloud build args
+   (`EDITION=cloud`) — the cloud deploy workflow in `humanly-cloud-infra`
+   consumes them.
 5. Tag/release convention: single version tag per release; images published as `humanly-*:<version>` (community) and `humanly-*:<version>-cloud`.
 
 **Accept:** PRs run both editions; a `packages/ → ee/` import breaks CI; community image is provably ee-free.
@@ -133,7 +139,9 @@ Prove the seam end-to-end with a minimal package:
 ## 6. Guardrails
 
 - **Never regress Community.** Community must remain a genuinely usable product (writing env, tracking, certificates, anomaly-pattern detector, BYO-endpoint typing detector). The EMNLP paper and README describe the open-source release; their claims must stay true.
-- **No secret code in this repo.** Anything that must stay private (model weights, tenant secrets, prod config) belongs in humanly-cloud or a private bucket — `ee/` is public.
+- **No secret code in this repo.** Anything that must stay private (model
+  weights, tenant secrets, prod config) belongs in `humanly-cloud-infra` or a
+  private bucket — `ee/` is public.
 - **One codebase, no forks.** If a change needs core + ee edits, it ships as one PR in this repo.
 - **License changes require maintainer sign-off.** Keep the canonical PolyForm
   text unmodified; any future custom commercial terms require legal review.
