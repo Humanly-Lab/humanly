@@ -1,7 +1,13 @@
 # Editions: Post-Refactor Work Order
 
-**Status:** editions refactor landed (integration PR #1050 + PolyForm license
-#1052); review Tasks 1-3 completed 2026-07-14.
+**Status: COMPLETE — independently verified in production 2026-07-14.**
+Infra PR #11 merged; `community.lock` advanced past the PolyForm swap (now
+auto-advancing, at `c414771a`); production health reports `edition: "cloud"` and
+`GET /api/v1/billing/plan` returns 200; `AI_ENCRYPTION_KEY` boot guard + tracker
+hostname fix landed (#1054); repo renamed `humanly-cloud-infra` (#1055/#12);
+Dockerfile cross-references (#1058); nullglob guard in `build-runtime-bundle.sh`.
+Known follow-up nit: the AI-key guard rejects empty/all-zero keys but does not
+enforce the 64-hex format its error message promises. Kept for history.
 **Audience:** implementation agent (Codex). Self-contained; do not assume chat context.
 
 ## Deep-review verdict (2026-07-14)
