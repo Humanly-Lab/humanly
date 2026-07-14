@@ -20,20 +20,38 @@ The edition seam is sound and matches industry practice. Verified:
 - `ee/LICENSE` = PolyForm Free Trial 1.0.0 (real, unmodified license — good choice).
 - No Stripe/paid references outside `ee/`; no build artifacts tracked in git.
 
-**Findings to address (ordered):**
+**Findings to address (ordered; updated after the line-level second pass):**
 
 1. **Production still runs pre-editions code.** `humanly-cloud`'s `community.lock`
    pins `67555e75` (before #1050). The Cloud-edition deploy PR (humanly-cloud #11)
-   is `CONFLICTING` against its own main (which gained #8 immutable runtime and
-   #10 migration params after the branch). → Task 1.
-2. **Publisher billing UI is exported but unwired.** `ee/packages/billing` exports
-   `./publisher` (`publisher.tsx`), but `packages/frontend` (admin) has no
-   `@humanly-edition/*` alias. Either wire the admin alias + gated page (mirroring
-   frontend-user) or delete the export until needed. Small, but a dangling seam.
-3. **`ee/docker/*.Dockerfile` duplication drift.** The three cloud Dockerfiles are
+   is `CONFLICTING` — full-diff review shows the conflict is **only the one-line
+   `community.lock`** (both branches moved it), so the rebase is trivial. However
+   the PR pins `23754da5`, which predates the PolyForm license swap (#1052): a
+   deploy from that pin ships a placeholder `ee/LICENSE` inside Cloud images.
+   **Advance the lock to `d500df8f` or later during the rebase.** → Task 1.
+2. **`AI_ENCRYPTION_KEY` has an all-zeros default with no production guard**
+   (`packages/backend/src/config/env.ts`). Email config has a production-boot
+   validation pattern (`getEmailConfigurationErrors`); the encryption key — which
+   protects user-owned AI provider keys at rest — does not. Add the same guard:
+   refuse production boot when the key is unset/all-zeros. Community-security fix,
+   not edition-related.
+3. **Hardcoded managed hostname in Community-facing copy.**
+   `packages/backend/src/controllers/tracker.controller.ts` (~line 425) tells
+   admins to open "developer.writehumanly.net" inside the generated tracking-code
+   instructions. Wrong for self-hosters; derive from `env.frontendAdminUrl`. Note:
+   the boundary audit's hostname pattern deliberately scans only workflow files, so
+   this is out of its scope by design — fix the copy, don't widen the audit blindly.
+4. **`ee/docker/*.Dockerfile` duplication drift.** The three cloud Dockerfiles are
    near-copies of `docker/*.Dockerfile`. Add a comment header in both pointing at the
    counterpart, and a CI reminder (e.g., checksum-diff warning) or accept the drift
-   risk consciously.
+   risk consciously. Also: `build-runtime-bundle.sh` in the infra repo does
+   `cp ee/migrations/*.sql` — fails if that directory is ever empty; guard the glob.
+
+**Retracted:** an earlier draft flagged the publisher billing seam as unwired. It is
+fully wired (`packages/frontend/next.config.js` aliases
+`@humanly-edition/publisher-ui`, imported in the admin root layout); `publisher.tsx`
+is intentionally a hidden marker component that the image-purity check greps for
+(`HUMANLY_CLOUD_UI_MARKER`). No action needed.
 
 ## Boundary decisions (settled — do not relitigate)
 
@@ -65,10 +83,12 @@ framework.
 
 ### Task 1 — Land Cloud-edition deploy in the infra repo (highest priority)
 In `Humanly-Lab/humanly-cloud` (to be renamed, Task 3):
-1. Rebase PR #11 (`feat/1043-cloud-edition-deploy`) onto current main, resolving
-   conflicts against #8 (immutable runtime) and #10 (migration params). If the rebase
-   is messier than re-authoring, close #11 and recreate from main.
-2. Advance `community.lock` to a post-refactor revision (`d500df8f` or later).
+1. Rebase PR #11 (`feat/1043-cloud-edition-deploy`) onto current main. The only
+   conflict is the single-line `community.lock` (both sides moved it); everything
+   else in the PR (ee dockerfiles, `-cloud` tags, edition env, ee-migrations bundle,
+   composition guards) reviewed line-by-line and sound.
+2. Resolve the lock conflict by advancing to `d500df8f` or later — NOT the PR's
+   `23754da5`, which predates the PolyForm `ee/LICENSE` (finding 1).
 3. Build images from the pinned revision using `ee/docker/*.Dockerfile`
    (`EDITION=cloud`, `NEXT_PUBLIC_EDITION=cloud`); reuse
    `scripts/ci/assert-edition-image.sh` from the product repo as a deploy-time gate.
@@ -76,7 +96,10 @@ In `Humanly-Lab/humanly-cloud` (to be renamed, Task 3):
    responds. Verify the Community quickstart still boots independently
    (`edition: "community"`).
 
-### Task 2 — Wire or remove the publisher billing seam (finding 2)
+### Task 2 — Community hardening fixes (findings 2 and 3)
+Production-boot guard for `AI_ENCRYPTION_KEY` (mirror the email-config pattern) and
+replace the hardcoded `developer.writehumanly.net` in the tracker instructions with
+the env-derived admin URL. One small PR in the product repo.
 
 ### Task 3 — Rename `humanly-cloud` → `humanly-cloud-infra`
 After Task 1 lands (avoid renaming under an open conflicted PR). GitHub redirects,
