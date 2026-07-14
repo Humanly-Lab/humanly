@@ -1,3 +1,4 @@
+# Cloud counterpart: ee/docker/frontend.Dockerfile; review both when changing shared build or runtime steps.
 # Publisher Portal (packages/frontend)
 
 # ── Build stage ───────────────────────────────────────────────────────────────

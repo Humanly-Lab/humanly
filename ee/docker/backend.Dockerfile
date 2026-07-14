@@ -1,4 +1,4 @@
-# Humanly Cloud backend composition. Community images use docker/backend.Dockerfile.
+# Community counterpart: docker/backend.Dockerfile; review both when changing shared build or runtime steps.
 FROM node:20-alpine AS builder
 
 WORKDIR /app

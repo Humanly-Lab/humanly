@@ -1,4 +1,4 @@
-# Humanly Cloud Writer Portal composition. Community images use docker/frontend-user.Dockerfile.
+# Community counterpart: docker/frontend-user.Dockerfile; review both when changing shared build or runtime steps.
 FROM node:20-alpine AS builder
 
 WORKDIR /app

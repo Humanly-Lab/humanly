@@ -1,3 +1,4 @@
+# Cloud counterpart: ee/docker/backend.Dockerfile; review both when changing shared build or runtime steps.
 # ── Build stage ───────────────────────────────────────────────────────────────
 FROM node:20-alpine AS builder
 

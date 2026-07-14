@@ -1,3 +1,4 @@
+# Cloud counterpart: ee/docker/frontend-user.Dockerfile; review both when changing shared build or runtime steps.
 # Writer Portal (packages/frontend-user)
 # Served at / via nginx
 
