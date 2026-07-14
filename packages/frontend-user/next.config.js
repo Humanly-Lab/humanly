@@ -1,3 +1,12 @@
+const path = require('node:path');
+
+const EDITION =
+  process.env.NEXT_PUBLIC_EDITION === 'cloud' ? 'cloud' : 'community';
+const billingUiModule =
+  EDITION === 'cloud'
+    ? path.resolve(__dirname, '../../ee/packages/billing/src/writer.tsx')
+    : path.resolve(__dirname, 'src/edition/community-billing-page.tsx');
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
@@ -5,6 +14,7 @@ const nextConfig = {
   transpilePackages: ['@humanly/shared', '@humanly/editor'],
   env: {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
+    NEXT_PUBLIC_EDITION: EDITION,
   },
   async rewrites() {
     // Only proxy /api/* in local dev. In production, nginx routes /api/ directly
@@ -24,6 +34,7 @@ const nextConfig = {
   webpack: (config) => {
     // Required for pdfjs-dist SSR compatibility
     config.resolve.alias.canvas = false;
+    config.resolve.alias['@humanly-edition/billing-ui'] = billingUiModule;
     return config;
   },
 };

@@ -2,7 +2,9 @@ import type { Metadata } from 'next';
 import { Courier_Prime } from 'next/font/google';
 import localFont from 'next/font/local';
 import { BRAND, getBrandText } from '@humanly/shared';
+import PublisherEditionUi from '@humanly-edition/publisher-ui';
 import './globals.css';
+import { getEdition } from '@/lib/edition';
 
 const cursorGothic = localFont({
   src: [
@@ -72,9 +74,15 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const edition = getEdition();
+
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${cursorGothic.variable} ${courierPrime.variable}`}>
+      <body
+        className={`${cursorGothic.variable} ${courierPrime.variable}`}
+        data-humanly-edition={edition}
+      >
+        <PublisherEditionUi />
         {children}
       </body>
     </html>

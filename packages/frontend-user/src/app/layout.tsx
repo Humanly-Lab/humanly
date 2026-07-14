@@ -82,7 +82,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${cursorGothic.variable} ${courierPrime.variable}`}>
+      <body
+        className={`${cursorGothic.variable} ${courierPrime.variable}`}
+        data-humanly-edition={process.env.NEXT_PUBLIC_EDITION}
+      >
         <Script
           src={`https://www.googletagmanager.com/gtag/js?id=${GOOGLE_ANALYTICS_MEASUREMENT_ID}`}
           strategy="afterInteractive"

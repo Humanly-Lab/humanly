@@ -3,10 +3,11 @@
   "version": "1.0.0",
   "description": "Configurable and traceable environment for human-AI collaborative writing",
   "private": true,
-  "license": "MIT",
+  "license": "SEE LICENSE IN LICENSE",
   "packageManager": "pnpm@9.0.0",
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "ee/packages/*"
   ],
   "scripts": {
     "dev:backend": "pnpm --filter @humanly/backend dev",
@@ -18,6 +19,7 @@
     "boundary:audit": "node scripts/ci/community-boundary.mjs",
     "build:shared": "pnpm --filter @humanly/shared build",
     "build:editor": "pnpm --filter @humanly/editor build",
+    "build:ee:billing": "pnpm --filter @humanly-ee/billing build",
     "build:backend": "pnpm --filter @humanly/backend build",
     "build:frontend": "pnpm --filter @humanly/frontend build",
     "build:frontend-user": "pnpm --filter @humanly/frontend-user build",

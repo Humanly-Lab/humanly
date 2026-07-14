@@ -1,5 +1,7 @@
 import dotenv from 'dotenv';
 import path from 'path';
+import { normalizeEdition } from '@humanly/shared';
+import type { Edition } from '@humanly/shared';
 
 // Load environment variables from .env file
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
@@ -8,6 +10,7 @@ interface EnvConfig {
   // Server
   nodeEnv: string;
   port: number;
+  edition: Edition;
 
   // Database
   databaseUrl: string;
@@ -217,6 +220,7 @@ export const env: EnvConfig = {
   // Server
   nodeEnv: getEnv('NODE_ENV', 'development'),
   port: getEnvNumber('PORT', 3001),
+  edition: normalizeEdition(process.env.EDITION),
 
   // Database
   databaseUrl: getEnv('DATABASE_URL'),

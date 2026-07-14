@@ -130,6 +130,8 @@ scripts/jest/
 !/e2e/**/*.spec.ts
 !packages/backend/src/services/certificate-detector-seal.service.test.ts
 !packages/backend/src/services/writing-detector-config.test.ts
+!packages/shared/src/config/edition.test.ts
+!packages/backend/src/app.edition.test.ts
 **/jest.config.js
 **/jest.setup.ts
 **/examples/
