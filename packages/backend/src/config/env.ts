@@ -311,8 +311,8 @@ export function getAIEncryptionConfigurationErrors(
     return [];
   }
 
-  const key = config.aiEncryptionKey.trim();
-  if (!key || /^0+$/.test(key)) {
+  const key = config.aiEncryptionKey;
+  if (!/^[0-9a-f]{64}$/i.test(key) || /^0{64}$/.test(key)) {
     return [
       'AI_ENCRYPTION_KEY must be set to a non-zero 32-byte hex key in production.',
     ];

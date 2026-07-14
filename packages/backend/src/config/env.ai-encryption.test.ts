@@ -5,7 +5,15 @@ import {
 } from './env';
 
 function run() {
-  for (const aiEncryptionKey of ['', '0'.repeat(64)]) {
+  for (const aiEncryptionKey of [
+    '',
+    '1',
+    'a'.repeat(63),
+    'a'.repeat(65),
+    `${'a'.repeat(63)}g`,
+    ` ${'a'.repeat(64)}`,
+    '0'.repeat(64),
+  ]) {
     assert.throws(
       () =>
         validateAIEncryptionConfiguration({
@@ -19,7 +27,7 @@ function run() {
   assert.deepEqual(
     getAIEncryptionConfigurationErrors({
       nodeEnv: 'production',
-      aiEncryptionKey: '1'.repeat(64),
+      aiEncryptionKey: 'A'.repeat(64),
     }),
     []
   );
