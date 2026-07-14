@@ -1,7 +1,8 @@
 import type { Metadata } from 'next';
 import { Courier_Prime } from 'next/font/google';
 import localFont from 'next/font/local';
-import { BRAND, getBrandText, hasFeature } from '@humanly/shared';
+import { BRAND, getBrandText } from '@humanly/shared';
+import PublisherEditionUi from '@humanly-edition/publisher-ui';
 import './globals.css';
 import { getEdition } from '@/lib/edition';
 
@@ -81,14 +82,7 @@ export default function RootLayout({
         className={`${cursorGothic.variable} ${courierPrime.variable}`}
         data-humanly-edition={edition}
       >
-        {process.env.NEXT_PUBLIC_EDITION === 'cloud' &&
-        hasFeature(edition, 'billing') ? (
-          <span
-            aria-hidden="true"
-            data-humanly-cloud-ui="HUMANLY_CLOUD_UI_MARKER"
-            hidden
-          />
-        ) : null}
+        <PublisherEditionUi />
         {children}
       </body>
     </html>

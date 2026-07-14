@@ -32,6 +32,19 @@ const forbiddenExactPaths = new Set([
 const forbiddenPrefixes = ['nginx/'];
 const managedWorkflowPattern = /^\.github\/workflows\/.*deploy.*\.ya?ml$/;
 const managedHostnamePattern = /(?:^|[^a-z0-9.-])(?:[a-z0-9-]+\.)*writehumanly\.net(?=$|[^a-z0-9.-])/im;
+const editionReferencePattern = /@humanly-ee\/[a-z0-9._/-]+|(?:\.\.\/)+ee\/[a-z0-9._/-]+/gi;
+const editionCompositionAllowlist = new Map([
+  ['packages/backend/package.json', new Set(['@humanly-ee/billing'])],
+  ['packages/backend/src/app.ts', new Set(['@humanly-ee/billing'])],
+  [
+    'packages/frontend-user/next.config.js',
+    new Set(['../../ee/packages/billing/src/writer.tsx']),
+  ],
+  [
+    'packages/frontend/next.config.js',
+    new Set(['../../ee/packages/billing/src/publisher.tsx']),
+  ],
+]);
 
 const pathViolations = trackedPaths.filter((filePath) =>
   forbiddenExactPaths.has(filePath)
@@ -53,6 +66,7 @@ const staleReferenceChecks = new Map([
   ]],
 ]);
 const referenceViolations = [];
+const editionImportViolations = [];
 
 if (pathsFileIndex < 0) {
   for (const [filePath, forbiddenValues] of staleReferenceChecks) {
@@ -72,15 +86,36 @@ if (pathsFileIndex < 0) {
       referenceViolations.push(`${filePath}: official managed-service hostname`);
     }
   }
+
+  const sourcePaths = trackedPaths.filter((filePath) =>
+    filePath.startsWith('packages/')
+    && /\.(?:[cm]?[jt]sx?|json)$/.test(filePath));
+
+  for (const filePath of sourcePaths) {
+    const contents = fs.readFileSync(path.join(repoRoot, filePath), 'utf8');
+    const allowedReferences = editionCompositionAllowlist.get(filePath) ?? new Set();
+    for (const reference of contents.match(editionReferencePattern) ?? []) {
+      if (!allowedReferences.has(reference)) {
+        editionImportViolations.push(`${filePath}: ${reference}`);
+      }
+    }
+  }
 }
 
-if (pathViolations.length > 0 || referenceViolations.length > 0) {
+if (
+  pathViolations.length > 0
+  || referenceViolations.length > 0
+  || editionImportViolations.length > 0
+) {
   console.error('Community boundary audit failed. Managed Cloud deployment belongs in humanly-cloud.');
   for (const violation of pathViolations) {
     console.error(`- forbidden path: ${violation}`);
   }
   for (const violation of referenceViolations) {
     console.error(`- forbidden reference: ${violation}`);
+  }
+  for (const violation of editionImportViolations) {
+    console.error(`- forbidden core-to-EE reference: ${violation}`);
   }
   process.exit(1);
 }
