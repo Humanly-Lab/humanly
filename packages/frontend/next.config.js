@@ -3,6 +3,10 @@ const path = require('path');
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
 const EDITION =
   process.env.NEXT_PUBLIC_EDITION === 'cloud' ? 'cloud' : 'community';
+const publisherEditionUiModule =
+  EDITION === 'cloud'
+    ? path.resolve(__dirname, '../../ee/packages/billing/src/publisher.tsx')
+    : path.resolve(__dirname, 'src/edition/community-publisher-ui.tsx');
 
 if (
   API_URL &&
@@ -48,6 +52,7 @@ const nextConfig = {
     config.resolve.alias['@humanly/shared$'] = path.resolve(__dirname, '../shared/src/index.ts');
     // Subpath match: import from '@humanly/shared/types/...'
     config.resolve.alias['@humanly/shared'] = path.resolve(__dirname, '../shared/src');
+    config.resolve.alias['@humanly-edition/publisher-ui'] = publisherEditionUiModule;
     // Ensure root node_modules is searchable (for zod and other deps)
     config.resolve.modules = [
       path.resolve(__dirname, '../../node_modules'),

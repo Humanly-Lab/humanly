@@ -3,6 +3,11 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
+ARG EDITION=community
+ENV EDITION=$EDITION
+
+RUN test "$EDITION" = "community"
+
 # Copy workspace manifests first (better layer caching)
 COPY package.json ./
 COPY pnpm-lock.yaml pnpm-workspace.yaml ./
@@ -29,13 +34,23 @@ FROM node:20-alpine
 
 WORKDIR /app
 
+ARG EDITION=community
+ENV EDITION=$EDITION
+
+RUN test "$EDITION" = "community"
+
 COPY package.json ./
 COPY pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY docker/pnpm-install.sh ./docker/pnpm-install.sh
 COPY packages/backend/package.json  ./packages/backend/
 COPY packages/shared/package.json   ./packages/shared/
 
-RUN sh ./docker/pnpm-install.sh --frozen-lockfile --prod
+RUN sh ./docker/pnpm-install.sh --frozen-lockfile --prod --no-optional
+
+# pnpm can still materialize a dangling workspace link for optional workspace
+# dependencies even when --no-optional is set. Community runtime images must
+# not expose the EE package namespace at all.
+RUN rm -rf ./packages/backend/node_modules/@humanly-ee
 
 # Compiled JS
 COPY --from=builder /app/packages/backend/dist  ./packages/backend/dist
