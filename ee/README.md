@@ -34,6 +34,46 @@ Humanly ships Community and Cloud from one application codebase:
 This structure keeps Community usable on its own while allowing Cloud to add
 commercial capabilities without maintaining a separate application fork.
 
+## Deciding what belongs here
+
+Depending on an external service does not, by itself, make a feature
+Enterprise-only. The boundary is based on product responsibility:
+
+1. A capability required for a complete self-hosted Humanly workflow belongs
+   in Community, together with its public interface and a usable default
+   implementation.
+2. Organization governance, managed-service operations, commercial
+   entitlements, and paid implementations belong in `ee/`.
+3. Credentials, production topology, customer configuration, and managed model
+   artifacts belong in private infrastructure, never in this public directory.
+
+The intended split is:
+
+| Area | Community responsibility | Enterprise extension |
+| --- | --- | --- |
+| Accounts and authentication | Local accounts, password hashing, sessions, email verification, password reset, and configurable OAuth | Organization SSO/SAML/OIDC policy, SCIM provisioning, domain claims, centralized session policy, and service accounts |
+| Email | Generic delivery contract and self-hosted configuration for account lifecycle messages | Organization invitations, billing and quota alerts, tenant branding, delivery telemetry, suppression, and bounce handling |
+| AI | Provider interfaces, bring-your-own-key configuration, and in-platform AI use | Humanly-managed credits, tenant quotas, metering, and entitlement enforcement |
+| APIs | Product APIs required by a self-hosted deployment | Managed API keys, tenant-scoped service accounts, production quotas, higher-throughput plans, and SLA-backed access |
+| Storage and data | Configurable storage plus the writing, event, and certificate data model | Tenant quotas, retention policy, legal hold, organization audit export, and managed storage operations |
+| Typing detector | Public detector contract and bring-your-own inference endpoint | Humanly-managed detector client and entitlement checks; private weights and serving configuration remain outside this repository |
+| Organizations | None required for the Community account lifecycle | Workspaces, RBAC, organization administration, governance, and consolidated usage |
+| Institution integrations | Public extension points and Community-compatible adapters | Managed LMS/SIS connectors, provisioning, deployment support, and custom integrations |
+
+Humanly Community is a multi-user self-hosted web application, so its account
+lifecycle cannot depend on Enterprise code. In particular, moving password
+reset or verification email delivery into `ee/` would leave Community unable to
+operate safely in production. Enterprise extends those foundations with
+organization identity and managed delivery operations; it does not replace the
+base account flow.
+
+This differs from projects whose Community edition is a local single-user
+application. OpenHands, for example, documents Enterprise authentication and
+SMTP in the context of OAuth, organization invitations, and budget alerts. The
+reusable pattern is the extension boundary, not the mechanical placement of all
+authentication or email code in an Enterprise directory. See the
+[OpenHands Enterprise README](https://github.com/OpenHands/OpenHands/blob/main/enterprise/README.md).
+
 ## Current contents
 
 - [`packages/billing/`](packages/billing/) is the initial Enterprise package. It
@@ -46,6 +86,22 @@ commercial capabilities without maintaining a separate application fork.
 These are the only Enterprise capabilities documented here today. Features
 such as production billing integrations, organization management, SSO, RBAC,
 and entitlement enforcement are not claimed by this README.
+
+## Planned commercial modules
+
+The following are ownership decisions, not claims of current availability:
+
+- organization workspaces, RBAC, SSO/SAML/OIDC policy, SCIM, and domain claims;
+- production billing, plans, usage metering, quotas, and entitlement checks;
+- managed API credentials, service accounts, rate tiers, and webhooks;
+- organization invitations, tenant-branded notifications, billing alerts, and
+  delivery operations;
+- multi-tenant storage policy, audit exports, retention, and governance;
+- managed LMS/SIS integrations, onboarding, deployment support, and custom
+  connectors; and
+- managed typing-detector glue and entitlement checks, to be transferred no
+  earlier than 2026-08-04. Model weights and serving configuration remain
+  private operational artifacts.
 
 ## Private operational boundary
 

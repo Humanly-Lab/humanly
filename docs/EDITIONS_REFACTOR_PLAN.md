@@ -25,16 +25,46 @@ application code lives in the infra repository.
 
 ## 2. Feature policy (what goes where)
 
-| Feature | Community | Cloud | Mechanism |
-|---|---|---|---|
-| Writing environment, tracking, certificates, replay, anomaly-pattern detector | ✅ | ✅ | stays in `packages/*` (MIT) |
-| Typing-detector **framework** (interfaces, config keys, `packages/inference` service) | ✅ (bring-your-own inference endpoint) | ✅ | stays MIT — the paper describes this component; the OSS release must keep it |
-| Typing-detector **managed model** (Humanly-hosted weights + serving) | ❌ | ✅ | weights/serving config live in `humanly-cloud-infra`; `ee/` carries the managed-client glue |
-| Billing (Stripe, plans, usage limits) | ❌ | ✅ | new `ee/packages/billing` |
-| Managed-hosting glue (multi-tenant config, hostname audit exceptions) | ❌ | ✅ | `ee/` + `humanly-cloud-infra` |
+Using an external provider is **not** sufficient reason to move a feature into
+Enterprise. Community must retain everything required to operate a complete,
+secure self-hosted workflow. Enterprise owns organization governance,
+managed-service operations, commercial entitlements, and paid implementations.
 
-Rule of thumb: **interfaces and defaults in MIT core; paid implementations in
-`ee/`; secrets and weights in `humanly-cloud-infra`.**
+| Feature | Community | Cloud | Mechanism | Status |
+|---|---|---|---|---|
+| Writing environment, tracking, certificates, replay, anomaly-pattern detector | ✅ | ✅ | stays in `packages/*` (MIT) | Current |
+| Local accounts, password hashing, sessions, email verification, and password reset | ✅ | ✅ | stays in backend core; Cloud may extend through core-owned identity hooks | Current |
+| Configurable OAuth login | ✅ | ✅ | provider configuration and public adapters stay in core | Current |
+| Generic email delivery for account lifecycle messages | ✅ | ✅ | delivery contract and self-hosted console/SMTP/provider configuration stay in core | Current |
+| Organization identity governance (workspaces, RBAC, SSO/SAML/OIDC policy, SCIM, domain claims) | ❌ | ✅ | future `ee/` identity/governance packages registered through core hooks | Planned |
+| Managed email operations (organization invitations, tenant branding, billing/quota alerts, telemetry, suppression, bounce handling) | ❌ | ✅ | future `ee/` notification package plus private provider credentials in infrastructure | Planned |
+| AI provider interfaces and bring-your-own key | ✅ | ✅ | stays in core; external AI use alone is not an Enterprise boundary | Current |
+| Humanly-managed AI credits, tenant quotas, metering, and entitlements | ❌ | ✅ | `ee/` billing/entitlement implementation plus private provider credentials | Planned |
+| Product APIs required by self-hosting | ✅ | ✅ | core routes and public contracts stay MIT | Current |
+| Managed production API keys, tenant service accounts, rate tiers, webhooks, and SLA-backed access | ❌ | ✅ | future `ee/` API-governance implementation | Planned |
+| Typing-detector **framework** (interfaces, config keys, `packages/inference` service) | ✅ (bring-your-own inference endpoint) | ✅ | stays MIT — the paper describes this component; the OSS release must keep it | Current |
+| Typing-detector **managed model** (Humanly-hosted weights + serving) | ❌ | ✅ | weights/serving config live in `humanly-cloud-infra`; `ee/` carries managed-client and entitlement glue | Planned after 2026-08-04 |
+| Billing route, plan seam, and schema scaffold | ❌ | ✅ | `ee/packages/billing` and `ee/migrations` | Current skeleton |
+| Production billing providers, plan enforcement, usage limits, and invoicing | ❌ | ✅ | extend `ee/packages/billing`; credentials stay in private infrastructure | Planned |
+| Managed-hosting glue (multi-tenant config, hostname audit exceptions) | ❌ | ✅ | `ee/` + `humanly-cloud-infra` | Current foundation |
+| Tenant storage quotas, retention policy, legal hold, organization audit export, and consolidated analytics | ❌ | ✅ | future `ee/` governance packages; storage credentials and topology stay private | Planned |
+| Managed LMS/SIS provisioning, supported connectors, onboarding, and custom integrations | ❌ | ✅ | public extension points stay in core; paid implementations and operations live in `ee/` | Planned |
+
+Rule of thumb: **interfaces, complete self-hosted account flows, and usable
+defaults in MIT core; organization governance, managed operations, and paid
+implementations in `ee/`; secrets, provider credentials, production topology,
+and model weights in `humanly-cloud-infra`.**
+
+Authentication and email require an explicit distinction:
+
+- Community owns the local account lifecycle. A self-hosted deployment must be
+  able to register users, verify addresses, authenticate, and recover passwords
+  without importing Enterprise code.
+- Enterprise may add organization identity policy, provisioning, invitations,
+  tenant-branded notifications, delivery operations, and commercial alerts.
+- Provider credentials are deployment secrets. Their presence in SMTP,
+  SendGrid, OAuth, or another external system does not change the source-code
+  ownership of the underlying capability.
 
 ## 3. Target layout
 
