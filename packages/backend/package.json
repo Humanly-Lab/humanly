@@ -45,6 +45,9 @@
     "winston": "^3.11.0",
     "zod": "^3.22.4"
   },
+  "optionalDependencies": {
+    "@humanly-ee/billing": "workspace:*"
+  },
   "devDependencies": {
     "@types/bcrypt": "^5.0.2",
     "@types/compression": "^1.7.5",

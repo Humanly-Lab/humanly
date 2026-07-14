@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { LayoutDashboard, LogOut, User, Menu, UserCog } from 'lucide-react';
+import { CreditCard, LayoutDashboard, LogOut, User, Menu, UserCog } from 'lucide-react';
+import { hasFeature } from '@humanly/shared';
 import { Button } from '@/components/ui/button';
 import { BasicInfoDialog } from '@/components/account/basic-info-dialog';
 import { HumanlyWordmark } from '@/components/brand/humanly-wordmark';
@@ -25,6 +26,7 @@ import {
 } from '@/components/ui/sheet';
 import { useAuthStore } from '@/stores/auth-store';
 import { adminAppHref } from '@/lib/app-origin';
+import { getEdition } from '@/lib/edition';
 import { getUserDisplayLabel } from './user-display';
 
 export function Navbar({
@@ -42,6 +44,9 @@ export function Navbar({
   const userDisplayLabel = forceGuest ? 'guest' : getUserDisplayLabel(user);
   const isGuestMode = forceGuest || userDisplayLabel === 'guest';
   const canUseAdminView = Boolean(user) && !isGuestMode;
+  const canUseBilling =
+    process.env.NEXT_PUBLIC_EDITION === 'cloud' &&
+    hasFeature(getEdition(), 'billing');
   const adminTasksHref = adminAppHref('/tasks?switchSession=1');
 
   const handleLogout = async () => {
@@ -54,7 +59,8 @@ export function Navbar({
   const isAppShellPage =
     pathname.startsWith('/documents') ||
     pathname.startsWith('/certificates') ||
-    pathname.startsWith('/logs');
+    pathname.startsWith('/logs') ||
+    pathname.startsWith('/settings');
   const containerClass = isDocumentEditorPage
     ? 'mx-auto w-full max-w-[2400px] px-3'
     : isAppShellPage
@@ -112,6 +118,14 @@ export function Navbar({
                         <UserCog className="mr-2 h-4 w-4" />
                         Settings
                       </DropdownMenuItem>
+                      {canUseBilling ? (
+                        <DropdownMenuItem asChild>
+                          <Link href="/settings/billing">
+                            <CreditCard className="mr-2 h-4 w-4" />
+                            Billing
+                          </Link>
+                        </DropdownMenuItem>
+                      ) : null}
                       {canUseAdminView ? (
                         <>
                           <DropdownMenuItem asChild>
@@ -170,6 +184,19 @@ export function Navbar({
                             <UserCog className="mr-2 h-4 w-4" />
                             Settings
                           </Button>
+                          {canUseBilling ? (
+                            <Button
+                              variant="ghost"
+                              className="w-full justify-start"
+                              asChild
+                              onClick={() => setMobileMenuOpen(false)}
+                            >
+                              <Link href="/settings/billing">
+                                <CreditCard className="mr-2 h-4 w-4" />
+                                Billing
+                              </Link>
+                            </Button>
+                          ) : null}
                           {canUseAdminView ? (
                             <Button
                               variant="ghost"

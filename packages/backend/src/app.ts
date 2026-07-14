@@ -156,6 +156,14 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
   if (hasFeature(edition, 'billing')) {
     const billingModule = await (options.loadBillingModule ?? loadBillingModule)();
     await billingModule.registerBillingRoutes(app);
+  } else {
+    app.use('/api/v1/billing', (req: Request, res: Response) => {
+      res.status(404).json({
+        success: false,
+        error: 'Not found',
+        message: `Cannot ${req.method} ${req.path}`,
+      });
+    });
   }
 
   app.use('/api/v1', detectorRoutes);

@@ -140,6 +140,9 @@ migration_presence() {
     040_certificate_environment_config.sql)
       psql_scalar -c "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'certificates' AND column_name = 'environment_config');"
       ;;
+    9000-billing-schema.sql)
+      psql_scalar -c "SELECT to_regclass('public.billing_accounts') IS NOT NULL;"
+      ;;
     *)
       echo "unknown"
       ;;
