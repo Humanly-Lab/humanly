@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import path from 'path';
 import fs from 'fs';
 import { BRAND } from '@humanly/shared';
+import { env } from '../config/env';
 import { logger } from '../utils/logger';
 
 export class TrackerController {
@@ -422,7 +423,7 @@ What It Does:
 
 Testing:
 1. Add the code to your survey
-2. Open your task's "Tracking Code" page on developer.writehumanly.net
+2. Open your task's "Tracking Code" page on ${env.frontendAdminUrl}
 3. Click "Start Live Preview"
 4. Open your Qualtrics survey in another tab
 5. Type in any text field

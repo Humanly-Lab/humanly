@@ -302,4 +302,32 @@ export const env: EnvConfig = {
   logLevel: getEnv('LOG_LEVEL', 'info'),
 };
 
+type AIEncryptionConfiguration = Pick<EnvConfig, 'nodeEnv' | 'aiEncryptionKey'>;
+
+export function getAIEncryptionConfigurationErrors(
+  config: AIEncryptionConfiguration = env
+): string[] {
+  if (config.nodeEnv !== 'production') {
+    return [];
+  }
+
+  const key = config.aiEncryptionKey.trim();
+  if (!key || /^0+$/.test(key)) {
+    return [
+      'AI_ENCRYPTION_KEY must be set to a non-zero 32-byte hex key in production.',
+    ];
+  }
+
+  return [];
+}
+
+export function validateAIEncryptionConfiguration(
+  config: AIEncryptionConfiguration = env
+): void {
+  const errors = getAIEncryptionConfigurationErrors(config);
+  if (errors.length > 0) {
+    throw new Error(errors.join(' '));
+  }
+}
+
 export default env;

@@ -3,11 +3,13 @@ import { createServer, startServer } from './server';
 import { testDatabaseConnection, closeDatabaseConnection } from './config/database';
 import { createRedisClient, closeRedisConnection } from './config/redis';
 import { logger } from './utils/logger';
-import { env } from './config/env';
+import { env, validateAIEncryptionConfiguration } from './config/env';
 import { startTimedTaskAutoSubmitJob } from './jobs/timed-task-auto-submit.job';
 
 async function main() {
   try {
+    validateAIEncryptionConfiguration();
+
     // Initialize database connection
     logger.info('Connecting to database...');
     await testDatabaseConnection();
