@@ -4,6 +4,76 @@ How to work with the Community/Cloud edition split day to day. Written for Human
 team members and coding agents. This repo is public, so nothing secret belongs here;
 operational runbooks and production config live in the private infra repo.
 
+## Architecture at a glance
+
+Repository topology and the Community/EE separation:
+
+```mermaid
+flowchart LR
+  subgraph humanly["Humanly-Lab/humanly · public"]
+    core["packages/* — MIT core
+    backend · frontend ×2 · shared · editor
+    tracker · inference · create-humanly
+    (complete multi-user product:
+    auth / email / certificates / detector framework)"]
+    ee["ee/ — PolyForm Free Trial (paid, source-visible)
+    packages/billing (@humanly-ee/*)
+    migrations/9000+ · docker/"]
+    ee -- "depends on @humanly/* (one-way;
+    reverse imports blocked by CI)" --> core
+  end
+  infra["humanly-cloud-infra · private
+  community.lock (pinned SHA)
+  deploy compose / nginx · deploy workflow
+  secrets & private artifacts — zero app code"]
+  infra -. "checks out the pinned SHA to build" .-> humanly
+```
+
+One source tree, two builds — the concrete seams:
+
+```mermaid
+flowchart TB
+  src["single source tree: humanly:main"]
+  src --> c["EDITION=community (default)"]
+  src --> k["EDITION=cloud"]
+  c --> cb["docker/*.Dockerfile
+  no COPY ee/ · optionalDependencies tolerate absence
+  webpack alias → community stub (notFound)"]
+  k --> kb["ee/docker/*.Dockerfile
+  builds @humanly-ee dist first
+  webpack alias → real EE UI"]
+  cb --> ci2["Community image
+  /api/v1/billing → explicit 404
+  purity asserts: no ee/ content, no EE UI marker"]
+  kb --> ki["Cloud image (:SHA-cloud)
+  dynamic import mounts billing routes
+  migrations run both dirs (core : ee)"]
+```
+
+End-to-end delivery workflow:
+
+```mermaid
+flowchart TB
+  pr["developer PR → humanly:main"] --> ci["CI matrix (every PR)
+  community + cloud build/test
+  boundary audit · image-purity asserts"]
+  ci --> main["merge to main"]
+  main --> sh["Community path: self-hosters
+  quickstart (EDITION=community)"]
+  main --> lock["Cloud path: infra repo
+  advances community.lock"]
+  lock --> build["GitHub runner
+  checks out pinned SHA · builds via ee/docker
+  image tags SHA-cloud"]
+  build --> bundle["runtime bundle
+  compose + nginx + core/ee migrations"]
+  bundle --> vm["production VM deploy
+  (the VM never touches git)"]
+  vm --> verify["verify health edition=cloud
+  billing/plan 200 · record lock"]
+  sh --> shv["health edition=community"]
+```
+
 ## Mental model: three boundaries, two repos
 
 | Boundary | Question it answers | Where it lives |
