@@ -24,7 +24,7 @@
   <a href="https://github.com/Humanly-Lab/humanly/releases/latest"><img alt="Release" src="https://img.shields.io/github/v/release/Humanly-Lab/humanly?style=flat&logo=github&logoColor=white&color=8b7a8f"></a>
   <img alt="Frontend stack" src="https://img.shields.io/badge/frontend-Next.js%20%2F%20TypeScript-71879b?style=flat&logo=nextdotjs&logoColor=white">
   <img alt="Backend stack" src="https://img.shields.io/badge/backend-Express%20%2F%20PostgreSQL-9c8068?style=flat&logo=postgresql&logoColor=white">
-  <a href="./LICENSE"><img alt="License" src="https://img.shields.io/badge/license-MIT%20%2B%20Enterprise-8b8675?style=flat&logo=opensourceinitiative&logoColor=white"></a>
+  <a href="./LICENSE"><img alt="License" src="https://img.shields.io/badge/license-MIT%20%2B%20PolyForm-8b8675?style=flat&logo=opensourceinitiative&logoColor=white"></a>
 </p>
 
 Humanly Community is the open-source, self-hostable distribution of Humanly, a
@@ -66,7 +66,13 @@ under `ee/` so the two editions do not drift into separate application forks.
 | Edition | Distribution | Source license |
 | --- | --- | --- |
 | Humanly Community | Self-hosted with the quickstart or manual deployment guide | MIT for all content outside `ee/` |
-| Humanly Cloud | Managed SaaS at [writehumanly.net](https://writehumanly.net/) | MIT core plus separately licensed, source-available code under `ee/` |
+| Humanly Cloud | Managed SaaS at [writehumanly.net](https://writehumanly.net/) | MIT core plus source-available `ee/` code under PolyForm Free Trial 1.0.0 |
+
+The PolyForm license for `ee/` is **not an open-source license**. It permits a
+time-limited evaluation under its stated terms; use outside those terms
+requires a commercial license. See the
+[Humanly Enterprise Server README](ee/README.md) for the exact boundary and
+current contents.
 
 The private `Humanly-Lab/humanly-cloud` repository is a deployment control
 plane only. It contains managed infrastructure, production configuration, and
@@ -211,4 +217,5 @@ attachments, and optional detector weights for model inference.
 - Latest release: [GitHub Releases](https://github.com/Humanly-Lab/humanly/releases/latest)
 - Contributing: [CONTRIBUTING.md](CONTRIBUTING.md)
 - Code of conduct: [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
-- License: [MIT core with a separately licensed Enterprise Edition directory](LICENSE)
+- License: [MIT core](LICENSE) with a
+  [PolyForm-licensed Enterprise Server directory](ee/LICENSE)

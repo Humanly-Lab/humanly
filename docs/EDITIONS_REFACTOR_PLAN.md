@@ -1,6 +1,6 @@
 # Editions Refactor Plan: Humanly Community + Humanly Cloud
 
-**Status:** approved direction, ready for implementation
+**Status:** implemented architecture; maintained as the edition-boundary record
 **Owner:** @ShenzheZhu
 **Audience:** implementation agent (Codex). This document is self-contained; do not assume other context.
 
@@ -12,7 +12,7 @@ Ship two editions from **one codebase** in this repository:
 
 | | Humanly Community | Humanly Cloud |
 |---|---|---|
-| License | MIT (everything outside `ee/`) | Humanly Enterprise License (`ee/` only) |
+| License | MIT (everything outside `ee/`) | PolyForm Free Trial License 1.0.0 (`ee/` only) |
 | Distribution | Self-hosted (quickstart / SELF_DEPLOY) | Managed SaaS at writehumanly.net, deployed from `Humanly-Lab/humanly-cloud` |
 | Code visibility | Public | **Public (source-available)** — visible in this repo, paid to use |
 
@@ -39,7 +39,7 @@ humanly/
 ├── LICENSE                      # MIT, amended: "except the ee/ directory"
 ├── packages/                    # existing 8 packages, MIT, unchanged locations
 ├── ee/
-│   ├── LICENSE                  # Humanly Enterprise License (source-available)
+│   ├── LICENSE                  # PolyForm Free Trial 1.0.0 (source-available)
 │   ├── README.md                # what ee/ is, pointer to pricing
 │   ├── packages/
 │   │   └── billing/             # first EE package: @humanly-ee/billing
@@ -77,7 +77,9 @@ All gating anywhere in the stack goes through `hasFeature` — no ad-hoc `proces
 
 ### Phase 0 — Licensing and scaffold
 1. Amend root `LICENSE`: keep MIT text, prepend a scope note: *"This license applies to all content of this repository **except** the `ee/` directory, which is licensed under `ee/LICENSE`."* (Match PostHog's LICENSE wording style.)
-2. Create `ee/LICENSE` with a source-available commercial license modeled on OpenHands/PostHog enterprise licenses. Use placeholder text marked `<!-- LEGAL REVIEW REQUIRED -->`; the maintainer signs off on final wording — **do not invent legal terms silently**.
+2. Create `ee/LICENSE` using the unmodified PolyForm Free Trial License 1.0.0.
+   The standard license permits evaluation for less than 32 consecutive
+   calendar days; use outside its terms requires a separate commercial license.
 3. Create `ee/README.md` (edition explanation + link to /pricing).
 4. Add `ee/packages/*` to `pnpm-workspace.yaml`.
 5. README.md: add an "Editions" section (Community vs Cloud table, licensing note).
@@ -133,7 +135,8 @@ Prove the seam end-to-end with a minimal package:
 - **Never regress Community.** Community must remain a genuinely usable product (writing env, tracking, certificates, anomaly-pattern detector, BYO-endpoint typing detector). The EMNLP paper and README describe the open-source release; their claims must stay true.
 - **No secret code in this repo.** Anything that must stay private (model weights, tenant secrets, prod config) belongs in humanly-cloud or a private bucket — `ee/` is public.
 - **One codebase, no forks.** If a change needs core + ee edits, it ships as one PR in this repo.
-- **License text requires human sign-off** (Phase 0.2). Flag it in the PR description.
+- **License changes require maintainer sign-off.** Keep the canonical PolyForm
+  text unmodified; any future custom commercial terms require legal review.
 - Keep the existing managed-hostname audit (from #1036/#1037) green: community sources must not reference managed-production hostnames; ee/ files are exempt.
 
 ## 7. Out of scope / later
@@ -147,4 +150,5 @@ Prove the seam end-to-end with a minimal package:
 - GitLab, "Why we merged CE and EE into a single codebase": https://about.gitlab.com/blog/a-single-codebase-for-gitlab-community-and-enterprise-edition/
 - PostHog LICENSE / ee/LICENSE: https://github.com/PostHog/posthog/blob/master/LICENSE
 - OpenHands (MIT + source-available `enterprise/`): https://github.com/OpenHands/OpenHands/blob/main/LICENSE
+- PolyForm Free Trial License 1.0.0: https://polyformproject.org/licenses/free-trial/1.0.0
 - OCV licensing handbook: https://handbook.opencoreventures.com/startup-manual/fundamentals/licensing-and-distribution
