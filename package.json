@@ -19,6 +19,7 @@
     "boundary:audit": "node scripts/ci/community-boundary.mjs",
     "build:shared": "pnpm --filter @humanly/shared build",
     "build:editor": "pnpm --filter @humanly/editor build",
+    "build:ee:billing": "pnpm --filter @humanly-ee/billing build",
     "build:backend": "pnpm --filter @humanly/backend build",
     "build:frontend": "pnpm --filter @humanly/frontend build",
     "build:frontend-user": "pnpm --filter @humanly/frontend-user build",

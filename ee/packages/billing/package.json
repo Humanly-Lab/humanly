@@ -1,0 +1,38 @@
+{
+  "name": "@humanly-ee/billing",
+  "version": "0.0.0",
+  "description": "Humanly Cloud billing edition module",
+  "private": true,
+  "license": "SEE LICENSE IN ../../LICENSE",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./writer": {
+      "types": "./dist/writer.d.ts",
+      "default": "./dist/writer.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "type-check": "tsc -p tsconfig.json --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "peerDependencies": {
+    "express": "^4.18.2",
+    "react": "^18.2.0"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/react": "^18.2.46",
+    "express": "^4.18.2",
+    "react": "^18.2.0",
+    "typescript": "^5.3.3"
+  }
+}

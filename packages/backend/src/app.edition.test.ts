@@ -34,6 +34,8 @@ async function run(): Promise<void> {
     assert.equal(health.edition, 'community');
     assert.equal(communityLoaderCalled, false);
 
+    const billingResponse = await fetch(`${community.origin}/api/v1/billing/plan`);
+    assert.equal(billingResponse.status, 404);
   } finally {
     await close(community.server);
   }
