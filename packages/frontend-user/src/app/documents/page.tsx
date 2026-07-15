@@ -23,6 +23,7 @@ import {
   Plus,
   RotateCcw,
   Search,
+  Settings2,
   Trash2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -44,6 +45,9 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
@@ -69,6 +73,7 @@ import {
 } from '@/components/ui/card';
 import { apiClient } from '@/lib/api-client';
 import { formatDateTime } from '@/lib/utils';
+import { useAuthStore } from '@/stores/auth-store';
 import {
   getMaxWritingAttempts,
   isWritingRestartAllowed,
@@ -83,6 +88,68 @@ type DocumentViewMode = 'cards' | 'list';
 
 const DOCUMENT_VIEW_MODE_STORAGE_KEY = 'humanly:documents:view-mode';
 const TASK_VIEW_MODE_STORAGE_KEY = 'humanly:assigned-tasks:view-mode';
+const WORKSPACE_PRIMARY_TAB_STORAGE_PREFIX =
+  'humanly:writer-dashboard:primary-tab';
+
+const isWorkspaceTab = (value: string | null): value is WorkspaceTab =>
+  value === 'documents' || value === 'tasks';
+
+const getWorkspacePrimaryTabStorageKey = (userId: string) =>
+  `${WORKSPACE_PRIMARY_TAB_STORAGE_PREFIX}:${userId}`;
+
+const WORKSPACE_TABS = {
+  documents: {
+    label: 'Personal Writing',
+    icon: FileText,
+  },
+  tasks: {
+    label: 'Assigned Task',
+    icon: BookOpen,
+  },
+} satisfies Record<WorkspaceTab, { label: string; icon: typeof FileText }>;
+
+function WorkspacePriorityMenu({
+  primaryTab,
+  onPrimaryTabChange,
+}: {
+  primaryTab: WorkspaceTab;
+  onPrimaryTabChange: (tab: WorkspaceTab) => void;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 shrink-0 text-muted-foreground"
+          aria-label="Customize sidebar order"
+          title="Customize sidebar order"
+        >
+          <Settings2 className="h-4 w-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-52">
+        <DropdownMenuLabel>Open first</DropdownMenuLabel>
+        <DropdownMenuRadioGroup
+          value={primaryTab}
+          onValueChange={(value) => {
+            if (isWorkspaceTab(value)) {
+              onPrimaryTabChange(value);
+            }
+          }}
+        >
+          <DropdownMenuRadioItem value="documents">
+            Personal Writing
+          </DropdownMenuRadioItem>
+          <DropdownMenuRadioItem value="tasks">
+            Assigned Task
+          </DropdownMenuRadioItem>
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
 
 const SORT_LABELS: Record<SortOption, string> = {
   lastEdited: 'Last edited',
@@ -320,6 +387,7 @@ const canStartNewTaskAttempt = (task: TaskEnrollment): boolean =>
 
 export default function DocumentsPage() {
   const router = useRouter();
+  const userId = useAuthStore((state) => state.user?.id);
   const [sortBy, setSortBy] = useState<SortOption>('lastEdited');
   const [documentSearchQuery, setDocumentSearchQuery] = useState('');
   const deferredDocumentSearchQuery = useDeferredValue(documentSearchQuery);
@@ -347,6 +415,8 @@ export default function DocumentsPage() {
   const [taskSortBy, setTaskSortBy] =
     useState<TaskSortOption>('recentlyJoined');
   const [activeWorkspaceTab, setActiveWorkspaceTab] =
+    useState<WorkspaceTab>('documents');
+  const [primaryWorkspaceTab, setPrimaryWorkspaceTab] =
     useState<WorkspaceTab>('documents');
   const [taskSearchQuery, setTaskSearchQuery] = useState('');
   const [showJoinDialog, setShowJoinDialog] = useState(false);
@@ -381,6 +451,33 @@ export default function DocumentsPage() {
       setTaskViewMode(storedTaskViewMode);
     }
   }, []);
+
+  useEffect(() => {
+    if (!userId) return;
+
+    const storedPrimaryTab = window.localStorage.getItem(
+      getWorkspacePrimaryTabStorageKey(userId)
+    );
+    if (isWorkspaceTab(storedPrimaryTab)) {
+      setPrimaryWorkspaceTab(storedPrimaryTab);
+      setActiveWorkspaceTab(storedPrimaryTab);
+    }
+  }, [userId]);
+
+  const handlePrimaryWorkspaceTabChange = useCallback(
+    (nextPrimaryTab: WorkspaceTab) => {
+      setPrimaryWorkspaceTab(nextPrimaryTab);
+      setActiveWorkspaceTab(nextPrimaryTab);
+
+      if (userId) {
+        window.localStorage.setItem(
+          getWorkspacePrimaryTabStorageKey(userId),
+          nextPrimaryTab
+        );
+      }
+    },
+    [userId]
+  );
 
   const handleDocumentViewModeChange = useCallback(
     (nextViewMode: DocumentViewMode) => {
@@ -699,6 +796,11 @@ export default function DocumentsPage() {
     );
   }
 
+  const workspaceTabOrder: WorkspaceTab[] =
+    primaryWorkspaceTab === 'tasks'
+      ? ['tasks', 'documents']
+      : ['documents', 'tasks'];
+
   return (
     <Tabs
       value={activeWorkspaceTab}
@@ -706,22 +808,29 @@ export default function DocumentsPage() {
     >
       <main className="flex min-h-[calc(100vh-73px)] w-full">
         <aside className="hidden w-[236px] shrink-0 border-r border-border/55 px-4 py-7 lg:block xl:w-[252px]">
-          <TabsList className="sticky top-24 flex h-auto w-full flex-col items-stretch justify-start gap-1 rounded-none bg-transparent p-0">
-            <TabsTrigger
-              value="documents"
-              className="h-11 justify-start gap-3 rounded-md px-3 text-sm data-[state=active]:bg-secondary data-[state=active]:shadow-none"
-            >
-              <FileText className="h-4 w-4" />
-              <span>Personal Writing</span>
-            </TabsTrigger>
-            <TabsTrigger
-              value="tasks"
-              className="h-11 justify-start gap-3 rounded-md px-3 text-sm data-[state=active]:bg-secondary data-[state=active]:shadow-none"
-            >
-              <BookOpen className="h-4 w-4" />
-              <span>Assigned Task</span>
-            </TabsTrigger>
-          </TabsList>
+          <div className="sticky top-24">
+            <div className="mb-1 flex justify-end">
+              <WorkspacePriorityMenu
+                primaryTab={primaryWorkspaceTab}
+                onPrimaryTabChange={handlePrimaryWorkspaceTabChange}
+              />
+            </div>
+            <TabsList className="flex h-auto w-full flex-col items-stretch justify-start gap-1 rounded-none bg-transparent p-0">
+              {workspaceTabOrder.map((tab) => {
+                const { icon: Icon, label } = WORKSPACE_TABS[tab];
+                return (
+                  <TabsTrigger
+                    key={tab}
+                    value={tab}
+                    className="h-11 justify-start gap-3 rounded-md px-3 text-sm data-[state=active]:bg-secondary data-[state=active]:shadow-none"
+                  >
+                    <Icon className="h-4 w-4" />
+                    <span>{label}</span>
+                  </TabsTrigger>
+                );
+              })}
+            </TabsList>
+          </div>
         </aside>
 
         <section className="min-w-0 flex-1 px-5 py-7 sm:px-8 lg:px-10">
@@ -732,17 +841,26 @@ export default function DocumentsPage() {
               </h1>
             </div>
 
-            <div className="mb-6 lg:hidden">
-              <TabsList className="grid h-auto w-full grid-cols-2 border border-border/70 bg-background p-1">
-                <TabsTrigger value="documents" className="gap-2 px-3 py-2.5">
-                  <FileText className="h-4 w-4" />
-                  <span>Personal Writing</span>
-                </TabsTrigger>
-                <TabsTrigger value="tasks" className="gap-2 px-3 py-2.5">
-                  <BookOpen className="h-4 w-4" />
-                  <span>Assigned Task</span>
-                </TabsTrigger>
+            <div className="mb-6 flex items-center gap-2 lg:hidden">
+              <TabsList className="grid h-auto min-w-0 flex-1 grid-cols-2 border border-border/70 bg-background p-1">
+                {workspaceTabOrder.map((tab) => {
+                  const { icon: Icon, label } = WORKSPACE_TABS[tab];
+                  return (
+                    <TabsTrigger
+                      key={tab}
+                      value={tab}
+                      className="gap-2 px-3 py-2.5"
+                    >
+                      <Icon className="h-4 w-4" />
+                      <span>{label}</span>
+                    </TabsTrigger>
+                  );
+                })}
               </TabsList>
+              <WorkspacePriorityMenu
+                primaryTab={primaryWorkspaceTab}
+                onPrimaryTabChange={handlePrimaryWorkspaceTabChange}
+              />
             </div>
 
             <TabsContent value="documents" className="mt-0 space-y-6">
