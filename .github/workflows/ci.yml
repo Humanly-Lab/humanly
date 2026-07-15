@@ -54,6 +54,12 @@ jobs:
             exit 1
           fi
 
+          printf '%s\n' '.github/workflows/deploy-production.yml' > "$fixture"
+          if node scripts/ci/community-boundary.mjs --paths-file "$fixture"; then
+            echo "Community boundary accepted an official deployment workflow." >&2
+            exit 1
+          fi
+
           mkdir -p packages/boundary-fixture
           printf '%s\n' "import '@humanly-ee/not-allowed';" > packages/boundary-fixture/index.ts
           if pnpm boundary:audit; then
