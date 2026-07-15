@@ -53,20 +53,22 @@ Humanly has two first-party web apps and a public certificate surface:
 
 Humanly Community contains the complete Writer, Publisher, and Verifier
 workflow plus the tools needed to run it on your own infrastructure. The
-managed service at `writehumanly.net` is operated through a separate private
-Humanly Cloud control plane. Production credentials and managed-service
-deployment automation are intentionally not stored in this public repository.
+managed service at `writehumanly.net` is developed and operated from the
+separate private `Humanly-Lab/humanly-cloud` repository. Production
+credentials, official-environment topology, and managed-service deployment
+automation are intentionally not stored in this public repository.
 
 ## Editions
 
-Humanly ships Community and Cloud from one public codebase. The core product
-under `packages/` is shared by both editions; Cloud-only implementations live
-under `ee/` so the two editions do not drift into separate application forks.
+Humanly Community and Humanly Cloud are maintained as separate products. This
+public repository is the Community source and self-hosting surface. The private
+`Humanly-Lab/humanly-cloud` repository owns the managed SaaS source, commercial
+features, and every workflow that deploys an official Humanly environment.
 
-| Edition | Distribution | Source license |
+| Edition | Repository | Distribution |
 | --- | --- | --- |
-| Humanly Community | Self-hosted with the quickstart or manual deployment guide | MIT for all content outside `ee/` |
-| Humanly Cloud | Managed SaaS at [writehumanly.net](https://writehumanly.net/) | MIT core plus source-available `ee/` code under PolyForm Free Trial 1.0.0 |
+| Humanly Community | Public `Humanly-Lab/humanly` | Self-hosted with the quickstart or manual deployment guide |
+| Humanly Cloud | Private `Humanly-Lab/humanly-cloud` | Managed SaaS and institution-ready commercial deployments |
 
 The PolyForm license for `ee/` is **not an open-source license**. It permits a
 time-limited evaluation under its stated terms; use outside those terms
@@ -74,10 +76,10 @@ requires a commercial license. See the
 [Humanly Enterprise Server README](ee/README.md) for the exact boundary and
 current contents.
 
-The private `Humanly-Lab/humanly-cloud-infra` repository is a deployment control
-plane only. It contains managed infrastructure, production configuration, and
-private artifacts such as model weights; it does not contain a second copy of
-the Humanly application source.
+Community CI, security scanning, package publishing, generic Docker assets, and
+self-hosting tools remain here. These are not managed Cloud deployment
+automation. Community CI rejects official-environment deployment workflows and
+managed-service topology if they are added to this repository.
 
 ## Features
 
