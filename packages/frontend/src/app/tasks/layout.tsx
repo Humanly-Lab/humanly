@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { ClipboardList } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth-store';
 import { Navbar } from '@/components/navigation/navbar';
+import { buildFrontendUserAuthUrl } from '@/lib/certificate-url';
 
 export default function TasksLayout({
   children,
@@ -32,7 +33,10 @@ export default function TasksLayout({
           router.replace('/tasks');
         }
       } catch (error) {
-        router.push('/login');
+        if (typeof window !== 'undefined') {
+          const nextPath = `${window.location.pathname}${window.location.search}`;
+          window.location.replace(buildFrontendUserAuthUrl('login', nextPath));
+        }
       } finally {
         setIsValidating(false);
       }

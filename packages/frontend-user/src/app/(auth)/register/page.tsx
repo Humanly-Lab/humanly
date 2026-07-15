@@ -24,6 +24,7 @@ import {
 import { OAuthButtons } from '@/components/auth/oauth-buttons';
 import { AuthenticatedRedirect } from '@/components/auth/authenticated-redirect';
 import { AuthCard } from '@/components/auth/auth-card';
+import { resolveAuthNextHref, sanitizeAuthNextPath } from '@/lib/app-origin';
 
 // Form validation schema
 const registerSchema = z
@@ -51,11 +52,6 @@ const registerSchema = z
   });
 
 type RegisterFormValues = z.infer<typeof registerSchema>;
-
-const getSafeNextPath = (value: string | null) =>
-  value && value.startsWith('/') && !value.startsWith('//')
-    ? value
-    : '/documents';
 
 // Password strength indicator
 function getPasswordStrength(password: string): {
@@ -118,7 +114,8 @@ export default function RegisterPage() {
 
   const watchPassword = form.watch('password');
   const passwordStrength = getPasswordStrength(watchPassword);
-  const safeNext = getSafeNextPath(searchParams.get('next'));
+  const safeNext = sanitizeAuthNextPath(searchParams.get('next'));
+  const nextHref = resolveAuthNextHref(safeNext);
   const loginHref =
     safeNext === '/documents'
       ? '/login'
@@ -137,7 +134,11 @@ export default function RegisterPage() {
         if (typeof window !== 'undefined') {
           localStorage.removeItem('pendingVerificationEmail');
         }
-        router.push(safeNext);
+        if (/^https?:\/\//i.test(nextHref)) {
+          window.location.assign(nextHref);
+        } else {
+          router.push(nextHref);
+        }
         return;
       }
 
@@ -193,7 +194,7 @@ export default function RegisterPage() {
         </div>
       }
     >
-      <AuthenticatedRedirect to={safeNext} />
+      <AuthenticatedRedirect to={nextHref} />
       <OAuthButtons
         next={safeNext}
         className="mb-5"

@@ -10,12 +10,9 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { sanitizeAuthNextPath } from '@/lib/app-origin';
 
 type VerificationState = 'idle' | 'loading' | 'success' | 'error';
-
-const getSafeNextPath = (value: string | null) => (
-  value && value.startsWith('/') && !value.startsWith('//') ? value : '/documents'
-);
 
 export default function VerifyEmailPage() {
   const searchParams = useSearchParams();
@@ -30,7 +27,7 @@ export default function VerifyEmailPage() {
   const [userEmail, setUserEmail] = useState<string>('');
 
   const emailParam = searchParams.get('email');
-  const safeNext = getSafeNextPath(searchParams.get('next'));
+  const safeNext = sanitizeAuthNextPath(searchParams.get('next'));
   const loginHref = safeNext === '/documents'
     ? '/login'
     : `/login?next=${encodeURIComponent(safeNext)}`;

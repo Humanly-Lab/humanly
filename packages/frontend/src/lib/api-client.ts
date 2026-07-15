@@ -1,4 +1,5 @@
 import axios, { AxiosError, AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
+import { buildFrontendUserAuthUrl } from './certificate-url';
 
 const RAW_API_URL =
   process.env.NEXT_PUBLIC_API_URL ??
@@ -147,7 +148,8 @@ const createApiClient = (): AxiosInstance => {
           // Refresh failed, clear tokens and redirect to login
           TokenManager.clearTokens();
           if (typeof window !== 'undefined') {
-            window.location.href = '/login';
+            const nextPath = `${window.location.pathname}${window.location.search}`;
+            window.location.replace(buildFrontendUserAuthUrl('login', nextPath));
           }
           return Promise.reject(refreshError);
         }

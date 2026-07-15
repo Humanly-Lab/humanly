@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { FileText, LogOut, User, Menu, UserCog } from 'lucide-react';
 import { BasicInfoDialog } from '@/components/account/basic-info-dialog';
 import { HumanlyWordmark } from '@/components/brand/humanly-wordmark';
@@ -24,11 +23,10 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet';
 import { useAuthStore } from '@/stores/auth-store';
-import { getFrontendUserUrl } from '@/lib/certificate-url';
+import { getFrontendUserUrl, navigateToFrontendUser } from '@/lib/certificate-url';
 import { getUserDisplayLabel } from './user-display';
 
 export function Navbar() {
-  const router = useRouter();
   const { user, logout } = useAuthStore();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [accountDialogOpen, setAccountDialogOpen] = useState(false);
@@ -37,7 +35,7 @@ export function Navbar() {
 
   const handleLogout = async () => {
     await logout();
-    router.push('/login');
+    navigateToFrontendUser();
   };
 
   return (

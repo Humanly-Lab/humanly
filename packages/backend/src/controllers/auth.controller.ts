@@ -22,14 +22,6 @@ const AUTH_COOKIE_BASE_OPTIONS = {
   ...(env.authCookieDomain ? { domain: env.authCookieDomain } : {}),
 };
 
-function isAdminPortalNextPath(next: string): boolean {
-  return next === '/tasks' || (next.startsWith('/tasks/') && !next.startsWith('/tasks/public/'));
-}
-
-function getOAuthCallbackFrontendUrl(next: string): string {
-  return isAdminPortalNextPath(next) ? env.frontendAdminUrl : env.frontendUserUrl;
-}
-
 function setAuthCookies(res: Response, accessToken: string, refreshToken: string): void {
   res.cookie('refreshToken', refreshToken, {
     ...AUTH_COOKIE_BASE_OPTIONS,
@@ -370,7 +362,6 @@ export const handleOAuthCallback = asyncHandler(async (req: Request, res: Respon
 
   try {
     const state = OAuthService.parseState(req.query.state);
-    redirectUrl = new URL('/auth/callback', getOAuthCallbackFrontendUrl(state.next));
 
     if (req.query.error) {
       throw new Error(String(req.query.error_description || req.query.error));

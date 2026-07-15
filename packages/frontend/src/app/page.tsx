@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { HumanlyWordmark } from '@/components/brand/humanly-wordmark';
+import { buildFrontendUserAuthUrl } from '@/lib/certificate-url';
 
 export default function HomePage() {
   return (
@@ -22,7 +23,7 @@ export default function HomePage() {
           </p>
           <div className="mt-8 flex justify-center">
             <Link
-              href="/login"
+              href={buildFrontendUserAuthUrl('login')}
               className="inline-flex items-center justify-center rounded-md bg-primary px-6 py-3 text-sm font-medium text-primary-foreground transition-transform hover:-translate-y-0.5"
             >
               Publisher Login

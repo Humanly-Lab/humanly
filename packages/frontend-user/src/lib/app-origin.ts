@@ -78,3 +78,28 @@ export function adminAppHref(path: string, location?: LocationLike): string {
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
   return `${getAdminAppOrigin(location)}${normalizedPath}`;
 }
+
+export function sanitizeAuthNextPath(
+  value: string | null | undefined,
+  fallback = '/documents',
+): string {
+  return value && value.startsWith('/') && !value.startsWith('//')
+    ? value
+    : fallback;
+}
+
+export function isAdminPortalPath(path: string): boolean {
+  const pathname = path.split(/[?#]/, 1)[0];
+  return pathname === '/tasks'
+    || (pathname.startsWith('/tasks/') && !pathname.startsWith('/tasks/public/'));
+}
+
+export function resolveAuthNextHref(
+  value: string | null | undefined,
+  location?: LocationLike,
+): string {
+  const safeNext = sanitizeAuthNextPath(value);
+  return isAdminPortalPath(safeNext)
+    ? adminAppHref(safeNext, location)
+    : safeNext;
+}

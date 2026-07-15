@@ -8,6 +8,7 @@ import { TokenManager } from '@/lib/api-client';
 import { useAuthStore } from '@/stores/auth-store';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import { resolveAuthNextHref, sanitizeAuthNextPath } from '@/lib/app-origin';
 import {
   Card,
   CardContent,
@@ -25,9 +26,8 @@ export default function OAuthCallbackPage() {
     const params = new URLSearchParams(window.location.hash.replace(/^#/, ''));
     const oauthError = params.get('error');
     const accessToken = params.get('accessToken');
-    const next = params.get('next') || '/documents';
-    const safeNext =
-      next.startsWith('/') && !next.startsWith('//') ? next : '/documents';
+    const safeNext = sanitizeAuthNextPath(params.get('next'));
+    const nextHref = resolveAuthNextHref(safeNext);
 
     if (oauthError) {
       setError(oauthError);
@@ -42,7 +42,11 @@ export default function OAuthCallbackPage() {
     TokenManager.setAccessToken(accessToken);
     fetchUser()
       .then(() => {
-        router.replace(safeNext);
+        if (/^https?:\/\//i.test(nextHref)) {
+          window.location.replace(nextHref);
+        } else {
+          router.replace(nextHref);
+        }
       })
       .catch(() => {
         TokenManager.clearTokens();

@@ -15,6 +15,7 @@ import { Mail, Lock, AlertCircle, Loader2, CheckCircle2 } from 'lucide-react';
 import { OAuthButtons } from '@/components/auth/oauth-buttons';
 import { AuthCard } from '@/components/auth/auth-card';
 import { AuthenticatedRedirect } from '@/components/auth/authenticated-redirect';
+import { resolveAuthNextHref, sanitizeAuthNextPath } from '@/lib/app-origin';
 
 // Form validation schema
 const loginSchema = z.object({
@@ -23,10 +24,6 @@ const loginSchema = z.object({
 });
 
 type LoginForm = z.infer<typeof loginSchema>;
-
-const getSafeNextPath = (value: string | null) => (
-  value && value.startsWith('/') && !value.startsWith('//') ? value : '/documents'
-);
 
 export default function LoginPage() {
   const router = useRouter();
@@ -37,7 +34,8 @@ export default function LoginPage() {
   const [resendSuccess, setResendSuccess] = useState(false);
   const [userEmail, setUserEmail] = useState<string>('');
   const { login, resendVerificationEmail, isLoading } = useAuthStore();
-  const safeNext = getSafeNextPath(searchParams.get('next'));
+  const safeNext = sanitizeAuthNextPath(searchParams.get('next'));
+  const nextHref = resolveAuthNextHref(safeNext);
   const nextQuerySuffix = safeNext === '/documents' ? '' : `&next=${encodeURIComponent(safeNext)}`;
   const verificationHref = userEmail
     ? `/verify-email?email=${encodeURIComponent(userEmail)}${nextQuerySuffix}`
@@ -66,7 +64,11 @@ export default function LoginPage() {
       
       await login(data.email, data.password);
 
-      router.push(safeNext);
+      if (/^https?:\/\//i.test(nextHref)) {
+        window.location.assign(nextHref);
+      } else {
+        router.push(nextHref);
+      }
     } catch (err: any) {
       const errorMessage = err?.message || 'Login failed. Please check your credentials and try again.';
       setError(errorMessage);
@@ -129,7 +131,7 @@ export default function LoginPage() {
         </>
       }
     >
-        <AuthenticatedRedirect to={safeNext} />
+        <AuthenticatedRedirect to={nextHref} />
         <OAuthButtons
           next={safeNext}
           className="mb-5"

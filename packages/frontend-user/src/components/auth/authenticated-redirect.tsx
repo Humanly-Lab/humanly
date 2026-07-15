@@ -21,7 +21,11 @@ export function AuthenticatedRedirect({ to = '/documents' }: AuthenticatedRedire
     checkAuth({ allowCookieRefresh: true }).finally(() => {
       const latestAuthState = useAuthStore.getState?.() ?? authState;
       if (latestAuthState.isAuthenticated || authState.isAuthenticated) {
-        router.replace(to);
+        if (/^https?:\/\//i.test(to)) {
+          window.location.replace(to);
+        } else {
+          router.replace(to);
+        }
       }
     });
   }, [authState, checkAuth, router, to]);

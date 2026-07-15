@@ -1,7 +1,6 @@
 'use client';
 
 import { FormEvent, useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { AlertCircle, Loader2, Trash2, UserRound } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -16,6 +15,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuthStore, type User } from '@/stores/auth-store';
+import { navigateToFrontendUser } from '@/lib/certificate-url';
 
 interface BasicInfoDialogProps {
   open: boolean;
@@ -44,7 +44,6 @@ function getInitialNames(user?: User | null) {
 }
 
 export function BasicInfoDialog({ open, mode, onOpenChange }: BasicInfoDialogProps) {
-  const router = useRouter();
   const { user, updateUser, deleteAccount } = useAuthStore();
   const initialNames = getInitialNames(user);
   const [firstName, setFirstName] = useState(initialNames.firstName);
@@ -109,7 +108,7 @@ export function BasicInfoDialog({ open, mode, onOpenChange }: BasicInfoDialogPro
       await deleteAccount();
       setDeleteDialogOpen(false);
       onOpenChange(false);
-      router.push('/login');
+      navigateToFrontendUser();
     } catch (err: any) {
       setDeleteError(err?.message || 'Failed to delete account.');
     } finally {
