@@ -69,6 +69,11 @@ jobs:
           rm -rf packages/boundary-fixture
           pnpm boundary:audit
 
+      - name: Audit quickstart database bootstrap
+        run: |
+          grep -F 'image: timescale/timescaledb:2.28.2-pg15' docker-compose.quickstart.yml
+          grep -F 'cat /proc/1/comm' docker-compose.quickstart.yml
+
   lint:
     name: Lint
     runs-on: ubuntu-24.04
