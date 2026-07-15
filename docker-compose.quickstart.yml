@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: timescale/timescaledb:latest-pg15
+    image: timescale/timescaledb:2.28.2-pg15
     environment:
       POSTGRES_DB: humanly_dev
       POSTGRES_USER: humanly_user
@@ -9,7 +9,9 @@ services:
     volumes:
       - quickstart_postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U humanly_user -d humanly_dev"]
+      # Timescale starts a temporary server during first-run tuning. Wait for
+      # the final PostgreSQL process so migrations cannot race its restart.
+      test: ["CMD-SHELL", "test \"$$(cat /proc/1/comm)\" = postgres && pg_isready -U humanly_user -d humanly_dev"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -28,7 +30,7 @@ services:
     restart: unless-stopped
 
   quickstart-migrate:
-    image: timescale/timescaledb:latest-pg15
+    image: timescale/timescaledb:2.28.2-pg15
     environment:
       PGHOST: postgres
       PGDATABASE: humanly_dev
