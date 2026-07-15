@@ -21,7 +21,6 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Humanly-Lab/humanly/releases/latest"><img alt="Release" src="https://img.shields.io/github/v/release/Humanly-Lab/humanly?style=flat&logo=github&logoColor=white&color=8b7a8f"></a>
   <img alt="Frontend stack" src="https://img.shields.io/badge/frontend-Next.js%20%2F%20TypeScript-71879b?style=flat&logo=nextdotjs&logoColor=white">
   <img alt="Backend stack" src="https://img.shields.io/badge/backend-Express%20%2F%20PostgreSQL-9c8068?style=flat&logo=postgresql&logoColor=white">
   <a href="./LICENSE"><img alt="License" src="https://img.shields.io/badge/license-MIT%20%2B%20PolyForm-8b8675?style=flat&logo=opensourceinitiative&logoColor=white"></a>
@@ -52,34 +51,7 @@ Humanly has two first-party web apps and a public certificate surface:
   seal attached to the record.
 
 Humanly Community contains the complete Writer, Publisher, and Verifier
-workflow plus the tools needed to run it on your own infrastructure. The
-managed service at `writehumanly.net` is developed and operated from the
-separate private `Humanly-Lab/humanly-cloud` repository. Production
-credentials, official-environment topology, and managed-service deployment
-automation are intentionally not stored in this public repository.
-
-## Editions
-
-Humanly Community and Humanly Cloud are maintained as separate products. This
-public repository is the Community source and self-hosting surface. The private
-`Humanly-Lab/humanly-cloud` repository owns the managed SaaS source, commercial
-features, and every workflow that deploys an official Humanly environment.
-
-| Edition | Repository | Distribution |
-| --- | --- | --- |
-| Humanly Community | Public `Humanly-Lab/humanly` | Self-hosted with the quickstart or manual deployment guide |
-| Humanly Cloud | Private `Humanly-Lab/humanly-cloud` | Managed SaaS and institution-ready commercial deployments |
-
-The PolyForm license for `ee/` is **not an open-source license**. It permits a
-time-limited evaluation under its stated terms; use outside those terms
-requires a commercial license. See the
-[Humanly Enterprise Server README](ee/README.md) for the exact boundary and
-current contents.
-
-Community CI, security scanning, package publishing, generic Docker assets, and
-self-hosting tools remain here. These are not managed Cloud deployment
-automation. Community CI rejects official-environment deployment workflows and
-managed-service topology if they are added to this repository.
+workflow plus the tools needed to run it on your own infrastructure.
 
 ## Features
 
